@@ -1,28 +1,29 @@
 # 현재 상태
 
-최종 갱신: 2026-11-14 · G0–G4 복원 완료 + Full 3D Quarter-View 체크포인트
+최종 갱신: 2026-11-15 · Full 3D Side-View Metroidvania Wave 2–3 완료 (Kiro), 커밋 후 미푸시
 
-## 기준선 (관찰된 실행 결과)
+## 구현 상태
 
-- 대상: Abuse DOS Shareware 1.05(`ABUSE.EXE` sha256 `8ba92587…1074f`). 사용자 옵션 A(역공학 금지 인지) 유지.
-- 복원 엔진: `src/engine/motion.ts`(15 Hz 설계값) 무수정. S1·S2·S3 + sealed holdout M05 11개 필드 exact 일치(`4/4 PASS`). `#lab`(Restoration Lab)이 비교를 보여 준다.
-- 3D 게임(신규 설계): 60 Hz `src/game3d/`(`world3d.ts`, `map3d.ts`, `bot3d.ts`), `src/engine/motion3d.ts`, WebGL2 Three.js `src/render3d/`(`scene3dFull.ts`, `riggedModels.ts`). 4구역, 무기 4종, 보스 Core Warden, Meltdown 탈출. 2D/2.5D 경로 `src/game/`, `src/render/`는 복원 테스트용으로 보존.
-- 자산: Meshy 7.1 9종, schema `reanimator-meshy-assets-v2`(`reference/manifests/meshy-assets.json`), `public/assets/models/*.glb`. 리깅 3종(operative·warden·bio-stalker, 66 joints)과 정적 6종. Meshy 크레딧 718.
-- 검증:
-  - `make check` exit 0: `tsc` ok, `node --test tests/` 35/35(`game`, `game3d`, `reference`), `reference-verify` 3/3, `reach` PASS, `reach3d` 10 waypoint 573 ticks / 9.6 s, `dist-guard` `{"status":"PASS","files":12,"bytes":14304572,"checkedAgainst":218,"problems":[]}`
-  - `make reference-holdout` 4/4 PASS(S1·S2·S3·M05)
-  - `make smoke-local` exit 0, 22/22 PASS(`webgl-3d`, `loadedModels: 9`, `failedModels: []`, `riggedCount: 8`, `fps: 60.5`, 페이지 오류 없음)
-  - `node tools/smoke/capture-showcase.ts`: `docs/evidence/g4_playable/` PNG 6장(`01_title_3d.png`…`06_restoration_lab.png`), 육안 검수
+- 시뮬레이션 `src/game3d/world3d.ts`: XY 레인(z=0) 60 Hz 결정적 시뮬. 잠금 6종 판정표 `DOOR_REQUIRED_WEAPON`, 불일치 시 상태 불변 + 힌트, Grenade 폭발로 yellow 개방, red는 콘솔 필요, escape는 Meltdown 후 개방. 업그레이드(`thruster_boots`, `energy_tank`: `maxHp = 100 + 30 * tanks`), Save 스테이션(`lastSaveId`, `respawnPlayer3D`), 섹터 추적(`currentRoom`, `visitedRooms`), `getPlayerPose3D`.
+- 봇 `bot3d.ts`(`createBot3D`) + 조향 `nav3d.ts`: 6섹터 능력 게이트 순서로 완주(3377 ticks, HP 160).
+- 렌더러 `scene3dFull.ts`: 사이드뷰 원근 카메라, z=0 평면 마우스 레이캐스트, 틱 보간, 색상 잠금 실드, Save/Upgrade 비주얼, 보스 충격파 양방향 파동. `fallback2d.ts`: XY 투영 폴백. `main.ts`: A/D, W/Space, S(dropDown), Tab 미니맵, 디버그 훅 `__reanimator{,Advance,Step,RunBot}`.
+- 도달성 `tools/game/reach3d.ts`: 52 waypoint 3369 ticks, Shaft 4.4 m 게이트(부츠 없음=도달 불가, 있음=가능).
+
+## 검증 기준선 (이번 세션 관찰)
+
+- `make check` exit 0: `tsc`, `node --test tests/` 44/44(`game3d` 14), `reference-verify` 3/3, `reach`+`reach3d` PASS, build, dist-guard PASS(12 files 14,329,300 B / 218).
+- `make reference-holdout` 4/4 PASS(이 엔진 리비전 1회, 봉인 엔진 무변경).
+- `make smoke-local` 29/29 PASS(`webgl-3d`, `loadedModels: 9`, `fps: 60.5`, 페이지 오류 0).
+- `capture-showcase.ts` PNG 11장(`docs/evidence/g4_playable/`) 육안 검수: 사이드뷰 카메라, 양손 IK 조준, 점프 상승/하강, 보스·미니맵 HUD 비겹침 확인.
 
 ## 진입점
 
-- [평가 기록](EVALUATION.md) · [Meshy 계획](plans/MESHY_PLAYABLE_UPGRADE_PLAN.md) · [동작 지도](reconstruction/BEHAVIOR_MAP.md) · [완료 요약](COMPLETED_SUMMARY.md)
-- [G1](evidence/G1_REPORT.md) · [G2](evidence/G2_REPORT.md) · [G3](evidence/G3_REPORT.md) · [G4](evidence/G4_REPORT.md) · [도구](evidence/TOOLCHAIN.md) · [자산·권리](reference/ASSET_REGISTER.md) · [판정 계약](reference/VERIFICATION_CONTRACT.md)
-- spec: `.kiro/specs/full-3d-quarter-view/`
+- [진행 기록](PROGRESS_LOG.md) · [다음 작업](NEXT_PLAN.md) · [Kiro 활용](KIRO_USAGE.md) · [Kiro 인계서](plans/KIRO_METROIDVANIA_HANDOFF.md)
+- spec: `.kiro/specs/metroidvania-3d/` · steering: `.kiro/steering/reanimator.md`
+- [평가](EVALUATION.md) · [도구](evidence/TOOLCHAIN.md) · [판정 계약](reference/VERIFICATION_CONTRACT.md)
 
 ## 미확인·위험
 
-- 사람 플레이 없음: 난이도·재미·사람 플레이 시간은 G5 관찰 필요. 봇 완주는 결정적 입력 기준.
-- 복원 범위는 `src/engine/motion.ts` 이동 물리뿐(평지·좌벽·천장·중력·점프·착지). 원본 사격 관찰 C01 NOT RUN. 3D 슈터·무기·적·맵·음향은 `new-design`.
-- 15 Hz는 설계값(원본 tick 미측정). 스모크·쇼케이스는 headless Chrome + request routing 기반.
-- `.kiro/settings/mcp.json` REA MCP 쓰기 권한 차단 잔여.
+- 사람 플레이(G5) 미실시. 봇은 HP를 거의 잃지 않아 난이도 판단 근거가 못 된다.
+- 부츠는 Shaft 상부 데크 지름길만 막고 주 진행(Bio-Labs 경유 Security)은 부츠 없이도 가능(설계 확인 필요).
+- 점프 시 캐릭터가 배경 기둥에 가려 어둡게 보이는 구간 있음(조명 튜닝 후보). 15 Hz는 설계값. `.kiro/settings/mcp.json` REA MCP 쓰기 차단 잔여.

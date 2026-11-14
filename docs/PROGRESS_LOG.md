@@ -1,5 +1,19 @@
 # 진행 기록
 
+## 2026-11-15 — Side-View Metroidvania Wave 2–3 완료 (Kiro)
+- Status: 전체 파이프라인 연결 완료, 게이트·스모크·쇼케이스 통과, 로컬 커밋(푸시 보류).
+- Changed: `src/game3d/{world3d,bot3d,nav3d}.ts`, `src/render3d/{scene3dFull,fallback2d}.ts`, `src/ui/main.ts`, `tools/game/{reach3d,playthrough}.ts`, `tools/smoke/{smoke,capture-showcase}.ts`, `tests/game3d.test.ts`, spec tasks, steering, `docs/*`.
+- Verified: `make check` exit 0(44/44, `reach3d` 3369 ticks + 부츠 게이트, dist-guard PASS), `make reference-holdout` 4/4, `make smoke-local` 29/29(60.5 fps), PNG 11장 육안 검수, 봇 56 s 완주, 봉인 파일 무변경.
+- Fixed: 봇 `leap` 스텝이 도착 후에도 반복 점프하던 문제(tolX 확대 + 하강 목표 시 leap 해제); 신규 PointLight 5개 추가로 smoke fps 28 → 제거 후 60.5.
+- Next: 푸시 승인, G5 사람 플레이.
+
+## 2026-11-15 — Full 3D Side-View Metroidvania Wave 1 체크포인트 및 Kiro 전면 인계
+- Status: Wave 0–1 작업물(물리·6섹터 맵·3D IK/점프·미니맵/HUD/오디오·spec) 워킹 트리에 작성 완료, Wave 2–3 Kiro 전면 인계. `make check`·`make smoke-local` **unverified**(중간 전환 상태, `git commit` 미수행).
+- Changed: `src/game3d/{types3d,map3d}.ts`, `src/engine/motion3d.ts`, `src/render3d/riggedModels.ts`, `src/ui/{minimap,audio,style}.*`, `index.html`, `.kiro/specs/metroidvania-3d/*`, `.kiro/steering/reanimator.md`, `docs/plans/KIRO_METROIDVANIA_HANDOFF.md`, `docs/{AGENT_BRIEF,STATUS,NEXT_PLAN,PROGRESS_LOG,DECISIONS,LESSONS,KIRO_USAGE}.md`.
+- Verified: `node tools/reference/verify.ts` 3/3 PASS(S1 100, S2 35, S3 59); `node --test tests/reference.test.ts tests/game.test.ts` 30/30 PASS; `tsc -p tsconfig.json 2>&1 | head -n 40`은 미전환 `src/game3d/world3d.ts` 오류 2건(`TS2322` line 219, `TS2367` line 237) 출력. 봉인 파일 무수정.
+- Blockers: Wave 2(`world3d`, `bot3d`, `scene3dFull`, `fallback2d`, `main`, `smoke`, `capture-showcase`, `game3d.test`, `reach3d`) 미전환; `agy` 서브에이전트 `1ef925e0` 429 할당량 초과.
+- Next: `docs/plans/KIRO_METROIDVANIA_HANDOFF.md` 절차대로 Kiro가 Wave 2 4-way 병렬 전환 및 Wave 3 게이트·시각 검수·커밋/푸시 수행.
+
 ## 2026-11-14 — Full 3D Quarter-View 문서 동기화 (kiro-cli Task C)
 
 - Status: 문서를 G0–G4 복원 + Full 3D Quarter-View 기준으로 정렬. 코드·테스트·reference 무수정.

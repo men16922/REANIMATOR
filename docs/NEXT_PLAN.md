@@ -1,21 +1,21 @@
 # 다음 작업
 
-2026-11-14 · 열린 작업만 둔다. 완료 내역은 [완료 요약](COMPLETED_SUMMARY.md) 및 [Meshy 계획](plans/MESHY_PLAYABLE_UPGRADE_PLAN.md).
+Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 
-## 사용자 작업 (직접 실행/확인)
+## 사용자 확인 필요
 
-- [ ] `npm run dev` 실행 후 Full 3D 빌드 직접 1회 플레이(`WASD`, 마우스 조준, 좌클릭 발사, `Space` 점프, `Shift` Jet-Dash, `F` 상호작용, `E` 헤드램프, `1`–`4` 무기).
-- [ ] `.kiro/settings/mcp.json`에 REA 등록(권한 규칙으로 에이전트 쓰기 차단). 스니펫은 `docs/evidence/TOOLCHAIN.md`.
+- `git push origin main` 승인(현재 로컬 커밋만 존재).
 
-## G5 — 사람 플레이 관찰 (사용자 일정 필요)
+## G5 — 사람 플레이 관찰
 
-- [ ] 3인 관찰(`docs/evaluation/PLAYTEST_FORM.md`), 실제 사람 플레이 시간·난이도·조명 선택의 재미 측정, 주요 문제 수정 및 동일 조건 재확인.
+- `npm run dev`로 1회 이상 직접 플레이해 감각·난이도·탐험 흐름을 [EVALUATION.md](EVALUATION.md)에 기록.
+- 관찰 후보: 점프 구간 캐릭터 가독성(기둥 뒤 어두움), 부츠 비필수 경로, 봇 대비 사람 난이도, 미니맵 확장(Tab).
 
-## G6 — 제출 후보 (사용자 지시 필요)
+## 설계 후보 (미착수)
 
-- [ ] 최신 공식 규정 재확인, 영문 설명, 2분40초 영상(`docs/evidence/g4_playable/` 갤러리 활용), 공개 저장소·배포·제출은 사용자 지시 범위에서만 수행.
+- Thruster Boots를 주 진행에 필수로 만들지 결정(예: `bio-plat-3` → `bio-grate-up` 간격 확대 후 `reach3d` 재검증).
+- 사망 후 체크포인트 복귀(`C` 키)의 UI 안내 보강.
 
-## 기록·보강 선택 사항
+## G6 — 최종 정리·제출 준비
 
-- [ ] Kiro hook 로그(`docs/evidence/g2/hook_runs.log`)에 유발 파일명을 남기도록 hook 명령 개선.
-- [ ] 원본 사격 관찰(C01) 재시도는 선택 사항(`src/engine/motion.ts`와 신규 설계 경계는 분리됨).
+- 문서 링크·증거 PNG·빌드 상태 최종 확인.

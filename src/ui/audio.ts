@@ -1,5 +1,5 @@
 // Synthesised sound effects (NEW-DESIGN WebAudio API, zero copied files). Original Abuse SFX are excluded by the asset register.
-import type { SoundEvent3D } from '../game3d/world3d.ts';
+import type { SoundEvent3D } from '../game3d/types3d.ts';
 
 let ctx: AudioContext | null = null;
 let master: GainNode | null = null;
@@ -70,6 +70,24 @@ export const sfx = {
     tone(180, 0.09, 'triangle', 0.07, 90);
   },
   jump: () => tone(240, 0.09, 'sine', 0.07, 460),
+  doubleJump: () => {
+    tone(380, 0.08, 'sine', 0.08, 820);
+    tone(1200, 0.1, 'square', 0.04, 1900, 0.04);
+    tone(180, 0.12, 'triangle', 0.06, 80, 0.02);
+  },
+  doorBlast: () => {
+    tone(1100, 0.06, 'square', 0.08, 300);
+    tone(150, 0.22, 'sawtooth', 0.16, 40, 0.03);
+    tone(600, 0.14, 'triangle', 0.08, 220, 0.08);
+  },
+  saveStation: () => {
+    [523, 659, 784, 1047].forEach((f, i) => tone(f, 0.18, 'sine', 0.11, undefined, i * 0.08));
+    tone(130, 0.5, 'triangle', 0.08, 90);
+  },
+  upgrade: () => {
+    [392, 523, 659, 784, 1047, 1319].forEach((f, i) => tone(f, 0.22, 'triangle', 0.13, undefined, i * 0.07));
+    tone(98, 0.7, 'sawtooth', 0.07, 196);
+  },
   hit: () => tone(240, 0.07, 'sawtooth', 0.11, 120),
   kill: () => {
     tone(175, 0.24, 'sawtooth', 0.14, 42);
@@ -110,6 +128,10 @@ export function playSoundEvent3D(ev: SoundEvent3D): void {
     case 'rail': sfx.railShot(); break;
     case 'dash': sfx.dash(); break;
     case 'jump': sfx.jump(); break;
+    case 'double_jump': sfx.doubleJump(); break;
+    case 'door_blast': sfx.doorBlast(); break;
+    case 'save_station': sfx.saveStation(); break;
+    case 'upgrade': sfx.upgrade(); break;
     case 'hurt': sfx.hurt(); break;
     case 'unlock': sfx.unlock(); break;
     case 'slam': sfx.slam(); break;

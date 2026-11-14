@@ -14,3 +14,6 @@
 - 문서 수치는 직접 관찰한 명령 출력만 쓴다. 2.5D 단계 수치(30 tests, 9-file dist)가 3D 단계 문서에 남아 stale해지기 쉬우므로 갱신 시 `rg '30/30|5,171,090'`로 확인한다.
 - 모델 크기·삼각형 수는 `ls -la public/assets/models`와 `reference/manifests/meshy-assets.json`에서 가져온다. 자산 교체 시 등록부를 함께 갱신한다.
 - 봉인 파일(`src/engine/motion.ts` 등)은 신규 3D 작업에서도 수정하지 않는다. 신규 이동은 `src/engine/motion3d.ts`에 둔다.
+
+- `operative.glb` Meshy `jump` 클립(`1.867s`)은 `0.00..0.50s` 지상 예비 웅크림과 `+0.42m` `Hips.y` 스파이크를 포함하므로 `vy` 기반 `0.53..1.08s` 직접 스크럽과 `hipsBaseY` 클램프가 필수다.
+- Mixamo 리그는 팔 본 축이 `+Y` 기준이므로 양손 라이플 IK는 로컬 오일러 회전 대신 월드 기반 쿼터니언 정렬 + `riflePivot` 월드 기저 고정을 유지해야 360° 조준이 뒤틀리지 않는다.

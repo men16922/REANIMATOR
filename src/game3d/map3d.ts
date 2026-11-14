@@ -1,76 +1,54 @@
-// Full 3D 4-zone facility layout for REANIMATOR (Zone A Cryo Bay -> Zone B Bio-Processing ->
-// Zone C Reactor Core Boss Arena -> Zone D Extraction Gauntlet).
-// Designed for Quarter-View visibility (low south cutaway barriers) with true multi-elevation catwalks,
-// walkable ramps, acid cooling pits, blast pillars, security bulkhead doors, weapon pedestals, and bio-barrels.
+// Full 3D side-view Metroidvania facility for REANIMATOR.
+// Gameplay lane is the XY plane at Z=0. All solids span Z -3.2..3.2; decorative pillars sit at
+// z=-2.4 (background) so the Z=0 lane stays unobstructed.
+//
+// Rooms (6): airlock -> shaft (hub) -> mines | biolabs <-> security ; biolabs -> core (boss).
+// Jump budget: single jump ~2.55 m, Thruster Double-Jump ~5.0 m. One-way platforms (kind 'platform',
+// thickness 0.28) are passable from below and can be dropped through with S/Down.
+//
+// Progression gates (heights measured against the nearest reachable footing):
+//   shaft y=4.4 -> y=8.8 : 4.4 m, needs Double-Jump (thruster_boots, from room_mines).
+//   biolabs y=2.2 -> grate y=6.6 : 4.4 m, needs Double-Jump (or the 4.5 platform + long jump).
 
-import type { BoxSolid3D, Collider3D, Pillar3D, Ramp3D } from '../engine/motion3d.ts';
+import type {
+  AcidPool3D,
+  BarrelSpawn3D,
+  Collider3D,
+  EnemySpawn3D,
+  Level3D,
+  MapSolid3D,
+  MedStation3D,
+  Pillar3D,
+  RoomDef3D,
+  SaveStation3D,
+  UpgradePedestal3D,
+  WeaponPedestal3D,
+} from './types3d.ts';
 
-export type { Ramp3D };
-export type WeaponSlot3D = 1 | 2 | 3 | 4;
+export type {
+  AcidPool3D,
+  BarrelSpawn3D,
+  BoxKind3D,
+  Collider3D,
+  DoorLockKind3D,
+  EnemySpawn3D,
+  Level3D,
+  MapSolid3D,
+  MedStation3D,
+  Pillar3D,
+  Ramp3D,
+  RoomDef3D,
+  SaveStation3D,
+  SectorId3D,
+  UpgradePedestal3D,
+  UpgradePickupKind3D,
+  WeaponPedestal3D,
+  WeaponSlot3D,
+} from './types3d.ts';
 
-export interface MapSolid3D extends BoxSolid3D {
-  /** Render top height when south cutaway wall should stay low visually while keeping full collision height. */
-  visualMaxY?: number;
-  color?: number;
-  emissive?: number;
-}
-
-export interface AcidPool3D {
-  id: string;
-  minX: number;
-  maxX: number;
-  minZ: number;
-  maxZ: number;
-  surfaceY: number;
-}
-
-export interface BarrelSpawn3D {
-  id: string;
-  x: number;
-  y: number;
-  z: number;
-}
-
-export interface WeaponPedestal3D {
-  id: string;
-  weapon: WeaponSlot3D;
-  x: number;
-  y: number;
-  z: number;
-}
-
-export interface MedStation3D {
-  id: string;
-  x: number;
-  y: number;
-  z: number;
-  heal: number;
-}
-
-export interface EnemySpawn3D {
-  id: string;
-  kind: 'stalker' | 'crawler' | 'spitter' | 'warden';
-  x: number;
-  y: number;
-  z: number;
-  zone: 'A' | 'B' | 'C' | 'D';
-}
-
-export interface Level3D {
-  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
-  spawn: { x: number; y: number; z: number };
-  consolePos: { x: number; y: number; z: number; radius: number };
-  corePos: { x: number; y: number; z: number; radius: number };
-  exitPos: { x: number; y: number; z: number; radius: number };
-  solids: MapSolid3D[];
-  pillars: Pillar3D[];
-  ramps: Ramp3D[];
-  acidPools: AcidPool3D[];
-  barrels: BarrelSpawn3D[];
-  pedestals: WeaponPedestal3D[];
-  medStations: MedStation3D[];
-  enemies: EnemySpawn3D[];
-}
+const MIN_Z = -3.2;
+const MAX_Z = 3.2;
+const PLATFORM_THICKNESS = 0.28;
 
 function box(
   id: string,
@@ -78,184 +56,252 @@ function box(
   maxX: number,
   minY: number,
   maxY: number,
-  minZ: number,
-  maxZ: number,
   kind: MapSolid3D['kind'] = 'wall',
   extra: Partial<MapSolid3D> = {},
 ): MapSolid3D {
-  return { id, minX, maxX, minY, maxY, minZ, maxZ, kind, ...extra };
+  return { id, minX, maxX, minY, maxY, minZ: MIN_Z, maxZ: MAX_Z, kind, ...extra };
+}
+
+/** One-way platform whose walkable top surface is `y`. */
+function platform(id: string, minX: number, maxX: number, y: number, extra: Partial<MapSolid3D> = {}): MapSolid3D {
+  return box(id, minX, maxX, y - PLATFORM_THICKNESS, y, 'platform', extra);
+}
+
+function door(
+  id: string,
+  doorId: string,
+  doorLock: NonNullable<MapSolid3D['doorLock']>,
+  minX: number,
+  maxX: number,
+  minY: number,
+  maxY: number,
+  emissive: number,
+): MapSolid3D {
+  return box(id, minX, maxX, minY, maxY, 'door', { doorId, doorLock, color: 0x2c2f3a, emissive });
+}
+
+function pillar(id: string, x: number, minY: number, maxY: number, radius = 0.5): Pillar3D {
+  return { id, x, z: -2.4, radius, minY, maxY };
 }
 
 export function buildFacilityMap3D(): Level3D {
+  const rooms: RoomDef3D[] = [
+    {
+      id: 'room_airlock', sector: 'airlock', name: 'Airlock Bay',
+      hint: 'Cryo airlock. The extraction balcony above is sealed until the reactor goes critical.',
+      minX: 0, maxX: 24, minY: 0, maxY: 9,
+      gridX: 0, gridY: 1, gridW: 3, gridH: 1, ambientColor: 0x1a2a3a,
+      hasExit: true, neighbors: ['room_shaft'],
+    },
+    {
+      id: 'room_shaft', sector: 'shaft', name: 'Central Shaft',
+      hint: 'Vertical hub. The upper deck is out of reach of a single jump.',
+      minX: 24, maxX: 42, minY: -12, maxY: 14,
+      gridX: 3, gridY: 0, gridW: 2, gridH: 4, ambientColor: 0x1d2433,
+      neighbors: ['room_airlock', 'room_mines', 'room_biolabs', 'room_security'],
+    },
+    {
+      id: 'room_mines', sector: 'mines', name: 'Acid Mines',
+      hint: 'Acid pit with a stepping stone. The vault ledge holds the Thruster Boots.',
+      minX: 0, maxX: 24, minY: -12, maxY: -4,
+      gridX: 0, gridY: 3, gridW: 3, gridH: 1, ambientColor: 0x1f3a22,
+      hasSave: true, neighbors: ['room_shaft'],
+    },
+    {
+      id: 'room_biolabs', sector: 'biolabs', name: 'Bio-Labs',
+      hint: 'Acid basin, tiered grates and the Rail-Cannon. A grate leads up to Security.',
+      minX: 42, maxX: 70, minY: -1, maxY: 8,
+      gridX: 5, gridY: 1, gridW: 3, gridH: 2, ambientColor: 0x2b3a1a,
+      neighbors: ['room_shaft', 'room_security', 'room_core'],
+    },
+    {
+      id: 'room_security', sector: 'security', name: 'Security Deck',
+      hint: 'Console that arms the reactor sequence.',
+      minX: 42, maxX: 70, minY: 8.4, maxY: 14,
+      gridX: 5, gridY: 0, gridW: 3, gridH: 1, ambientColor: 0x2a2038,
+      hasSave: true, neighbors: ['room_shaft', 'room_biolabs'],
+    },
+    {
+      id: 'room_core', sector: 'core', name: 'Reactor Core',
+      hint: 'Core Warden arena. The reactor sits at the east end.',
+      minX: 70, maxX: 98, minY: -1, maxY: 10,
+      gridX: 8, gridY: 1, gridW: 3, gridH: 2, ambientColor: 0x3a1a1a,
+      hasBoss: true, neighbors: ['room_biolabs'],
+    },
+  ];
+
   const solids: MapSolid3D[] = [
-    // --- FLOOR DECKS ---
-    // Zone A floor (0..23, -8..8)
-    box('floor-a', -0.5, 23.2, -1.2, 0, -8.5, 8.5, 'catwalk', { color: 0x1e252e }),
-    // Zone B floor split around sunken acid cooling vat (31..40, z -1.8..2.4)
-    box('floor-b-n', 23.2, 51.0, -1.2, 0, -9.5, -1.8, 'catwalk', { color: 0x1d252d }),
-    box('floor-b-s', 23.2, 51.0, -1.2, 0, 2.4, 9.5, 'catwalk', { color: 0x1d252d }),
-    box('floor-b-w', 23.2, 31.0, -1.2, 0, -1.8, 2.4, 'catwalk', { color: 0x1d252d }),
-    box('floor-b-e', 40.0, 51.0, -1.2, 0, -1.8, 2.4, 'catwalk', { color: 0x1d252d }),
-    box('floor-b-vat', 30.8, 40.2, -1.5, -0.35, -2.0, 2.6, 'catwalk', { color: 0x12261a }),
-    // Zone C boss arena floor (51..78, -10..10)
-    box('floor-c', 51.0, 78.0, -1.2, 0, -10.5, 10.5, 'catwalk', { color: 0x1c212a }),
-    // Zone D extraction corridor floor (78..98, -8..8)
-    box('floor-d', 78.0, 99.0, -1.2, 0, -8.5, 8.5, 'catwalk', { color: 0x1c232c }),
+    // ===== 1. room_airlock =====
+    box('airlock-floor', -0.5, 24, -1.2, 0, 'catwalk', { color: 0x1e252e }),
+    box('airlock-ceiling', 0, 24, 9.0, 10.2),
+    box('airlock-wall-west', -1.5, 0, 0, 10),
+    box('airlock-balcony', 1.5, 13.5, 4.8, 5.2, 'catwalk', { color: 0x2a3542 }),
+    box('airlock-bridge', 13.5, 24.4, 4.8, 5.2, 'catwalk', { color: 0x2a3542 }),
+    // East partition: lower doorway y0..3.6, upper doorway y5.2..8.6
+    door('door-airlock-shaft', 'door_airlock_shaft', 'blue', 23.6, 24.4, 0, 3.6, 0x3a8cff),
+    box('airlock-divider-mid', 23.6, 24.4, 3.6, 4.8),
+    door('door-escape', 'door_escape', 'escape', 23.6, 24.4, 5.2, 8.6, 0xff3a2a),
+    box('airlock-divider-top', 23.6, 24.4, 8.6, 10.2),
+    box('airlock-crate', 9.0, 10.6, 0, 1.4, 'crate', { color: 0x3a434e }),
 
-    // --- PERIMETER WALLS (North high walls, South low cutaway barriers with full collision height) ---
-    box('wall-west', -1.2, 0.0, 0, 5.4, -8.5, 8.5, 'wall'),
-    box('wall-east', 98.0, 99.4, 0, 5.4, -8.5, 8.5, 'wall'),
+    // ===== 2. room_shaft =====
+    box('shaft-floor', 24, 42, -12.2, -11.0, 'catwalk', { color: 0x1d252d }),
+    box('shaft-ceiling', 24, 42, 13.8, 14.8),
+    box('shaft-wall-west-low', 23.6, 24.4, -7.4, 0),
+    box('shaft-wall-west-bottom', 23.6, 24.4, -12, -11),
+    door('door-shaft-mines', 'door_shaft_mines', 'green', 23.6, 24.4, -11, -7.4, 0x3aff6a),
+    box('shaft-wall-west-up', 23.6, 24.4, 8.8, 14),
+    box('shaft-wall-east-low', 41.6, 42.4, -12, 0),
+    door('door-shaft-biolabs', 'door_shaft_biolabs', 'yellow', 41.6, 42.4, 0, 3.6, 0xffd23a),
+    box('shaft-wall-east-mid', 41.6, 42.4, 3.6, 8.8),
+    box('shaft-wall-east-top', 41.6, 42.4, 12.4, 13.8),
+    // y=0 landing: solid side ledges and a one-way centre grate
+    box('shaft-ledge-west-0', 24, 29, -0.5, 0, 'catwalk'),
+    box('shaft-ledge-east-0', 37, 42, -0.5, 0, 'catwalk'),
+    platform('shaft-grate-0', 29, 37, 0),
+    // Descent platforms (one-way)
+    platform('shaft-down-1', 29, 37, -2.2),
+    platform('shaft-down-2', 26, 34, -4.4),
+    platform('shaft-down-3', 31, 39, -6.6),
+    platform('shaft-down-4', 27, 35, -8.8),
+    // Ascent platforms (one-way), kept on the east side
+    platform('shaft-up-1', 34, 40, 2.2),
+    platform('shaft-up-2', 35, 41, 4.4),
+    // Upper deck at y=8.8: 4.4 m above shaft-up-2 -> Double-Jump gate
+    platform('shaft-upper-grate', 28, 37, 8.8),
+    box('shaft-upper-floor-east', 37, 42, 8.4, 8.8, 'catwalk'),
+    // Escape step-down ledge, flush with the airlock bridge (y=5.2)
+    platform('shaft-escape-ledge', 24.4, 28, 5.2),
 
-    box('wall-a-n', 0, 23.2, 0, 5.4, -9.2, -8.0, 'wall'),
-    box('wall-a-s', 0, 23.2, 0, 4.6, 8.0, 9.2, 'wall', { visualMaxY: 0.78 }),
+    // ===== 3. room_mines =====
+    box('mines-wall-west', -1.5, 0, -12.2, -3.5),
+    box('mines-ceiling', 0, 24, -4.0, -3.2),
+    box('mines-floor-west', 0, 9.2, -12.2, -11.0, 'catwalk', { color: 0x1d252d }),
+    box('mines-floor-pit', 9.0, 16.7, -12.6, -11.4, 'catwalk', { color: 0x12261a }),
+    box('mines-floor-east', 16.5, 24, -12.2, -11.0, 'catwalk', { color: 0x1d252d }),
+    platform('mines-stone', 11.3, 14.3, -9.6),
+    box('mines-vault', 1.0, 10.5, -9.0, -8.6, 'catwalk', { color: 0x2a3542 }),
 
-    box('wall-b-n', 23.2, 51.0, 0, 5.4, -10.2, -9.0, 'wall'),
-    box('wall-b-s', 23.2, 51.0, 0, 4.6, 9.0, 10.2, 'wall', { visualMaxY: 0.78 }),
+    // ===== 4. room_biolabs =====
+    box('bio-floor-west', 42, 51, -1.2, 0, 'catwalk', { color: 0x1d252d }),
+    box('bio-floor-basin', 50.8, 58.2, -1.5, -0.45, 'catwalk', { color: 0x12261a }),
+    box('bio-floor-east', 58, 70, -1.2, 0, 'catwalk', { color: 0x1d252d }),
+    platform('bio-plat-1', 46, 54, 2.2),
+    platform('bio-plat-2', 60, 69, 2.2),
+    platform('bio-plat-3', 52, 58, 4.5),
+    platform('bio-grate-up', 62, 68, 6.6),
+    box('bio-wall-east-up', 69.6, 70.4, 4.0, 8.8),
+    door('door-boss', 'door_boss', 'red', 69.6, 70.4, 0, 4.0, 0xff2a3c),
 
-    box('wall-c-n', 51.0, 78.0, 0, 5.8, -11.2, -10.0, 'wall'),
-    box('wall-c-s', 51.0, 78.0, 0, 4.6, 10.0, 11.2, 'wall', { visualMaxY: 0.78 }),
-
-    box('wall-d-n', 78.0, 98.0, 0, 5.4, -9.2, -8.0, 'wall'),
-    box('wall-d-s', 78.0, 98.0, 0, 4.6, 8.0, 9.2, 'wall', { visualMaxY: 0.78 }),
-
-    // --- ZONE DIVIDERS & SECURITY BULKHEAD DOORS ---
-    // Zone A -> B open bulkhead arch at x=23.2 (open gateway z -2.9..+2.9)
-    box('div-ab-n', 22.8, 23.6, 0, 5.4, -9.2, -2.9, 'wall'),
-    box('div-ab-s', 22.8, 23.6, 0, 4.6, 2.9, 9.2, 'wall', { visualMaxY: 1.4 }),
-
-    // Zone B -> C partition at x=51.0 (gateway z -3.1..+3.1 guarded by gate_c)
-    box('div-bc-n', 50.6, 51.5, 0, 5.6, -10.2, -3.1, 'wall'),
-    box('div-bc-s', 50.6, 51.5, 0, 4.6, 3.1, 10.2, 'wall', { visualMaxY: 1.5 }),
-    box('door-gate-c', 50.7, 51.4, 0, 4.4, -3.1, 3.1, 'door', {
-      doorId: 'gate_c',
-      color: 0x3b2220,
-      emissive: 0xff5a2a,
+    // ===== 5. room_security (its floor doubles as the biolabs ceiling) =====
+    box('sec-floor-west', 42, 62, 8.4, 8.8, 'catwalk', { color: 0x1d252d }),
+    platform('sec-grate', 62, 68, 8.8),
+    box('sec-floor-east', 68, 70.4, 8.4, 8.8, 'catwalk', { color: 0x1d252d }),
+    box('sec-ceiling', 42, 70.8, 13.8, 14.8),
+    box('sec-wall-east', 69.6, 70.8, 8.4, 14.8),
+    box('sec-console', 54.0, 55.0, 8.8, 10.1, 'console', {
+      minZ: -0.6, maxZ: 0.6, color: 0x1f3644, emissive: 0x2bf0ff,
     }),
 
-    // Zone C -> D partition at x=78.0 (gateway z -3.0..+3.0 guarded by gate_d)
-    box('div-cd-n', 77.6, 78.5, 0, 5.6, -10.2, -3.0, 'wall'),
-    box('div-cd-s', 77.6, 78.5, 0, 4.6, 3.0, 10.2, 'wall', { visualMaxY: 1.5 }),
-    box('door-gate-d', 77.7, 78.4, 0, 4.4, -3.0, 3.0, 'door', {
-      doorId: 'gate_d',
-      color: 0x3b2220,
-      emissive: 0xff2a3c,
-    }),
-
-    // --- MULTI-ELEVATION CATWALKS ---
-    // Zone A upper catwalk (y=2.2) housing Scattergun pedestal
-    box('catwalk-a', 15.2, 22.2, 1.9, 2.2, -7.8, -4.6, 'catwalk', { color: 0x2a3542 }),
-    // Zone B upper catwalk (y=2.2) housing Security Console
-    box('catwalk-b', 29.8, 44.2, 1.9, 2.2, -8.5, -5.1, 'catwalk', { color: 0x2a3542 }),
-
-    // --- TACTICAL COVER CRATES ---
-    box('crate-a1', 7.2, 8.8, 0, 1.35, -3.4, -1.8, 'crate', { color: 0x3a434e }),
-    box('crate-a2', 11.4, 13.0, 0, 1.35, 2.2, 3.8, 'crate', { color: 0x3a434e }),
-    box('crate-b1', 26.5, 28.1, 0, 1.4, 3.6, 5.2, 'crate', { color: 0x3a434e }),
-    box('crate-b2', 44.8, 46.5, 0, 1.4, 2.6, 4.3, 'crate', { color: 0x3a434e }),
-    box('crate-c1', 54.0, 55.6, 0, 1.3, 4.8, 6.4, 'crate', { color: 0x3a434e }),
-    box('crate-d1', 82.0, 83.6, 0, 1.4, -5.0, -3.4, 'crate', { color: 0x3a434e }),
-    box('crate-d2', 87.2, 88.8, 0, 1.4, 3.4, 5.0, 'crate', { color: 0x3a434e }),
-
-    // Console physical pedestal collision box on Catwalk B (y=2.2..3.5)
-    box('console-b', 38.8, 40.0, 2.2, 3.45, -7.4, -6.2, 'console', {
-      color: 0x1f3644,
-      emissive: 0x2bf0ff,
-    }),
+    // ===== 6. room_core =====
+    box('core-floor', 70, 98, -1.2, 0, 'catwalk', { color: 0x1c212a }),
+    box('core-ceiling', 70, 98, 9.6, 10.8),
+    box('core-wall-east', 98, 99.5, -1.2, 10.8),
+    platform('core-plat-1', 73, 79, 2.4),
+    platform('core-plat-2', 85, 90, 2.4),
   ];
 
-  const ramps: Ramp3D[] = [
-    // Zone A Ramp Up (x 10.2 -> 15.2 reaches y=2.2 onto catwalk-a)
-    { id: 'ramp-a-up', minX: 10.2, maxX: 15.2, minZ: -7.8, maxZ: -4.6, axis: 'x', yMinEdge: 0, yMaxEdge: 2.2, thickness: 0.25 },
-    // Zone A Ramp Down along -Z side back to Zone A deck (allows smooth return or step-off)
-    { id: 'ramp-a-down', minX: 18.8, maxX: 22.2, minZ: -4.6, maxZ: -1.0, axis: 'z', yMinEdge: 2.2, yMaxEdge: 0, thickness: 0.25 },
-    // Zone B Ramp Up (x 25.0 -> 29.8 reaches y=2.2 onto catwalk-b)
-    { id: 'ramp-b-up', minX: 25.0, maxX: 29.8, minZ: -8.5, maxZ: -5.1, axis: 'x', yMinEdge: 0, yMaxEdge: 2.2, thickness: 0.25 },
-    // Zone B Ramp Down (x 44.2 -> 49.0 descends y=2.2 -> 0 near Gate C!)
-    { id: 'ramp-b-down', minX: 44.2, maxX: 49.0, minZ: -8.5, maxZ: -5.1, axis: 'x', yMinEdge: 2.2, yMaxEdge: 0, thickness: 0.25 },
-  ];
-
+  // Background pillars at z=-2.4 (never block the Z=0 lane)
   const pillars: Pillar3D[] = [
-    // Zone A Structural Pillars
-    { id: 'pil-a1', x: 18.0, z: 4.8, radius: 0.78, minY: 0, maxY: 4.8 },
-    // Zone B Atrium Pillars
-    { id: 'pil-b1', x: 32.0, z: -3.2, radius: 0.78, minY: 0, maxY: 4.8 },
-    { id: 'pil-b2', x: 41.5, z: 4.4, radius: 0.78, minY: 0, maxY: 4.8 },
-    // Zone C Reactor Arena 4 Heavy Blast Pillars (critical Rail/Grenade cover!)
-    { id: 'pil-c1', x: 58.5, z: -4.8, radius: 1.05, minY: 0, maxY: 5.5 },
-    { id: 'pil-c2', x: 58.5, z: 4.8, radius: 1.05, minY: 0, maxY: 5.5 },
-    { id: 'pil-c3', x: 69.5, z: -4.8, radius: 1.05, minY: 0, maxY: 5.5 },
-    { id: 'pil-c4', x: 69.5, z: 4.8, radius: 1.05, minY: 0, maxY: 5.5 },
+    pillar('pil-airlock-1', 6, 0, 9),
+    pillar('pil-airlock-2', 12, 0, 9),
+    pillar('pil-airlock-3', 18, 0, 9),
+    pillar('pil-shaft-1', 25.5, -11, 13.8),
+    pillar('pil-shaft-2', 40.5, -11, 13.8),
+    pillar('pil-mines-1', 5, -11, -4),
+    pillar('pil-mines-2', 20, -11, -4),
+    pillar('pil-bio-1', 45, 0, 8.4),
+    pillar('pil-bio-2', 60, 0, 8.4),
+    pillar('pil-sec-1', 48, 8.8, 13.8),
+    pillar('pil-sec-2', 64, 8.8, 13.8),
+    pillar('pil-core-1', 76, 0, 9.6, 0.7),
+    pillar('pil-core-2', 82, 0, 9.6, 0.7),
+    pillar('pil-core-3', 90, 0, 9.6, 0.7),
   ];
 
   const acidPools: AcidPool3D[] = [
-    { id: 'acid-b1', minX: 31.0, maxX: 40.0, minZ: -1.8, maxZ: 2.4, surfaceY: -0.18 },
+    { id: 'acid-mines', minX: 9.2, maxX: 16.5, minZ: MIN_Z, maxZ: MAX_Z, surfaceY: -11.12, bottomY: -11.4 },
+    { id: 'acid-biolabs', minX: 51, maxX: 58, minZ: MIN_Z, maxZ: MAX_Z, surfaceY: -0.15, bottomY: -0.45 },
   ];
 
-  const barrels: BarrelSpawn3D[] = [
-    // Zone A
-    { id: 'brl-a1', x: 15.6, y: 0, z: 0.8 },
-    // Zone B (overlooking acid bridge & atrium packs)
-    { id: 'brl-b1', x: 28.8, y: 0, z: -0.4 },
-    { id: 'brl-b2', x: 35.5, y: 0, z: 4.8 },
-    { id: 'brl-b3', x: 43.2, y: 0, z: -1.2 },
-    // Zone C Boss Arena
-    { id: 'brl-c1', x: 61.5, y: 0, z: -3.2 },
-    { id: 'brl-c2', x: 61.5, y: 0, z: 3.2 },
-    { id: 'brl-c3', x: 68.5, y: 0, z: 0.0 },
-    // Zone D Domino Chain Barrel Line
-    { id: 'brl-d1', x: 83.2, y: 0, z: 0.0 },
-    { id: 'brl-d2', x: 85.4, y: 0, z: -1.1 },
-    { id: 'brl-d3', x: 87.6, y: 0, z: 1.0 },
-    { id: 'brl-d4', x: 90.0, y: 0, z: -0.2 },
+  const saveStations: SaveStation3D[] = [
+    { id: 'save_mines', roomId: 'room_mines', x: 20.0, y: -11.0, z: 0, radius: 1.6 },
+    { id: 'save_security', roomId: 'room_security', x: 45.5, y: 8.8, z: 0, radius: 1.6 },
+  ];
+
+  const upgrades: UpgradePedestal3D[] = [
+    { id: 'thruster_boots', kind: 'thruster_boots', x: 3.0, y: -8.6, z: 0 },
+    { id: 'etank_mines', kind: 'energy_tank', x: 5.5, y: -8.6, z: 0 },
+    { id: 'etank_biolabs', kind: 'energy_tank', x: 55.0, y: 4.5, z: 0 },
   ];
 
   const pedestals: WeaponPedestal3D[] = [
-    { id: 'ped-scatter', weapon: 2, x: 19.2, y: 2.2, z: -6.2 },
-    { id: 'ped-grenade', weapon: 3, x: 33.0, y: 0.0, z: 6.2 },
-    { id: 'ped-rail', weapon: 4, x: 54.6, y: 0.0, z: -7.2 },
+    { id: 'ped-scatter', weapon: 2, x: 38.5, y: -11.0, z: 0 },
+    { id: 'ped-grenade', weapon: 3, x: 8.5, y: -8.6, z: 0 },
+    { id: 'ped-rail', weapon: 4, x: 65.5, y: 2.2, z: 0 },
+  ];
+
+  const barrels: BarrelSpawn3D[] = [
+    { id: 'brl-airlock-1', x: 15.0, y: 0, z: 0 },
+    { id: 'brl-shaft-1', x: 32.0, y: -11.0, z: 0 },
+    { id: 'brl-mines-1', x: 19.0, y: -11.0, z: 0 },
+    { id: 'brl-mines-2', x: 6.5, y: -11.0, z: 0 },
+    { id: 'brl-bio-1', x: 47.0, y: 0, z: 0 },
+    { id: 'brl-bio-2', x: 63.0, y: 0, z: 0 },
+    { id: 'brl-sec-1', x: 60.0, y: 8.8, z: 0 },
+    { id: 'brl-core-1', x: 76.0, y: 0, z: 0 },
+    { id: 'brl-core-2', x: 88.0, y: 0, z: 0 },
   ];
 
   const medStations: MedStation3D[] = [
-    { id: 'med-a', x: 21.0, y: 0, z: 5.5, heal: 35 },
-    { id: 'med-b', x: 47.6, y: 0, z: 6.4, heal: 45 },
-    { id: 'med-c', x: 64.0, y: 0, z: 7.8, heal: 55 },
+    { id: 'med-airlock', x: 10.0, y: 0, z: 0, heal: 35 },
+    { id: 'med-shaft', x: 40.0, y: -11.0, z: 0, heal: 40 },
+    { id: 'med-security', x: 65.0, y: 8.8, z: 0, heal: 45 },
+    { id: 'med-core', x: 72.0, y: 0, z: 0, heal: 55 },
   ];
 
   const enemies: EnemySpawn3D[] = [
-    // Zone A patrols
-    { id: 'e-a1', kind: 'crawler', x: 12.2, y: 0, z: -0.4, zone: 'A' },
-    { id: 'e-a2', kind: 'stalker', x: 16.8, y: 0, z: 1.6, zone: 'A' },
-    { id: 'e-a3', kind: 'crawler', x: 18.4, y: 2.2, z: -6.0, zone: 'A' },
-    { id: 'e-a4', kind: 'spitter', x: 20.6, y: 0, z: -2.0, zone: 'A' },
-
-    // Zone B Bio-Processing swarm
-    { id: 'e-b1', kind: 'stalker', x: 28.5, y: 0, z: 0.2, zone: 'B' },
-    { id: 'e-b2', kind: 'crawler', x: 32.0, y: 0, z: 4.5, zone: 'B' },
-    { id: 'e-b3', kind: 'spitter', x: 36.2, y: 2.2, z: -6.6, zone: 'B' },
-    { id: 'e-b4', kind: 'stalker', x: 42.8, y: 0, z: -0.6, zone: 'B' },
-    { id: 'e-b5', kind: 'spitter', x: 47.2, y: 0, z: 3.5, zone: 'B' },
-
-    // Zone C Boss Arena
-    { id: 'e-c1', kind: 'warden', x: 66.2, y: 0, z: 0.0, zone: 'C' },
-    { id: 'e-c2', kind: 'stalker', x: 62.5, y: 0, z: -4.4, zone: 'C' },
-    { id: 'e-c3', kind: 'crawler', x: 62.5, y: 0, z: 4.4, zone: 'C' },
-
-    // Zone D Extraction Gauntlet
-    { id: 'e-d1', kind: 'stalker', x: 84.5, y: 0, z: 0.8, zone: 'D' },
-    { id: 'e-d2', kind: 'crawler', x: 86.2, y: 0, z: -1.8, zone: 'D' },
-    { id: 'e-d3', kind: 'stalker', x: 89.2, y: 0, z: 1.6, zone: 'D' },
-    { id: 'e-d4', kind: 'spitter', x: 92.2, y: 0, z: -4.0, zone: 'D' },
+    { id: 'e-airlock-1', kind: 'crawler', x: 12.0, y: 0, z: 0, zone: 'airlock' },
+    { id: 'e-airlock-2', kind: 'crawler', x: 18.0, y: 0, z: 0, zone: 'airlock' },
+    { id: 'e-shaft-1', kind: 'spitter', x: 30.0, y: -2.2, z: 0, zone: 'shaft' },
+    { id: 'e-shaft-2', kind: 'stalker', x: 33.0, y: -11.0, z: 0, zone: 'shaft' },
+    { id: 'e-shaft-3', kind: 'crawler', x: 38.0, y: 0, z: 0, zone: 'shaft' },
+    { id: 'e-mines-1', kind: 'crawler', x: 4.0, y: -11.0, z: 0, zone: 'mines' },
+    { id: 'e-mines-2', kind: 'spitter', x: 7.0, y: -8.6, z: 0, zone: 'mines' },
+    { id: 'e-mines-3', kind: 'stalker', x: 21.0, y: -11.0, z: 0, zone: 'mines' },
+    { id: 'e-bio-1', kind: 'crawler', x: 45.0, y: 0, z: 0, zone: 'biolabs' },
+    { id: 'e-bio-2', kind: 'spitter', x: 48.0, y: 2.2, z: 0, zone: 'biolabs' },
+    { id: 'e-bio-3', kind: 'stalker', x: 62.0, y: 0, z: 0, zone: 'biolabs' },
+    { id: 'e-bio-4', kind: 'spitter', x: 66.0, y: 2.2, z: 0, zone: 'biolabs' },
+    { id: 'e-sec-1', kind: 'stalker', x: 50.0, y: 8.8, z: 0, zone: 'security' },
+    { id: 'e-sec-2', kind: 'spitter', x: 60.0, y: 8.8, z: 0, zone: 'security' },
+    { id: 'e-core-warden', kind: 'warden', x: 83.0, y: 0, z: 0, zone: 'core' },
+    { id: 'e-core-1', kind: 'crawler', x: 77.0, y: 0, z: 0, zone: 'core' },
+    { id: 'e-core-2', kind: 'stalker', x: 90.0, y: 2.4, z: 0, zone: 'core' },
   ];
 
   return {
-    bounds: { minX: 0, maxX: 98, minZ: -10, maxZ: 10 },
-    spawn: { x: 3.2, y: 0, z: 0.0 },
-    consolePos: { x: 39.4, y: 2.2, z: -5.4, radius: 2.1 },
-    corePos: { x: 74.0, y: 0, z: 0.0, radius: 1.85 },
-    exitPos: { x: 95.0, y: 0, z: 0.0, radius: 2.5 },
+    bounds: { minX: -1.5, maxX: 99.5, minY: -12.6, maxY: 14.8, minZ: MIN_Z, maxZ: MAX_Z },
+    spawn: { x: 3.5, y: 0, z: 0 },
+    consolePos: { x: 54.5, y: 8.8, z: 0, radius: 2.2 },
+    corePos: { x: 93.5, y: 0, z: 0, radius: 1.85 },
+    exitPos: { x: 5.5, y: 5.2, z: 0, radius: 2.2 },
+    rooms,
+    saveStations,
+    upgrades,
     solids,
     pillars,
-    ramps,
+    ramps: [],
     acidPools,
     barrels,
     pedestals,

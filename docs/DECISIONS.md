@@ -25,3 +25,8 @@
 
 ## 2026-11-14 — G3: 스모크 브라우저는 설치된 Chrome 채널
 - Playwright 번들 headless shell이 이 Mac에서 프레임을 생성하지 않음(rAF 0/s). 시스템 Chrome을 읽기 전용 사용, 없으면 NOT RUN.
+
+## 2026-11-15 — Full 3D Side-View Metroidvania 전환 및 Kiro 전면 인계
+- Decision: 기존 Quarter-View 트윈스틱 3D에서 **Side-View XY 6섹터 Metroidvania 3D**(`Cryo Airlock`, `Central Transit Shaft`, `Sunken Mines`, `Bio-Labs`, `Upper Security Deck`, `Core Vault`)로 전환하고, Wave 1 기반 위에 Wave 2–3 잔여 구현·검증·커밋을 **Kiro(IDE / `kiro-cli`)에 전면 이관**한다.
+- Reason: Quarter-View의 Y/Z 투시 착시·옆걸음 스케이팅·`operative.glb` 점프 클립(`0.00~0.50s` 지상 웅크림 + `+0.42m` 루트 스파이크) 결함을 근본 해결하고, 사용자 요청에 따라 이후 개발을 Kiro 중심으로 진행하기 위함.
+- Impact: `types3d.ts`, `motion3d.ts`, `map3d.ts`, `riggedModels.ts`, `minimap.ts`/HTML/CSS/Audio와 `.kiro/specs/metroidvania-3d/` 및 `docs/plans/KIRO_METROIDVANIA_HANDOFF.md`를 정립했으며, 봉인 파일(`motion.ts` 등 R8)은 무수정 유지한다. Wave 2 완료 전까지는 중간 컴파일 미완(`world3d.ts` 2오류) 상태다.

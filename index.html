@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>REANIMATOR — Full 3D Quarter-View Twin-Stick</title>
+    <title>REANIMATOR — Full 3D Side-View Metroidvania</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/src/ui/style.css" />
   </head>
@@ -18,10 +18,13 @@
             <span class="pill">DASH <span class="bar bar-sm"><i id="dash-bar"></i></span></span>
             <span class="pill">LIGHT [E] <span class="bar bar-sm"><i id="battery"></i></span></span>
             <span class="pill kills-pill">KILLS <b id="kills">0</b></span>
+            <span class="pill upgrade-pill" id="boots-pill" hidden>THRUSTER 2X</span>
+            <span class="pill etank-pill" id="etank-pill">E-TANK <b id="etank-count">0/2</b></span>
             <span class="pill core-pill" id="objective">OBJ: Hack Zone B Console [F]</span>
             <span class="pill meltdown-pill" id="meltdown" hidden>MELTDOWN <b id="meltdown-time">90.0s</b></span>
             <span class="pill time-pill" id="time">0.0s</span>
           </div>
+          <div id="minimap-wrap"><canvas id="minimap" width="224" height="132" aria-label="Sector minimap"></canvas><span class="minimap-label">SECTOR MAP [TAB]</span></div>
           <div id="weapon-bar">
             <span class="wpn-slot active" id="wpn-1"><b>[1]</b> PULSE <em id="ammo-1">INF</em></span>
             <span class="wpn-slot locked" id="wpn-2"><b>[2]</b> SCATTER <em id="ammo-2">--</em></span>
@@ -30,7 +33,7 @@
           </div>
           <div class="hud-sub">
             <span id="sector">ZONE A · CRYO BAY</span>
-            <span id="sector-hint">WASD move · Mouse 360° aim + LMB fire · 1-4 / Q / Wheel weapons · Space jump · Shift dash · E light · F console</span>
+            <span id="sector-hint">A/D run · W/Space jump (2x with Thruster Boots) · S drop through grate · Shift dash · Mouse 360° aim + LMB · 1-4/Q weapons · E light · F save/console · Tab map</span>
           </div>
           <div id="warden-hud" hidden>
             <span>CORE WARDEN</span>
@@ -39,11 +42,11 @@
           </div>
         </div>
         <section id="title" class="overlay">
-          <div class="badge">FULL 3D QUARTER-VIEW TWIN-STICK ACTION</div>
+          <div class="badge">FULL 3D SIDE-VIEW METROIDVANIA</div>
           <h1>REANIMATOR</h1>
-          <p>Infiltrate the blackout biomech facility in true 3D, slay the Core Warden, and escape before Reactor Meltdown.</p>
+          <p>Explore the sealed biomech facility sector by sector, unlock color-coded doors, claim Thruster Boots and E-Tanks, slay the Core Warden, and escape before Reactor Meltdown.</p>
           <button id="play" autofocus>Play</button>
-          <p class="keys">WASD 3D move · Mouse 360° aim + LMB fire · 1-4 / Q / Wheel weapons · Space jump · Shift Jet-Dash · E headlamp · F interact · Esc pause</p>
+          <p class="keys">A/D run · W/Space jump (2x with Thruster Boots) · S drop through grate · Shift dash · Mouse 360° aim + LMB fire · 1-4/Q weapons · E headlamp · F save/console · Tab map · Esc pause</p>
           <div class="opts">
             <label><input type="checkbox" id="reduce-flash" /> Reduce flashing</label>
             <label>Volume <input type="range" id="volume" min="0" max="100" value="50" /></label>
@@ -69,12 +72,12 @@
           <h2>How it was revived</h2>
           <p>
             Only the player's core 2D movement physics were reconstructed from the 1995 DOS shareware
-            <i>Abuse</i> (v1.05). The Full 3D Quarter-View Twin-Stick game layer, rigged character models, weapons, bosses, levels, lighting rules, and audio are all original <b>new-design</b> works.
+            <i>Abuse</i> (v1.05). The Full 3D Side-View Metroidvania game layer (interconnected rooms, locked doors, upgrades, save stations, sector minimap), rigged character models, weapons, bosses, levels, lighting rules, and audio are all original <b>new-design</b> works.
           </p>
           <ul>
-            <li><b>Verified DOS Restoration (<code>src/engine/motion.ts</code>)</b>: Analyzed <code>ABUSE.EXE</code> (DOS/4GW LE -> ELF) with REA + Ghidra along <code>cop_mover 0x14760</code> &rarr; <code>mover 0x3a1d8</code> &rarr; <code>0x38704</code> &rarr; <code>try_move 0x37e82</code> &rarr; <code>0x558e5</code>. Proven byte-for-byte in the <b>Restoration Lab</b> (zero original DOS art/audio/map bytes ship).</li>
-            <li><b>New-Design 60 Hz Full 3D Simulation (<code>src/engine/motion3d.ts</code>, <code>src/game3d/</code>)</b>: Capsule 3D movement (`WASD`), walkable catwalk ramps, Jet-Dash i-frames, 4-weapon twin-stick arsenal, chain-detonating bio-barrels, jumpable boss shockwaves, and strict <code>R3.3</code> visual-only headlamp isolation.</li>
-            <li><b>Rigged Multi-Clip Meshy 3D Layer (<code>src/render3d/</code>)</b>: Skeletal Mixamo-rigged Meshy `.glb` bipeds (<code>operative</code> with RightHand-socketed <code>pulse-rifle</code>, <code>warden</code>, <code>bio-stalker</code>) animated by Three.js <code>AnimationMixer</code> + <code>SkeletonUtils.clone</code>, plus <code>PCFSoftShadowMap</code> &amp; selective <code>UnrealBloomPass</code>.</li>
+            <li><b>Verified DOS Restoration (<code>src/engine/motion.ts</code>)</b>: Analyzed <code>ABUSE.EXE</code> (DOS/4GW LE -> ELF) with REA + Ghidra along <code>cop_mover 0x14760</code> &rarr; <code>mover 0x3a1d8</code> &rarr; <code>0x38704</code> &rarr; <code>try_move 0x37e82</code> &rarr; <code>0x558e5</code>. Compared field by field with zero tolerance in the <b>Restoration Lab</b> at the 15 Hz design tick (the original tick rate was not measured; zero original DOS art/audio/map bytes ship).</li>
+            <li><b>New-Design 60 Hz Full 3D Side-View Simulation (<code>src/engine/motion3d.ts</code>, <code>src/game3d/</code>)</b>: Side-view run, jump and double jump (Thruster Boots), drop-through grates, Jet-Dash i-frames, 360&deg; mouse aim, 4-weapon arsenal, color-coded lock doors, save stations, E-Tanks, boss shockwaves, and strict <code>R3.3</code> visual-only headlamp isolation.</li>
+            <li><b>Rigged Meshy 3D Layer with Split-Body IK (<code>src/render3d/</code>)</b>: Rigged Meshy <code>.glb</code> bipeds (<code>operative</code> with hand-socketed <code>pulse-rifle</code>, <code>warden</code>, <code>bio-stalker</code>) animated by Three.js <code>AnimationMixer</code>. Split-Body IK keeps legs on the run/jump clip while the torso and arms aim at the mouse.</li>
           </ul>
           <button id="revived-close">Back</button>
         </section>

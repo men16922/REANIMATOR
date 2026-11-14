@@ -1,22 +1,26 @@
-// Browser shell: fixed-rate 60 Hz Full 3D Quarter-View Twin-Stick simulation,
-// Three.js WebGL2 renderer (with Canvas2D fallback), 4-weapon switching, WebAudio SFX,
+// Browser shell: fixed-rate 60 Hz Full 3D side-view Metroidvania simulation,
+// Three.js WebGL2 renderer (with Canvas2D fallback), 4-weapon switching, sector minimap, WebAudio SFX,
 // preserved 15 Hz DOS Restoration Lab, and smoke/showcase inspection hooks.
 
-import { ABILITY_3D } from '../engine/motion3d.ts';
+import { ABILITY_3D, spawnBody3D } from '../engine/motion3d.ts';
 import { LIGHT } from '../game/light.ts';
-import type { WeaponSlot3D } from '../game3d/map3d.ts';
+import { createBot3D, type Bot3D } from '../game3d/bot3d.ts';
+import type { DoorLockKind3D, WeaponSlot3D } from '../game3d/types3d.ts';
 import {
   emptyInput3D,
+  getPlayerPose3D,
   newWorld3D,
+  respawnPlayer3D,
   stepWorld3D,
   WEAPON_META,
   type InputState3D,
   type WorldState3D,
 } from '../game3d/world3d.ts';
-import { renderFallback2D3D } from '../render3d/fallback2d.ts';
+import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2d.ts';
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
 import { ambient, playSoundEvent3D, setVolume, sfx } from './audio.ts';
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
+import { renderMinimap } from './minimap.ts';
 
 const SIM_HZ_3D = 60;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
@@ -39,6 +43,10 @@ const ui = {
   pause: $('pause'),
   result: $('result'),
   revived: $('revived'),
+  bootsPill: $('boots-pill'),
+  etankCount: $('etank-count'),
+  minimap: $<HTMLCanvasElement>('minimap'),
+  minimapWrap: $('minimap-wrap'),
   hud: $('hud'),
   hp: $('hp'),
   hpBar: $('hp-bar'),
@@ -67,6 +75,8 @@ let acc = 0;
 let last = 0;
 let flash = 0;
 let manualHold = false;
+let mapExpanded = false;
+let bot: Bot3D | null = null;
 
 const keys = new Set<string>();
 const mouse = { ndcX: 0.28, ndcY: 0.08, normX: 0.64, normY: 0.46, leftDown: false, rightDown: false };
@@ -83,26 +93,16 @@ function cycleWeapon(dir: 1 | -1): void {
   weaponQueue = unlocked[nextIdx];
 }
 
-function currentAim3D(): { x: number; y: number; z: number } {
+function currentAim3D(): { x: number; y: number } {
   if (scene3d) {
-    return scene3d.screenToWorldAim(mouse.ndcX, mouse.ndcY, world);
+    const a = scene3d.screenToWorldAim(mouse.ndcX, mouse.ndcY, world);
+    return { x: a.x, y: a.y };
   }
-  const px = world.player.body.x;
-  const pz = world.player.body.z;
-  return {
-    x: px + (mouse.normX - 0.45) * 24,
-    y: world.player.body.y + 1.05,
-    z: pz + (mouse.normY - 0.5) * 16,
-  };
+  return fallbackScreenToWorld(canvas, world, mouse.normX, mouse.normY);
 }
 
 function buildInput(): InputState3D {
-  const rawX = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
-  const rawZ = (keys.has('KeyS') || keys.has('ArrowDown') ? 1 : 0) - (keys.has('KeyW') || keys.has('ArrowUp') ? 1 : 0);
-  const len = Math.hypot(rawX, rawZ);
-  const moveX = len > 0 ? rawX / len : 0;
-  const moveZ = len > 0 ? rawZ / len : 0;
-
+  const moveX = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
   const toggleLight = lightQueued;
   lightQueued = false;
   const dash = dashQueued || keys.has('ShiftLeft') || keys.has('ShiftRight') || mouse.rightDown;
@@ -115,16 +115,15 @@ function buildInput(): InputState3D {
   const aim = currentAim3D();
   return {
     moveX,
-    moveZ,
-    jump: keys.has('Space'),
+    jump: keys.has('Space') || keys.has('KeyW') || keys.has('ArrowUp'),
     dash,
     fire: mouse.leftDown,
     interact,
+    dropDown: keys.has('KeyS') || keys.has('ArrowDown'),
     toggleLight,
     weaponSlot,
     aimX: aim.x,
     aimY: aim.y,
-    aimZ: aim.z,
   };
 }
 
@@ -153,35 +152,40 @@ function show(m: Mode): void {
 function start(): void {
   manualHold = false;
   world = newWorld3D();
+  bot = null;
   acc = 0;
   flash = 0;
   releaseInput();
   show('playing');
 }
 
-function zoneMeta(x: number): { name: string; hint: string } {
-  if (x < 23.2) {
-    return {
-      name: 'ZONE A · CRYO BAY',
-      hint: 'Climb north ramp for Scattergun [2], then breach East Archway ->',
-    };
-  }
-  if (x < 51.0) {
-    return {
-      name: 'ZONE B · BIO-PROCESSING',
-      hint: 'Jump over green acid cooling pit · Reach upper catwalk Security Console [F] ->',
-    };
-  }
-  if (x < 78.0) {
-    return {
-      name: 'ZONE C · REACTOR VAULT',
-      hint: 'Grab Rail-Cannon [4] · Jump red shockwave rings · Break Power Core!',
-    };
-  }
-  return {
-    name: 'ZONE D · EXTRACTION GAUNTLET',
-    hint: 'Trigger bio-barrel chain & Jet-Dash [Shift] east to Exit Portal!',
-  };
+function zoneMeta(): { name: string; hint: string } {
+  const r = world.level.rooms.find((x) => x.sector === world.currentRoom);
+  if (!r) return { name: 'TRANSIT', hint: '' };
+  return { name: `${r.sector.toUpperCase()} · ${r.name.toUpperCase()}`, hint: r.hint };
+}
+
+function drawMinimap(): void {
+  const L = world.level;
+  const room = L.rooms.find((r) => r.sector === world.currentRoom);
+  const doors = L.solids
+    .filter((s) => s.doorId && s.doorLock)
+    .map((s) => ({ id: s.doorId as string, x: (s.minX + s.maxX) / 2, y: (s.minY + s.maxY) / 2, lock: s.doorLock as DoorLockKind3D }));
+  const visited = new Set(L.rooms.filter((r) => world.visitedRooms.includes(r.sector)).map((r) => r.id));
+  renderMinimap(ui.minimap, {
+    rooms: L.rooms,
+    visitedRooms: visited,
+    currentRoomId: room ? room.id : L.rooms[0].id,
+    playerX: world.player.body.x,
+    playerY: world.player.body.y,
+    openDoors: world.openDoors,
+    doors,
+    saveStations: L.saveStations,
+    coreDestroyed: world.coreDestroyed,
+    bossAlive: world.enemies.some((e) => e.kind === 'warden' && e.alive),
+    exitPos: L.exitPos,
+    expanded: mapExpanded,
+  });
 }
 
 function hud(): void {
@@ -200,10 +204,10 @@ function hud(): void {
 
   // Objective & Meltdown
   const objMap = {
-    console: { text: 'OBJ: Hack Zone B Console [F]', color: '#8ec5ff' },
-    warden: { text: 'OBJ: Slay Core Warden (Zone C)', color: '#ffae6b' },
-    core: { text: 'OBJ: Shatter Reactor Core!', color: '#4be8ff' },
-    escape: { text: 'OBJ: ESCAPE -> Zone D Exit Gate!', color: '#5aff9c' },
+    console: { text: 'OBJ: Arm the Security Console, break locks to reach the Core Vault', color: '#8ec5ff' },
+    warden: { text: 'OBJ: Slay the Core Warden (Core Vault)', color: '#ffae6b' },
+    core: { text: 'OBJ: Shatter the Reactor Core!', color: '#4be8ff' },
+    escape: { text: 'OBJ: ESCAPE to the Airlock extraction balcony!', color: '#5aff9c' },
     won: { text: 'EXTRACTED SAFELY', color: '#5aff9c' },
   } as const;
   const obj = objMap[world.phase];
@@ -227,12 +231,15 @@ function hud(): void {
     ammoEl.textContent = s === 1 ? 'INF' : unlocked ? String(p.ammo[s]) : '--';
   }
 
-  const zm = zoneMeta(p.body.x);
+  const zm = zoneMeta();
   ui.sector.textContent = zm.name;
-  ui.sectorHint.textContent = zm.hint;
+  ui.sectorHint.textContent = world.hintTicks > 0 ? world.hint : zm.hint;
+  ui.bootsPill.hidden = !p.abilities.thrusterBoots;
+  ui.etankCount.textContent = `${p.energyTanks}/${world.level.upgrades.filter((u) => u.kind === 'energy_tank').length}`;
+  drawMinimap();
 
   const warden = world.enemies.find((e) => e.kind === 'warden');
-  const showBoss = Boolean(warden && warden.alive && p.body.x >= 44);
+  const showBoss = Boolean(warden && warden.alive && world.currentRoom === 'core');
   ui.wardenHud.hidden = !showBoss;
   if (showBoss && warden) {
     ui.wardenHp.style.width = `${Math.max(0, Math.min(100, (warden.hp / warden.maxHp) * 100))}%`;
@@ -242,9 +249,9 @@ function hud(): void {
   ui.damageFlash.style.opacity = ui.reduceFlash.checked ? '0' : String(Math.min(0.85, flash));
 }
 
-function renderWorld(): void {
+function renderWorld(alpha = 1): void {
   if (scene3d) {
-    scene3d.render(world);
+    scene3d.render(world, alpha);
   } else {
     renderFallback2D3D(canvas, world);
   }
@@ -276,7 +283,8 @@ function frame(t: number): void {
       if (world.status !== 'playing') {
         const secs = (world.tick / SIM_HZ_3D).toFixed(1);
         ui.resultTitle.textContent = world.status === 'won' ? 'Escaped with the core' : 'Signal lost';
-        ui.resultDetail.textContent = `${secs}s · ${world.player.kills} hostiles eliminated · weapon [${WEAPON_META[world.player.weapon].name}]`;
+        const cp = world.status === 'lost' && world.lastSaveId ? ' · press C to resume at the last Save station' : '';
+        ui.resultDetail.textContent = `${secs}s · ${world.player.kills} hostiles eliminated · weapon [${WEAPON_META[world.player.weapon].name}]${cp}`;
         if (world.status === 'lost') sfx.lose();
         show('result');
         break;
@@ -284,7 +292,7 @@ function frame(t: number): void {
     }
     flash = Math.max(0, flash - dt * 3.2);
   }
-  renderWorld();
+  renderWorld(mode === 'playing' && !manualHold ? Math.min(1, acc * SIM_HZ_3D) : 1);
   hud();
   requestAnimationFrame(frame);
 }
@@ -303,6 +311,13 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     return;
   }
+  if (mode === 'result' && e.code === 'KeyC' && world.status === 'lost' && world.lastSaveId) {
+    respawnPlayer3D(world);
+    releaseInput();
+    show('playing');
+    e.preventDefault();
+    return;
+  }
   if (mode !== 'playing') return;
   manualHold = false;
   if (e.code === 'KeyE' && !e.repeat) lightQueued = true;
@@ -314,6 +329,11 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Digit4' && !e.repeat) weaponQueue = 4;
   if (e.code === 'KeyQ' && !e.repeat) cycleWeapon(1);
   if (e.code === 'KeyR' && !e.repeat) start();
+  if (e.code === 'Tab') {
+    if (!e.repeat) mapExpanded = !mapExpanded;
+    e.preventDefault();
+    return;
+  }
   keys.add(e.code);
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
 });
@@ -433,23 +453,37 @@ function buildSnapshot() {
   const tel = scene3d
     ? scene3d.getTelemetry()
     : { modelsLoaded: false, loadedModels: [], failedModels: [], riggedCount: 0, activeAnimations: {} };
+  const b = world.player.body;
   return {
     lab: lab ? { id: lab.scenario.id, status: lab.status, mutation: lab.mutation } : null,
     mode,
     status: world.status,
     phase: world.phase,
     tick: world.tick,
-    x: world.player.body.x,
-    y: world.player.body.y,
-    z: world.player.body.z,
+    x: b.x,
+    y: b.y,
+    z: b.z,
+    vx: b.vx,
+    vy: b.vy,
+    grounded: b.grounded,
+    jumpsUsed: b.jumpsUsed,
+    bodyState: b.state,
+    facing: world.player.facing,
+    pose: getPlayerPose3D(world),
     hp: world.player.hp,
     maxHp: world.player.maxHp,
+    energyTanks: world.player.energyTanks,
+    abilities: { ...world.player.abilities },
+    currentRoom: world.currentRoom,
+    visitedRooms: [...world.visitedRooms],
+    collectedUpgrades: [...world.collectedUpgrades],
+    lastSaveId: world.lastSaveId,
+    consoleUnlocked: world.consoleUnlocked,
     weapon: world.player.weapon,
     unlocked: { ...world.player.unlocked },
     ammo: { ...world.player.ammo },
     kills: world.player.kills,
-    aimYaw: world.player.aimYaw,
-    dashCooldown: world.player.body.dashCooldown,
+    dashCooldown: b.dashCooldown,
     bossHp: warden ? warden.hp : 0,
     bossMaxHp: warden ? warden.maxHp : 0,
     bossPhase: warden ? warden.phase : 1,
@@ -459,29 +493,97 @@ function buildSnapshot() {
     openDoors: [...world.openDoors],
     light: world.light,
     startX: world.level.spawn.x,
-    startZ: world.level.spawn.z,
+    startY: world.level.spawn.y,
     rendererMode,
     ...tel,
   };
 }
 
+/** Debug-only world setup for smoke tests and showcase captures (never used by normal play). */
+export interface DebugSetup3D {
+  x?: number;
+  y?: number;
+  boots?: boolean;
+  tanks?: number;
+  weapons?: WeaponSlot3D[];
+  openDoors?: string[];
+  console?: boolean;
+  hp?: number;
+  aimX?: number;
+  aimY?: number;
+}
+
+function applyDebugSetup(w: WorldState3D, o: DebugSetup3D): void {
+  const p = w.player;
+  if (o.x !== undefined || o.y !== undefined) {
+    p.body = spawnBody3D(o.x ?? p.body.x, o.y ?? p.body.y, 0);
+  }
+  if (o.boots) p.abilities.thrusterBoots = true;
+  if (o.tanks !== undefined) {
+    p.energyTanks = o.tanks;
+    p.maxHp = 100 + 30 * o.tanks;
+    p.hp = p.maxHp;
+  }
+  for (const s of o.weapons ?? []) {
+    p.unlocked[s] = true;
+    if (s !== 1) p.ammo[s as 2 | 3 | 4] = WEAPON_META[s].initialAmmo;
+  }
+  for (const d of o.openDoors ?? []) w.openDoors.add(d);
+  if (o.console) w.consoleUnlocked = true;
+  if (o.hp !== undefined) p.hp = o.hp;
+  if (o.aimX !== undefined) p.aimX = o.aimX;
+  if (o.aimY !== undefined) p.aimY = o.aimY;
+}
+
 // Read-only test & showcase inspection hooks
 const wAny = window as unknown as {
   __reanimator: () => ReturnType<typeof buildSnapshot>;
-  __reanimatorAdvance: (inputs: Partial<InputState3D>[]) => ReturnType<typeof buildSnapshot>;
+  __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D) => ReturnType<typeof buildSnapshot>;
+  __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => ReturnType<typeof buildSnapshot>;
+  __reanimatorRunBot: (maxTicks: number, untilStep?: string) => ReturnType<typeof buildSnapshot>;
 };
 
-wAny.__reanimator = buildSnapshot;
-wAny.__reanimatorAdvance = (inputs) => {
+function enterManual(): void {
   manualHold = true;
-  world = newWorld3D();
   acc = 0;
   flash = 0;
   releaseInput();
   show('playing');
+}
+
+wAny.__reanimator = buildSnapshot;
+/** Fresh world, optional setup, then run the given input frames. */
+wAny.__reanimatorAdvance = (inputs, setup) => {
+  world = newWorld3D();
+  bot = null;
+  if (setup) applyDebugSetup(world, setup);
+  enterManual();
   for (const inp of inputs) {
-    world = stepWorld3D(world, { ...emptyInput3D(), ...inp });
+    world = stepWorld3D(world, { ...emptyInput3D(), aimX: world.player.body.x + world.player.facing * 8, aimY: world.player.body.y + 1.12, ...inp });
     if (world.status !== 'playing') break;
+  }
+  renderWorld();
+  hud();
+  return buildSnapshot();
+};
+/** Continue the current world with more input frames (no reset). */
+wAny.__reanimatorStep = (inputs, alpha = 1) => {
+  enterManual();
+  for (const inp of inputs) {
+    world = stepWorld3D(world, { ...emptyInput3D(), aimX: world.player.body.x + world.player.facing * 8, aimY: world.player.body.y + 1.12, ...inp });
+    if (world.status !== 'playing') break;
+  }
+  renderWorld(alpha);
+  hud();
+  return buildSnapshot();
+};
+/** Let the deterministic bot play the current world forward (optionally until a named step is reached). */
+wAny.__reanimatorRunBot = (maxTicks, untilStep) => {
+  enterManual();
+  if (!bot) bot = createBot3D(world);
+  for (let i = 0; i < maxTicks && world.status === 'playing'; i++) {
+    if (untilStep && bot.stepLabel === untilStep) break;
+    world = stepWorld3D(world, bot.next(world));
   }
   renderWorld();
   hud();

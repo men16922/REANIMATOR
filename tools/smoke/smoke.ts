@@ -1,4 +1,4 @@
-// Browser smoke check for the built Full 3D app (dist/). No dev server: files are served through route interception.
+// Browser smoke check for the built side-view Metroidvania app (dist/). No dev server: files are served through route interception.
 // Usage: node tools/smoke/smoke.ts   (requires `vite build` first)
 // Browser: the installed Google Chrome channel (WebGL2 verified).
 
@@ -17,14 +17,28 @@ type Snap = {
   tick: number;
   x: number;
   y: number;
-  z: number;
+  vy: number;
+  grounded: boolean;
+  jumpsUsed: number;
+  facing: number;
+  pose: { aimSignX: number; aimPitch: number; vy: number; grounded: boolean };
   hp: number;
+  maxHp: number;
+  energyTanks: number;
+  abilities: { thrusterBoots: boolean };
+  currentRoom: string;
+  visitedRooms: string[];
+  openDoors: string[];
+  collectedUpgrades: string[];
+  lastSaveId: string | null;
   weapon: number;
+  unlocked: Record<string, boolean>;
   dashCooldown: number;
-  aimYaw: number;
+  coreDestroyed: boolean;
+  consoleUnlocked: boolean;
   light: { on: boolean; battery: number };
   startX: number;
-  startZ: number;
+  startY: number;
   rendererMode: string;
   modelsLoaded: boolean;
   loadedModels: string[];
@@ -140,22 +154,21 @@ try {
   await wait(450);
   await page.keyboard.up('KeyD');
   const s1 = await snap();
-  check('D moves east (+X in 3D)', s1.x > s0.x + 1.0, { from: s0.x, to: s1.x });
+  check('D moves east (+X on the side-view lane)', s1.x > s0.x + 1.0, { from: s0.x, to: s1.x });
 
-  // True 3D Z-axis depth movement (W)
+  // Side-view vertical jump with W, then Space
   await page.keyboard.down('KeyW');
-  await wait(350);
-  await page.keyboard.up('KeyW');
+  await wait(140);
   const sW = await snap();
-  check('W moves north (-Z in 3D)', sW.z < s1.z - 0.5, { from: s1.z, to: sW.z });
-
-  // True 3D vertical Jump (Space)
+  await page.keyboard.up('KeyW');
+  check('W jumps (+Y) and airborne pose has vy > 0', sW.y > 0.1 && sW.pose.vy > 0 && !sW.pose.grounded, { y: sW.y, vy: sW.pose.vy });
+  await wait(700);
   await page.keyboard.down('Space');
   await wait(140);
   const sJump = await snap();
   await page.keyboard.up('Space');
-  check('Space jumps (+Y in 3D)', sJump.y > 0.1, { y: sJump.y });
-  await wait(450);
+  check('Space jumps (+Y)', sJump.y > 0.1, { y: sJump.y });
+  await wait(700);
 
   // Jet-Dash (ShiftLeft)
   await page.keyboard.press('ShiftLeft');
@@ -165,15 +178,19 @@ try {
   await wait(400);
 
   // 360 cursor aiming + LMB firing
-  await page.mouse.move(960, 220);
-  await wait(120);
-  const aimA = (await snap()).aimYaw;
-  await page.mouse.move(320, 620);
+  await page.mouse.move(1000, 200);
+  await wait(160);
+  const aimA = (await snap()).pose;
+  await page.mouse.move(200, 640);
   await page.mouse.down();
-  await wait(180);
+  await wait(200);
   await page.mouse.up();
-  const aimB = (await snap()).aimYaw;
-  check('Mouse 360 cursor aiming rotates aimYaw', Math.abs(aimB - aimA) > 0.3, { aimA, aimB });
+  const aimB = (await snap()).pose;
+  check(
+    'mouse aim flips facing and pitch on the z=0 plane',
+    aimA.aimSignX === 1 && aimB.aimSignX === -1 && aimA.aimPitch > aimB.aimPitch,
+    { aimA, aimB },
+  );
 
   // R3.3 Headlamp toggle (wait deterministically in ticks so w.tick % 4 === 0 drains battery)
   const preLightTick = (await snap()).tick;
@@ -223,9 +240,63 @@ try {
   const r = await snap();
   check(
     'restart resets player, light, and time',
-    Math.abs(r.x - r.startX) < 0.05 && Math.abs(r.z - r.startZ) < 0.05 && r.light.battery >= 98 && r.tick < 30,
+    Math.abs(r.x - r.startX) < 0.05 && Math.abs(r.y - r.startY) < 0.3 && r.light.battery >= 98 && r.tick < 30,
     r,
   );
+
+  // Metroidvania systems through the debug hooks
+  type Hook = { __reanimatorAdvance: (i: unknown[], s?: unknown) => Snap; __reanimatorRunBot: (n: number) => Snap };
+  const minimapOk = await page.evaluate(() => {
+    const c = document.getElementById('minimap') as HTMLCanvasElement | null;
+    if (!c) return false;
+    const d = c.getContext('2d')!.getImageData(0, 0, c.width, c.height).data;
+    let lit = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) lit++;
+    return lit > 500;
+  });
+  check('sector minimap canvas is drawn', minimapOk);
+
+  const dj = await page.evaluate(() => {
+    const f: Record<string, unknown>[] = [];
+    for (let i = 0; i < 14; i++) f.push({ jump: true });
+    for (let i = 0; i < 8; i++) f.push({ jump: false });
+    for (let i = 0; i < 6; i++) f.push({ jump: true });
+    return (window as unknown as Hook).__reanimatorAdvance(f, { x: 6, y: 0, boots: true });
+  });
+  check('Thruster Boots allow a second jump and show the boots pill', dj.jumpsUsed === 2 && dj.abilities.thrusterBoots && (await page.locator('#boots-pill').isVisible()), { jumpsUsed: dj.jumpsUsed });
+  const noBoots = await page.evaluate(() => {
+    const f: Record<string, unknown>[] = [];
+    for (let i = 0; i < 14; i++) f.push({ jump: true });
+    for (let i = 0; i < 8; i++) f.push({ jump: false });
+    for (let i = 0; i < 6; i++) f.push({ jump: true });
+    return (window as unknown as Hook).__reanimatorAdvance(f, { x: 6, y: 0 });
+  });
+  check('no second jump without Thruster Boots', noBoots.jumpsUsed === 1, { jumpsUsed: noBoots.jumpsUsed });
+
+  const tank = await page.evaluate(() => (window as unknown as Hook).__reanimatorAdvance([{}, {}], { x: 5.5, y: -8.6, hp: 50 }));
+  check('Energy Tank pickup raises max HP to 130 and updates the HUD', tank.maxHp === 130 && tank.hp === 130 && (await page.locator('#etank-count').innerText()).startsWith('1/'), { maxHp: tank.maxHp });
+
+  const save = await page.evaluate(() => (window as unknown as Hook).__reanimatorAdvance([{ interact: true }], { x: 20, y: -11, hp: 40 }));
+  check('Save station restores HP and records the checkpoint', save.lastSaveId === 'save_mines' && save.hp === save.maxHp, { lastSaveId: save.lastSaveId });
+
+  const door = await page.evaluate(() => {
+    const f: Record<string, unknown>[] = [];
+    for (let i = 0; i < 30; i++) f.push({ fire: true, weaponSlot: 1, aimX: 24, aimY: 1.4 });
+    return (window as unknown as Hook).__reanimatorAdvance(f, { x: 20, y: 0 });
+  });
+  check('Pulse rifle opens the blue lock', door.openDoors.includes('door_airlock_shaft'), door.openDoors);
+
+  const full = await page.evaluate(() => {
+    const h = window as unknown as Hook;
+    h.__reanimatorAdvance([]); // fresh world
+    return h.__reanimatorRunBot(12000);
+  });
+  check(
+    'bot completes all six sectors in the browser build and wins',
+    full.status === 'won' && full.visitedRooms.length === 6 && full.coreDestroyed && full.collectedUpgrades.length === 3,
+    { status: full.status, rooms: full.visitedRooms, tick: full.tick },
+  );
+  await page.screenshot({ path: resolve(out, 'smoke_bot_win.png') });
 
   // Volume & FPS
   const vol = page.locator('#volume-p');

@@ -7,6 +7,15 @@ inclusion: always
 시작 시 `docs/AGENT_BRIEF.md`(NEXT SESSION) → `docs/STATUS.md` → `docs/NEXT_PLAN.md` 순으로 읽는다.
 이 파일은 Codex 인계 지침을 현재 상태에 맞게 갱신한 것이며 Kiro 실사용 증거가 아니다. Kiro가 실제 수행한 내용만 `docs/KIRO_USAGE.md`에 기록한다.
 
+## 방향 전환: Full 3D Side-View Metroidvania (Metroid Dread × Abuse)
+
+- 활성 spec: `.kiro/specs/metroidvania-3d/`(`requirements.md`, `design.md`, `tasks.md`). 전면 인계 가이드는 `docs/plans/KIRO_METROIDVANIA_HANDOFF.md`. 타입 계약은 `src/game3d/types3d.ts`(`SectorId3D` 6종, `DoorLockKind3D` 6종, `UpgradePickupKind3D`, `PlayerPoseState3D`).
+- 6개 섹터(`map3d.ts` Wave 1 완료): Cryo Airlock, Central Transit Shaft, Sunken Mines, Bio-Labs, Upper Security Deck, Core Vault.
+- 잠금 문: blue=Pulse, green=Scattergun, yellow=Grenade(Cracked Bio-Wall), red=Rail+Security Console, escape(Meltdown 후).
+- 능력 게이트: `mines`의 Thruster Boots(공중 점프)가 Central Shaft 상부 4.4 m를 연다. Energy Tank(`mines`, `biolabs`)는 최대 HP +30. Save/Recharge 스테이션(`mines`, `security`).
+- 렌더/HUD/시뮬: Wave 2 완료. `world3d.ts`(6잠금·업그레이드·세이브·`getPlayerPose3D`), `nav3d.ts`+`bot3d.ts`(상태형 봇 `createBot3D`), `scene3dFull.ts`(사이드뷰 카메라·z=0 레이캐스트·보간·pose 연결), `fallback2d.ts`, `main.ts`, `reach3d.ts`, `tests/game3d.test.ts`, `smoke.ts`, `capture-showcase.ts` 전환 완료.
+- 아래 "Quarter-View" 설명과 `.kiro/specs/full-3d-quarter-view/`는 이전 설계(보존용)다. 신규 작업은 `metroidvania-3d` spec을 따른다.
+
 ## 현재 아키텍처 (G0–G4 복원 완료 + Full 3D Quarter-View)
 
 - **Restoration (G0–G2)**: 대상은 Abuse DOS 셰어웨어 1.05. 이동 물리 복원 `src/engine/motion.ts`(15 Hz 설계값)가 S1·S2·S3 + sealed holdout M05에서 11개 필드 exact 일치. 브라우저 `#lab`(Restoration Lab)이 원본 로그와 엔진 재생을 나란히 보여 준다.
@@ -14,7 +23,7 @@ inclusion: always
 - **Full 3D Quarter-View 트윈스틱 슈터 (신규 설계)**: 60 Hz 시뮬레이션 `src/game3d/`(`world3d.ts`, `map3d.ts`, `bot3d.ts`), 이동 `src/engine/motion3d.ts`, WebGL2 Three.js 렌더러 `src/render3d/`(`scene3dFull.ts`, `riggedModels.ts`). 4구역, 무기 4종, 보스 Core Warden, Meltdown 탈출.
 - **자산**: Meshy 7.1 9종, schema `reanimator-meshy-assets-v2`(`reference/manifests/meshy-assets.json`), `public/assets/models/*.glb`. 상세 `docs/reference/ASSET_REGISTER.md`.
 - **spec**: `.kiro/specs/full-3d-quarter-view/`(`requirements.md`, `design.md`, `tasks.md`). 복원 spec은 `.kiro/specs/abuse-reference/`, `restored-motion/`, `reanimated-slice/`.
-- **R3.3**: 헤드램프 `w.light`는 HUD·렌더러 전용이다. 이동·전투·픽업·위험 지형·적 로직에서 읽지 않는다. `tests/game3d.test.ts`가 확인한다.
+- **R3.3**: 헤드램프 `w.light`는 HUD·렌더러 전용이다. 이동·전투·픽업·문·저장·위험 지형·적 로직에서 읽지 않는다. `tests/game3d.test.ts`가 확인한다. 사이드뷰 전환 후에도 유지한다.
 
 ## 마지막 관찰된 검증
 

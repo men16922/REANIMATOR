@@ -54,3 +54,18 @@ agy가 오케스트레이션하고 kiro-cli가 문서·spec 작업을 맡았다.
   - Task C: `.kiro/steering/reanimator.md` 및 `docs/**` 동기화(자산 등록부, 계획, 평가, G4 보고서, brief/status/plan/log/lessons).
 - 검증은 agy가 관찰한 값만 인용했다(35/35, holdout 4/4, smoke 22/22, dist-guard 12 files 14,304,572 B). kiro-cli는 Task C에서 변이 명령을 실행하지 않았다.
 - 미수행: Kiro 내 REA MCP 연결, hook 유발 파일명 기록, 사람 플레이(G5).
+
+## 2026-11-15 — Metroidvania 3D Wave 1 병렬 구현 및 전면 인계
+- Kiro 병렬 Wave 1 실행(`kiro-cli 2.37.1`):
+  - Task 1A (`task-1412`): `.kiro/specs/metroidvania-3d/{requirements,design,tasks}.md`, `.kiro/steering/reanimator.md` 작성 (이후 인계 과정에서 `map3d.ts` 및 `riggedModels.ts` 실구현에 맞춰 정합성 보정)
+  - Task 1B (`task-1413`): `src/game3d/map3d.ts` 6섹터 Metroidvania 맵·잠금 문·업그레이드·세이브 스테이션 작성 (런타임 unverified)
+  - Task 1C (`task-1414`): `src/ui/minimap.ts`, `index.html`, `src/ui/style.css`, `src/ui/audio.ts` HUD 미니맵·상태 배지·사운드 신스 작성 (시각 unverified)
+- `agy` 직접 구현·서브에이전트:
+  - `agy` 직접: `src/game3d/types3d.ts` 공유 계약 + `src/render3d/riggedModels.ts` split-body·XY 360° 양손 라이플 IK·`vy` 점프 스크럽·역방향 백페달 작성
+  - `agy` 서브에이전트 `1ef925e0`: `src/engine/motion3d.ts` 작성 완료 직후 할당량 `429`로 종료
+- 인계 상태 및 검증: `reference-verify` 3/3 PASS, `tests/{reference,game}.test.ts` 30/30 PASS, `tsc`는 미전환 `world3d.ts` 2건 오류; 전체 `make check`·`make smoke-local` **unverified**. Wave 2–3는 `docs/plans/KIRO_METROIDVANIA_HANDOFF.md` 기준으로 Kiro가 전담 실행.
+
+## 2026-11-15 — Metroidvania 3D Wave 2–3 통합 (Kiro 직접 수행)
+- Kiro 에이전트가 이 세션에서 직접 수행: `world3d.ts` 재작성(6잠금·업그레이드·세이브·pose), `nav3d.ts`/`bot3d.ts`/`reach3d.ts`, `scene3dFull.ts`·`fallback2d.ts`·`main.ts` 사이드뷰 전환, `tests/game3d.test.ts`·`smoke.ts`·`capture-showcase.ts` 재작성, spec `tasks.md` 완료 처리, docs 동기화.
+- 사용한 도구: 코드 탐색/편집, `make check`·`make smoke-local`·`make reference-holdout`·쇼케이스 실행과 PNG 육안 검수. 서브에이전트·병렬 `kiro-cli` 실행은 사용하지 않고 순차 수행했다.
+- 관찰 값: `make check` 44/44, holdout 4/4, smoke 29/29(60.5 fps), 봇 완주 3377 ticks. 미수행: 푸시, 사람 플레이(G5), Kiro 내 REA MCP 연결.

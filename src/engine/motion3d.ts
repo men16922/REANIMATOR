@@ -1,6 +1,11 @@
-// Pure 60 Hz 3D capsule kinematics adapted from Abuse's observed cop_mover/mover rules (new-design 3D extension).
-// Preserves Abuse's instant high-traction start/stop feel, crisp jump arc, gravity, and terminal fall clamp
-// while adding 8-way (X, Z) movement, multi-elevation catwalk ramps, smooth wall/pillar sliding, and Shift Jet-Dash.
+// Pure 60 Hz 3D capsule kinematics adapted from Abuse's observed cop_mover/mover rules (Metroidvania 3D side-view extension).
+// Preserves Abuse's instant high-traction start/stop feel, asymmetric jump curve, coyote time, jump buffering,
+// Thruster double-jump, one-way platforms with drop-through, optional Z-lane lock, and Shift Jet-Dash.
+
+import type { BoxKind3D, Collider3D, MapSolid3D, Pillar3D, Ramp3D } from '../game3d/types3d.ts';
+
+export type BoxSolid3D = MapSolid3D;
+export type { BoxKind3D, Collider3D, Pillar3D, Ramp3D };
 
 export interface Body3D {
   x: number;
@@ -18,6 +23,11 @@ export interface Body3D {
   dashCooldown: number;
   dashDirX: number;
   dashDirZ: number;
+  coyoteTicks: number;
+  jumpBufferTicks: number;
+  jumpsUsed: number;
+  prevJumpHeld: boolean;
+  dropThroughTicks: number;
 }
 
 export interface MoveInput3D {
@@ -29,67 +39,29 @@ export interface MoveInput3D {
   /** Fallback dash heading if player dashes while stationary */
   aimDirX: number;
   aimDirZ: number;
+  dropDown?: boolean;
+  maxJumps?: number;
+  lockZ?: boolean;
 }
 
-export interface BoxSolid3D {
-  id: string;
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-  minZ: number;
-  maxZ: number;
-  kind?: 'wall' | 'crate' | 'catwalk' | 'console' | 'door';
-  doorId?: string;
-}
-
-export interface Pillar3D {
-  id: string;
-  x: number;
-  z: number;
-  radius: number;
-  minY: number;
-  maxY: number;
-}
-
-export interface Ramp3D {
-  id: string;
-  minX: number;
-  maxX: number;
-  minZ: number;
-  maxZ: number;
-  axis: 'x' | 'z';
-  /** Elevation at min axis edge */
-  yMinEdge: number;
-  /** Elevation at max axis edge */
-  yMaxEdge: number;
-  thickness: number;
-}
-
-export interface Collider3D {
-  solids: readonly BoxSolid3D[];
-  pillars: readonly Pillar3D[];
-  ramps: readonly Ramp3D[];
-  isSolidActive?: (s: BoxSolid3D) => boolean;
-}
-
-/** Kinematic constants scaled from Abuse's LISP ABILITY ratio (accel/stop ~ 8/9 of top speed per beat). */
+/** Kinematic constants scaled from Abuse's LISP ABILITY ratio and tuned for Metroidvania side-view play. */
 export const ABILITY_3D = {
   dt: 1 / 60,
   radius: 0.42,
   height: 1.82,
-  runTopSpeed: 9.2,
-  startAccelPerSec: 84,
-  stopDecelPerSec: 96,
-  airAccelPerSec: 52,
-  jumpVel: 9.5,
-  gravity: 26.5,
-  terminalFallVel: -18.5,
+  runTopSpeed: 9.4,
+  startAccelPerSec: 86,
+  stopDecelPerSec: 104,
+  airAccelPerSec: 58,
+  jumpVel: 10.6,
+  doubleJumpVel: 9.8,
+  gravity: 24.5,
+  terminalFallVel: -19.5,
   stepUpHeight: 0.38,
-  dashSpeed: 21.0,
+  dashSpeed: 21.5,
   dashTicks: 11,
-  dashCooldownTicks: 66,
-  landTicks: 4,
+  dashCooldownTicks: 58,
+  landTicks: 5,
 } as const;
 
 export function spawnBody3D(x: number, y: number, z: number): Body3D {
@@ -108,6 +80,11 @@ export function spawnBody3D(x: number, y: number, z: number): Body3D {
     dashCooldown: 0,
     dashDirX: 1,
     dashDirZ: 0,
+    coyoteTicks: 0,
+    jumpBufferTicks: 0,
+    jumpsUsed: 0,
+    prevJumpHeld: false,
+    dropThroughTicks: 0,
   };
 }
 
@@ -118,12 +95,15 @@ export function floorHeightAt3D(
   currentY: number,
   radius: number,
   col: Collider3D,
+  skipPlatforms = false,
 ): number {
   let best = -Infinity;
   const maxStep = currentY + ABILITY_3D.stepUpHeight;
 
   for (const s of col.solids) {
     if (col.isSolidActive && !col.isSolidActive(s)) continue;
+    // One-way platforms only support feet when approaching from above/at top face
+    if (s.kind === 'platform' && (skipPlatforms || currentY < s.maxY - 0.14)) continue;
     if (
       x + radius > s.minX &&
       x - radius < s.maxX &&
@@ -160,7 +140,7 @@ export function floorHeightAt3D(
   return best;
 }
 
-/** Resolve horizontal capsule pushout against active solids and pillars at vertical span [y + 0.35, y + height]. */
+/** Resolve horizontal capsule pushout against active non-platform solids and pillars at vertical span [y + stepUp, y + height]. */
 export function resolveHorizontal3D(
   x: number,
   y: number,
@@ -178,6 +158,7 @@ export function resolveHorizontal3D(
   for (let pass = 0; pass < 2; pass++) {
     for (const s of col.solids) {
       if (col.isSolidActive && !col.isSolidActive(s)) continue;
+      if (s.kind === 'platform') continue;
       if (s.maxY <= footClear || s.minY >= headTop) continue;
       const cx = Math.max(s.minX, Math.min(rx, s.maxX));
       const cz = Math.max(s.minZ, Math.min(rz, s.maxZ));
@@ -228,22 +209,70 @@ export function resolveHorizontal3D(
 export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Collider3D): Body3D {
   const b: Body3D = { ...prev };
   const dt = ABILITY_3D.dt;
+  const lockZ = input.lockZ ?? true;
+  const maxJumps = input.maxJumps ?? 1;
+
+  if (lockZ) {
+    b.z = 0;
+    b.vz = 0;
+  }
 
   if (b.dashCooldown > 0) b.dashCooldown--;
+  if (b.dropThroughTicks > 0) b.dropThroughTicks--;
+
+  const jumpPressed = input.jump && !prev.prevJumpHeld;
+  b.prevJumpHeld = input.jump;
+  if (b.jumpBufferTicks > 0) b.jumpBufferTicks--;
+  if (jumpPressed) b.jumpBufferTicks = 6;
+
+  if (b.grounded) {
+    b.coyoteTicks = 6;
+    b.jumpsUsed = 0;
+  } else if (b.coyoteTicks > 0) {
+    b.coyoteTicks--;
+  }
+
+  // One-way platform drop-through when grounded directly on a platform
+  let droppedThroughThisTick = false;
+  if (b.grounded && input.dropDown) {
+    const solidFloor = floorHeightAt3D(b.x, b.z, b.y, ABILITY_3D.radius, col, true);
+    const anyFloor = floorHeightAt3D(b.x, b.z, b.y, ABILITY_3D.radius, col, false);
+    if (solidFloor < anyFloor - 0.05) {
+      b.dropThroughTicks = 12;
+      b.grounded = false;
+      b.vy = -2.2;
+      b.coyoteTicks = 0;
+      b.jumpBufferTicks = 0;
+      droppedThroughThisTick = true;
+    }
+  }
 
   // Normalize movement vector
-  const moveMag = Math.hypot(input.moveX, input.moveZ);
-  const mx = moveMag > 1e-4 ? input.moveX / Math.max(1, moveMag) : 0;
-  const mz = moveMag > 1e-4 ? input.moveZ / Math.max(1, moveMag) : 0;
+  const rawMoveX = input.moveX;
+  const rawMoveZ = lockZ ? 0 : input.moveZ;
+  const moveMag = Math.hypot(rawMoveX, rawMoveZ);
+  const mx = moveMag > 1e-4 ? rawMoveX / Math.max(1, moveMag) : 0;
+  const mz = moveMag > 1e-4 ? rawMoveZ / Math.max(1, moveMag) : 0;
+
+  let launchedThisTick = false;
 
   // Trigger tactical Jet-Dash
   if (input.dash && b.dashTicks === 0 && b.dashCooldown === 0) {
     let dx = mx;
     let dz = mz;
     if (moveMag < 0.05) {
-      const am = Math.hypot(input.aimDirX, input.aimDirZ);
-      dx = am > 1e-4 ? input.aimDirX / am : Math.sin(b.yaw);
-      dz = am > 1e-4 ? input.aimDirZ / am : Math.cos(b.yaw);
+      const aimZ = lockZ ? 0 : input.aimDirZ;
+      const am = Math.hypot(input.aimDirX, aimZ);
+      if (am > 1e-4) {
+        dx = input.aimDirX / am;
+        dz = aimZ / am;
+      } else if (lockZ) {
+        dx = Math.sin(b.yaw) >= 0 ? 1 : -1;
+        dz = 0;
+      } else {
+        dx = Math.sin(b.yaw);
+        dz = Math.cos(b.yaw);
+      }
     } else {
       const dm = Math.hypot(dx, dz);
       dx /= dm;
@@ -254,14 +283,14 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
     b.dashDirX = dx;
     b.dashDirZ = dz;
     b.vx = dx * ABILITY_3D.dashSpeed;
-    b.vz = dz * ABILITY_3D.dashSpeed;
+    b.vz = lockZ ? 0 : dz * ABILITY_3D.dashSpeed;
     b.state = 5;
   }
 
   if (b.dashTicks > 0) {
     b.dashTicks--;
     b.vx = b.dashDirX * ABILITY_3D.dashSpeed;
-    b.vz = b.dashDirZ * ABILITY_3D.dashSpeed;
+    b.vz = lockZ ? 0 : b.dashDirZ * ABILITY_3D.dashSpeed;
     b.vy = Math.max(0, b.vy * 0.2);
     b.state = 5;
   } else {
@@ -294,37 +323,63 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
       }
     }
 
-    // Jump impulse (Abuse crisp ground launch)
-    if (input.jump && b.grounded) {
-      b.vy = ABILITY_3D.jumpVel;
-      b.grounded = false;
-      b.state = 2;
-      b.landTicks = 0;
+    // Jump launch: ground/coyote/buffered first jump, or Thruster double-jump
+    if (!droppedThroughThisTick) {
+      if (b.jumpBufferTicks > 0 && (b.grounded || b.coyoteTicks > 0)) {
+        b.vy = ABILITY_3D.jumpVel;
+        b.grounded = false;
+        b.coyoteTicks = 0;
+        b.jumpBufferTicks = 0;
+        b.jumpsUsed = 1;
+        b.state = 2;
+        b.landTicks = 0;
+        launchedThisTick = true;
+      } else if (jumpPressed && !b.grounded && maxJumps > 1 && b.jumpsUsed < maxJumps) {
+        b.vy = ABILITY_3D.doubleJumpVel;
+        b.jumpsUsed = Math.max(2, b.jumpsUsed + 1);
+        b.jumpBufferTicks = 0;
+        b.state = 2;
+        b.landTicks = 0;
+        launchedThisTick = true;
+      }
     }
   }
 
-  // Gravity & terminal fall clamp
-  if (!b.grounded && b.dashTicks === 0) {
-    b.vy = Math.max(ABILITY_3D.terminalFallVel, b.vy - ABILITY_3D.gravity * dt);
+  // Asymmetric Abuse jump curve gravity & terminal fall clamp
+  if (!b.grounded && b.dashTicks === 0 && !launchedThisTick) {
+    let g = 23.0;
+    if (Math.abs(b.vy) < 1.65) {
+      g = 12.0;
+    } else if (b.vy >= 1.65 && !input.jump && b.vy > 4.2) {
+      g = 40.0;
+    } else if (b.vy <= -1.65) {
+      g = 34.0;
+    }
+    b.vy = Math.max(ABILITY_3D.terminalFallVel, b.vy - g * dt);
   }
 
   // Horizontal integration + smooth wall/pillar slide
   const wantX = b.x + b.vx * dt;
-  const wantZ = b.z + b.vz * dt;
+  const wantZ = lockZ ? 0 : b.z + b.vz * dt;
   const res = resolveHorizontal3D(wantX, b.y, wantZ, ABILITY_3D.radius, ABILITY_3D.height, col);
   const actualVx = (res.x - b.x) / dt;
   const actualVz = (res.z - b.z) / dt;
   b.x = res.x;
-  b.z = res.z;
+  b.z = lockZ ? 0 : res.z;
   if (res.hitWall) {
     // Project velocity onto slid movement rather than fighting solid walls
     b.vx = Math.abs(actualVx) < 0.05 ? 0 : actualVx;
-    b.vz = Math.abs(actualVz) < 0.05 ? 0 : actualVz;
+    b.vz = lockZ || Math.abs(actualVz) < 0.05 ? 0 : actualVz;
+  }
+  if (lockZ) {
+    b.z = 0;
+    b.vz = 0;
   }
 
-  // Vertical integration + ramp/catwalk floor snapping
-  const groundY = floorHeightAt3D(b.x, b.z, b.y, ABILITY_3D.radius, col);
+  // Vertical integration + ramp/catwalk/platform floor snapping
+  const groundY = floorHeightAt3D(b.x, b.z, b.y, ABILITY_3D.radius, col, b.dropThroughTicks > 0);
   const wantY = b.y + b.vy * dt;
+  let justLanded = false;
 
   if (b.grounded) {
     if (groundY > -Infinity && groundY >= b.y - 0.32 && groundY <= b.y + ABILITY_3D.stepUpHeight + 0.1) {
@@ -340,13 +395,13 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
       b.y = groundY;
       b.vy = 0;
       b.grounded = true;
-      b.state = 4;
-      b.landTicks = 0;
+      justLanded = true;
     } else {
       b.y = wantY;
-      // Check ceiling clip
+      // Check ceiling clip (skip one-way platforms so rising passes freely through them)
       for (const s of col.solids) {
         if (col.isSolidActive && !col.isSolidActive(s)) continue;
+        if (s.kind === 'platform') continue;
         if (
           b.x + ABILITY_3D.radius > s.minX &&
           b.x - ABILITY_3D.radius < s.maxX &&
@@ -363,8 +418,9 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
     }
   }
 
-  // Fallback safety floor clamp
-  if (b.y < -10) {
+  // Fallback safety floor clamp below deepest map sector
+  if (b.y < -25) {
+    if (!b.grounded) justLanded = true;
     b.y = 0;
     b.vy = 0;
     b.grounded = true;
@@ -373,12 +429,18 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
   // State machine update
   if (b.dashTicks > 0) {
     b.state = 5;
+    b.landTicks = 0;
   } else if (!b.grounded) {
     b.state = b.vy > 0 ? 2 : 3;
-  } else if (prev.state === 4 && b.landTicks < ABILITY_3D.landTicks) {
-    b.landTicks++;
+    b.landTicks = 0;
+  } else if (justLanded) {
     b.state = 4;
+    b.landTicks = 1;
+  } else if (prev.state === 4 && prev.landTicks < ABILITY_3D.landTicks) {
+    b.state = 4;
+    b.landTicks = prev.landTicks + 1;
   } else {
+    b.landTicks = 0;
     const speed = Math.hypot(b.vx, b.vz);
     b.state = speed > 0.6 ? 1 : 0;
   }

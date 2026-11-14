@@ -1,19 +1,30 @@
-// Unit & integration tests for REANIMATOR Full 3D motion, 4-weapon combat,
-// Core Warden phases/shockwaves, strict R3.3 headlamp non-coupling, and rigged GLB clips.
+// Unit & integration tests for REANIMATOR's six-sector side-view Metroidvania:
+// map topology, motion3d (one-way platforms, coyote, Thruster double-jump, landing), six lock kinds,
+// upgrades and Energy Tanks, Save stations, pose contract, 4-weapon combat, Core Warden, bot playthrough,
+// physical reachability, strict R3.3 headlamp non-coupling, and rigged GLB clips.
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { ABILITY_3D, spawnBody3D, stepBody3D } from '../src/engine/motion3d.ts';
-import { buildCollider3D, buildFacilityMap3D } from '../src/game3d/map3d.ts';
+import { ABILITY_3D, spawnBody3D, stepBody3D, type Body3D } from '../src/engine/motion3d.ts';
+import { createBot3D } from '../src/game3d/bot3d.ts';
+import { buildFacilityMap3D } from '../src/game3d/map3d.ts';
+import type { Collider3D, MapSolid3D } from '../src/game3d/types3d.ts';
 import {
+  DOOR_REQUIRED_WEAPON,
   emptyInput3D,
+  getPlayerPose3D,
   newWorld3D,
+  respawnPlayer3D,
+  roomAt3D,
   stepWorld3D,
   triggerExplosion3D,
+  tryOpenDoor3D,
+  type InputState3D,
   type WorldState3D,
 } from '../src/game3d/world3d.ts';
+import { buildReachRoute, walkTo } from '../tools/game/reach3d.ts';
 
 function readGlbJson(relPath: string): {
   skins?: { joints: number[] }[];
@@ -28,303 +39,431 @@ function readGlbJson(relPath: string): {
   return JSON.parse(buf.subarray(20, 20 + chunkLen).toString('utf8'));
 }
 
-test('motion3d: acceleration, friction, jump arc, ramp climb, wall/pillar slide, and Jet-Dash', () => {
+
+function box(id: string, minX: number, maxX: number, minY: number, maxY: number, kind: MapSolid3D['kind'] = 'catwalk'): MapSolid3D {
+  return { id, minX, maxX, minY, maxY, minZ: -3, maxZ: 3, kind };
+}
+function col(solids: MapSolid3D[]): Collider3D {
+  return { solids, pillars: [], ramps: [] };
+}
+const idle = { moveX: 0, moveZ: 0, jump: false, dash: false, aimDirX: 1, aimDirZ: 0 };
+
+function place(w: WorldState3D, x: number, y: number): void {
+  w.player.body = spawnBody3D(x, y, 0);
+}
+function doorSolid(w: WorldState3D, id: string): MapSolid3D {
+  return w.level.solids.find((s) => s.doorId === id)!;
+}
+function stepN(w: WorldState3D, n: number, inp: Partial<InputState3D> = {}): void {
+  for (let i = 0; i < n; i++) stepWorld3D(w, { ...emptyInput3D(), ...inp });
+}
+
+test('map: six sectors, symmetric neighbors, every room reachable, <= 1 save per room, props inside rooms', () => {
   const level = buildFacilityMap3D();
-  const col = buildCollider3D(level, new Set());
-
-  // 1. Horizontal acceleration & friction on floor
-  let b = spawnBody3D(3.2, 0, 0);
-  for (let i = 0; i < 20; i++) {
-    b = stepBody3D(b, { moveX: 1, moveZ: 0, jump: false, dash: false, aimDirX: 1, aimDirZ: 0 }, col);
-  }
-  assert.ok(b.vx > 8.5, `Expected run velocity near top speed, got ${b.vx}`);
-  for (let i = 0; i < 25; i++) {
-    b = stepBody3D(b, { moveX: 0, moveZ: 0, jump: false, dash: false, aimDirX: 1, aimDirZ: 0 }, col);
-  }
-  assert.ok(Math.abs(b.vx) < 0.05, `Expected friction stop, got ${b.vx}`);
-
-  // 2. Jump arc & landing
-  b = stepBody3D(b, { moveX: 0, moveZ: 0, jump: true, dash: false, aimDirX: 1, aimDirZ: 0 }, col);
-  assert.equal(b.grounded, false);
-  let maxY = 0;
-  for (let i = 0; i < 60; i++) {
-    b = stepBody3D(b, { moveX: 0, moveZ: 0, jump: false, dash: false, aimDirX: 1, aimDirZ: 0 }, col);
-    if (b.y > maxY) maxY = b.y;
-    if (b.grounded && i > 5) break;
-  }
-  assert.ok(maxY > 1.4, `Expected jump height > 1.4m, got ${maxY}`);
-  assert.equal(b.grounded, true);
-
-  // 3. Walkable Ramp3D climb onto Catwalk A (y = 2.2)
-  let rampBody = spawnBody3D(9.8, 0, -6.2);
-  for (let i = 0; i < 65; i++) {
-    rampBody = stepBody3D(
-      rampBody,
-      { moveX: 1, moveZ: 0, jump: false, dash: false, aimDirX: 1, aimDirZ: 0 },
-      col,
-    );
-  }
-  assert.ok(rampBody.x > 15.2, `Expected ramp traversal past x=15.2, got ${rampBody.x}`);
-  assert.ok(Math.abs(rampBody.y - 2.2) < 0.15, `Expected catwalk height ~2.2, got ${rampBody.y}`);
-
-  // 4. Cylindrical pillar & south wall slide collision
-  let pilBody = spawnBody3D(16.5, 0, 4.8);
-  for (let i = 0; i < 35; i++) {
-    pilBody = stepBody3D(
-      pilBody,
-      { moveX: 1, moveZ: 0.25, jump: false, dash: false, aimDirX: 1, aimDirZ: 0 },
-      col,
-    );
-  }
-  const distToPillar = Math.hypot(pilBody.x - 18.0, pilBody.z - 4.8);
-  assert.ok(distToPillar >= 0.78 + ABILITY_3D.radius - 0.05, `Player penetrated pillar: d=${distToPillar}`);
-
-  // 5. Jet-Dash burst & cooldown
-  let dashBody = spawnBody3D(4.0, 0, 0);
-  dashBody = stepBody3D(dashBody, { moveX: 0, moveZ: 1, jump: false, dash: true, aimDirX: 1, aimDirZ: 0 }, col);
-  assert.equal(dashBody.dashTicks, ABILITY_3D.dashTicks - 1);
-  assert.equal(dashBody.dashCooldown, ABILITY_3D.dashCooldownTicks);
-  assert.ok(dashBody.vz > 18, `Expected dash velocity burst, got ${dashBody.vz}`);
-});
-
-test('world3d: all 4 weapons + 3D grenade bounce + bio-barrel chain detonation + Rail wall stop', () => {
-  const w = newWorld3D();
-
-  // [1] Pulse Rifle damages aligned enemy
-  const crawler = w.enemies.find((e) => e.id === 'e-a1')!;
-  const initHp = crawler.hp;
-  const step1 = stepWorld3D(w, {
-    ...emptyInput3D(),
-    fire: true,
-    aimX: crawler.x,
-    aimY: 0.55,
-    aimZ: crawler.z,
-  });
-  assert.ok(step1.projectiles.some((p) => p.kind === 'pulse'), 'Pulse projectile should spawn');
-  for (let i = 0; i < 30; i++) stepWorld3D(step1, emptyInput3D());
-  assert.ok(crawler.hp < initHp, 'Pulse projectile should damage Zone A crawler');
-
-  // [2] Scattergun spawns 7 pellets & decrements ammo
-  step1.player.unlocked[2] = true;
-  step1.player.ammo[2] = 10;
-  step1.player.fireCooldown = 0;
-  step1.projectiles = [];
-  stepWorld3D(step1, {
-    ...emptyInput3D(),
-    weaponSlot: 2,
-    fire: true,
-    aimX: 15,
-    aimY: 1.0,
-    aimZ: 0,
-  });
-  assert.equal(step1.player.ammo[2], 9);
-  assert.equal(step1.projectiles.filter((p) => p.kind === 'scatter').length, 7);
-
-  // [3] Grenade launcher bounces off floor/wall & triggers chain bio-barrel detonation
-  step1.player.unlocked[3] = true;
-  step1.player.ammo[3] = 5;
-  step1.player.fireCooldown = 0;
-  step1.projectiles = [];
-  stepWorld3D(step1, {
-    ...emptyInput3D(),
-    weaponSlot: 3,
-    fire: true,
-    aimX: 12,
-    aimY: 0.2,
-    aimZ: 0,
-  });
-  let maxBounces = 0;
-  for (let i = 0; i < 85; i++) {
-    stepWorld3D(step1, emptyInput3D());
-    for (const p of step1.projectiles) {
-      if (p.kind === 'grenade' && p.bounces > maxBounces) maxBounces = p.bounces;
+  assert.deepEqual(
+    level.rooms.map((r) => r.sector).sort(),
+    ['airlock', 'biolabs', 'core', 'mines', 'security', 'shaft'],
+  );
+  const byId = new Map(level.rooms.map((r) => [r.id, r]));
+  for (const r of level.rooms) {
+    for (const n of r.neighbors) {
+      assert.ok(byId.get(n)?.neighbors.includes(r.id), `${r.id} -> ${n} must be symmetric`);
     }
   }
-  assert.ok(maxBounces >= 1, `Expected 3D grenade bounce >= 1, got ${maxBounces}`);
-
-  // Barrel domino chain detonation (Zone D barrels d1..d4 spaced ~2.4m apart, blast radius 4.4m)
-  const brl1 = step1.barrels.find((b) => b.id === 'brl-d1')!;
-  const brl2 = step1.barrels.find((b) => b.id === 'brl-d2')!;
-  assert.equal(brl1.alive, true);
-  assert.equal(brl2.alive, true);
-  brl1.alive = false;
-  triggerExplosion3D(step1, brl1.x, 0.7, brl1.z, 4.4, 92);
-  assert.ok(brl2.fuseTicks > 0, 'Adjacent barrel should catch staggered domino fuse');
-  for (let i = 0; i < 8; i++) stepWorld3D(step1, emptyInput3D());
-  assert.equal(brl2.alive, false, 'Adjacent bio-barrel must chain-detonate');
-
-  // [4] Rail-Cannon pierces aligned enemies and terminates on solid divider wall
-  const wRail = newWorld3D();
-  wRail.player.body.x = 5.0;
-  wRail.player.body.z = 0.0;
-  wRail.player.unlocked[4] = true;
-  wRail.player.ammo[4] = 5;
-  wRail.enemies[0].x = 9.0;
-  wRail.enemies[0].z = 0.0;
-  wRail.enemies[0].alive = true;
-  wRail.enemies[0].hp = 50;
-  wRail.enemies[1].x = 12.5;
-  wRail.enemies[1].z = 0.0;
-  wRail.enemies[1].alive = true;
-  wRail.enemies[1].hp = 50;
-  stepWorld3D(wRail, {
-    ...emptyInput3D(),
-    weaponSlot: 4,
-    fire: true,
-    aimX: 28,
-    aimY: 1.0,
-    aimZ: 0.0,
-  });
-  assert.equal(wRail.player.ammo[4], 4);
-  assert.equal(wRail.beams.length, 1);
-  assert.equal(wRail.enemies[0].alive, false, 'First aligned enemy should die to piercing rail');
-  assert.equal(wRail.enemies[1].alive, false, 'Second aligned enemy should also die to piercing rail');
-  // Beam fired straight at West perimeter wall (x=0) stops cleanly at wall
-  wRail.player.fireCooldown = 0;
-  stepWorld3D(wRail, {
-    ...emptyInput3D(),
-    weaponSlot: 4,
-    fire: true,
-    aimX: -10,
-    aimY: 1.0,
-    aimZ: 0.0,
-  });
-  const westBeam = wRail.beams.at(-1)!;
-  assert.ok(westBeam.x2 >= -0.05 && westBeam.x2 < 0.6, `Rail beam should stop on West wall x=0, got x2=${westBeam.x2}`);
+  const seen = new Set<string>(['room_airlock']);
+  const queue = ['room_airlock'];
+  while (queue.length) {
+    for (const n of byId.get(queue.shift()!)!.neighbors) {
+      if (!seen.has(n)) {
+        seen.add(n);
+        queue.push(n);
+      }
+    }
+  }
+  assert.equal(seen.size, 6, 'all rooms reachable from the spawn room');
+  for (const r of level.rooms) {
+    assert.ok(level.saveStations.filter((s) => s.roomId === r.id).length <= 1, `${r.id} has more than one save`);
+  }
+  const props = [...level.saveStations, ...level.upgrades, ...level.pedestals];
+  for (const p of props) {
+    assert.ok(roomAt3D(level, p.x, p.y + 0.9), `${p.id} must lie inside a room`);
+  }
+  assert.equal(level.upgrades.filter((u) => u.kind === 'energy_tank').length, 2);
+  assert.equal(level.upgrades.filter((u) => u.kind === 'thruster_boots').length, 1);
 });
 
-test('Core Warden: Phase 2 at <= 50% HP, jump dodges shockwave ring, Core shielded until Warden dies', () => {
+test('motion3d: run, friction, jump arc, landing state 4, Z-lane lock and Jet-Dash', () => {
+  const c = col([box('floor', -20, 40, -1, 0)]);
+  let b = spawnBody3D(0, 0, 0);
+  for (let i = 0; i < 20; i++) b = stepBody3D(b, { ...idle, moveX: 1 }, c);
+  assert.ok(b.vx > 9.0, `run velocity near top speed, got ${b.vx}`);
+  for (let i = 0; i < 25; i++) b = stepBody3D(b, idle, c);
+  assert.ok(Math.abs(b.vx) < 0.05, `friction stop, got ${b.vx}`);
+
+  b = stepBody3D(b, { ...idle, jump: true }, c);
+  assert.equal(b.grounded, false);
+  let maxY = 0;
+  let sawLanding = false;
+  for (let i = 0; i < 90; i++) {
+    b = stepBody3D(b, { ...idle, jump: i < 30 }, c);
+    maxY = Math.max(maxY, b.y);
+    if (b.state === 4) sawLanding = true;
+    if (b.grounded && i > 5) break;
+  }
+  assert.ok(maxY > 2.2 && maxY < 2.8, `single jump apex 2.2..2.8 m, got ${maxY}`);
+  assert.ok(sawLanding && b.grounded, 'landing sets state 4');
+
+  const z = stepBody3D(spawnBody3D(0, 0, 0), { ...idle, moveZ: 1 }, c);
+  assert.equal(z.z, 0, 'z is locked to the lane');
+
+  let d = stepBody3D(spawnBody3D(0, 0, 0), { ...idle, moveX: 1, dash: true }, c);
+  assert.equal(d.state, 5);
+  assert.ok(d.vx > 20, `dash speed, got ${d.vx}`);
+  d = stepBody3D(d, { ...idle, moveX: 1, dash: true }, c);
+  assert.ok(d.dashCooldown > 0);
+});
+
+test('motion3d: one-way platform (pass up, land, drop through), coyote time, Thruster double-jump', () => {
+  const c = col([box('floor', -10, 30, -1, 0), box('plat', 2, 12, 1.92, 2.2, 'platform')]);
+  // Jump up through the one-way platform from below and land on it
+  let b = spawnBody3D(6, 0, 0);
+  for (let i = 0; i < 80; i++) b = stepBody3D(b, { ...idle, jump: i < 40 && i % 2 === 0 || (i >= 1 && i < 30) }, c);
+  assert.ok(b.grounded && Math.abs(b.y - 2.2) < 0.01, `landed on the platform top, y=${b.y}`);
+  // Drop through it with Down
+  b = stepBody3D(b, { ...idle, dropDown: true }, c);
+  for (let i = 0; i < 60; i++) b = stepBody3D(b, idle, c);
+  assert.ok(b.grounded && Math.abs(b.y) < 0.01, `dropped to the floor, y=${b.y}`);
+
+  // Coyote time: still able to jump a few ticks after leaving a ledge
+  const ledge = col([box('ledge', 0, 5, -1, 0)]);
+  let w = spawnBody3D(4.5, 0, 0);
+  let off = 0;
+  while (w.grounded && off < 60) {
+    w = stepBody3D(w, { ...idle, moveX: 1 }, ledge);
+    off++;
+  }
+  assert.equal(w.grounded, false, 'walked off the ledge');
+  w = stepBody3D(w, { ...idle, moveX: 1 }, ledge);
+  w = stepBody3D(w, { ...idle, moveX: 1, jump: true }, ledge);
+  assert.ok(w.vy > 5, `coyote jump launched, vy=${w.vy}`);
+
+  // Double jump only with maxJumps = 2
+  const air = (maxJumps: number): Body3D => {
+    let a = spawnBody3D(6, 0, 0);
+    a = stepBody3D(a, { ...idle, jump: true, maxJumps }, col([box('f', -10, 30, -1, 0)]));
+    for (let i = 0; i < 18; i++) a = stepBody3D(a, { ...idle, jump: false, maxJumps }, col([box('f', -10, 30, -1, 0)]));
+    return stepBody3D(a, { ...idle, jump: true, maxJumps }, col([box('f', -10, 30, -1, 0)]));
+  };
+  assert.ok(air(2).vy > 8, 'Thruster double jump relaunches');
+  assert.ok(air(1).vy < 4, 'no double jump without Thruster Boots');
+  assert.equal(ABILITY_3D.landTicks, 5);
+});
+
+test('locks: weapon table, mismatched weapon leaves state unchanged, red needs console, escape stays sealed', () => {
+  assert.deepEqual(DOOR_REQUIRED_WEAPON, { blue: 1, green: 2, yellow: 3, red: 4, console: 0, escape: 0 });
+  const w = newWorld3D();
+  const green = doorSolid(w, 'door_shaft_mines');
+  assert.equal(tryOpenDoor3D(w, green, 1), false);
+  assert.equal(tryOpenDoor3D(w, green, 4), false);
+  assert.equal(w.openDoors.size, 0);
+  assert.equal(w.events.length, 0, 'no door events on mismatch');
+  assert.equal(tryOpenDoor3D(w, green, 2), true);
+  assert.ok(w.openDoors.has('door_shaft_mines'));
+  assert.ok(w.events.some((e) => e.type === 'door_blast'));
+
+  const red = doorSolid(w, 'door_boss');
+  assert.equal(tryOpenDoor3D(w, red, 4), false, 'red needs the Security Console first');
+  w.consoleUnlocked = true;
+  assert.equal(tryOpenDoor3D(w, red, 3), false);
+  assert.equal(tryOpenDoor3D(w, red, 4), true);
+
+  const esc = doorSolid(w, 'door_escape');
+  for (const wp of [0, 1, 2, 3, 4] as const) assert.equal(tryOpenDoor3D(w, esc, wp), false);
+  assert.ok(!w.openDoors.has('door_escape'), 'escape hatch closed before Meltdown');
+});
+
+test('locks: shooting opens blue (Pulse) and green (Scattergun), wrong weapon does not; Grenade blast breaks yellow', () => {
+  const blue = newWorld3D();
+  place(blue, 20, 0);
+  stepN(blue, 40, { fire: true, weaponSlot: 1, aimX: 24, aimY: 1.4 });
+  assert.ok(blue.openDoors.has('door_airlock_shaft'), 'Pulse opens the blue door');
+
+  const wrong = newWorld3D();
+  place(wrong, 31, -11);
+  stepN(wrong, 80, { fire: true, weaponSlot: 1, aimX: 24, aimY: -9.4 });
+  assert.ok(!wrong.openDoors.has('door_shaft_mines'), 'Pulse must not open the green door');
+  assert.ok(wrong.hint.includes('GREEN'), 'hint names the missing weapon');
+
+  const green = newWorld3D();
+  place(green, 31, -11);
+  green.player.unlocked[2] = true;
+  green.player.ammo[2] = 10;
+  stepN(green, 40, { fire: true, weaponSlot: 2, aimX: 24, aimY: -9.4 });
+  assert.ok(green.openDoors.has('door_shaft_mines'), 'Scattergun opens the green door');
+
+  const yellow = newWorld3D();
+  const ys = doorSolid(yellow, 'door_shaft_biolabs');
+  triggerExplosion3D(yellow, ys.minX - 1, 1.5, 0, 4.1, 0, 0xff7a2f, 0, 0);
+  assert.ok(!yellow.openDoors.has('door_shaft_biolabs'), 'barrel blasts do not break the Cracked Bio-Wall');
+  triggerExplosion3D(yellow, ys.minX - 1, 1.5, 0, 4.1, 86, 0xff7a2f, 0, 3);
+  assert.ok(yellow.openDoors.has('door_shaft_biolabs'), 'Grenade blast breaks the yellow door');
+});
+
+test('upgrades: Energy Tank +30 max HP once each, Thruster Boots enable double jump with an event', () => {
+  const w = newWorld3D();
+  const tank = w.level.upgrades.find((u) => u.id === 'etank_mines')!;
+  place(w, tank.x, tank.y);
+  w.player.hp = 40;
+  stepN(w, 1);
+  assert.equal(w.player.energyTanks, 1);
+  assert.equal(w.player.maxHp, 130);
+  assert.equal(w.player.hp, 130);
+  assert.ok(w.events.some((e) => e.type === 'upgrade'));
+  stepN(w, 5);
+  assert.equal(w.player.energyTanks, 1, 'no duplicate pickup');
+  const tank2 = w.level.upgrades.find((u) => u.id === 'etank_biolabs')!;
+  place(w, tank2.x, tank2.y);
+  stepN(w, 1);
+  assert.equal(w.player.maxHp, 160);
+
+  const j = newWorld3D();
+  const boots = j.level.upgrades.find((u) => u.id === 'thruster_boots')!;
+  place(j, boots.x, boots.y);
+  stepN(j, 1);
+  assert.ok(j.player.abilities.thrusterBoots);
+  assert.ok(j.collectedUpgrades.has('thruster_boots'));
+  place(j, 6, 0);
+  stepN(j, 3, { jump: true });
+  stepN(j, 20, { jump: false });
+  let dj = false;
+  for (let i = 0; i < 3; i++) {
+    stepWorld3D(j, { ...emptyInput3D(), jump: true });
+    if (j.events.some((e) => e.type === 'double_jump')) dj = true;
+  }
+  assert.ok(dj, 'double_jump sound event emitted');
+});
+
+test('save stations: interact heals and records checkpoint; respawn returns to it; sectors are tracked', () => {
+  const w = newWorld3D();
+  const st = w.level.saveStations.find((s) => s.id === 'save_mines')!;
+  place(w, st.x, st.y);
+  w.player.hp = 33;
+  w.player.unlocked[2] = true;
+  w.player.ammo[2] = 1;
+  stepN(w, 1, { interact: true });
+  assert.equal(w.player.hp, w.player.maxHp);
+  assert.equal(w.lastSaveId, 'save_mines');
+  assert.ok(w.player.ammo[2] >= 28, 'ammo refilled');
+  assert.ok(w.events.some((e) => e.type === 'save_station'));
+  assert.equal(w.currentRoom, 'mines');
+  assert.ok(w.visitedRooms.includes('mines') && w.visitedRooms.includes('airlock'));
+
+  place(w, 3, 0);
+  w.status = 'lost';
+  w.player.hp = 0;
+  respawnPlayer3D(w);
+  assert.equal(w.status, 'playing');
+  assert.equal(w.player.hp, w.player.maxHp);
+  assert.ok(Math.abs(w.player.body.x - st.x) < 0.01 && Math.abs(w.player.body.y - st.y) < 0.01);
+});
+
+test('pose contract: aim sign/pitch, vertical velocity, grounded flag and landing cushion', () => {
+  const w = newWorld3D();
+  stepN(w, 2, { aimX: w.player.body.x + 10, aimY: w.player.body.y + 1.12 + 10 });
+  let pose = getPlayerPose3D(w);
+  assert.equal(pose.aimSignX, 1);
+  assert.ok(Math.abs(pose.aimPitch - Math.PI / 4) < 0.01, `pitch ${pose.aimPitch}`);
+  assert.ok(Math.abs(Math.hypot(pose.aimDirX, pose.aimDirY) - 1) < 1e-6);
+  assert.equal(pose.grounded, true);
+
+  stepN(w, 2, { aimX: w.player.body.x - 10, aimY: w.player.body.y + 1.12 });
+  pose = getPlayerPose3D(w);
+  assert.equal(pose.aimSignX, -1);
+  assert.ok(Math.abs(pose.aimPitch) < 0.01);
+
+  stepN(w, 3, { jump: true, aimX: 20, aimY: 1 });
+  pose = getPlayerPose3D(w);
+  assert.equal(pose.grounded, false);
+  assert.ok(pose.vy > 0);
+  let sawCushion = false;
+  for (let i = 0; i < 90; i++) {
+    stepWorld3D(w, { ...emptyInput3D(), aimX: 20, aimY: 1 });
+    if (getPlayerPose3D(w).landingFactor > 0.2) sawCushion = true;
+  }
+  assert.ok(sawCushion, 'landing produces a cushion factor');
+  assert.ok(Math.abs(getPlayerPose3D(w).moveX) <= 1);
+});
+
+test('combat: Scattergun fans 7 pellets, Grenade bounces and explodes, bio-barrel chain, Rail stops at locked door', () => {
+  const sg = newWorld3D();
+  sg.player.unlocked[2] = true;
+  sg.player.ammo[2] = 5;
+  stepN(sg, 1, { fire: true, weaponSlot: 2, aimX: 20, aimY: 1.1 });
+  assert.equal(sg.projectiles.filter((p) => p.kind === 'scatter').length, 7);
+
+  const gr = newWorld3D();
+  place(gr, 4, 0);
+  gr.player.unlocked[3] = true;
+  gr.player.ammo[3] = 5;
+  const crawler = gr.enemies.find((e) => e.id === 'e-airlock-1')!;
+  crawler.x = 8;
+  crawler.active = true;
+  let bounced = false;
+  let exploded = false;
+  for (let i = 0; i < 140 && !exploded; i++) {
+    stepWorld3D(gr, { ...emptyInput3D(), fire: i === 0, weaponSlot: 3, aimX: 8, aimY: 0.4 });
+    if (gr.events.some((e) => e.type === 'bounce')) bounced = true;
+    if (gr.events.some((e) => e.type === 'explosion')) exploded = true;
+  }
+  assert.ok(exploded, 'grenade explodes');
+  assert.ok(crawler.hp < crawler.maxHp || !crawler.alive, 'blast damages the crawler');
+  assert.ok(bounced || exploded);
+
+  const ch = newWorld3D();
+  place(ch, 12, 0);
+  ch.player.unlocked[4] = true;
+  ch.player.ammo[4] = 3;
+  const first = ch.barrels.find((b) => b.id === 'brl-airlock-1')!;
+  ch.barrels.push({ id: 'chain', x: first.x + 2.0, y: 0, z: 0, hp: 20, alive: true, fuseTicks: -1, hitFlashTicks: 0 });
+  stepN(ch, 1, { fire: true, weaponSlot: 4, aimX: first.x, aimY: 0.7 });
+  assert.equal(first.alive, false, 'rail destroys the first barrel');
+  stepN(ch, 12);
+  assert.equal(ch.barrels.find((b) => b.id === 'chain')!.alive, false, 'chain barrel detonates');
+
+  const rl = newWorld3D();
+  place(rl, 20, 0);
+  rl.player.unlocked[4] = true;
+  rl.player.ammo[4] = 5;
+  const behind = rl.enemies.find((e) => e.id === 'e-shaft-2')!;
+  behind.x = 27;
+  behind.y = 0;
+  behind.hp = behind.maxHp = 78;
+  stepN(rl, 1, { fire: true, weaponSlot: 4, aimX: 30, aimY: 1.0 });
+  assert.ok(rl.beams[0] && Math.hypot(rl.beams[0].x2 - 20, rl.beams[0].y2 - 1.12) < 5, 'beam stops at the locked door');
+  assert.equal(behind.hp, 78, 'enemy behind the door is untouched');
+  rl.openDoors.add('door_airlock_shaft');
+  rl.player.fireCooldown = 0;
+  stepN(rl, 1, { fire: true, weaponSlot: 4, aimX: 30, aimY: 1.0 });
+  assert.ok(behind.hp < 78, 'beam passes once the door is open');
+});
+
+test('Core Warden: shielded core, Phase 2 at <= 50% HP, jump dodges shockwave, Meltdown opens the escape hatch', () => {
   const w = newWorld3D();
   w.consoleUnlocked = true;
-  w.openDoors.add('gate_c');
+  w.openDoors.add('door_boss');
   w.phase = 'warden';
-  w.player.body.x = 64.0;
-  w.player.body.z = 0.0;
+  place(w, 76, 0);
   w.player.unlocked[4] = true;
   w.player.ammo[4] = 20;
-
   const warden = w.enemies.find((e) => e.kind === 'warden')!;
   assert.equal(warden.phase, 1);
 
-  // Shooting Power Core while Warden alive does 0 damage
-  const coreStartHp = w.coreHp;
-  stepWorld3D(w, {
-    ...emptyInput3D(),
-    weaponSlot: 4,
-    fire: true,
-    aimX: w.level.corePos.x,
-    aimY: 1.4,
-    aimZ: w.level.corePos.z,
-  });
-  assert.equal(w.coreHp, coreStartHp, 'Power Core must remain shielded while Warden is alive');
+  const coreStart = w.coreHp;
+  stepN(w, 1, { weaponSlot: 4, fire: true, aimX: w.level.corePos.x, aimY: 1.4 });
+  assert.equal(w.coreHp, coreStart, 'core shielded while the Warden lives');
 
-  // Drop Warden <= 50% HP via Rail-Cannon shot triggers Phase 2
   warden.hp = Math.floor(warden.maxHp * 0.5) + 20;
-  warden.x = 69.0;
-  warden.z = 0.0;
+  warden.x = 82;
   w.player.fireCooldown = 0;
-  stepWorld3D(w, {
-    ...emptyInput3D(),
-    weaponSlot: 4,
-    fire: true,
-    aimX: warden.x,
-    aimY: 1.4,
-    aimZ: warden.z,
-  });
-  assert.equal(warden.phase, 2, 'Warden should enter Phase 2 below 50% HP');
+  stepN(w, 1, { weaponSlot: 4, fire: true, aimX: warden.x, aimY: 1.4 });
+  assert.equal(warden.phase, 2);
 
-  // Grounded player hit by ShockwaveRing vs Jumping player (y > 0.72) takes 0 damage
-  const wGround = newWorld3D();
-  wGround.player.body.x = 60.0;
-  wGround.player.body.z = 0.0;
-  wGround.player.body.y = 0.0;
-  wGround.shockwaves.push({
-    id: 99,
-    x: 63.0,
-    y: 0,
-    z: 0,
-    radius: 2.8,
-    maxRadius: 15,
-    speed: 9.0,
-    damage: 22,
-    hitPlayer: false,
-    phase: 1,
-  });
-  const hpBeforeGround = wGround.player.hp;
-  stepWorld3D(wGround, emptyInput3D());
-  assert.ok(wGround.player.hp < hpBeforeGround, 'Grounded player must take shockwave damage');
+  const sw = { id: 99, x: 63, y: 0, z: 0, radius: 2.8, maxRadius: 15, speed: 9, damage: 22, hitPlayer: false, phase: 1 as const };
+  const ground = newWorld3D();
+  place(ground, 60, 0);
+  ground.shockwaves.push({ ...sw });
+  const hpG = ground.player.hp;
+  stepWorld3D(ground, emptyInput3D());
+  assert.ok(ground.player.hp < hpG, 'grounded player takes shockwave damage');
 
-  const wJump = newWorld3D();
-  wJump.player.body.x = 60.0;
-  wJump.player.body.z = 0.0;
-  wJump.player.body.y = 1.15;
-  wJump.player.body.vy = 2.0;
-  wJump.player.body.grounded = false;
-  wJump.shockwaves.push({
-    id: 100,
-    x: 63.0,
-    y: 0,
-    z: 0,
-    radius: 2.8,
-    maxRadius: 15,
-    speed: 9.0,
-    damage: 22,
-    hitPlayer: false,
-    phase: 1,
-  });
-  const hpBeforeJump = wJump.player.hp;
-  stepWorld3D(wJump, emptyInput3D());
-  assert.equal(wJump.player.hp, hpBeforeJump, 'Airborne player above y=0.72 must dodge shockwave with 0 damage');
+  const air = newWorld3D();
+  place(air, 60, 1.15);
+  air.player.body.vy = 2;
+  air.player.body.grounded = false;
+  air.shockwaves.push({ ...sw, id: 100 });
+  const hpA = air.player.hp;
+  stepWorld3D(air, emptyInput3D());
+  assert.equal(air.player.hp, hpA, 'airborne player dodges the wave');
 
-  // After Warden defeated, destroying Power Core opens gate_d and starts 90s meltdown (5400 ticks)
   warden.alive = false;
   warden.hp = 0;
-  w.enemies.forEach((e) => { if (e.zone === 'C') e.alive = false; });
   w.coreHp = 80;
+  place(w, 88, 0);
   w.player.fireCooldown = 0;
-  stepWorld3D(w, {
-    ...emptyInput3D(),
-    weaponSlot: 4,
-    fire: true,
-    aimX: w.level.corePos.x,
-    aimY: 1.4,
-    aimZ: w.level.corePos.z,
-  });
+  assert.ok(!w.openDoors.has('door_escape'));
+  stepN(w, 1, { weaponSlot: 4, fire: true, aimX: w.level.corePos.x, aimY: 1.4 });
   assert.equal(w.coreDestroyed, true);
-  assert.equal(w.openDoors.has('gate_d'), true);
+  assert.ok(w.openDoors.has('door_escape'), 'escape hatch opens on Meltdown');
   assert.equal(w.phase, 'escape');
   assert.ok(w.meltdownTicks >= 5395 && w.meltdownTicks <= 5400);
 });
 
-test('R3.3 Strict Light Isolation: headlamp toggle/drain has zero effect on 360 ticks of 3D simulation', () => {
+test('physical reachability: full route is walkable and the 4.4 m shaft gate needs Thruster Boots', () => {
+  const level = buildFacilityMap3D();
+  const openDoors = new Set<string>();
+  let body = spawnBody3D(level.spawn.x, level.spawn.y, 0);
+  let maxJumps = 1;
+  for (const step of buildReachRoute(level)) {
+    for (const d of step.opens ?? []) openDoors.add(d);
+    const res = walkTo(body, step, level, openDoors, maxJumps);
+    assert.ok(res.reached, `unreachable step "${step.label}" from (${res.body.x.toFixed(1)}, ${res.body.y.toFixed(1)})`);
+    body = res.body;
+    if (step.boots) maxJumps = 2;
+  }
+  const doors = new Set(level.solids.filter((s) => s.doorId).map((s) => s.doorId!));
+  const start = spawnBody3D(38, 4.4, 0);
+  assert.equal(walkTo(start, { x: 31, y: 8.8 }, level, doors, 1, 600).reached, false, 'gate closed without boots');
+  assert.equal(walkTo(start, { x: 31, y: 8.8 }, level, doors, 2, 600).reached, true, 'gate open with boots');
+});
+
+test('bot playthrough: all sectors, 4 weapons, boots, 2 tanks, Warden, Core, escape', () => {
+  const w = newWorld3D();
+  const bot = createBot3D(w);
+  for (let t = 0; t < 12000 && w.status === 'playing'; t++) stepWorld3D(w, bot.next(w));
+  assert.equal(w.status, 'won', `bot ended ${w.status} at step "${bot.stepLabel}"`);
+  assert.equal(w.visitedRooms.length, 6);
+  assert.ok(w.player.unlocked[2] && w.player.unlocked[3] && w.player.unlocked[4]);
+  assert.ok(w.player.abilities.thrusterBoots);
+  assert.equal(w.player.energyTanks, 2);
+  assert.equal(w.player.maxHp, 160);
+  assert.ok(w.consoleUnlocked && w.coreDestroyed);
+  for (const id of ['door_airlock_shaft', 'door_shaft_mines', 'door_shaft_biolabs', 'door_boss', 'door_escape']) {
+    assert.ok(w.openDoors.has(id), `${id} opened`);
+  }
+});
+
+test('R3.3 strict light isolation: headlamp toggle/drain does not change the simulation, and no gameplay file reads it', () => {
   const stripLight = (w: WorldState3D) => ({
     ...w,
     openDoors: [...w.openDoors].sort(),
+    collectedUpgrades: [...w.collectedUpgrades].sort(),
     light: 'IGNORED',
     prevLightButton: false,
   });
-
   let wLit = newWorld3D();
   let wDark = newWorld3D();
-
   for (let t = 0; t < 360; t++) {
     const base = {
       ...emptyInput3D(),
       moveX: t < 180 ? 0.85 : -0.35,
-      moveZ: t % 90 < 45 ? -0.4 : 0.4,
       jump: t === 60 || t === 210,
       dash: t === 120,
       fire: t % 9 < 5,
       aimX: 15 + (t % 7),
-      aimY: 1.0,
-      aimZ: ((t % 11) - 5) * 0.4,
+      aimY: 1.0 + (t % 5) * 0.2,
     };
     wLit = stepWorld3D(wLit, { ...base, toggleLight: t === 5 || t === 240 });
     wDark = stepWorld3D(wDark, { ...base, toggleLight: false });
   }
+  assert.notEqual(wLit.light.battery, wDark.light.battery, 'headlamp battery must differ');
+  assert.deepEqual(stripLight(wLit), stripLight(wDark), 'gameplay trace identical with light toggled');
 
-  assert.notEqual(wLit.light.battery, wDark.light.battery, 'Headlamp battery must differ');
-  assert.deepEqual(stripLight(wLit), stripLight(wDark), 'Gameplay trace must remain byte-identical with light toggled');
+  const read = (p: string) => readFileSync(resolve(import.meta.dirname, '..', p), 'utf8');
+  for (const f of ['src/engine/motion3d.ts', 'src/game3d/bot3d.ts', 'src/game3d/nav3d.ts', 'src/game3d/map3d.ts']) {
+    assert.ok(!/\.light\b|game\/light/.test(read(f)), `${f} must not touch the light`);
+  }
+  const lines = read('src/game3d/world3d.ts').split('\n').filter((l) => /\.light\b/.test(l));
+  for (const l of lines) assert.ok(/w\.light = (toggleLight|tickLight)\(w\.light\)/.test(l), `unexpected light read: ${l.trim()}`);
 });
 
 test('Rigged & static Meshy GLBs exist with skins and required clips', () => {

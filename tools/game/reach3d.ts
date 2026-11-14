@@ -1,103 +1,158 @@
-// Kinematic 3D capsule reachability verifier for src/game3d/map3d.ts using real stepBody3D physics.
-// Verifies START -> [Scattergun Catwalk] -> CONSOLE (Gate C) -> CORE (Gate D) -> EXIT.
+// Kinematic reachability verifier for the six-sector side-view map using the real stepBody3D physics.
+// Verifies the full progression route (blue -> green -> Mines upgrades -> yellow -> Bio-Labs -> Security -> red -> Core -> escape)
+// and the Thruster Boots gate (shaft upper deck 4.4 m above the last platform).
 import { stepBody3D, spawnBody3D, type Body3D } from '../../src/engine/motion3d.ts';
-import { buildCollider3D, buildFacilityMap3D } from '../../src/game3d/map3d.ts';
+import { buildCollider3D, buildFacilityMap3D, type Level3D } from '../../src/game3d/map3d.ts';
+import { navReached, navSteer, type NavTarget } from '../../src/game3d/nav3d.ts';
 
-interface Waypoint {
+export interface ReachStep extends NavTarget {
   label: string;
-  x: number;
-  y: number;
-  z: number;
-  tolXZ: number;
-  tolY: number;
-  unlocksDoor?: string;
+  /** Door ids opened before this step (weapon/console actions are covered by tests/game3d.test.ts) */
+  opens?: string[];
+  /** Grants Thruster Boots on arrival */
+  boots?: boolean;
 }
 
-function steerTo(
+export interface WalkResult {
+  reached: boolean;
+  body: Body3D;
+  ticks: number;
+}
+
+export function walkTo(
   start: Body3D,
-  targetX: number,
-  targetY: number,
-  targetZ: number,
-  tolXZ: number,
-  tolY: number,
-  openDoors: Set<string>,
-  level: ReturnType<typeof buildFacilityMap3D>,
-  maxTicks = 900,
-): { reached: boolean; body: Body3D; ticks: number } {
+  step: NavTarget,
+  level: Level3D,
+  openDoors: ReadonlySet<string>,
+  maxJumps: number,
+  maxTicks = 700,
+): WalkResult {
   const col = buildCollider3D(level, openDoors);
   let b = { ...start };
-  let stuckTicks = 0;
-  let lastDist = Infinity;
-
+  let prevJump = false;
   for (let t = 0; t < maxTicks; t++) {
-    const dx = targetX - b.x;
-    const dz = targetZ - b.z;
-    const dist = Math.hypot(dx, dz);
-    if (dist <= tolXZ && Math.abs(b.y - targetY) <= tolY) {
-      return { reached: true, body: b, ticks: t };
-    }
-    const dirX = dist > 1e-4 ? dx / dist : 0;
-    const dirZ = dist > 1e-4 ? dz / dist : 0;
-    if (dist > lastDist - 0.01) stuckTicks++;
-    else stuckTicks = 0;
-    lastDist = dist;
-
-    // Jump if obstacle/acid/elevation needs clearing, dash on long stretches
-    const inAcid = level.acidPools.some(
-      (p) => b.x + dirX * 1.1 >= p.minX && b.x + dirX * 1.1 <= p.maxX && b.z >= p.minZ && b.z <= p.maxZ,
-    );
-    const jump = b.grounded && (stuckTicks > 22 || inAcid);
-    const dash = b.dashCooldown === 0 && dist > 6.0 && stuckTicks === 0;
-
+    if (navReached(b, step) && b.grounded) return { reached: true, body: b, ticks: t };
+    const nav = navSteer(b, step, prevJump, { maxJumps });
+    prevJump = nav.jump;
     b = stepBody3D(
       b,
-      {
-        moveX: dirX,
-        moveZ: dirZ,
-        jump,
-        dash,
-        aimDirX: dirX,
-        aimDirZ: dirZ,
-      },
+      { moveX: nav.moveX, moveZ: 0, jump: nav.jump, dash: false, aimDirX: 1, aimDirZ: 0, dropDown: nav.dropDown, maxJumps },
       col,
     );
   }
   return { reached: false, body: b, ticks: maxTicks };
 }
 
-const level = buildFacilityMap3D();
-const openDoors = new Set<string>();
-let body = spawnBody3D(level.spawn.x, level.spawn.y, level.spawn.z);
+export function buildReachRoute(level: Level3D): ReachStep[] {
+  const ped = (id: string) => level.pedestals.find((p) => p.id === id)!;
+  const up = (id: string) => level.upgrades.find((u) => u.id === id)!;
+  const sv = (id: string) => level.saveStations.find((s) => s.id === id)!;
+  const sc = ped('ped-scatter');
+  const gr = ped('ped-grenade');
+  const rl = ped('ped-rail');
+  const boots = up('thruster_boots');
+  const tankM = up('etank_mines');
+  const tankB = up('etank_biolabs');
+  const saveM = sv('save_mines');
+  const saveS = sv('save_security');
+  return [
+    { label: 'Airlock crate', x: 7.5, y: 0 },
+    { label: 'Past airlock crate', x: 12, y: 0, leap: true },
+    { label: 'Airlock blue door', x: 20, y: 0 },
+    { label: 'Airlock -> Shaft', x: 26, y: 0, opens: ['door_airlock_shaft'] },
+    { label: 'Shaft grate (y0)', x: 33, y: 0 },
+    { label: 'Shaft down 1', x: 33, y: -2.2 },
+    { label: 'Shaft down 2', x: 33, y: -4.4 },
+    { label: 'Shaft down 3', x: 33, y: -6.6 },
+    { label: 'Shaft down 4', x: 33, y: -8.8 },
+    { label: 'Shaft floor', x: 33, y: -11 },
+    { label: 'Scattergun', x: sc.x, y: sc.y, tolX: 0.9, tolY: 0.4 },
+    { label: 'Shaft green door', x: 30, y: -11 },
+    { label: 'Shaft -> Mines', x: 20, y: saveM.y, opens: ['door_shaft_mines'] },
+    { label: 'Save (Mines)', x: saveM.x, y: saveM.y, tolX: 1.2 },
+    { label: 'Mines east edge', x: 16.9, y: -11, tolX: 0.3 },
+    { label: 'Mines stone', x: 13, y: -9.6, leap: true },
+    { label: 'Mines vault', x: 9.5, y: -8.6, leap: true },
+    { label: 'Grenade', x: gr.x, y: gr.y, tolX: 0.9, tolY: 0.4 },
+    { label: 'Energy Tank (Mines)', x: tankM.x, y: tankM.y, tolX: 0.9, tolY: 0.4 },
+    { label: 'Thruster Boots', x: boots.x, y: boots.y, tolX: 0.9, tolY: 0.4, boots: true },
+    { label: 'Vault east end', x: 9.8, y: -8.6, tolX: 0.3 },
+    { label: 'Mines stone (return)', x: 13, y: -9.6, leap: true },
+    { label: 'Mines east floor', x: 18, y: -11, leap: true },
+    { label: 'Shaft floor (return)', x: 33, y: -11 },
+    { label: 'Shaft up 4', x: 33, y: -8.8 },
+    { label: 'Shaft up 3', x: 33, y: -6.6 },
+    { label: 'Shaft up 2', x: 33, y: -4.4 },
+    { label: 'Shaft up 1', x: 33, y: -2.2 },
+    { label: 'Shaft grate (y0, return)', x: 33, y: 0 },
+    { label: 'Shaft east ledge', x: 38, y: 0 },
+    { label: 'Shaft -> Bio-Labs', x: 46, y: 0, opens: ['door_shaft_biolabs'] },
+    { label: 'Bio-Labs plat 1', x: 50, y: 2.2 },
+    { label: 'Energy Tank (Bio-Labs)', x: tankB.x, y: tankB.y, tolX: 0.9, tolY: 0.4, leap: true },
+    { label: 'Bio grate up', x: 65, y: 6.6, leap: true },
+    { label: 'Security grate', x: 65, y: 8.8 },
+    { label: 'Security console', x: 55.8, y: 8.8, tolX: 0.4 },
+    { label: 'Past console', x: 52, y: 8.8, leap: true },
+    { label: 'Save (Security)', x: saveS.x, y: saveS.y, tolX: 1.2 },
+    { label: 'Security grate (return)', x: 65, y: 8.8, leap: true },
+    { label: 'Bio grate up (return)', x: 65, y: 6.6 },
+    { label: 'Rail-Cannon', x: rl.x, y: rl.y, tolX: 0.9, tolY: 0.4 },
+    { label: 'Bio floor east', x: 62, y: 0 },
+    { label: 'Boss door', x: 74, y: 0, opens: ['door_boss'] },
+    { label: 'Reactor core', x: level.corePos.x - 2.2, y: 0, tolX: 1.0 },
+    { label: 'Core -> Bio-Labs', x: 60, y: 0 },
+    { label: 'Bio-Labs west', x: 47, y: 0, leap: true },
+    { label: 'Shaft east ledge (escape)', x: 38, y: 0 },
+    { label: 'Escape up 1', x: 37, y: 2.2 },
+    { label: 'Escape up 2', x: 38, y: 4.4 },
+    { label: 'Escape ledge', x: 26.5, y: 5.2, leap: true },
+    { label: 'Escape hatch', x: 22, y: 5.2, opens: ['door_escape'] },
+    { label: 'Extraction', x: level.exitPos.x, y: level.exitPos.y, tolX: 1.5 },
+  ];
+}
 
-const route: Waypoint[] = [
-  { label: 'Ramp A foot', x: 9.8, y: 0, z: -6.2, tolXZ: 0.9, tolY: 0.5 },
-  { label: 'Catwalk A / Scattergun', x: level.pedestals[0].x, y: level.pedestals[0].y, z: level.pedestals[0].z, tolXZ: 0.9, tolY: 0.4 },
-  { label: 'Ramp A down exit', x: 20.87, y: 0, z: 0.0, tolXZ: 1.2, tolY: 0.5 },
-  { label: 'Gate AB threshold', x: 24.0, y: 0, z: 0.0, tolXZ: 1.0, tolY: 0.5 },
-  { label: 'Ramp B foot', x: 24.4, y: 0, z: -6.8, tolXZ: 0.9, tolY: 0.5 },
-  { label: 'Security Console', x: level.consolePos.x, y: level.consolePos.y, z: level.consolePos.z, tolXZ: 1.3, tolY: 0.5, unlocksDoor: 'gate_c' },
-  { label: 'Ramp B down exit', x: 49.4, y: 0, z: -6.8, tolXZ: 1.0, tolY: 0.5 },
-  { label: 'Gate C threshold', x: 52.5, y: 0, z: 0.0, tolXZ: 1.1, tolY: 0.5 },
-  { label: 'Power Core', x: level.corePos.x - 1.6, y: 0, z: 0.0, tolXZ: 1.4, tolY: 0.5, unlocksDoor: 'gate_d' },
-  { label: 'Exit Gate', x: level.exitPos.x, y: level.exitPos.y, z: level.exitPos.z, tolXZ: 1.5, tolY: 0.5 },
-];
-
-let totalTicks = 0;
-for (const wp of route) {
-  const res = steerTo(body, wp.x, wp.y, wp.z, wp.tolXZ, wp.tolY, openDoors, level);
-  totalTicks += res.ticks;
-  body = res.body;
-  console.log(
-    `${res.reached ? 'OK  ' : 'FAIL'} ${wp.label.padEnd(24)} -> pos=(${body.x.toFixed(2)}, ${body.y.toFixed(2)}, ${body.z.toFixed(2)}) in ${res.ticks} ticks`,
-  );
-  if (!res.reached) {
-    console.error(`Reachability check FAILED at "${wp.label}"`);
-    process.exit(1);
+function runRoute(): number {
+  const level = buildFacilityMap3D();
+  const route = buildReachRoute(level);
+  const openDoors = new Set<string>();
+  let body = spawnBody3D(level.spawn.x, level.spawn.y, 0);
+  let maxJumps = 1;
+  let total = 0;
+  for (const step of route) {
+    for (const d of step.opens ?? []) openDoors.add(d);
+    const res = walkTo(body, step, level, openDoors, maxJumps);
+    total += res.ticks;
+    body = res.body;
+    console.log(
+      `${res.reached ? 'OK  ' : 'FAIL'} ${step.label.padEnd(26)} -> (${body.x.toFixed(2)}, ${body.y.toFixed(2)}) in ${res.ticks} ticks`,
+    );
+    if (!res.reached) {
+      console.error(`Reachability check FAILED at "${step.label}"`);
+      process.exit(1);
+    }
+    if (step.boots) maxJumps = 2;
   }
-  if (wp.unlocksDoor) {
-    openDoors.add(wp.unlocksDoor);
-    console.log(`     [unlocked ${wp.unlocksDoor}]`);
+  return total;
+}
+
+function runGate(): void {
+  const level = buildFacilityMap3D();
+  const doors = new Set(level.solids.filter((s) => s.doorId).map((s) => s.doorId!));
+  const start = spawnBody3D(38, 4.4, 0);
+  const upper: NavTarget = { x: 31, y: 8.8 };
+  const without = walkTo(start, upper, level, doors, 1, 600);
+  const withBoots = walkTo(start, upper, level, doors, 2, 600);
+  console.log(`GATE shaft 4.4 m: without boots reached=${without.reached}, with boots reached=${withBoots.reached} (${withBoots.ticks} ticks)`);
+  if (without.reached || !withBoots.reached) {
+    console.error('Thruster Boots gate FAILED: expected unreachable without boots and reachable with boots');
+    process.exit(1);
   }
 }
 
-console.log(`REACH3D PASS: All ${route.length} 3D facility waypoints traversed cleanly in ${totalTicks} ticks (${(totalTicks / 60).toFixed(1)}s).`);
+// Only run when executed directly (tests import walkTo/buildReachRoute).
+if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+  const total = runRoute();
+  runGate();
+  const n = buildReachRoute(buildFacilityMap3D()).length;
+  console.log(`REACH3D PASS: ${n} waypoints, ${total} ticks (${(total / 60).toFixed(1)} s), Thruster Boots gate verified.`);
+}

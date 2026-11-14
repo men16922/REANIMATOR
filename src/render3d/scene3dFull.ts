@@ -1,6 +1,7 @@
-// Full 3D Quarter-View Three.js WebGL2 Renderer for REANIMATOR.
-// Drives rigged SkinnedMesh animations via AnimationMixer, RightHand Pulse Rifle socket,
-// 360 cursor raycasting, selective UnrealBloomPass, PCFSoftShadowMap, and R3.3 visual-only headlamp.
+// Full 3D Side-View Metroidvania Three.js WebGL2 Renderer for REANIMATOR.
+// The camera looks down -Z at the z = 0 gameplay lane (2.5D). Drives rigged SkinnedMesh animations via AnimationMixer,
+// two-handed rifle IK (riggedModels.ts), z = 0 cursor raycasting, selective UnrealBloomPass, PCFSoftShadowMap,
+// 60 -> display-rate interpolation, and the R3.3 visual-only headlamp.
 
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
@@ -8,7 +9,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
-import type { ActorAnimAction, WorldState3D } from '../game3d/world3d.ts';
+import { getPlayerPose3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
 import {
   flashRiggedMaterials3D,
   getFailedModelNames3D,
@@ -52,11 +53,18 @@ function buildRampGeometry(r: Ramp3D): THREE.BufferGeometry {
   return geom;
 }
 
-function wrapAngleDiff(target: number, current: number): number {
-  let d = target - current;
-  while (d > Math.PI) d -= Math.PI * 2;
-  while (d < -Math.PI) d += Math.PI * 2;
-  return d;
+const DOOR_COLORS: Record<string, number> = {
+  blue: 0x3a8cff,
+  green: 0x3aff6a,
+  yellow: 0xffc933,
+  red: 0xff2a3c,
+  console: 0x2bf0ff,
+  escape: 0xff4a2a,
+};
+
+interface PosSnap {
+  x: number;
+  y: number;
 }
 
 export class Scene3DRenderer {
@@ -83,7 +91,14 @@ export class Scene3DRenderer {
   private readonly staticEnemies = new Map<string, StaticActorHandle>();
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
   private readonly pickupHandles = new Map<string, THREE.Group>();
-  private readonly doorMeshes = new Map<string, { mesh: THREE.Mesh; baseY: number }>();
+  private readonly doorMeshes = new Map<string, { mesh: THREE.Mesh; baseY: number; height: number }>();
+  private readonly upgradeMeshes = new Map<string, THREE.Mesh>();
+  private readonly savePads: THREE.Mesh[] = [];
+  private lastTick = -1;
+  private prevPlayer: PosSnap = { x: 0, y: 0 };
+  private curPlayer: PosSnap = { x: 0, y: 0 };
+  private prevEnemies = new Map<string, PosSnap>();
+  private curEnemies = new Map<string, PosSnap>();
   private readonly occludables: OccludableMesh[] = [];
 
   private coreModel: THREE.Group | null = null;
@@ -101,7 +116,7 @@ export class Scene3DRenderer {
   private readonly explMeshes = new Map<number, THREE.Mesh>();
   private readonly beamMeshes = new Map<number, THREE.Mesh>();
 
-  private readonly camFocus = new THREE.Vector3(3.2, 0, 0);
+  private readonly camFocus = new THREE.Vector3(3.5, 1.2, 0);
   private modelsReady = false;
   private lastRenderMs = performance.now();
 
@@ -117,16 +132,16 @@ export class Scene3DRenderer {
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x090e14);
-    this.scene.fog = new THREE.FogExp2(0x090e14, 0.015);
+    this.scene.fog = new THREE.FogExp2(0x090e14, 0.012);
 
     this.camera = new THREE.PerspectiveCamera(38, canvas.width / canvas.height, 0.4, 120);
-    this.camera.position.set(1, 15.8, 14.6);
+    this.camera.position.set(3.5, 3.2, 15.5);
 
     this.ambient = new THREE.HemisphereLight(0x8bb6df, 0x1c1714, 1.15);
     this.scene.add(this.ambient);
 
     this.sun = new THREE.DirectionalLight(0xdcebff, 1.9);
-    this.sun.position.set(10, 22, 12);
+    this.sun.position.set(6, 14, 16);
     this.sun.castShadow = true;
     this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 2;
@@ -141,7 +156,7 @@ export class Scene3DRenderer {
     this.scene.add(this.sun.target);
 
     const rimLight = new THREE.DirectionalLight(0x2bf0ff, 0.85);
-    rimLight.position.set(-14, 9, -12);
+    rimLight.position.set(-10, 8, -10);
     this.scene.add(rimLight);
 
     this.alarmLight = new THREE.PointLight(0xff2936, 0, 42, 1.4);
@@ -185,12 +200,10 @@ export class Scene3DRenderer {
       new THREE.RingGeometry(0.32, 0.42, 24),
       new THREE.MeshBasicMaterial({ color: 0x2bf0ff, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }),
     );
-    outerRet.rotation.x = -Math.PI / 2;
     const innerRet = new THREE.Mesh(
       new THREE.CircleGeometry(0.1, 16),
       new THREE.MeshBasicMaterial({ color: 0xff6b3d, side: THREE.DoubleSide }),
     );
-    innerRet.rotation.x = -Math.PI / 2;
     this.reticleGroup.add(outerRet, innerRet);
     this.scene.add(this.reticleGroup);
 
@@ -245,51 +258,40 @@ export class Scene3DRenderer {
     };
   }
 
-  /** Converts normalized canvas cursor coordinates (-1..1 NDC) into exact 3D world aim coordinates. */
+  /** Converts normalized canvas cursor coordinates (-1..1 NDC) into the world aim point on the z = 0 lane. */
   public screenToWorldAim(ndcX: number, ndcY: number, w: WorldState3D): { x: number; y: number; z: number } {
+    this.camera.updateMatrixWorld();
     this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
     const ray = this.raycaster.ray;
-    const planeY = w.player.body.y + 1.1;
-
-    // Intersect player-height aiming plane first
-    let hx = w.player.body.x + Math.sin(w.player.aimYaw) * 8;
-    let hy = planeY;
-    let hz = w.player.body.z + Math.cos(w.player.aimYaw) * 8;
-    if (Math.abs(ray.direction.y) > 1e-4) {
-      const t = (planeY - ray.origin.y) / ray.direction.y;
-      if (t > 0 && t < 80) {
-        hx = ray.origin.x + ray.direction.x * t;
-        hz = ray.origin.z + ray.direction.z * t;
-      }
+    const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const hit = new THREE.Vector3();
+    let hx = w.player.body.x + w.player.facing * 8;
+    let hy = w.player.body.y + 1.1;
+    if (ray.intersectPlane(plane, hit)) {
+      hx = hit.x;
+      hy = hit.y;
     }
 
-    // Soft vertical snap toward any alive enemy or Power Core under the ray
-    const tmpSphere = new THREE.Sphere();
-    const hitPt = new THREE.Vector3();
-    let bestEnemyDist = Infinity;
+    // Soft snap toward any alive enemy or the reactor core near the cursor
+    let bestD = 0.9;
     for (const e of w.enemies) {
       if (!e.alive) continue;
-      tmpSphere.set(new THREE.Vector3(e.x, e.y + e.height * 0.55, e.z), e.radius + 0.65);
-      if (ray.intersectSphere(tmpSphere, hitPt)) {
-        const d = hitPt.distanceTo(ray.origin);
-        if (d < bestEnemyDist) {
-          bestEnemyDist = d;
-          hx = e.x;
-          hy = e.y + e.height * 0.55;
-          hz = e.z;
-        }
+      const cy = e.y + e.height * 0.55;
+      const d = Math.hypot(e.x - hx, cy - hy) - e.radius;
+      if (d < bestD) {
+        bestD = d;
+        hx = e.x;
+        hy = cy;
       }
     }
-    if (!w.coreDestroyed && bestEnemyDist === Infinity) {
-      tmpSphere.set(new THREE.Vector3(w.level.corePos.x, 1.35, w.level.corePos.z), 1.9);
-      if (ray.intersectSphere(tmpSphere, hitPt)) {
-        hx = w.level.corePos.x;
+    if (!w.coreDestroyed && bestD === 0.9) {
+      const c = w.level.corePos;
+      if (Math.hypot(c.x - hx, 1.35 - hy) < c.radius + 0.4) {
+        hx = c.x;
         hy = 1.35;
-        hz = w.level.corePos.z;
       }
     }
-
-    return { x: hx, y: hy, z: hz };
+    return { x: hx, y: hy, z: 0 };
   }
 
   private ensureWorldBuilt(w: WorldState3D): void {
@@ -371,7 +373,7 @@ export class Scene3DRenderer {
       this.acidMeshes.push(mesh);
 
       const acidLight = new THREE.PointLight(0x6dff3a, 5, 11, 1.5);
-      acidLight.position.set(mesh.position.x, 1.1, mesh.position.z);
+      acidLight.position.set(mesh.position.x, pool.surfaceY + 1.1, 0.5);
       this.scene.add(acidLight);
     }
 
@@ -380,9 +382,43 @@ export class Scene3DRenderer {
       new THREE.TorusGeometry(0.65, 0.05, 8, 24),
       new THREE.MeshStandardMaterial({ color: 0x2bf0ff, emissive: 0x2bf0ff, emissiveIntensity: 1.8 }),
     );
-    this.consoleRing.rotation.x = Math.PI / 2;
-    this.consoleRing.position.set(w.level.consolePos.x, w.level.consolePos.y + 1.45, -6.8);
+    this.consoleRing.position.set(w.level.consolePos.x, w.level.consolePos.y + 2.0, 1.0);
     this.scene.add(this.consoleRing);
+
+    // Save / Recharge stations
+    for (const st of w.level.saveStations) {
+      const pad = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.9, 1.0, 0.16, 24),
+        new THREE.MeshStandardMaterial({ color: 0x103a42, emissive: 0x2bf0ff, emissiveIntensity: 1.1, metalness: 0.6, roughness: 0.3 }),
+      );
+      pad.position.set(st.x, st.y + 0.08, 0.2);
+      this.scene.add(pad);
+      this.savePads.push(pad);
+      const beam = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.75, 0.75, 2.4, 20, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0x2bf0ff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+      );
+      beam.position.set(st.x, st.y + 1.3, 0.2);
+      this.scene.add(beam);
+    }
+
+    // Upgrade pedestals: Thruster Boots (amber) and Energy Tanks (green)
+    for (const up of w.level.upgrades) {
+      const color = up.kind === 'thruster_boots' ? 0xffb02e : 0x3dff88;
+      const gem = new THREE.Mesh(
+        up.kind === 'thruster_boots' ? new THREE.ConeGeometry(0.34, 0.7, 6) : new THREE.BoxGeometry(0.5, 0.7, 0.5),
+        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.6, roughness: 0.2, metalness: 0.4 }),
+      );
+      gem.position.set(up.x, up.y + 0.95, 0.2);
+      this.scene.add(gem);
+      this.upgradeMeshes.set(up.id, gem);
+      const base = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.55, 0.65, 0.2, 18),
+        new THREE.MeshStandardMaterial({ color: 0x2a3542, emissive: color, emissiveIntensity: 0.45 }),
+      );
+      base.position.set(up.x, up.y + 0.1, 0.2);
+      this.scene.add(base);
+    }
 
     this.rebuildActorInstances(w);
   }
@@ -411,13 +447,16 @@ export class Scene3DRenderer {
       bump.needsUpdate = true;
       mat = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 0.04, roughness: 0.55, metalness: 0.45 });
     } else if (s.kind === 'door') {
+      const lockColor = s.doorLock ? DOOR_COLORS[s.doorLock] : 0xff4526;
       mat = new THREE.MeshStandardMaterial({
-        map: tex.hazardMap,
-        color: s.color ?? 0x452220,
-        emissive: s.emissive ?? 0xff4526,
-        emissiveIntensity: 0.8,
+        map: s.doorLock === 'yellow' ? tex.wallMap : tex.hazardMap,
+        color: s.doorLock === 'yellow' ? 0x6b5a2a : 0x23262e,
+        emissive: lockColor,
+        emissiveIntensity: 0.85,
         roughness: 0.35,
         metalness: 0.72,
+        transparent: true,
+        opacity: 0.92,
       });
     } else if (s.kind === 'crate') {
       mat = new THREE.MeshStandardMaterial({
@@ -455,7 +494,7 @@ export class Scene3DRenderer {
     this.scene.add(mesh);
 
     if (s.doorId) {
-      this.doorMeshes.set(s.doorId, { mesh, baseY: cy });
+      this.doorMeshes.set(s.doorId, { mesh, baseY: cy, height: sy });
     } else if (s.kind === 'wall' && !s.visualMaxY && s.maxY > 2.5 && s.minZ > -2.5) {
       mat.transparent = true;
       this.occludables.push({ mesh, mat, center: mesh.position.clone() });
@@ -543,13 +582,12 @@ export class Scene3DRenderer {
         opacity: 0.45,
       }),
     );
-    this.coreShield.position.set(w.level.corePos.x, 1.55, w.level.corePos.z);
+    this.coreShield.position.set(w.level.corePos.x, 1.55, 0);
     this.scene.add(this.coreShield);
 
     // Exit Gate & Portal Ring
     const exit = instantiateStaticModel3D('exit-gate', 4.2, true);
-    exit.root.rotation.y = Math.PI / 2;
-    exit.root.position.set(w.level.exitPos.x + 1.0, w.level.exitPos.y, w.level.exitPos.z);
+    exit.root.position.set(w.level.exitPos.x, w.level.exitPos.y, -0.8);
     this.exitModel = exit.root;
     this.scene.add(this.exitModel);
 
@@ -557,8 +595,7 @@ export class Scene3DRenderer {
       new THREE.TorusGeometry(1.5, 0.08, 10, 32),
       new THREE.MeshStandardMaterial({ color: 0x3dff9e, emissive: 0x3dff9e, emissiveIntensity: 1.9 }),
     );
-    this.exitPortalRing.rotation.y = Math.PI / 2;
-    this.exitPortalRing.position.set(w.level.exitPos.x + 0.7, 2.05, w.level.exitPos.z);
+    this.exitPortalRing.position.set(w.level.exitPos.x, w.level.exitPos.y + 2.05, 0.3);
     this.scene.add(this.exitPortalRing);
   }
 
@@ -599,123 +636,142 @@ export class Scene3DRenderer {
     return grp;
   }
 
-  public render(w: WorldState3D): void {
+  /** Snapshot positions once per simulation tick so render() can interpolate at the display rate. */
+  private captureTick(w: WorldState3D): void {
+    if (w.tick === this.lastTick) return;
+    const teleport = Math.abs(w.player.body.x - this.curPlayer.x) > 6 || Math.abs(w.player.body.y - this.curPlayer.y) > 6;
+    this.prevPlayer = teleport || this.lastTick < 0 ? { x: w.player.body.x, y: w.player.body.y } : this.curPlayer;
+    this.curPlayer = { x: w.player.body.x, y: w.player.body.y };
+    this.prevEnemies = this.curEnemies;
+    this.curEnemies = new Map(w.enemies.map((e) => [e.id, { x: e.x, y: e.y }]));
+    this.lastTick = w.tick;
+  }
+
+  /** alpha in [0,1]: fraction of the next 60 Hz tick elapsed since the last simulated tick. */
+  public render(w: WorldState3D, alpha = 1): void {
     const now = performance.now();
     const dt = Math.min(0.05, Math.max(0.001, (now - this.lastRenderMs) / 1000));
     this.lastRenderMs = now;
     const tSec = now * 0.001;
+    const a = Math.max(0, Math.min(1, alpha));
 
     this.ensureWorldBuilt(w);
+    this.captureTick(w);
 
-    // 1. Update doors
+    // 1. Locks: colored energy shields slide away once opened
     for (const [id, entry] of this.doorMeshes) {
-      const targetY = w.openDoors.has(id) ? entry.baseY + 4.35 : entry.baseY;
+      const open = w.openDoors.has(id);
+      const targetY = open ? entry.baseY + entry.height + 0.3 : entry.baseY;
       entry.mesh.position.y += (targetY - entry.mesh.position.y) * Math.min(1, dt * 8);
+      const mat = entry.mesh.material as THREE.MeshStandardMaterial;
+      mat.emissiveIntensity = open ? 0.2 : 0.7 + Math.sin(tSec * 3 + entry.baseY) * 0.25;
+      entry.mesh.visible = !open || Math.abs(entry.mesh.position.y - targetY) > 0.05;
     }
 
-    // 2. Acid UV scroll & Console pulse
+    // 2. Acid UV scroll, Console and Save pulses, upgrades
     for (const am of this.acidMeshes) {
       const mat = am.material as THREE.MeshStandardMaterial;
       if (mat.emissiveMap) {
         mat.emissiveMap.offset.x = (tSec * 0.08) % 1;
-        mat.emissiveMap.offset.y = (Math.sin(tSec * 1.4) * 0.06);
+        mat.emissiveMap.offset.y = Math.sin(tSec * 1.4) * 0.06;
       }
     }
     if (this.consoleRing) {
       const mat = this.consoleRing.material as THREE.MeshStandardMaterial;
       mat.color.setHex(w.consoleUnlocked ? 0x3dff9e : 0x2bf0ff);
       mat.emissive.setHex(w.consoleUnlocked ? 0x3dff9e : 0x2bf0ff);
-      this.consoleRing.rotation.z = tSec * 1.6;
+      this.consoleRing.rotation.y = tSec * 1.6;
+    }
+    for (const pad of this.savePads) {
+      (pad.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8 + Math.sin(tSec * 2.4) * 0.35;
+    }
+    for (const [id, gem] of this.upgradeMeshes) {
+      gem.visible = !w.collectedUpgrades.has(id);
+      gem.rotation.y = tSec * 2.0;
+      gem.position.y = (w.level.upgrades.find((u) => u.id === id)?.y ?? 0) + 0.95 + Math.sin(tSec * 3 + gem.position.x) * 0.12;
     }
 
-    // 3. Meltdown lighting ambiance
+    // 3. Sector ambience and Meltdown lighting
+    const room = w.level.rooms.find((r) => r.sector === w.currentRoom);
     const inMeltdown = w.coreDestroyed && w.meltdownTicks >= 0;
+    const bg = new THREE.Color(room ? room.ambientColor : 0x090e14).multiplyScalar(0.28);
+    (this.scene.background as THREE.Color).lerp(bg, Math.min(1, dt * 3));
+    (this.scene.fog as THREE.FogExp2).color.copy(this.scene.background as THREE.Color);
     if (inMeltdown) {
       const pulse = 0.5 + 0.5 * Math.sin(tSec * 8.5);
       this.alarmLight.intensity = 14 + pulse * 18;
-      this.alarmLight.position.set(w.player.body.x, 4.2, w.player.body.z);
+      this.alarmLight.position.set(w.player.body.x, w.player.body.y + 4.2, 3);
       this.ambient.color.setHex(0xc96b6b);
     } else {
       this.alarmLight.intensity = 0;
       this.ambient.color.setHex(0x8bb6df);
     }
 
-    // 4. Operative rigged character + twin-stick animation + laser sight + R3.3 headlamp
+    // 4. Operative: side-view root facing, velocity-locked pose, two-handed rifle IK, laser sight, R3.3 headlamp
     const p = w.player;
     const pb = p.body;
+    const px = this.prevPlayer.x + (this.curPlayer.x - this.prevPlayer.x) * a;
+    const py = this.prevPlayer.y + (this.curPlayer.y - this.prevPlayer.y) * a;
+    const pose = getPlayerPose3D(w);
     if (this.operativeRig) {
       const rig = this.operativeRig;
-      rig.root.position.set(pb.x, pb.y, pb.z);
-
-      const moveSpeed = Math.hypot(pb.vx, pb.vz);
-      const moveYaw = moveSpeed > 0.4 ? Math.atan2(pb.vx, pb.vz) : p.aimYaw;
-      const moveAimDot =
-        moveSpeed > 0.4 ? (pb.vx / moveSpeed) * Math.sin(p.aimYaw) + (pb.vz / moveSpeed) * Math.cos(p.aimYaw) : 1;
+      rig.root.position.set(px, py, 0);
+      rig.root.rotation.y = pose.aimSignX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
 
       const desiredAnim: ActorAnimAction =
         p.hp <= 0
           ? 'death'
           : !pb.grounded
             ? 'jump'
-            : pb.dashTicks > 0 || moveSpeed > 1.2
+            : pb.dashTicks > 0 || Math.abs(pb.vx) > 1.2
               ? 'run'
-              : p.fireCooldown > 0 && p.weapon === 1 && p.muzzleFlashTicks > 0
-                ? 'attack'
-                : 'idle';
+              : 'idle';
 
-      const timeScale = moveSpeed > 1.2 ? (moveAimDot < -0.25 ? -0.95 : 1.08) : 1.0;
-
-      // Rotate character smoothly toward cursor aimYaw (snap immediately on large respawn/zone jumps)
-      const diff = wrapAngleDiff(p.aimYaw, rig.root.rotation.y);
-      if (Math.abs(diff) > 2.8 && w.tick <= 2) rig.root.rotation.y = p.aimYaw;
-      else rig.root.rotation.y += diff * Math.min(1, dt * 18);
-      const upperTwist = moveSpeed > 1.0 ? wrapAngleDiff(p.aimYaw, moveYaw) * 0.25 : 0;
-
-      stepRiggedAnimation3D(rig, desiredAnim, dt, timeScale, upperTwist, p.hp > 0);
+      stepRiggedAnimation3D(rig, desiredAnim, dt, 1.08, 0, p.hp > 0, pose);
       rig.root.updateMatrixWorld(true);
 
       if (p.hurtFlashTicks > 0) flashRiggedMaterials3D(rig, 0xff2f2f, 0.75);
       else if (p.dashInvulnTicks > 0) flashRiggedMaterials3D(rig, 0x2bf0ff, 0.55);
       else flashRiggedMaterials3D(rig, 0x000000, 0);
 
-      // Muzzle world origin + Cyan Laser Sight + Target Reticle
       const muzzlePos = new THREE.Vector3();
       if (rig.muzzleLocal) rig.muzzleLocal.getWorldPosition(muzzlePos);
-      else muzzlePos.set(pb.x + Math.sin(p.aimYaw) * 0.85, pb.y + 1.15, pb.z + Math.cos(p.aimYaw) * 0.85);
+      else muzzlePos.set(px + pose.aimDirX * 0.85, py + 1.15 + pose.aimDirY * 0.85, 0.2);
 
-      const endPos = new THREE.Vector3(p.aimX, Math.max(0.35, p.aimY), p.aimZ);
       const posAttr = this.laserGeom.attributes.position as THREE.BufferAttribute;
       posAttr.setXYZ(0, muzzlePos.x, muzzlePos.y, muzzlePos.z);
-      posAttr.setXYZ(1, endPos.x, endPos.y, endPos.z);
+      posAttr.setXYZ(1, p.aimX, p.aimY, 0.2);
       posAttr.needsUpdate = true;
 
-      this.reticleGroup.position.set(p.aimX, Math.max(0.08, p.aimY - 0.85), p.aimZ);
-      this.reticleGroup.rotation.y = tSec * 3.2;
+      this.reticleGroup.position.set(p.aimX, p.aimY, 0.3);
+      this.reticleGroup.rotation.z = tSec * 3.2;
 
-      const flashOn = p.muzzleFlashTicks > 0;
-      this.muzzleLight.intensity = flashOn ? 14 : 0;
+      this.muzzleLight.intensity = p.muzzleFlashTicks > 0 ? 14 : 0;
       this.muzzleLight.position.copy(muzzlePos);
 
       // R3.3 Headlamp (100% visual-only)
       this.headlamp.intensity = w.light.on ? 34 : 0;
       this.headlampCone.visible = w.light.on;
       if (w.light.on) {
-        const hx = pb.x + Math.sin(p.aimYaw) * 0.35;
-        const hy = pb.y + 1.55;
-        const hz = pb.z + Math.cos(p.aimYaw) * 0.35;
-        this.headlamp.position.set(hx, hy, hz);
-        this.headlampTarget.position.set(p.aimX, Math.max(0.4, p.aimY), p.aimZ);
-        this.headlampCone.position.set(hx, hy, hz);
+        const hx = px + pose.aimDirX * 0.35;
+        const hy = py + 1.55;
+        this.headlamp.position.set(hx, hy, 0.6);
+        this.headlampTarget.position.set(hx + pose.aimDirX * 10, hy + pose.aimDirY * 10, 0);
+        this.headlampCone.position.set(hx, hy, 0.6);
         this.headlampCone.lookAt(this.headlampTarget.position);
       }
     }
 
-    // 5. Enemies (Rigged Skeletal & Static Meshes)
+    // 5. Enemies (rigged and static meshes), interpolated
     let telegraphWarden: WorldState3D['enemies'][number] | null = null;
     for (const e of w.enemies) {
+      const pe = this.prevEnemies.get(e.id) ?? { x: e.x, y: e.y };
+      const ce = this.curEnemies.get(e.id) ?? { x: e.x, y: e.y };
+      const ex = Math.abs(ce.x - pe.x) > 4 ? ce.x : pe.x + (ce.x - pe.x) * a;
+      const ey = Math.abs(ce.y - pe.y) > 4 ? ce.y : pe.y + (ce.y - pe.y) * a;
       const rig = this.riggedEnemies.get(e.id);
       if (rig) {
-        rig.root.position.set(e.x, e.y, e.z);
+        rig.root.position.set(ex, ey, 0);
         rig.root.rotation.y = e.yaw;
         stepRiggedAnimation3D(rig, e.alive ? e.anim : 'death', dt, e.kind === 'warden' && e.phase === 2 ? 1.25 : 1.0);
         if (e.hitFlashTicks > 0) {
@@ -738,7 +794,7 @@ export class Scene3DRenderer {
           st.root.visible = e.deathTicks < 240;
         } else {
           const bob = e.kind === 'spitter' ? Math.sin(tSec * 4 + e.x) * 0.14 : Math.abs(Math.sin(tSec * 12 + e.x)) * 0.08;
-          st.root.position.set(e.x, e.y + bob, e.z);
+          st.root.position.set(ex, ey + bob, 0);
           st.root.rotation.y = e.yaw;
           const fAmt = e.hitFlashTicks > 0 ? 0.7 : 0;
           for (let i = 0; i < st.materials.length; i++) {
@@ -751,7 +807,7 @@ export class Scene3DRenderer {
     if (telegraphWarden) {
       this.wardenTelegraphRing.visible = true;
       const pct = 1 - telegraphWarden.windupTicks / (telegraphWarden.phase === 2 ? 28 : 36);
-      this.wardenTelegraphRing.position.set(telegraphWarden.x, telegraphWarden.y + 0.1, telegraphWarden.z);
+      this.wardenTelegraphRing.position.set(telegraphWarden.x, telegraphWarden.y + 0.1, 0);
       this.wardenTelegraphRing.scale.setScalar(1.2 + pct * 2.2);
     } else {
       this.wardenTelegraphRing.visible = false;
@@ -763,7 +819,7 @@ export class Scene3DRenderer {
       if (!h) continue;
       h.root.visible = b.alive;
       if (b.alive) {
-        h.root.position.set(b.x, b.y, b.z);
+        h.root.position.set(b.x, b.y, 0);
         const flash = b.fuseTicks >= 0 ? 0.85 : b.hitFlashTicks > 0 ? 0.65 : 0;
         for (let i = 0; i < h.materials.length; i++) {
           h.materials[i].emissive.copy(h.baseEmissive[i]).lerp(new THREE.Color(0xff7722), flash);
@@ -795,7 +851,7 @@ export class Scene3DRenderer {
       }
       const g = this.getOrCreatePickupGroup(pk.id, pk.kind, pk.weapon);
       g.visible = true;
-      g.position.set(pk.x, pk.y, pk.z);
+      g.position.set(pk.x, pk.y, 0.2);
       if (g.children[1]) {
         g.children[1].rotation.y = tSec * 2.1;
         g.children[1].position.y = (pk.kind === 'weapon' ? 0.95 : 0.65) + Math.sin(tSec * 3.4) * 0.12;
@@ -805,27 +861,30 @@ export class Scene3DRenderer {
     // 7. Dynamic Projectiles, Shockwaves, Explosions & Rail Beams
     this.syncDynamicFX(w, dt);
 
-    // 8. Quarter-View Camera + Cursor Look-ahead + Shake + Directional Shadow Anchor
-    const aimOffX = Math.max(-1.6, Math.min(1.6, (p.aimX - pb.x) * 0.18));
-    const aimOffZ = Math.max(-1.4, Math.min(1.4, (p.aimZ - pb.z) * 0.18));
-    const targetFocus = new THREE.Vector3(pb.x + aimOffX, pb.y + 0.85, pb.z + aimOffZ);
-    if (this.camFocus.distanceTo(targetFocus) > 6.5) this.camFocus.copy(targetFocus);
-    else this.camFocus.lerp(targetFocus, Math.min(1, dt * 11));
+    // 8. Side-view camera: look-ahead toward the aim, soft follow, per-room vertical clamp, shake
+    const lookAhead = Math.max(-2.2, Math.min(2.2, (p.aimX - px) * 0.14));
+    const targetFocus = new THREE.Vector3(px + lookAhead, py + 1.45, 0);
+    if (room) {
+      const halfH = 5.2;
+      targetFocus.y = Math.max(room.minY + halfH * 0.55, Math.min(Math.max(room.minY + halfH * 0.55, room.maxY - halfH * 0.45), targetFocus.y));
+    }
+    if (this.camFocus.distanceTo(targetFocus) > 9) this.camFocus.copy(targetFocus);
+    else this.camFocus.lerp(targetFocus, Math.min(1, dt * 7));
 
     const sx = w.shakeTicks > 0 ? Math.sin(w.tick * 2.1) * w.shakeStrength : 0;
-    const sz = w.shakeTicks > 0 ? Math.cos(w.tick * 2.7) * w.shakeStrength : 0;
-    this.camera.position.set(this.camFocus.x - 2.2 + sx, this.camFocus.y + 15.6, this.camFocus.z + 14.4 + sz);
-    this.camera.lookAt(this.camFocus);
+    const sy = w.shakeTicks > 0 ? Math.cos(w.tick * 2.7) * w.shakeStrength : 0;
+    this.camera.position.set(this.camFocus.x + sx, this.camFocus.y + 1.7 + sy, 15.5);
+    this.camera.lookAt(this.camFocus.x, this.camFocus.y, 0);
 
-    this.sun.position.set(pb.x + 10, pb.y + 22, pb.z + 12);
-    this.sun.target.position.set(pb.x, pb.y, pb.z);
+    this.sun.position.set(px + 6, py + 14, 16);
+    this.sun.target.position.set(px, py, 0);
     this.sun.target.updateMatrixWorld();
 
-    // 9. Auto-fade foreground tall walls/pillars between camera and player
+    // 9. Fade tall foreground walls between camera and player (decor only)
     const camDist = this.camera.position.distanceTo(this.camFocus);
     for (const occ of this.occludables) {
       const toObjDist = occ.center.distanceTo(this.camera.position);
-      const nearCam = toObjDist < camDist - 1.2 && Math.abs(occ.center.x - pb.x) < 6.5 && occ.center.z > pb.z + 1.5;
+      const nearCam = toObjDist < camDist - 1.2 && Math.abs(occ.center.x - px) < 6.5 && occ.center.z > 1.5;
       const wantOpacity = nearCam ? 0.24 : 1.0;
       occ.mat.opacity += (wantOpacity - occ.mat.opacity) * Math.min(1, dt * 10);
       occ.mat.depthWrite = occ.mat.opacity > 0.8;
@@ -859,7 +918,7 @@ export class Scene3DRenderer {
         this.dynGroup.add(mesh);
         this.projMeshes.set(pr.id, mesh);
       }
-      mesh.position.set(pr.x, pr.y, pr.z);
+      mesh.position.set(pr.x, pr.y, 0.2);
     }
     for (const [id, m] of this.projMeshes) {
       if (!liveProj.has(id)) {
@@ -870,35 +929,42 @@ export class Scene3DRenderer {
       }
     }
 
-    // Boss Shockwave Rings (crisp outer+inner volumetric ground ring — Jumpable!)
+    // Boss shockwaves: twin floor waves travelling east and west (jump over them)
     const liveSw = new Set<number>();
     for (const sw of w.shockwaves) {
       liveSw.add(sw.id);
-      let mesh = this.ringMeshes.get(sw.id);
-      if (!mesh) {
-        mesh = new THREE.Mesh(
-          new THREE.RingGeometry(0.92, 1.0, 56),
-          new THREE.MeshBasicMaterial({
-            color: sw.phase === 2 ? 0xff2944 : 0xff7b26,
-            transparent: true,
-            opacity: 0.9,
-            side: THREE.DoubleSide,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-          }),
-        );
-        mesh.rotation.x = -Math.PI / 2;
-        this.dynGroup.add(mesh);
-        this.ringMeshes.set(sw.id, mesh);
+      let grp = this.ringMeshes.get(sw.id) as unknown as THREE.Group | undefined;
+      if (!grp) {
+        grp = new THREE.Group();
+        for (let k = 0; k < 2; k++) {
+          grp.add(
+            new THREE.Mesh(
+              new THREE.BoxGeometry(0.5, 0.75, 4.6),
+              new THREE.MeshBasicMaterial({
+                color: sw.phase === 2 ? 0xff2944 : 0xff7b26,
+                transparent: true,
+                opacity: 0.85,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false,
+              }),
+            ),
+          );
+        }
+        this.dynGroup.add(grp);
+        this.ringMeshes.set(sw.id, grp as unknown as THREE.Mesh);
       }
-      mesh.position.set(sw.x, sw.y + 0.14, sw.z);
-      mesh.scale.set(sw.radius, sw.radius, 1);
+      grp.children[0].position.set(sw.x + sw.radius, sw.y + 0.38, 0);
+      grp.children[1].position.set(sw.x - sw.radius, sw.y + 0.38, 0);
     }
     for (const [id, m] of this.ringMeshes) {
       if (!liveSw.has(id)) {
         this.dynGroup.remove(m);
-        m.geometry.dispose();
-        (m.material as THREE.Material).dispose();
+        const grp = m as unknown as THREE.Group;
+        for (const c of grp.children) {
+          const cm = c as THREE.Mesh;
+          cm.geometry.dispose();
+          (cm.material as THREE.Material).dispose();
+        }
         this.ringMeshes.delete(id);
       }
     }
@@ -935,7 +1001,7 @@ export class Scene3DRenderer {
         this.explMeshes.set(ex.id, mesh);
       }
       const p = 1 - ex.ticksLeft / ex.maxTicks;
-      mesh.position.set(ex.x, ex.y, ex.z);
+      mesh.position.set(ex.x, ex.y, 0.2);
       mesh.rotation.y = p * 2.4;
       mesh.scale.setScalar(0.35 + p * ex.maxRadius * 0.72);
       const fade = Math.max(0.05, 0.85 * (1 - p));
@@ -958,8 +1024,8 @@ export class Scene3DRenderer {
     for (const bm of w.beams) {
       liveBm.add(bm.id);
       let mesh = this.beamMeshes.get(bm.id);
-      const a = new THREE.Vector3(bm.x1, bm.y1, bm.z1);
-      const b = new THREE.Vector3(bm.x2, bm.y2, bm.z2);
+      const a = new THREE.Vector3(bm.x1, bm.y1, 0.2);
+      const b = new THREE.Vector3(bm.x2, bm.y2, 0.2);
       if (!mesh) {
         const len = Math.max(0.1, a.distanceTo(b));
         mesh = new THREE.Mesh(

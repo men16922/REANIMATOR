@@ -1,11 +1,10 @@
-// Automated Full 3D showcase capturer: drives real computeBotInput3D trajectories through dist/
-// in headless Chrome (WebGL2) to capture 6 1280x800 PNGs in docs/evidence/g4_playable/.
+// Automated side-view Metroidvania showcase capturer: drives the deterministic sim and bot through dist/ debug hooks
+// in headless Chrome (WebGL2) to capture 1280x800 PNGs in docs/evidence/g4_playable/ (run, backpedal, jump rise/fall,
+// Thruster double-jump, locked doors, sector minimap, Core Warden, Meltdown escape, Restoration Lab).
 
 import { chromium } from '@playwright/test';
 import { existsSync, mkdirSync, readdirSync, unlinkSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { computeBotInput3D } from '../../src/game3d/bot3d.ts';
-import { newWorld3D, stepWorld3D, type InputState3D } from '../../src/game3d/world3d.ts';
 
 const root = resolve(import.meta.dirname, '../../dist');
 const outG4 = resolve(import.meta.dirname, '../../docs/evidence/g4_playable');
@@ -20,82 +19,6 @@ if (!existsSync(resolve(root, 'index.html'))) {
 for (const f of readdirSync(outG4)) {
   if (f.endsWith('.png')) unlinkSync(resolve(outG4, f));
 }
-
-function recordShowcaseSlices(): {
-  zoneATick: number;
-  zoneBTick: number;
-  bossTick: number;
-  escapeTick: number;
-  inputs: InputState3D[];
-} {
-  let w = newWorld3D();
-  const inputs: InputState3D[] = [];
-  let zoneATick = -1;
-  let zoneBTick = -1;
-  let bossTick = -1;
-  let escapeTick = -1;
-
-  for (let t = 0; t < 3500 && w.status === 'playing'; t++) {
-    const inp = computeBotInput3D(w);
-    // Toggle R3.3 visual headlamp ON early so Zone A showcase shows volumetric beam + laser sight
-    if (t === 4) inp.toggleLight = true;
-    inputs.push(inp);
-    w = stepWorld3D(w, inp);
-
-    // 1. Zone A active Pulse combat with laser/muzzle/enemies visible
-    if (
-      zoneATick < 0 &&
-      w.player.body.x >= 9.0 &&
-      w.player.body.x <= 18.0 &&
-      (w.projectiles.some((p) => p.fromPlayer) || w.explosions.length > 0)
-    ) {
-      zoneATick = inputs.length;
-    }
-
-    // 2. Zone B active combat with Grenade/Explosion or Acid Pool + Catwalk view
-    if (
-      zoneBTick < 0 &&
-      w.player.body.x >= 26.0 &&
-      w.player.body.x <= 46.0 &&
-      w.player.unlocked[3] &&
-      (w.explosions.length > 0 || w.projectiles.some((p) => p.kind === 'grenade') || w.tick > 380)
-    ) {
-      zoneBTick = inputs.length;
-    }
-
-    // 3. Zone C Core Warden Boss fight with visible Shockwave ring (or active windup/beam)
-    if (w.phase === 'warden' && w.player.body.x >= 55.0) {
-      const hasShockwave = w.shockwaves.length > 0;
-      const wardenAlive = w.enemies.some((e) => e.kind === 'warden' && e.alive);
-      if (wardenAlive && hasShockwave) {
-        bossTick = inputs.length;
-      } else if (bossTick < 0 && wardenAlive && (w.beams.length > 0 || w.explosions.length > 0)) {
-        bossTick = inputs.length;
-      }
-    }
-
-    // 4. Zone D Meltdown Escape with countdown active & barrel explosion / Exit Gate visible
-    if (
-      w.coreDestroyed &&
-      w.meltdownTicks >= 0 &&
-      w.player.body.x >= 80.5 &&
-      w.player.body.x <= 91.5 &&
-      (w.explosions.length > 0 || w.player.body.x >= 84.5)
-    ) {
-      escapeTick = inputs.length;
-    }
-  }
-
-  return {
-    zoneATick: zoneATick > 0 ? zoneATick : 95,
-    zoneBTick: zoneBTick > 0 ? zoneBTick : 360,
-    bossTick: bossTick > 0 ? bossTick : 720,
-    escapeTick: escapeTick > 0 ? escapeTick : Math.max(inputs.length - 12, 100),
-    inputs,
-  };
-}
-
-const slices = recordShowcaseSlices();
 
 const browser = await chromium.launch({ channel: 'chrome' });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -150,29 +73,78 @@ try {
   // 1. Title screen over live 3D Cryo Bay
   await page.screenshot({ path: resolve(outG4, '01_title_3d.png') });
 
-  // Helper to replay slice and let Three.js animations & doors settle cleanly
-  const captureSlice = async (tickCount: number, fileName: string) => {
-    const snap = await page.evaluate(
-      (sliceInputs) =>
-        (window as unknown as { __reanimatorAdvance: (inp: unknown[]) => unknown }).__reanimatorAdvance(sliceInputs),
-      slices.inputs.slice(0, tickCount),
-    );
-    await settleFrames(14);
-    await page.screenshot({ path: resolve(outG4, fileName) });
-    return snap;
+  type Snap = Record<string, unknown> & {
+    vy: number;
+    jumpsUsed: number;
+    grounded: boolean;
+    openDoors: string[];
+    currentRoom: string;
+    facing: number;
+    phase: string;
+    status: string;
+    bossHp: number;
+    meltdownTicks: number;
   };
+  type Frame = Record<string, unknown>;
+  const rep = (n: number, f: Frame): Frame[] => Array.from({ length: n }, () => ({ ...f }));
+  const advance = (inputs: Frame[], setup?: Record<string, unknown>) =>
+    page.evaluate(([i, st]) => (window as unknown as { __reanimatorAdvance: (a: unknown, b: unknown) => unknown }).__reanimatorAdvance(i, st), [inputs, setup] as const) as Promise<Snap>;
+  const step = (inputs: Frame[]) =>
+    page.evaluate((i) => (window as unknown as { __reanimatorStep: (a: unknown) => unknown }).__reanimatorStep(i), inputs) as Promise<Snap>;
+  const runBot = (ticks: number, until?: string) =>
+    page.evaluate(([t, u]) => (window as unknown as { __reanimatorRunBot: (a: unknown, b: unknown) => unknown }).__reanimatorRunBot(t, u), [ticks, until] as const) as Promise<Snap>;
+  const shot = async (name: string) => {
+    await settleFrames(14);
+    await page.screenshot({ path: resolve(outG4, name) });
+    files.push(name);
+  };
+  const files = ['01_title_3d.png'];
+  const checks: Record<string, unknown> = {};
+  const allWeapons = { weapons: [2, 3, 4], boots: true, tanks: 1 };
 
-  // 2. Zone A decoupled aiming + headlamp + Pulse fire
-  const snapA = await captureSlice(slices.zoneATick, '02_zone_a_aim_3d.png');
+  // 2. Run east while aiming up-right (two-handed rifle IK, laser sight, headlamp on)
+  const f2 = rep(44, { moveX: 1, fire: true, aimX: 26, aimY: 6 });
+  f2[0] = { ...f2[0], toggleLight: true };
+  checks.run = await advance(f2, { x: 12, y: 0 });
+  await shot('02_run_aim_up_right.png');
 
-  // 3. Zone B catwalk / grenade / acid pool / barrel combat
-  const snapB = await captureSlice(slices.zoneBTick, '03_catwalk_grenade_barrel.png');
+  // 3. Back-pedal: moving east while aiming west (legs run backwards)
+  checks.backpedal = await advance(rep(40, { moveX: 1, fire: true, aimX: 3, aimY: 2 }), { x: 12, y: 0 });
+  await shot('03_backpedal_aim_west.png');
 
-  // 4. Zone C Core Warden Boss + shockwave ring
-  const snapC = await captureSlice(slices.bossTick, '04_warden_boss_shockwave.png');
+  // 4/5. Jump rise (vy > 0) and fall (vy < 0)
+  checks.rise = await advance(rep(12, { moveX: 1, jump: true, aimX: 40, aimY: 3 }), { x: 12, y: 0 });
+  await shot('04_jump_rise.png');
+  checks.fall = await step(rep(26, { moveX: 1, aimX: 40, aimY: 1 }));
+  await shot('05_jump_fall.png');
 
-  // 5. Zone D Meltdown escape
-  const snapD = await captureSlice(slices.escapeTick, '05_meltdown_escape.png');
+  // 6. Thruster Boots double jump high in the Central Shaft
+  const f6: Frame[] = [...rep(14, { jump: true }), ...rep(8, { jump: false }), ...rep(10, { jump: true })];
+  checks.doubleJump = await advance(f6, { x: 38, y: 4.4, ...allWeapons, openDoors: ['door_airlock_shaft'] });
+  await shot('06_thruster_double_jump.png');
+
+  // 7. Locked doors: Scattergun breaks the green lock while blue/yellow/red shields stay visible
+  checks.greenDoor = await advance(rep(26, { fire: true, weaponSlot: 2, aimX: 24, aimY: -9.4 }), {
+    x: 31,
+    y: -11,
+    ...allWeapons,
+    openDoors: ['door_airlock_shaft'],
+  });
+  await shot('07_green_door_scattergun.png');
+
+  // 8. Sector minimap with several sectors explored: bot reaches the Security Console
+  await advance([]); // fresh world for the bot run
+  checks.console = await runBot(20000, 'save security');
+  await shot('08_security_console_minimap.png');
+
+  // 9. Core Warden boss fight
+  await runBot(20000, 'warden');
+  checks.boss = await runBot(240);
+  await shot('09_warden_boss.png');
+
+  // 10. Meltdown escape
+  checks.escape = await runBot(20000, 'escape bio west');
+  await shot('10_meltdown_escape.png');
 
   // 6. Restoration Lab proof overlay
   await page.keyboard.press('Escape');
@@ -184,32 +156,10 @@ try {
   });
   await page.getByRole('button', { name: 'Restoration Lab' }).click();
   await settleFrames(8);
-  await page.screenshot({ path: resolve(outG4, '06_restoration_lab.png') });
+  await page.screenshot({ path: resolve(outG4, '11_restoration_lab.png') });
 
-  console.log(
-    JSON.stringify(
-      {
-        status: 'CAPTURED',
-        files: [
-          '01_title_3d.png',
-          '02_zone_a_aim_3d.png',
-          '03_catwalk_grenade_barrel.png',
-          '04_warden_boss_shockwave.png',
-          '05_meltdown_escape.png',
-          '06_restoration_lab.png',
-        ],
-        ticks: {
-          zoneA: slices.zoneATick,
-          zoneB: slices.zoneBTick,
-          boss: slices.bossTick,
-          escape: slices.escapeTick,
-        },
-        samples: { snapA, snapB, snapC, snapD },
-      },
-      null,
-      2,
-    ),
-  );
+  files.push('11_restoration_lab.png');
+  console.log(JSON.stringify({ status: 'CAPTURED', files, checks }, null, 2));
 } finally {
   await browser.close();
 }
