@@ -414,6 +414,15 @@ test('physical reachability: full route is walkable and the 4.4 m shaft gate nee
   const start = spawnBody3D(38, 4.4, 0);
   assert.equal(walkTo(start, { x: 31, y: 8.8 }, level, doors, 1, 600).reached, false, 'gate closed without boots');
   assert.equal(walkTo(start, { x: 31, y: 8.8 }, level, doors, 2, 600).reached, true, 'gate open with boots');
+  for (const [sx, sy] of [[65, 4.4], [55, 4.5], [64, 2.2]] as const) {
+    const from = spawnBody3D(sx, sy, 0);
+    const target = { x: 65, y: 8.8 };
+    assert.equal(walkTo(from, target, level, doors, 1, 1500).reached, false, `security deck closed without boots (from x=${sx}, y=${sy})`);
+    assert.equal(walkTo(from, target, level, doors, 2, 1500).reached, true, `security deck open with boots (from x=${sx}, y=${sy})`);
+  }
+  // Rail pedestal and boss door stay reachable without boots
+  const floor = spawnBody3D(47, 0, 0);
+  assert.equal(walkTo(floor, { x: 65.5, y: 2.2 }, level, doors, 1, 1500).reached, true, 'rail pedestal needs no boots');
 });
 
 test('bot playthrough: all sectors, 4 weapons, boots, 2 tanks, Warden, Core, escape', () => {

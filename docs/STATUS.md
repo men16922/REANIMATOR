@@ -7,7 +7,7 @@
 - 시뮬레이션 `src/game3d/world3d.ts`: XY 레인(z=0) 60 Hz 결정적 시뮬. 잠금 6종 판정표 `DOOR_REQUIRED_WEAPON`, 불일치 시 상태 불변 + 힌트, Grenade 폭발로 yellow 개방, red는 콘솔 필요, escape는 Meltdown 후 개방. 업그레이드(`thruster_boots`, `energy_tank`: `maxHp = 100 + 30 * tanks`), Save 스테이션(`lastSaveId`, `respawnPlayer3D`), 섹터 추적(`currentRoom`, `visitedRooms`), `getPlayerPose3D`.
 - 봇 `bot3d.ts`(`createBot3D`) + 조향 `nav3d.ts`: 6섹터 능력 게이트 순서로 완주(3377 ticks, HP 160).
 - 렌더러 `scene3dFull.ts`: 사이드뷰 원근 카메라, z=0 평면 마우스 레이캐스트, 틱 보간, 색상 잠금 실드, Save/Upgrade 비주얼, 보스 충격파 양방향 파동. `fallback2d.ts`: XY 투영 폴백. `main.ts`: A/D, W/Space, S(dropDown), Tab 미니맵, 디버그 훅 `__reanimator{,Advance,Step,RunBot}`.
-- 도달성 `tools/game/reach3d.ts`: 52 waypoint 3369 ticks, Shaft 4.4 m 게이트(부츠 없음=도달 불가, 있음=가능).
+- 도달성 `tools/game/reach3d.ts`: 52 waypoint 3369 ticks, Shaft 4.4 m 게이트와 Bio-Labs→Security 4.4 m 게이트(부츠 없음=도달 불가, 있음=가능). 3431 ticks.
 
 ## 검증 기준선 (이번 세션 관찰)
 

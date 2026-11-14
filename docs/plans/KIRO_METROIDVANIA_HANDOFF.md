@@ -166,7 +166,7 @@ Wave 2 담당 에이전트는 아래 파일들을 반드시 먼저 읽고 정확
   - `e-core-warden`: `(83.0, 0, 0)` (`room_core`)
   - `corePos`: `(93.5, 0, 0, r=1.85)` (`room_core`)
   - `exitPos`: `(5.5, 5.2, 0, r=2.2)` (`room_airlock` 상부 탈출구)
-- **Wave 2/3 주의 확인 포인트**: `room_biolabs` 내 `bio-plat-3` (`x:52..58, y:4.5`)에서 `bio-grate-up` (`x:62..68, y:6.6`, 수평 간격 `4.0m`, 높이 `+2.1m`) 점프 도달성 및 `room_shaft` 상부 `4.4m` 게이트 도달성을 `tools/game/reach3d.ts`로 반드시 수치 검증할 것. (만약 1회 점프로 불가한 구간이 의도된 Thruster Boots 게이트라면 `thruster_boots` 미보유 시 `false`, 보유 시 `true`가 나와야 하며, `bio-plat-3 -> bio-grate-up`은 `mines`에서 이미 `thruster_boots`를 얻고 진입하므로 2단 점프 포함 도달 가능해야 함)
+- **Wave 2/3 주의 확인 포인트**: `room_biolabs` 내 `bio-plat-3` (`x:52..58, y:4.5`)에서 `bio-grate-up` (`x:62..68`, 현재 `y:4.4`로 낮춤. 이전 6.6은 부츠 없이 보안 갑판에 우회 가능했음) 점프 도달성 및 `room_shaft` 상부 `4.4m` 게이트 도달성을 `tools/game/reach3d.ts`로 반드시 수치 검증할 것. (만약 1회 점프로 불가한 구간이 의도된 Thruster Boots 게이트라면 `thruster_boots` 미보유 시 `false`, 보유 시 `true`가 나와야 하며, `bio-plat-3 -> bio-grate-up`은 `mines`에서 이미 `thruster_boots`를 얻고 진입하므로 2단 점프 포함 도달 가능해야 함)
 
 ### 4-4. `src/render3d/riggedModels.ts` (Wave 1 수정 완료 — 시각 검증 대기)
 - `stepRiggedAnimation3D(inst, desired, dt, timeScale = 1, upperBodyDeltaYaw = 0, aimWeaponReady = false, pose?: PlayerPoseState3D)`

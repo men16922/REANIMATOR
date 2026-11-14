@@ -8,7 +8,7 @@
 //
 // Progression gates (heights measured against the nearest reachable footing):
 //   shaft y=4.4 -> y=8.8 : 4.4 m, needs Double-Jump (thruster_boots, from room_mines).
-//   biolabs y=2.2 -> grate y=6.6 : 4.4 m, needs Double-Jump (or the 4.5 platform + long jump).
+//   biolabs grate y=4.4 -> security y=8.8 : 4.4 m, needs Double-Jump (or the 4.5 platform + long jump).
 
 import type {
   AcidPool3D,
@@ -189,7 +189,7 @@ export function buildFacilityMap3D(): Level3D {
     platform('bio-plat-1', 46, 54, 2.2),
     platform('bio-plat-2', 60, 69, 2.2),
     platform('bio-plat-3', 52, 58, 4.5),
-    platform('bio-grate-up', 62, 68, 6.6),
+    platform('bio-grate-up', 62, 68, 4.4),
     box('bio-wall-east-up', 69.6, 70.4, 4.0, 8.8),
     door('door-boss', 'door_boss', 'red', 69.6, 70.4, 0, 4.0, 0xff2a3c),
 

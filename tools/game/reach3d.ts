@@ -89,13 +89,13 @@ export function buildReachRoute(level: Level3D): ReachStep[] {
     { label: 'Shaft -> Bio-Labs', x: 46, y: 0, opens: ['door_shaft_biolabs'] },
     { label: 'Bio-Labs plat 1', x: 50, y: 2.2 },
     { label: 'Energy Tank (Bio-Labs)', x: tankB.x, y: tankB.y, tolX: 0.9, tolY: 0.4, leap: true },
-    { label: 'Bio grate up', x: 65, y: 6.6, leap: true },
+    { label: 'Bio grate up', x: 65, y: 4.4, leap: true },
     { label: 'Security grate', x: 65, y: 8.8 },
     { label: 'Security console', x: 55.8, y: 8.8, tolX: 0.4 },
     { label: 'Past console', x: 52, y: 8.8, leap: true },
     { label: 'Save (Security)', x: saveS.x, y: saveS.y, tolX: 1.2 },
     { label: 'Security grate (return)', x: 65, y: 8.8, leap: true },
-    { label: 'Bio grate up (return)', x: 65, y: 6.6 },
+    { label: 'Bio grate up (return)', x: 65, y: 4.4 },
     { label: 'Rail-Cannon', x: rl.x, y: rl.y, tolX: 0.9, tolY: 0.4 },
     { label: 'Bio floor east', x: 62, y: 0 },
     { label: 'Boss door', x: 74, y: 0, opens: ['door_boss'] },
@@ -146,6 +146,17 @@ function runGate(): void {
   if (without.reached || !withBoots.reached) {
     console.error('Thruster Boots gate FAILED: expected unreachable without boots and reachable with boots');
     process.exit(1);
+  }
+  for (const [sx, tx] of [[65, 4.4], [55, 4.5]] as const) {
+    const from = spawnBody3D(sx, tx, 0);
+    const target: NavTarget = { x: 65, y: 8.8 };
+    const no = walkTo(from, target, level, doors, 1, 1500);
+    const yes = walkTo(from, target, level, doors, 2, 1500);
+    console.log(`GATE security 4.4 m (from x=${sx}, y=${tx}): without boots reached=${no.reached}, with boots reached=${yes.reached} (${yes.ticks} ticks)`);
+    if (no.reached || !yes.reached) {
+      console.error('Security deck boots gate FAILED');
+      process.exit(1);
+    }
   }
 }
 

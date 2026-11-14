@@ -37,3 +37,4 @@
   - [x] 9.1 `git diff --name-only`에 봉인 파일 없음 확인 (Wave 3)
   - [x] 9.2 `make check`(S1·S2·S3, dist-guard), `make reference-holdout`은 엔진 리비전당 1회만 (Wave 3)
   - [x] 9.3 `docs/`(`STATUS.md`, `PROGRESS_LOG.md`, `NEXT_PLAN.md`, `AGENT_BRIEF.md`, `KIRO_USAGE.md`) 최신화 및 `main` `commit & push` (Wave 3)
+- [x] 2.2b Bio-Labs→Security 두 번째 4.4 m 게이트(`bio-grate-up` y 4.4)로 부츠 우회 제거 (`reach3d`+테스트 검증)

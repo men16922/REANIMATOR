@@ -32,7 +32,7 @@
 1. `airlock`: Pulse 기본 소지 → `door_airlock_shaft`(`blue`) 개방.
 2. `shaft` 최하단: `ped-scatter` `(38.5, -11.0, 0)` 확보 → `door_shaft_mines`(`green`) 개방.
 3. `mines`: `thruster_boots` `(3.0, -8.6, 0)`, `etank_mines` `(5.5, -8.6, 0)`, `ped-grenade` `(8.5, -8.6, 0)`, `save_mines` `(20.0, -11.0, 0)` 확보 → `door_shaft_biolabs`(`yellow`, Cracked Bio-Wall) 파괴 개방.
-4. `shaft` 상부 + `biolabs`: `thruster_boots` 공중 점프로 `shaft` 상부 `4.4 m` 게이트 및 `biolabs`(`etank_biolabs` `(55.0, 4.5, 0)`, `ped-rail` `(65.5, 2.2, 0)`) / `security`(`save_security` `(45.5, 8.8, 0)`, `consolePos` `(54.5, 8.8, 0)`) 도달.
+4. `shaft` 상부 및 `biolabs` `bio-grate-up`(y 4.4) → `sec-grate`(y 8.8) 두 번째 4.4 m 게이트(우회 없음, `reach3d`·테스트 검증) + `biolabs`: `thruster_boots` 공중 점프로 `shaft` 상부 `4.4 m` 게이트 및 `biolabs`(`etank_biolabs` `(55.0, 4.5, 0)`, `ped-rail` `(65.5, 2.2, 0)`) / `security`(`save_security` `(45.5, 8.8, 0)`, `consolePos` `(54.5, 8.8, 0)`) 도달.
 5. `biolabs` → `core`: Rail-Cannon + Security `console` 활성화 → `door_boss`(`red`) 개방 → `e-core-warden` & `corePos` 파괴.
 6. 탈출: Meltdown 후 `door_escape`(`escape`) 개방 → `room_airlock` 상부 `exitPos` `(5.5, 5.2, 0)` 탈출.
 
@@ -92,7 +92,7 @@
 |---|---|
 | 섹터 그래프 | 단위 테스트: 대칭 이웃, 전체 도달성 |
 | 문/무기 매핑 | 단위 테스트: 6종 × 6무기 표 |
-| 부츠 게이트 | `reach3d`: 부츠 없음 → 4.4 m 불가, 부츠 있음 → 가능 |
+| 부츠 게이트 | `reach3d`: 부츠 없음 → 4.4 m 불가, 부츠 있음 → 가능(Shaft 상부와 Bio-Labs→Security 두 곳) |
 | 탱크/저장 | 단위 테스트: +30 HP, 1회 획득, 저장 후 사망 복귀 |
 | 포즈 | 단위 테스트: 순수 함수 출력, 역다리 부호, 점프 3단계 경계 |
 | R3.3 | 360틱 `deepEqual` |
