@@ -1,5 +1,10 @@
 # 진행 기록
 
+## 2026-11-15 — 제트 대시 부츠 게이트 우회 검사 (Kiro)
+- 결과: 우회 없음. 대시는 상승 속도를 0.2배로 줄이고 중력을 끄므로 높이를 더하지 않는다. `reach3d`의 `dashReaches`가 navSteer 이동에 14개 첫 대시 틱 × 3개 반복 간격을 주입해 세 4.4 m 게이트(Shaft 38/4.4, Security 65/4.4, 55/4.5)를 검사: 부츠 없음 도달 불가, 부츠+대시 도달 가능(대조). 맵·`motion3d.ts` 무변경.
+- 테스트: `tests/game3d.test.ts` reachability 테스트에 대시 게이트 단언 추가. `make check` exit 0.
+- 한계: 탐색은 스크립트된 대시 스케줄이며 모든 사람 입력을 증명하지 않는다. 사람 확인은 G5.
+
 ## 2026-11-15 — Thruster Boots 필수화 (Kiro)
 - `bio-grate-up` y 6.6→4.4, 봇·`reach3d` 웨이포인트 갱신, Security 두 번째 4.4 m 게이트 검사(`reach3d` runGate, 테스트). `make check` exit 0(`reach3d` 52 waypoints 3431 ticks).
 - `docs/evidence/g3/*.png` 5장은 smoke 재생성분(바이너리만 변경)으로 별도 커밋.

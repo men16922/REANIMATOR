@@ -1,7 +1,7 @@
 // Kinematic reachability verifier for the six-sector side-view map using the real stepBody3D physics.
 // Verifies the full progression route (blue -> green -> Mines upgrades -> yellow -> Bio-Labs -> Security -> red -> Core -> escape)
 // and the Thruster Boots gate (shaft upper deck 4.4 m above the last platform).
-import { stepBody3D, spawnBody3D, type Body3D } from '../../src/engine/motion3d.ts';
+import { ABILITY_3D, stepBody3D, spawnBody3D, type Body3D } from '../../src/engine/motion3d.ts';
 import { buildCollider3D, buildFacilityMap3D, type Level3D } from '../../src/game3d/map3d.ts';
 import { navReached, navSteer, type NavTarget } from '../../src/game3d/nav3d.ts';
 
@@ -41,6 +41,39 @@ export function walkTo(
     );
   }
   return { reached: false, body: b, ticks: maxTicks };
+}
+
+/**
+ * Jet-dash probe: navSteer walks toward `target` (same policy as walkTo) while a dash is injected at every
+ * combination of first-dash tick and repeat gap. Returns true if any schedule reaches the target.
+ */
+export function dashReaches(
+  start: Body3D,
+  target: NavTarget,
+  level: Level3D,
+  openDoors: ReadonlySet<string>,
+  maxJumps: number,
+  maxTicks = 700,
+): boolean {
+  const col = buildCollider3D(level, openDoors);
+  for (const first of [0, 2, 4, 6, 8, 10, 12, 15, 18, 22, 26, 30, 36, 44]) {
+    for (const gap of [ABILITY_3D.dashCooldownTicks, ABILITY_3D.dashCooldownTicks + 6, 90]) {
+      let b = { ...start };
+      let prevJump = false;
+      for (let t = 0; t < maxTicks; t++) {
+        if (navReached(b, target) && b.grounded) return true;
+        const nav = navSteer(b, target, prevJump, { maxJumps });
+        prevJump = nav.jump;
+        const dash = t >= first && (t - first) % gap === 0;
+        b = stepBody3D(
+          b,
+          { moveX: nav.moveX, moveZ: 0, jump: nav.jump, dash, aimDirX: nav.moveX || 1, aimDirZ: 0, dropDown: nav.dropDown, maxJumps },
+          col,
+        );
+      }
+    }
+  }
+  return false;
 }
 
 export function buildReachRoute(level: Level3D): ReachStep[] {
@@ -155,6 +188,21 @@ function runGate(): void {
     console.log(`GATE security 4.4 m (from x=${sx}, y=${tx}): without boots reached=${no.reached}, with boots reached=${yes.reached} (${yes.ticks} ticks)`);
     if (no.reached || !yes.reached) {
       console.error('Security deck boots gate FAILED');
+      process.exit(1);
+    }
+  }
+  const gates = [
+    { sx: 38, sy: 4.4, target: { x: 31, y: 8.8 } },
+    { sx: 65, sy: 4.4, target: { x: 65, y: 8.8 } },
+    { sx: 55, sy: 4.5, target: { x: 65, y: 8.8 } },
+  ];
+  for (const g of gates) {
+    const from = spawnBody3D(g.sx, g.sy, 0);
+    const no = dashReaches(from, g.target, level, doors, 1, 1500);
+    const yes = dashReaches(from, g.target, level, doors, 2, 1500);
+    console.log(`GATE jet-dash (from x=${g.sx}, y=${g.sy}): without boots reached=${no}, with boots reached=${yes}`);
+    if (no || !yes) {
+      console.error('Jet-dash gate check FAILED (bypass without boots, or control failed with boots)');
       process.exit(1);
     }
   }

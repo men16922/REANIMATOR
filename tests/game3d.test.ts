@@ -24,7 +24,7 @@ import {
   type InputState3D,
   type WorldState3D,
 } from '../src/game3d/world3d.ts';
-import { buildReachRoute, walkTo } from '../tools/game/reach3d.ts';
+import { buildReachRoute, dashReaches, walkTo } from '../tools/game/reach3d.ts';
 
 function readGlbJson(relPath: string): {
   skins?: { joints: number[] }[];
@@ -419,6 +419,12 @@ test('physical reachability: full route is walkable and the 4.4 m shaft gate nee
     const target = { x: 65, y: 8.8 };
     assert.equal(walkTo(from, target, level, doors, 1, 1500).reached, false, `security deck closed without boots (from x=${sx}, y=${sy})`);
     assert.equal(walkTo(from, target, level, doors, 2, 1500).reached, true, `security deck open with boots (from x=${sx}, y=${sy})`);
+  }
+  // Jet-dash cannot bypass the boots gate (dash zeroes upward velocity and adds no height)
+  for (const [sx, sy, tx, ty] of [[38, 4.4, 31, 8.8], [65, 4.4, 65, 8.8], [55, 4.5, 65, 8.8]] as const) {
+    const from = spawnBody3D(sx, sy, 0);
+    assert.equal(dashReaches(from, { x: tx, y: ty }, level, doors, 1, 1500), false, `jet-dash must not bypass boots gate (from x=${sx}, y=${sy})`);
+    assert.equal(dashReaches(from, { x: tx, y: ty }, level, doors, 2, 1500), true, `probe control: boots + dash still reach (from x=${sx}, y=${sy})`);
   }
   // Rail pedestal and boss door stay reachable without boots
   const floor = spawnBody3D(47, 0, 0);
