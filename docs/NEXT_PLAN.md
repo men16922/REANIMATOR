@@ -17,4 +17,4 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 
 ## G6 — 최종 정리·제출 준비
 
-- 문서 링크·증거 PNG·빌드 상태 최종 확인.
+- 문서 링크(archive 제외)·`make check` 확인 완료. 남음: 실제 Chrome 환경에서 `make smoke-local`과 `capture-showcase.ts` 재실행(맵 변경 후), G5 사람 플레이, `git push`(사용자 승인 대기).

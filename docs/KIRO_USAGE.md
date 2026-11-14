@@ -69,3 +69,6 @@ agy가 오케스트레이션하고 kiro-cli가 문서·spec 작업을 맡았다.
 - Kiro 에이전트가 이 세션에서 직접 수행: `world3d.ts` 재작성(6잠금·업그레이드·세이브·pose), `nav3d.ts`/`bot3d.ts`/`reach3d.ts`, `scene3dFull.ts`·`fallback2d.ts`·`main.ts` 사이드뷰 전환, `tests/game3d.test.ts`·`smoke.ts`·`capture-showcase.ts` 재작성, spec `tasks.md` 완료 처리, docs 동기화.
 - 사용한 도구: 코드 탐색/편집, `make check`·`make smoke-local`·`make reference-holdout`·쇼케이스 실행과 PNG 육안 검수. 서브에이전트·병렬 `kiro-cli` 실행은 사용하지 않고 순차 수행했다.
 - 관찰 값: `make check` 44/44, holdout 4/4, smoke 29/29(60.5 fps), 봇 완주 3377 ticks. 미수행: 푸시, 사람 플레이(G5), Kiro 내 REA MCP 연결.
+
+## 2026-11-15 — Boots 게이트 수정
+- Kiro 서브에이전트가 `map3d.ts`/`bot3d.ts`/`reach3d.ts`/테스트 수정과 `make check` 실행. Chrome 실행 실패로 smoke는 미수행.

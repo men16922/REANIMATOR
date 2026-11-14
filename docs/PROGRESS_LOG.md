@@ -1,5 +1,10 @@
 # 진행 기록
 
+## 2026-11-15 — Thruster Boots 필수화 (Kiro)
+- `bio-grate-up` y 6.6→4.4, 봇·`reach3d` 웨이포인트 갱신, Security 두 번째 4.4 m 게이트 검사(`reach3d` runGate, 테스트). `make check` exit 0(`reach3d` 52 waypoints 3431 ticks).
+- `docs/evidence/g3/*.png` 5장은 smoke 재생성분(바이너리만 변경)으로 별도 커밋.
+- `make smoke-local`: Chrome 실행이 샌드박스에서 abort(134). 변경 후 smoke·showcase는 unverified.
+
 ## 2026-11-15 — 사망 화면 체크포인트 복귀 안내 보강 (Kiro)
 - Status: 구현 완료, 로컬 커밋(푸시 보류).
 - Changed: `index.html`(`#resume-save` 버튼), `src/ui/main.ts`(공용 `resumeAtSave()`, 버튼·`C` 키 공유, 저장 없으면 "Play again restarts" 안내), `src/ui/style.css`. 봉인 파일 무변경, `w.light` 미참조.
