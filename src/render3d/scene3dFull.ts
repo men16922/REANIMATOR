@@ -62,6 +62,13 @@ const DOOR_COLORS: Record<string, number> = {
   escape: 0xff4a2a,
 };
 
+function turnToward(current: number, target: number, dt: number, rate = 16): number {
+  let d = target - current;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return current + d * Math.min(1, dt * rate);
+}
+
 interface PosSnap {
   x: number;
   y: number;
@@ -81,6 +88,7 @@ export class Scene3DRenderer {
   private readonly headlampTarget = new THREE.Object3D();
   private readonly headlampCone: THREE.Mesh;
   private readonly muzzleLight: THREE.PointLight;
+  private readonly fillLight: THREE.PointLight;
   private readonly laserLine: THREE.Line;
   private readonly laserGeom: THREE.BufferGeometry;
   private readonly reticleGroup = new THREE.Group();
@@ -95,6 +103,7 @@ export class Scene3DRenderer {
   private readonly upgradeMeshes = new Map<string, THREE.Mesh>();
   private readonly savePads: THREE.Mesh[] = [];
   private lastTick = -1;
+  private airTime = 0;
   private prevPlayer: PosSnap = { x: 0, y: 0 };
   private curPlayer: PosSnap = { x: 0, y: 0 };
   private prevEnemies = new Map<string, PosSnap>();
@@ -184,6 +193,10 @@ export class Scene3DRenderer {
       }),
     );
     this.scene.add(this.headlampCone);
+
+    // Visual-only fill light so the operative stays readable in dark shafts
+    this.fillLight = new THREE.PointLight(0xbfe6ff, 22, 14, 1.3);
+    this.scene.add(this.fillLight);
 
     this.muzzleLight = new THREE.PointLight(0x38f2ff, 0, 7, 1.6);
     this.scene.add(this.muzzleLight);
@@ -716,18 +729,23 @@ export class Scene3DRenderer {
     if (this.operativeRig) {
       const rig = this.operativeRig;
       rig.root.position.set(px, py, 0);
-      rig.root.rotation.y = pose.aimSignX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+      // Smooth turn-around instead of a hard 180 degree snap
+      const faceYaw = pose.aimSignX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
+      rig.root.rotation.y = w.tick <= 2 ? faceYaw : turnToward(rig.root.rotation.y, faceYaw, dt, 18);
+      // Debounce airborne pose so stepping off a ledge or a one-tick floor miss does not trigger the jump clip
+      this.airTime = pb.grounded ? 0 : this.airTime + dt;
+      const airborne = !pb.grounded && (pb.vy > 0.5 || this.airTime > 0.1);
 
       const desiredAnim: ActorAnimAction =
         p.hp <= 0
           ? 'death'
-          : !pb.grounded
+          : airborne
             ? 'jump'
             : pb.dashTicks > 0 || Math.abs(pb.vx) > 1.2
               ? 'run'
               : 'idle';
 
-      stepRiggedAnimation3D(rig, desiredAnim, dt, 1.08, 0, p.hp > 0, pose);
+      stepRiggedAnimation3D(rig, desiredAnim, dt, 1.08, 0, p.hp > 0, { ...pose, grounded: pose.grounded || !airborne });
       rig.root.updateMatrixWorld(true);
 
       if (p.hurtFlashTicks > 0) flashRiggedMaterials3D(rig, 0xff2f2f, 0.75);
@@ -746,6 +764,7 @@ export class Scene3DRenderer {
       this.reticleGroup.position.set(p.aimX, p.aimY, 0.3);
       this.reticleGroup.rotation.z = tSec * 3.2;
 
+      this.fillLight.position.set(px, py + 1.8, 4.2);
       this.muzzleLight.intensity = p.muzzleFlashTicks > 0 ? 14 : 0;
       this.muzzleLight.position.copy(muzzlePos);
 
@@ -772,7 +791,7 @@ export class Scene3DRenderer {
       const rig = this.riggedEnemies.get(e.id);
       if (rig) {
         rig.root.position.set(ex, ey, 0);
-        rig.root.rotation.y = e.yaw;
+        rig.root.rotation.y = turnToward(rig.root.rotation.y, e.yaw, dt, 12);
         stepRiggedAnimation3D(rig, e.alive ? e.anim : 'death', dt, e.kind === 'warden' && e.phase === 2 ? 1.25 : 1.0);
         if (e.hitFlashTicks > 0) {
           flashRiggedMaterials3D(rig, 0xff7755, 0.32);
@@ -795,7 +814,7 @@ export class Scene3DRenderer {
         } else {
           const bob = e.kind === 'spitter' ? Math.sin(tSec * 4 + e.x) * 0.14 : Math.abs(Math.sin(tSec * 12 + e.x)) * 0.08;
           st.root.position.set(ex, ey + bob, 0);
-          st.root.rotation.y = e.yaw;
+          st.root.rotation.y = turnToward(st.root.rotation.y, e.yaw, dt, 12);
           const fAmt = e.hitFlashTicks > 0 ? 0.7 : 0;
           for (let i = 0; i < st.materials.length; i++) {
             st.materials[i].emissive.copy(st.baseEmissive[i]).lerp(new THREE.Color(0xffffff), fAmt);
