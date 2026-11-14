@@ -1,0 +1,32 @@
+scripts/overnight/logs/
+scripts/overnight/STOP
+scripts/overnight/DONE
+docs/test/history/*-overnight-review-checklist.md
+
+.tools/
+
+reference/private/
+
+docs/evidence/*.local.json
+
+# Analysis-only derivatives of the original binary/data (G1). Not for publication.
+reference/work/
+reference/derived/
+docs/evidence/g1/insn_*.json
+docs/evidence/g1/rea_inspect_*.json
+
+node_modules/
+dist/
+assets/meshy-raw/
+scripts/overnight/CLAIM
+
+# OS / scratch
+.DS_Store
+scratch/
+
+# Original-game screen captures and instruction dumps (analysis-only; not for publication)
+docs/evidence/g0/*.png
+docs/evidence/g1/insn_*.txt
+docs/evidence/g1/runs/**/*.png
+docs/evidence/g2/runs/**/*.png
+docs/evidence/g3/c01_attempts/**/*.png

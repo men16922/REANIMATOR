@@ -1,0 +1,2314 @@
+[
+{
+"at": "0x1d892",
+"kind": "c_function",
+"name": "distx",
+"number": 1,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d8a5",
+"kind": "c_function",
+"name": "disty",
+"number": 2,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d8bb",
+"kind": "c_bool",
+"name": "key_pressed",
+"number": 3,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1d8ce",
+"kind": "c_function",
+"name": "bg_state",
+"number": 5,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d8e1",
+"kind": "c_function",
+"name": "aitype",
+"number": 6,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d8f4",
+"kind": "c_function",
+"name": "aistate",
+"number": 7,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d90a",
+"kind": "c_function",
+"name": "set_aistate",
+"number": 8,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1d920",
+"kind": "c_function",
+"name": "random",
+"number": 9,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1d933",
+"kind": "c_function",
+"name": "state_time",
+"number": 10,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d946",
+"kind": "c_function",
+"name": "state",
+"number": 11,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d959",
+"kind": "c_function",
+"name": "toward",
+"number": 12,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d96f",
+"kind": "c_function",
+"name": "move",
+"number": 13,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1d982",
+"kind": "c_function",
+"name": "facing",
+"number": 14,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d995",
+"kind": "c_function",
+"name": "otype",
+"number": 15,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d9a8",
+"kind": "c_bool",
+"name": "next_picture",
+"number": 16,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1d9be",
+"kind": "c_bool",
+"name": "set_fade_dir",
+"number": 17,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1d9d4",
+"kind": "c_function",
+"name": "mover",
+"number": 18,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1d9ea",
+"kind": "c_bool",
+"name": "set_fade_count",
+"number": 19,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1d9fd",
+"kind": "c_function",
+"name": "fade_count",
+"number": 20,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1da10",
+"kind": "c_function",
+"name": "fade_dir",
+"number": 21,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1da23",
+"kind": "c_bool",
+"name": "touching_bg",
+"number": 22,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1da39",
+"kind": "c_function",
+"name": "add_power",
+"number": 23,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1da4f",
+"kind": "c_function",
+"name": "add_hp",
+"number": 24,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1da62",
+"kind": "c_bool",
+"name": "draw",
+"number": 27,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1da75",
+"kind": "c_bool",
+"name": "edit_mode",
+"number": 28,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1da88",
+"kind": "c_bool",
+"name": "draw_above",
+"number": 29,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1da9b",
+"kind": "c_function",
+"name": "x",
+"number": 30,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1daae",
+"kind": "c_function",
+"name": "y",
+"number": 31,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1dac4",
+"kind": "c_bool",
+"name": "set_x",
+"number": 32,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dada",
+"kind": "c_bool",
+"name": "set_y",
+"number": 33,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1daf0",
+"kind": "c_bool",
+"name": "push_characters",
+"number": 34,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1db06",
+"kind": "c_bool",
+"name": "set_state",
+"number": 37,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1db19",
+"kind": "c_function",
+"name": "bg_x",
+"number": 38,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1db2c",
+"kind": "c_function",
+"name": "bg_y",
+"number": 39,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1db42",
+"kind": "c_bool",
+"name": "set_aitype",
+"number": 40,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1db55",
+"kind": "c_function",
+"name": "xvel",
+"number": 42,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1db68",
+"kind": "c_function",
+"name": "yvel",
+"number": 43,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1db7e",
+"kind": "c_bool",
+"name": "set_xvel",
+"number": 44,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1db94",
+"kind": "c_bool",
+"name": "set_yvel",
+"number": 45,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dba7",
+"kind": "c_function",
+"name": "away",
+"number": 46,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1dbbd",
+"kind": "c_bool",
+"name": "blocked_left",
+"number": 47,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dbd3",
+"kind": "c_bool",
+"name": "blocked_right",
+"number": 48,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dbec",
+"kind": "c_function",
+"name": "add_palette",
+"number": 50,
+"min": 1,
+"max": 4294967295
+},
+{
+"at": "0x1dc02",
+"kind": "c_bool",
+"name": "screen_shot",
+"number": 51,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dc18",
+"kind": "c_bool",
+"name": "set_zoom",
+"number": 52,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dc2e",
+"kind": "c_function",
+"name": "show_help",
+"number": 55,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dc41",
+"kind": "c_function",
+"name": "direction",
+"number": 56,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1dc57",
+"kind": "c_function",
+"name": "set_direction",
+"number": 57,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dc6d",
+"kind": "c_bool",
+"name": "freeze_player",
+"number": 58,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dc86",
+"kind": "c_function",
+"name": "menu",
+"number": 59,
+"min": 1,
+"max": 4294967295
+},
+{
+"at": "0x1dc9c",
+"kind": "c_bool",
+"name": "do_command",
+"number": 60,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dcb2",
+"kind": "c_bool",
+"name": "set_game_state",
+"number": 61,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dcc8",
+"kind": "c_bool",
+"name": "scene:set_text_region",
+"number": 62,
+"min": 4,
+"max": 4
+},
+{
+"at": "0x1dcde",
+"kind": "c_bool",
+"name": "scene:set_frame_speed",
+"number": 63,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dcf4",
+"kind": "c_bool",
+"name": "scene:set_scroll_speed",
+"number": 64,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dd0a",
+"kind": "c_bool",
+"name": "scene:set_pan_speed",
+"number": 65,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dd20",
+"kind": "c_bool",
+"name": "scene:scroll_text",
+"number": 66,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dd36",
+"kind": "c_bool",
+"name": "scene:pan",
+"number": 67,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1dd4c",
+"kind": "c_bool",
+"name": "scene:wait",
+"number": 68,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dd5f",
+"kind": "c_bool",
+"name": "game_over",
+"number": 70,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1dd75",
+"kind": "c_bool",
+"name": "set_lives",
+"number": 71,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1dd8b",
+"kind": "c_function",
+"name": "lives",
+"number": 72,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dda1",
+"kind": "c_bool",
+"name": "level:new",
+"number": 74,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1ddba",
+"kind": "c_bool",
+"name": "do_damage",
+"number": 75,
+"min": 2,
+"max": 4
+},
+{
+"at": "0x1ddcd",
+"kind": "c_function",
+"name": "hp",
+"number": 76,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1dde3",
+"kind": "c_bool",
+"name": "set_shift_down",
+"number": 77,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1ddf9",
+"kind": "c_bool",
+"name": "set_shift_right",
+"number": 78,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1de0f",
+"kind": "c_bool",
+"name": "set_gravity",
+"number": 79,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1de22",
+"kind": "c_function",
+"name": "tick",
+"number": 80,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1de38",
+"kind": "c_bool",
+"name": "set_xacel",
+"number": 81,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1de4e",
+"kind": "c_bool",
+"name": "set_yacel",
+"number": 82,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1de64",
+"kind": "c_bool",
+"name": "set_local_players",
+"number": 84,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1de77",
+"kind": "c_function",
+"name": "local_players",
+"number": 85,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1de8d",
+"kind": "c_bool",
+"name": "set_light_detail",
+"number": 86,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dea0",
+"kind": "c_function",
+"name": "light_detail",
+"number": 87,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1deb6",
+"kind": "c_bool",
+"name": "set_morph_detail",
+"number": 88,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1dec9",
+"kind": "c_function",
+"name": "morph_detail",
+"number": 89,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1dedf",
+"kind": "c_bool",
+"name": "morph_into",
+"number": 90,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1def5",
+"kind": "c_bool",
+"name": "link_object",
+"number": 91,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1df0b",
+"kind": "c_bool",
+"name": "draw_line",
+"number": 92,
+"min": 5,
+"max": 5
+},
+{
+"at": "0x1df1e",
+"kind": "c_function",
+"name": "dark_color",
+"number": 93,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1df31",
+"kind": "c_function",
+"name": "medium_color",
+"number": 94,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1df44",
+"kind": "c_function",
+"name": "bright_color",
+"number": 95,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1df5a",
+"kind": "c_bool",
+"name": "remove_object",
+"number": 99,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1df70",
+"kind": "c_bool",
+"name": "link_light",
+"number": 100,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1df86",
+"kind": "c_bool",
+"name": "remove_light",
+"number": 101,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1df99",
+"kind": "c_function",
+"name": "total_objects",
+"number": 102,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1dfac",
+"kind": "c_function",
+"name": "total_lights",
+"number": 103,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1dfc2",
+"kind": "c_bool",
+"name": "set_light_r1",
+"number": 104,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1dfd8",
+"kind": "c_bool",
+"name": "set_light_r2",
+"number": 105,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1dfee",
+"kind": "c_bool",
+"name": "set_light_x",
+"number": 106,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e004",
+"kind": "c_bool",
+"name": "set_light_y",
+"number": 107,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e01a",
+"kind": "c_bool",
+"name": "set_light_xshift",
+"number": 108,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e030",
+"kind": "c_bool",
+"name": "set_light_yshift",
+"number": 109,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e046",
+"kind": "c_function",
+"name": "light_r1",
+"number": 110,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e05c",
+"kind": "c_function",
+"name": "light_r2",
+"number": 111,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e072",
+"kind": "c_function",
+"name": "light_x",
+"number": 112,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e088",
+"kind": "c_function",
+"name": "light_y",
+"number": 113,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e09e",
+"kind": "c_function",
+"name": "light_xshift",
+"number": 114,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e0b4",
+"kind": "c_function",
+"name": "light_yshift",
+"number": 115,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e0c7",
+"kind": "c_function",
+"name": "xacel",
+"number": 116,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e0da",
+"kind": "c_function",
+"name": "yacel",
+"number": 117,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e0f0",
+"kind": "c_bool",
+"name": "delete_light",
+"number": 118,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e106",
+"kind": "c_bool",
+"name": "set_fx",
+"number": 119,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e11c",
+"kind": "c_bool",
+"name": "set_fy",
+"number": 120,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e132",
+"kind": "c_bool",
+"name": "set_fxvel",
+"number": 121,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e148",
+"kind": "c_bool",
+"name": "set_fyvel",
+"number": 122,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e15e",
+"kind": "c_bool",
+"name": "set_fxacel",
+"number": 123,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e174",
+"kind": "c_bool",
+"name": "set_fyacel",
+"number": 124,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e187",
+"kind": "c_function",
+"name": "picture_width",
+"number": 125,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e19a",
+"kind": "c_function",
+"name": "picture_height",
+"number": 126,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e1ad",
+"kind": "c_bool",
+"name": "trap",
+"number": 127,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e1c3",
+"kind": "c_bool",
+"name": "platform_push",
+"number": 128,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e1dc",
+"kind": "c_function",
+"name": "def_sound",
+"number": 133,
+"min": 1,
+"max": 2
+},
+{
+"at": "0x1e1f5",
+"kind": "c_bool",
+"name": "play_sound",
+"number": 134,
+"min": 1,
+"max": 4
+},
+{
+"at": "0x1e20b",
+"kind": "c_bool",
+"name": "set_visor_time",
+"number": 135,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e21e",
+"kind": "c_function",
+"name": "get_visor_time",
+"number": 136,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e234",
+"kind": "c_function",
+"name": "def_particle",
+"number": 137,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e24a",
+"kind": "c_function",
+"name": "add_panim",
+"number": 138,
+"min": 4,
+"max": 4
+},
+{
+"at": "0x1e260",
+"kind": "c_function",
+"name": "weapon_to_type",
+"number": 142,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e276",
+"kind": "c_bool",
+"name": "hurt_radius",
+"number": 143,
+"min": 6,
+"max": 6
+},
+{
+"at": "0x1e28c",
+"kind": "c_bool",
+"name": "add_ammo",
+"number": 144,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e2a2",
+"kind": "c_function",
+"name": "ammo_total",
+"number": 145,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e2b5",
+"kind": "c_function",
+"name": "current_weapon",
+"number": 146,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e2c8",
+"kind": "c_function",
+"name": "current_weapon_type",
+"number": 147,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e2de",
+"kind": "c_bool",
+"name": "blocked_up",
+"number": 148,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e2f4",
+"kind": "c_bool",
+"name": "blocked_down",
+"number": 149,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e30a",
+"kind": "c_bool",
+"name": "give_weapon",
+"number": 150,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e320",
+"kind": "c_function",
+"name": "get_ability",
+"number": 151,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e333",
+"kind": "c_bool",
+"name": "reset_player",
+"number": 152,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e349",
+"kind": "c_function",
+"name": "site_angle",
+"number": 153,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e35f",
+"kind": "c_bool",
+"name": "set_course",
+"number": 154,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e375",
+"kind": "c_bool",
+"name": "set_frame_angle",
+"number": 155,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1e38b",
+"kind": "c_bool",
+"name": "jump_state",
+"number": 156,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e39e",
+"kind": "c_bool",
+"name": "morphing",
+"number": 168,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e3b4",
+"kind": "c_bool",
+"name": "damage_fun",
+"number": 169,
+"min": 6,
+"max": 6
+},
+{
+"at": "0x1e3c7",
+"kind": "c_bool",
+"name": "gravity",
+"number": 170,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e3dd",
+"kind": "c_bool",
+"name": "make_view_solid",
+"number": 171,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e3f3",
+"kind": "c_function",
+"name": "find_rgb",
+"number": 172,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1e406",
+"kind": "c_function",
+"name": "player_x_suggest",
+"number": 173,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e419",
+"kind": "c_function",
+"name": "player_y_suggest",
+"number": 174,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e42c",
+"kind": "c_function",
+"name": "player_b1_suggest",
+"number": 175,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e43f",
+"kind": "c_function",
+"name": "player_b2_suggest",
+"number": 176,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e452",
+"kind": "c_function",
+"name": "player_b3_suggest",
+"number": 177,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e468",
+"kind": "c_bool",
+"name": "set_bg_scroll",
+"number": 178,
+"min": 4,
+"max": 4
+},
+{
+"at": "0x1e47e",
+"kind": "c_bool",
+"name": "set_ambient_light",
+"number": 179,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e494",
+"kind": "c_function",
+"name": "ambient_light",
+"number": 180,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e4aa",
+"kind": "c_bool",
+"name": "has_object",
+"number": 181,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e4c0",
+"kind": "c_bool",
+"name": "set_otype",
+"number": 182,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e4d3",
+"kind": "c_function",
+"name": "current_frame",
+"number": 184,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e4e6",
+"kind": "c_function",
+"name": "fx",
+"number": 185,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e4f9",
+"kind": "c_function",
+"name": "fy",
+"number": 186,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e50c",
+"kind": "c_function",
+"name": "fxvel",
+"number": 187,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e51f",
+"kind": "c_function",
+"name": "fyvel",
+"number": 188,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e532",
+"kind": "c_function",
+"name": "fxacel",
+"number": 189,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e545",
+"kind": "c_function",
+"name": "fyacel",
+"number": 190,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e55b",
+"kind": "c_bool",
+"name": "set_stat_bar",
+"number": 191,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e571",
+"kind": "c_bool",
+"name": "set_fg_tile",
+"number": 192,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1e587",
+"kind": "c_function",
+"name": "fg_tile",
+"number": 193,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e59d",
+"kind": "c_bool",
+"name": "set_bg_tile",
+"number": 194,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1e5b3",
+"kind": "c_function",
+"name": "bg_tile",
+"number": 195,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e5cc",
+"kind": "c_bool",
+"name": "load_tiles",
+"number": 196,
+"min": 1,
+"max": 4294967295
+},
+{
+"at": "0x1e5e2",
+"kind": "c_bool",
+"name": "load_palette",
+"number": 197,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e5f8",
+"kind": "c_bool",
+"name": "load_color_filter",
+"number": 198,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e60e",
+"kind": "c_bool",
+"name": "create_players",
+"number": 199,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e627",
+"kind": "c_bool",
+"name": "try_move",
+"number": 200,
+"min": 2,
+"max": 3
+},
+{
+"at": "0x1e63d",
+"kind": "c_function",
+"name": "sequence_length",
+"number": 201,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e653",
+"kind": "c_bool",
+"name": "can_see",
+"number": 202,
+"min": 5,
+"max": 5
+},
+{
+"at": "0x1e669",
+"kind": "c_function",
+"name": "load_big_font",
+"number": 203,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e67f",
+"kind": "c_function",
+"name": "load_small_font",
+"number": 204,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e695",
+"kind": "c_function",
+"name": "load_console_font",
+"number": 205,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e6ab",
+"kind": "c_function",
+"name": "set_current_frame",
+"number": 206,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e6c1",
+"kind": "c_bool",
+"name": "draw_transparent",
+"number": 208,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e6d7",
+"kind": "c_bool",
+"name": "draw_tint",
+"number": 209,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e6ea",
+"kind": "c_bool",
+"name": "draw_predator",
+"number": 210,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e700",
+"kind": "c_function",
+"name": "shift_down",
+"number": 211,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e716",
+"kind": "c_function",
+"name": "shift_right",
+"number": 212,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e72c",
+"kind": "c_bool",
+"name": "set_no_scroll_range",
+"number": 213,
+"min": 5,
+"max": 5
+},
+{
+"at": "0x1e742",
+"kind": "c_function",
+"name": "def_image",
+"number": 215,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1e758",
+"kind": "c_bool",
+"name": "put_image",
+"number": 216,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1e76b",
+"kind": "c_function",
+"name": "view_x1",
+"number": 217,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e77e",
+"kind": "c_function",
+"name": "view_y1",
+"number": 218,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e791",
+"kind": "c_function",
+"name": "view_x2",
+"number": 219,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e7a4",
+"kind": "c_function",
+"name": "view_y2",
+"number": 220,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e7ba",
+"kind": "c_function",
+"name": "view_push_down",
+"number": 221,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e7cd",
+"kind": "c_bool",
+"name": "local_player",
+"number": 222,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e7e3",
+"kind": "c_bool",
+"name": "save_game",
+"number": 223,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e7f9",
+"kind": "c_bool",
+"name": "set_hp",
+"number": 224,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e80f",
+"kind": "c_bool",
+"name": "request_level_load",
+"number": 225,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e825",
+"kind": "c_bool",
+"name": "set_first_level",
+"number": 226,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e83b",
+"kind": "c_function",
+"name": "def_tint",
+"number": 227,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e851",
+"kind": "c_function",
+"name": "tint_palette",
+"number": 228,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1e864",
+"kind": "c_function",
+"name": "player_number",
+"number": 229,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e87a",
+"kind": "c_bool",
+"name": "set_current_weapon",
+"number": 230,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e890",
+"kind": "c_bool",
+"name": "has_weapon",
+"number": 231,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e8a6",
+"kind": "c_bool",
+"name": "ambient_ramp",
+"number": 232,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e8b9",
+"kind": "c_function",
+"name": "total_players",
+"number": 233,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e8cf",
+"kind": "c_bool",
+"name": "scatter_line",
+"number": 234,
+"min": 6,
+"max": 6
+},
+{
+"at": "0x1e8e2",
+"kind": "c_function",
+"name": "game_tick",
+"number": 235,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e8f5",
+"kind": "c_bool",
+"name": "isa_player",
+"number": 236,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e90b",
+"kind": "c_bool",
+"name": "shift_rand_table",
+"number": 237,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e91e",
+"kind": "c_function",
+"name": "total_frames",
+"number": 238,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e931",
+"kind": "c_function",
+"name": "raise",
+"number": 239,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e944",
+"kind": "c_function",
+"name": "lower",
+"number": 240,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e957",
+"kind": "c_function",
+"name": "player_pointer_x",
+"number": 241,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e96a",
+"kind": "c_function",
+"name": "player_pointer_y",
+"number": 242,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e97d",
+"kind": "c_bool",
+"name": "frame_panic",
+"number": 243,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e993",
+"kind": "c_bool",
+"name": "ascatter_line",
+"number": 244,
+"min": 7,
+"max": 7
+},
+{
+"at": "0x1e9a6",
+"kind": "c_function",
+"name": "rand_on",
+"number": 245,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e9bc",
+"kind": "c_function",
+"name": "set_rand_on",
+"number": 246,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1e9d2",
+"kind": "c_function",
+"name": "bar",
+"number": 247,
+"min": 5,
+"max": 5
+},
+{
+"at": "0x1e9e5",
+"kind": "c_function",
+"name": "argc",
+"number": 248,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1e9fb",
+"kind": "c_bool",
+"name": "play_song",
+"number": 249,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ea0e",
+"kind": "c_bool",
+"name": "stop_song",
+"number": 250,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ea21",
+"kind": "c_bool",
+"name": "targetable",
+"number": 251,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ea37",
+"kind": "c_bool",
+"name": "set_targetable",
+"number": 252,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ea4a",
+"kind": "c_bool",
+"name": "show_stats",
+"number": 253,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ea5d",
+"kind": "c_function",
+"name": "kills",
+"number": 254,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ea70",
+"kind": "c_function",
+"name": "tkills",
+"number": 255,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ea83",
+"kind": "c_function",
+"name": "secrets",
+"number": 256,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ea96",
+"kind": "c_function",
+"name": "tsecrets",
+"number": 257,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1eaac",
+"kind": "c_bool",
+"name": "set_kills",
+"number": 258,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1eac2",
+"kind": "c_bool",
+"name": "set_tkills",
+"number": 259,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ead8",
+"kind": "c_bool",
+"name": "set_secrets",
+"number": 260,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1eaee",
+"kind": "c_bool",
+"name": "set_tsecrets",
+"number": 261,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1eb01",
+"kind": "c_bool",
+"name": "request_end_game",
+"number": 262,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1eb14",
+"kind": "c_function",
+"name": "get_save_slot",
+"number": 263,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1eb27",
+"kind": "c_bool",
+"name": "mem_report",
+"number": 264,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1eb3a",
+"kind": "c_function",
+"name": "major_version",
+"number": 265,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1eb4d",
+"kind": "c_function",
+"name": "minor_version",
+"number": 266,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1eb63",
+"kind": "c_bool",
+"name": "draw_double_tint",
+"number": 267,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1eb79",
+"kind": "c_function",
+"name": "image_width",
+"number": 268,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1eb8f",
+"kind": "c_function",
+"name": "image_height",
+"number": 269,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1eba2",
+"kind": "c_function",
+"name": "foreground_width",
+"number": 270,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ebb5",
+"kind": "c_function",
+"name": "foreground_height",
+"number": 271,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ebc8",
+"kind": "c_function",
+"name": "background_width",
+"number": 272,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ebdb",
+"kind": "c_function",
+"name": "background_height",
+"number": 273,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ebf1",
+"kind": "c_function",
+"name": "get_key_code",
+"number": 274,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ec04",
+"kind": "lisp_fun",
+"name": "go_state",
+"number": 0,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ec1d",
+"kind": "lisp_fun",
+"name": "with_object",
+"number": 1,
+"min": 2,
+"max": 4294967295
+},
+{
+"at": "0x1ec33",
+"kind": "lisp_fun",
+"name": "bmove",
+"number": 2,
+"min": 0,
+"max": 1
+},
+{
+"at": "0x1ec46",
+"kind": "lisp_fun",
+"name": "me",
+"number": 3,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ec59",
+"kind": "lisp_fun",
+"name": "bg",
+"number": 4,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ec6f",
+"kind": "lisp_fun",
+"name": "find_closest",
+"number": 5,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ec85",
+"kind": "lisp_fun",
+"name": "find_xclosest",
+"number": 6,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ec9b",
+"kind": "lisp_fun",
+"name": "find_xrange",
+"number": 7,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1ecb4",
+"kind": "lisp_fun",
+"name": "add_object",
+"number": 8,
+"min": 3,
+"max": 4
+},
+{
+"at": "0x1ecc7",
+"kind": "lisp_fun",
+"name": "first_focus",
+"number": 9,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ecdd",
+"kind": "lisp_fun",
+"name": "next_focus",
+"number": 10,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ecf3",
+"kind": "lisp_fun",
+"name": "get_object",
+"number": 11,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ed09",
+"kind": "lisp_fun",
+"name": "get_light",
+"number": 12,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ed1f",
+"kind": "lisp_fun",
+"name": "with_objects",
+"number": 13,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ed35",
+"kind": "lisp_fun",
+"name": "add_light",
+"number": 14,
+"min": 7,
+"max": 7
+},
+{
+"at": "0x1ed4b",
+"kind": "lisp_fun",
+"name": "find_enemy",
+"number": 15,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1ed61",
+"kind": "lisp_fun",
+"name": "user_fun",
+"number": 16,
+"min": 0,
+"max": 4294967295
+},
+{
+"at": "0x1ed77",
+"kind": "lisp_fun",
+"name": "time",
+"number": 17,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1ed8a",
+"kind": "lisp_fun",
+"name": "name",
+"number": 18,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ed9d",
+"kind": "lisp_fun",
+"name": "float_tick",
+"number": 19,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1edb3",
+"kind": "lisp_fun",
+"name": "find_object_in_area",
+"number": 20,
+"min": 5,
+"max": 5
+},
+{
+"at": "0x1edc9",
+"kind": "lisp_fun",
+"name": "find_object_in_angle",
+"number": 21,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1ede2",
+"kind": "lisp_fun",
+"name": "add_object_after",
+"number": 22,
+"min": 3,
+"max": 4
+},
+{
+"at": "0x1edfb",
+"kind": "lisp_fun",
+"name": "def_char",
+"number": 23,
+"min": 2,
+"max": 4294967295
+},
+{
+"at": "0x1ee11",
+"kind": "lisp_fun",
+"name": "see_dist",
+"number": 24,
+"min": 4,
+"max": 4
+},
+{
+"at": "0x1ee24",
+"kind": "lisp_fun",
+"name": "platform",
+"number": 25,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ee37",
+"kind": "lisp_fun",
+"name": "level_name",
+"number": 26,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ee4a",
+"kind": "lisp_fun",
+"name": "ant_ai",
+"number": 27,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ee5d",
+"kind": "lisp_fun",
+"name": "sensor_ai",
+"number": 28,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ee70",
+"kind": "lisp_fun",
+"name": "dev_draw",
+"number": 29,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ee83",
+"kind": "lisp_fun",
+"name": "top_ai",
+"number": 30,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ee99",
+"kind": "lisp_fun",
+"name": "laser_ufun",
+"number": 31,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1eeaf",
+"kind": "lisp_fun",
+"name": "top_ufun",
+"number": 32,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1eec5",
+"kind": "lisp_fun",
+"name": "player_rocket_ufun",
+"number": 34,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1eee4",
+"kind": "lisp_fun",
+"name": "plaser_ufun",
+"number": 33,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1eefa",
+"kind": "lisp_fun",
+"name": "lsaber_ufun",
+"number": 35,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1ef10",
+"kind": "lisp_fun",
+"name": "cop_mover",
+"number": 36,
+"min": 3,
+"max": 3
+},
+{
+"at": "0x1ef23",
+"kind": "lisp_fun",
+"name": "latter_ai",
+"number": 37,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ef39",
+"kind": "lisp_fun",
+"name": "with_obj0",
+"number": 38,
+"min": 4294967295,
+"max": 4294967295
+},
+{
+"at": "0x1ef4c",
+"kind": "lisp_fun",
+"name": "activated",
+"number": 39,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ef5f",
+"kind": "lisp_fun",
+"name": "top_draw",
+"number": 40,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ef72",
+"kind": "lisp_fun",
+"name": "bottom_draw",
+"number": 41,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ef85",
+"kind": "lisp_fun",
+"name": "mover_ai",
+"number": 42,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1ef98",
+"kind": "lisp_fun",
+"name": "sgun_ai",
+"number": 43,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1efab",
+"kind": "lisp_fun",
+"name": "last_savegame_name",
+"number": 44,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1efbe",
+"kind": "lisp_fun",
+"name": "next_savegame_name",
+"number": 45,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1efd4",
+"kind": "lisp_fun",
+"name": "argv",
+"number": 46,
+"min": 1,
+"max": 1
+},
+{
+"at": "0x1efe7",
+"kind": "lisp_fun",
+"name": "joy_stat",
+"number": 47,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1effa",
+"kind": "lisp_fun",
+"name": "mouse_stat",
+"number": 48,
+"min": 0,
+"max": 0
+},
+{
+"at": "0x1f010",
+"kind": "lisp_fun",
+"name": "mouse_to_game",
+"number": 49,
+"min": 2,
+"max": 2
+},
+{
+"at": "0x1f026",
+"kind": "lisp_fun",
+"name": "game_to_mouse",
+"number": 50,
+"min": 2,
+"max": 2
+}
+]

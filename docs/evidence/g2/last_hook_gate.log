@@ -1,0 +1,43 @@
+/Users/men1692/Desktop/AWS/Kiroween2026/.tools/node-v26.13.1-darwin-arm64/bin/node node_modules/typescript/bin/tsc -p tsconfig.json
+/Users/men1692/Desktop/AWS/Kiroween2026/.tools/node-v26.13.1-darwin-arm64/bin/node --test tests/
+✔ light: drains while on and forces off at 0 (0.397792ms)
+✔ light: relight refused below relightMin, allowed at relightMin (0.049833ms)
+✔ light: recharge is capped at max and toggle off always works (0.043792ms)
+✔ light never changes motion, combat, or enemies (7.687334ms)
+✔ update is deterministic and does not mutate its input (1.887083ms)
+✔ map: start -> core -> exit reachable with the restored motion engine (144.965542ms)
+✔ core pickup then exit wins; exit without core does not (0.181042ms)
+✔ contact damage with invulnerability, death ends the run, lost world is frozen (0.106125ms)
+✔ fire delay limits shots and bullets kill a crawler (0.326625ms)
+✔ restart produces a fresh world (1.185292ms)
+✔ comparator: identical -> PASS (0.40925ms)
+✔ comparator: injected difference -> FAIL with first difference (0.234542ms)
+✔ comparator: length mismatch -> FAIL (0.04ms)
+✔ comparator: missing actual field -> FAIL (0.049791ms)
+✔ comparator: corrupt expected -> ERROR (0.046208ms)
+✔ comparator: missing / empty expected -> NOT RUN, never PASS (0.040666ms)
+✔ comparator: no measured fields -> ERROR (0.034333ms)
+✔ hlog: rejects empty, malformed, and non-contiguous input (0.391791ms)
+✔ engine: pure (does not mutate its input body) (0.169584ms)
+✔ engine: left wall clamps x and zeroes velocity (0.094875ms)
+✔ engine: floor stops a fall (0.081542ms)
+✔ verifier: development scenarios PASS on the original reference (2.76725ms)
+✔ verifier: mutated terrain (wall off by one) -> FAIL, proving the check is not vacuous (0.829667ms)
+✔ verifier: mutated input script -> ERROR (declared input differs from recorded input) (0.561584ms)
+✔ verifier: missing reference file -> NOT RUN (0.178125ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 225.92425
+/Users/men1692/Desktop/AWS/Kiroween2026/.tools/node-v26.13.1-darwin-arm64/bin/node tools/reference/verify.ts
+{"scenarioId":"S1-spawn-fall-run-wall","validationKind":"reference-state","measuredFields":["x","y","xvel","yvel","dir","state","xacel","yacel","gravity","fyvel","fyacel"],"excludedFields":["fx","fy","fxvel","fxacel"],"toleranceContract":"exact (0) on all measured fields; fixed before first engine run; must not be widened after FAIL","initialStateId":"snapshot n=3 (spawn, x=58 y=61, all zero, gravity 1)","knownLimits":["x>140 slope not modelled (window ends n=102)","stop only observed for |xvel|=9"],"toolVersions":{"node":"v26.13.1"},"holdout":false,"checkedRows":100,"status":"PASS","referenceSha256":"c8517f4bdcb44f1cc6ff145d98d94049355634ff0f127eb2012a432707af66df","inputHash":"7c4b434848e7d496e420e84585c1c099842ded452c5425f2d4fb6425649d98a4"}
+{"scenarioId":"S2-jump","validationKind":"reference-state","measuredFields":["x","y","xvel","yvel","dir","state","xacel","yacel","gravity","fyvel","fyacel"],"excludedFields":["fx","fy","fxvel","fxacel"],"toleranceContract":"exact (0) on all measured fields; fixed before first engine run; must not be widened after FAIL","initialStateId":"snapshot n=151 (x=123 y=91 idle)","knownLimits":["landing from yvel 16 now modelled via cop_mover yacel reset (0x14760); extended to n=185 after the engine fix, not before"],"toolVersions":{"node":"v26.13.1"},"holdout":false,"checkedRows":35,"status":"PASS","referenceSha256":"c8517f4bdcb44f1cc6ff145d98d94049355634ff0f127eb2012a432707af66df","inputHash":"6e38bcb4acd82e2ca22900d18bd002aaec588faca6804c860c9f6988facfd083"}
+{"scenarioId":"S3-wall-air-jump","validationKind":"reference-state","measuredFields":["x","y","xvel","yvel","dir","state","xacel","yacel","gravity","fyvel","fyacel"],"excludedFields":["fx","fy","fxvel","fxacel"],"toleranceContract":"exact (0) on all measured fields; fixed before first engine run; must not be widened after FAIL","initialStateId":"snapshot n=3 (spawn)","knownLimits":["former holdout M04: FAILED its single judgement (docs/evidence/g2/holdout_M04_result.FIRST_JUDGEMENT.jsonl) at n=59 xacel; moved to development per VERIFICATION_CONTRACT section 5","window ends n=61: landing tick n=62 shows xvel=-8 while blocked at the wall (unexplained)"],"toolVersions":{"node":"v26.13.1"},"holdout":false,"checkedRows":59,"status":"PASS","referenceSha256":"7675fe4a0a4d589218434a9ed73e4e2fd80b6bd3c202bc9b90cb11373f214937","inputHash":"be0de4dca8e30077a8f28c799997e4d26f147eeb4efe33c0e795862737324a6f"}
+{"summary":{"PASS":3,"FAIL":0,"ERROR":0,"NOT RUN":0}}
+/Users/men1692/Desktop/AWS/Kiroween2026/.tools/node-v26.13.1-darwin-arm64/bin/node tools/game/reach.ts
+{"startToCore":{"ok":true,"visited":2586,"ticks":196},"coreToExit":{"ok":true,"visited":3798,"ticks":102},"bfsRouteTicks":298,"bfsRouteSecondsAt15Hz":19.9,"note":"BFS minimises search steps, not time; enemies ignored. A rough route length, not a play-time measurement."}
+/Users/men1692/Desktop/AWS/Kiroween2026/.tools/node-v26.13.1-darwin-arm64/bin/node node_modules/vite/bin/vite.js build --logLevel warn

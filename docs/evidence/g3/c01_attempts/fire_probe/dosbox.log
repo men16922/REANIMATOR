@@ -1,0 +1,113 @@
+date       time         | 
+2026-11-14 17:42:08.955 | arguments: /Users/men1692/Desktop/AWS/Kiroween2026/.tools/DOSBox\ Staging.app/Contents/MacOS/dosbox --noprimaryconf --conf /Users/men1692/Desktop/AWS/Kiroween2026/docs/evidence/g1/runs/fire_probe/dosbox.conf
+2026-11-14 17:42:08.956 | Current dir: /Users/men1692/Desktop/AWS/Kiroween2026
+2026-11-14 17:42:08.956 | stderr verbosity: 0
+2026-11-14 17:42:08.956 | -----------------------------------
+2026-11-14 17:42:08.956 | dosbox-staging version 0.83.0 (7b400)
+2026-11-14 17:42:08.956 | ---
+2026-11-14 17:42:08.956 | Loguru version 2.1.0 initialised
+2026-11-14 17:42:08.959 | CONFIG: Deprecated setting 'glshader'
+2026-11-14 17:42:08.959 | CONFIG: The 'glshader' setting is deprecated but still accepted; please use 'shader' instead.
+2026-11-14 17:42:08.959 | CONFIG: Deprecated setting 'cycles'
+2026-11-14 17:42:08.959 | CONFIG: The 'cycles' setting is deprecated but still accepted; please use 'cpu_cycles', 'cpu_cycles_protected' and 'cpu_throttle' instead.
+2026-11-14 17:42:08.959 | CONFIG: Loaded custom config file '/Users/men1692/Desktop/AWS/Kiroween2026/docs/evidence/g1/runs/fire_probe/dosbox.conf'
+2026-11-14 17:42:08.964 | LOCALE: Using internal English language messages (detected from 'ko-KR; GUI: en-KR')
+2026-11-14 17:42:09.051 | SDL: Version 2.32.10 initialised
+2026-11-14 17:42:09.051 | SDL: cocoa video initialised
+2026-11-14 17:42:09.170 | VIDEO: Using the DOS video modes' refresh rate
+2026-11-14 17:42:09.170 | DOS: Setting hard disk disk speed to maximum
+2026-11-14 17:42:09.170 | DOS: Setting floppy disk speed to maximum
+2026-11-14 17:42:09.172 | MEMORY: Using 4096 DOS memory pages (16 MB) at address: 0x612c00000
+2026-11-14 17:42:09.172 | FPU: Using reduced-precision floating-point emulation
+2026-11-14 17:42:09.172 | VIDEO: Initialised S3 Trio64 VESA 2.0 compatible with 4 MB of FP DRAM supporting 89 modes
+2026-11-14 17:42:09.173 | VOODOO: Initialized with 4 MB of RAM, 16 threads, and bilinear filtering
+2026-11-14 17:42:09.173 | CAPTURE: Image capturer started
+2026-11-14 17:42:09.173 | MIXER: Sound output disabled ('nosound' mode)
+2026-11-14 17:42:09.173 | MIXER: Reverb disabled
+2026-11-14 17:42:09.173 | MIXER: Master compressor enabled
+2026-11-14 17:42:09.173 | MPU-401: Running in intelligent mode on ports 330h and 331h
+2026-11-14 17:42:09.768 | MIDI: Opened device 'coremidi'
+2026-11-14 17:42:09.768 | OPL: Operating at 49716 Hz and downsampling to the output rate
+2026-11-14 17:42:09.768 | OPL: Noise gate enabled
+2026-11-14 17:42:09.768 | OPL: Running OPL3 on ports 220h and 388h
+2026-11-14 17:42:09.768 | OPL: Sound Blaster 16 OPL output filter enabled
+2026-11-14 17:42:09.768 | DMA: Initialised primary controller
+2026-11-14 17:42:09.768 | DMA: Initialised secondary controller
+2026-11-14 17:42:09.768 | SB: Operating at 22050 Hz and upsampling to the output rate
+2026-11-14 17:42:09.768 | SB16: Modern DAC output filter enabled
+2026-11-14 17:42:09.768 | SB16: Setting 'BLASTER' environment variable to 'A220 I7 D1 H5 T6'
+2026-11-14 17:42:09.768 | SB16: Running on port 220h, IRQ 7, DMA 1, and high DMA 5
+2026-11-14 17:42:09.776 | LOCALE: Country detected from 'en-KR'
+2026-11-14 17:42:09.776 | LOCALE: Loading native locale for country 99 - 'Asia (English)'
+2026-11-14 17:42:09.776 | LOCALE: Using numeric/time/date format detected from host OS
+2026-11-14 17:42:09.777 | LOCALE: Keyboard layout and code page detected from '252 (ABC)'
+2026-11-14 17:42:09.777 | LOCALE: Loaded keyboard layout 'us' - 'US (standard, QWERTY/national)'
+2026-11-14 17:42:09.835 | CONFIG: Loaded auto-mounted drive config file '/Users/men1692/Desktop/AWS/Kiroween2026/.tools/DOSBox Staging.app/Contents/Resources/drives/y.conf'
+2026-11-14 17:42:09.836 | AUTOEXEC: Using autoexec from one or more joined sections
+2026-11-14 17:42:09.836 | DISPLAY: Using 960x720 window size in windowed mode on display-0
+2026-11-14 17:42:09.873 | OPENGL: Version: 4.1, GLSL version: 4.10, vendor: Apple
+2026-11-14 17:42:09.877 | RENDER: Using shader 'interpolation/bilinear'
+2026-11-14 17:42:09.878 | VGA: Double scanning VGA video modes enabled
+2026-11-14 17:42:09.878 | VGA: Pixel doubling enabled
+2026-11-14 17:42:09.878 | RENDER: Auto-switched to P22 CRT color profile
+2026-11-14 17:42:09.878 | RENDER: Auto-switched to 7800K colour temperature
+2026-11-14 17:42:09.878 | MOUSE: Will be captured after the first left or right button click
+2026-11-14 17:42:09.878 | MOUSE: Middle button will capture/release the mouse (clicks not sent to the game/program)
+2026-11-14 17:42:09.879 | RENDER: Deinterlacing disabled
+2026-11-14 17:42:09.879 | RENDER: Dedithering disabled
+2026-11-14 17:42:09.893 | MAPPER: No joysticks found
+2026-11-14 17:42:09.893 | MAPPER: Loaded default key bindings
+2026-11-14 17:42:09.992 | RENDER: Auto-switched to P22 CRT color profile
+2026-11-14 17:42:09.992 | RENDER: Auto-switched to 7800K colour temperature
+2026-11-14 17:42:09.998 | DISPLAY: VGA 720x400 16-colour text mode 03h at 70.087 Hz, scaled to 960x720 pixels with 1:1.35 (20:27) pixel aspect ratio
+2026-11-14 17:42:09.998 | DISPLAY: Presenting at DOS rate without vsync
+2026-11-14 17:42:10.014 | MOUSE (DOS): Built-in driver is simulating a 2 buttons model
+2026-11-14 17:42:12.529 | SB16: Resetting DSP
+2026-11-14 17:42:15.718 | DISPLAY: VGA 320x200 256-colour graphics mode 13h at 70.086 Hz, scaled to 960x720 pixels with 1:1.2 (5:6) pixel aspect ratio
+2026-11-14 17:42:20.837 | Illegal read from 1060f0c2, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.837 | Illegal read from 1060f0c3, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.837 | Illegal read from 1060f0c4, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.837 | Illegal read from 1060f0c5, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.837 | Illegal read from 1060f0c2, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.837 | Illegal read from 1060f0c3, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.837 | Illegal read from 1060f0c4, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.837 | Illegal read from 1060f0c5, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.838 | Illegal read from 1300f000, CS:IP      180:  1fcd0d
+2026-11-14 17:42:20.838 | Illegal read from 1300f001, CS:IP      180:  1fcd0d
+2026-11-14 17:42:20.839 | Illegal read from 1300f002, CS:IP      180:  1fcd0d
+2026-11-14 17:42:20.839 | Illegal read from 1300f003, CS:IP      180:  1fcd0d
+2026-11-14 17:42:20.845 | Illegal read from 60f000f9, CS:IP      180:  200881
+2026-11-14 17:42:20.845 | Illegal read from 60f000fa, CS:IP      180:  200881
+2026-11-14 17:42:20.845 | Illegal read from 60f000fb, CS:IP      180:  200881
+2026-11-14 17:42:20.845 | Illegal read from 60f000fc, CS:IP      180:  200881
+2026-11-14 17:42:20.845 | Illegal read from 60f000f5, CS:IP      180:  20084c
+2026-11-14 17:42:20.845 | Illegal read from 60f000f6, CS:IP      180:  20084c
+2026-11-14 17:42:20.845 | Illegal read from 60f000f7, CS:IP      180:  20084c
+2026-11-14 17:42:20.845 | Illegal read from 60f000f8, CS:IP      180:  20084c
+2026-11-14 17:42:20.847 | Illegal read from 1060f0c2, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.847 | Illegal read from 1060f0c3, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.847 | Illegal read from 1060f0c4, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.847 | Illegal read from 1060f0c5, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.847 | Illegal read from 1060f0c2, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.847 | Illegal read from 1060f0c3, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.847 | Illegal read from 1060f0c4, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.847 | Illegal read from 1060f0c5, CS:IP      180:  1fef8e
+2026-11-14 17:42:20.847 | Illegal read from 1300f000, CS:IP      180:  1fcd0d
+2026-11-14 17:42:20.847 | Illegal read from 1300f001, CS:IP      180:  1fcd0d
+2026-11-14 17:42:20.847 | Illegal read from 1300f002, CS:IP      180:  1fcd0d
+2026-11-14 17:42:20.847 | Illegal read from 1300f003, CS:IP      180:  1fcd0d
+2026-11-14 17:42:20.847 | Illegal read from 60f000f9, CS:IP      180:  200881
+2026-11-14 17:42:20.847 | Illegal read from 60f000fa, CS:IP      180:  200881
+2026-11-14 17:42:20.847 | Illegal read from 60f000fb, CS:IP      180:  200881
+2026-11-14 17:42:20.847 | Illegal read from 60f000fc, CS:IP      180:  200881
+2026-11-14 17:42:20.847 | Illegal read from 60f000f5, CS:IP      180:  20084c
+2026-11-14 17:42:20.847 | Illegal read from 60f000f6, CS:IP      180:  20084c
+2026-11-14 17:42:20.847 | Illegal read from 60f000f7, CS:IP      180:  20084c
+2026-11-14 17:42:20.848 | Illegal read from 60f000f8, CS:IP      180:  20084c
+2026-11-14 17:43:15.559 | OPL: Shutting down OPL3
+2026-11-14 17:43:15.559 | SB16: Shutting down
+2026-11-14 17:43:15.560 | MPU-401: Shutting down
+2026-11-14 17:43:15.568 | CAPTURE: Image capturer shutting down
+2026-11-14 17:43:15.568 | DMA: Shutting down primary controller
+2026-11-14 17:43:15.568 | DMA: Shutting down secondary controller
+2026-11-14 17:43:15.571 | atexit

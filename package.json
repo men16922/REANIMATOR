@@ -1,0 +1,32 @@
+{
+  "name": "reanimator",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=26.12.1"
+  },
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:engine": "node --test tests/",
+    "reference:verify": "node tools/reference/verify.ts",
+    "reference:holdout": "node tools/reference/verify.ts --holdout",
+    "build": "vite build",
+    "test:e2e": "vite build --logLevel warn && node tools/smoke/smoke.ts"
+  },
+  "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "@playwright/test": "1.65.1",
+    "@types/node": "26.6.6",
+    "@types/three": "^0.187.0",
+    "meshoptimizer": "^1.3.0",
+    "sharp": "^0.35.5",
+    "typescript": "7.0.2",
+    "vite": "8.3.8"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  }
+}

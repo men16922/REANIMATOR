@@ -1,0 +1,194 @@
+{
+  "schema": 1,
+  "originalExeSha256": "8ba92587d070936cc776be4d15e0e68f62859fb0e473b068ac608b812b01074f",
+  "harnessSha256": {
+    "dev": "HARNESS.v8.LSP",
+    "holdout": "HARNESS.holdout_M05.v8.LSP"
+  },
+  "emulator": "DOSBox Staging 0.83.0, cycles fixed 20000, nosound",
+  "validationKind": "reference-state",
+  "measuredFields": [
+    "x",
+    "y",
+    "xvel",
+    "yvel",
+    "dir",
+    "state",
+    "xacel",
+    "yacel",
+    "gravity",
+    "fyvel",
+    "fyacel"
+  ],
+  "toleranceContract": "exact (0) on all measured fields; fixed before first engine run; must not be widened after FAIL",
+  "scenarios": [
+    {
+      "id": "S1-spawn-fall-run-wall",
+      "covers": [
+        "M01",
+        "M03"
+      ],
+      "holdout": false,
+      "expected": "reference/fixtures/expected/dev_v8.hlog.txt",
+      "initialStateId": "snapshot n=3 (spawn, x=58 y=61, all zero, gravity 1)",
+      "startN": 3,
+      "endN": 102,
+      "terrain": {
+        "floorY": 91,
+        "ceilY": -1000,
+        "wallLeftX": 32
+      },
+      "inputs": [
+        {
+          "from": 30,
+          "to": 59,
+          "xm": -1,
+          "ym": 0
+        },
+        {
+          "from": 90,
+          "to": 109,
+          "xm": 1,
+          "ym": 0
+        }
+      ],
+      "excludedFields": [
+        "fx",
+        "fy",
+        "fxvel",
+        "fxacel"
+      ],
+      "knownLimits": [
+        "x>140 slope not modelled (window ends n=102)",
+        "stop only observed for |xvel|=9"
+      ]
+    },
+    {
+      "id": "S2-jump",
+      "covers": [
+        "M02"
+      ],
+      "holdout": false,
+      "expected": "reference/fixtures/expected/dev_v8.hlog.txt",
+      "initialStateId": "snapshot n=151 (x=123 y=91 idle)",
+      "startN": 151,
+      "endN": 185,
+      "terrain": {
+        "floorY": 91,
+        "ceilY": 43,
+        "wallLeftX": 32
+      },
+      "inputs": [
+        {
+          "from": 170,
+          "to": 171,
+          "xm": 0,
+          "ym": -1
+        }
+      ],
+      "excludedFields": [
+        "fx",
+        "fy",
+        "fxvel",
+        "fxacel"
+      ],
+      "knownLimits": [
+        "landing from yvel 16 now modelled via cop_mover yacel reset (0x14760); extended to n=185 after the engine fix, not before"
+      ]
+    },
+    {
+      "id": "S3-wall-air-jump",
+      "covers": [
+        "M02",
+        "M03"
+      ],
+      "holdout": false,
+      "expected": "reference/fixtures/expected/dev_m04_v8.hlog.txt",
+      "initialStateId": "snapshot n=3 (spawn)",
+      "startN": 3,
+      "endN": 61,
+      "terrain": {
+        "floorY": 91,
+        "ceilY": 43,
+        "wallLeftX": 32
+      },
+      "inputs": [
+        {
+          "from": 30,
+          "to": 35,
+          "xm": 1,
+          "ym": 0
+        },
+        {
+          "from": 39,
+          "to": 94,
+          "xm": -1,
+          "ym": 0
+        },
+        {
+          "from": 52,
+          "to": 53,
+          "xm": -1,
+          "ym": -1
+        }
+      ],
+      "excludedFields": [
+        "fx",
+        "fy",
+        "fxvel",
+        "fxacel"
+      ],
+      "knownLimits": [
+        "former holdout M04: FAILED its single judgement (docs/evidence/g2/holdout_M04_result.FIRST_JUDGEMENT.jsonl) at n=59 xacel; moved to development per VERIFICATION_CONTRACT section 5",
+        "window ends n=61: landing tick n=62 shows xvel=-8 while blocked at the wall (unexplained)"
+      ]
+    },
+    {
+      "id": "M05-holdout-jump-in-place",
+      "covers": [
+        "M01",
+        "M02"
+      ],
+      "holdout": true,
+      "expected": "reference/holdout/m05_v8.hlog.txt",
+      "initialStateId": "snapshot n=3 (spawn)",
+      "startN": 3,
+      "endN": 90,
+      "terrain": {
+        "floorY": 91,
+        "ceilY": 43,
+        "wallLeftX": 32
+      },
+      "inputs": [
+        {
+          "from": 30,
+          "to": 32,
+          "xm": 1,
+          "ym": 0
+        },
+        {
+          "from": 45,
+          "to": 46,
+          "xm": 0,
+          "ym": -1
+        },
+        {
+          "from": 70,
+          "to": 72,
+          "xm": -1,
+          "ym": 0
+        }
+      ],
+      "excludedFields": [
+        "fx",
+        "fy",
+        "fxvel",
+        "fxacel"
+      ],
+      "knownLimits": [
+        "generated and hashed before the engine fix, content not viewed until the single judgement",
+        "window fixed before viewing"
+      ]
+    }
+  ]
+}

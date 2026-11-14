@@ -1,0 +1,30 @@
+{
+  "tested": "2026-11-14",
+  "audit": "REA doctor --json; exit 1 because full environment is not configured",
+  "environment_healthy": false,
+  "checks": [
+    {
+      "name": "node",
+      "ok": true,
+      "classification": "healthy",
+      "detail": "26.13.1",
+      "details": {
+        "runtime": "node",
+        "version": "26.13.1"
+      }
+    },
+    {
+      "name": "host",
+      "ok": true,
+      "classification": "healthy",
+      "detail": "26.6.2"
+    },
+    {
+      "name": "ghidra",
+      "ok": false,
+      "classification": "missing_analysis_engine",
+      "detail": "GHIDRA_INSTALL_DIR is not set",
+      "remediation": "Set GHIDRA_INSTALL_DIR to an extracted Ghidra 12.x (>=12.1) release directory."
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "date": "2026-11-14",
+  "scope": "handoff documents, not app tests",
+  "documents": 15,
+  "localLinks": 31,
+  "shellExamplesSyntaxChecked": 6,
+  "budgets": {
+    "docs/AGENT_BRIEF.md": {
+      "lines": 19,
+      "limit": 60
+    },
+    "docs/STATUS.md": {
+      "lines": 36,
+      "limit": 120
+    },
+    "docs/NEXT_PLAN.md": {
+      "lines": 24,
+      "limit": 120
+    },
+    "docs/PROGRESS_LOG.md": {
+      "lines": 27,
+      "limit": 120
+    },
+    "docs/LESSONS.md": {
+      "lines": 12,
+      "limit": 40
+    }
+  },
+  "errors": []
+}

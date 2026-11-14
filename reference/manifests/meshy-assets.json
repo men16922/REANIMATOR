@@ -1,0 +1,387 @@
+{
+  "schema": "reanimator-meshy-assets-v2",
+  "generatedAt": "2026-11-14T12:31:19.329Z",
+  "classification": "new-design (non-Abuse original 3D rigged & static assets)",
+  "assets": [
+    {
+      "id": "operative",
+      "role": "Player Operative (Rigged + Multi-Clip)",
+      "generator": "Meshy 7.1 SmartRig + Biped Auto-Rigging (WebP 512 + Merged Clips)",
+      "license": "Private (비공식적인)",
+      "pose": "Rigged SmartRigArmature",
+      "rigged": true,
+      "joints": 66,
+      "clips": [
+        {
+          "name": "idle",
+          "durationSec": 1.667,
+          "channels": 192
+        },
+        {
+          "name": "walk",
+          "durationSec": 1.033,
+          "channels": 192
+        },
+        {
+          "name": "run",
+          "durationSec": 0.633,
+          "channels": 192
+        },
+        {
+          "name": "jump",
+          "durationSec": 1.867,
+          "channels": 192
+        },
+        {
+          "name": "attack",
+          "durationSec": 2.8,
+          "channels": 192
+        },
+        {
+          "name": "death",
+          "durationSec": 2.967,
+          "channels": 192
+        }
+      ],
+      "taskId": "01a1d9fb-4f86-743a-9ad7-f28febe2aef7",
+      "meshyName": "Neon Sentinel (30K SmartRig)",
+      "rawFile": "assets/meshy-raw/rigged/operative/Character_output.glb",
+      "rawSha256": "184e9dfc3161025895d3b946a9b79f1c671c43a7a33d62788461db8a681d92fc",
+      "rawBytes": 15821928,
+      "rawVertices": 18371,
+      "rawTriangles": 10344,
+      "optimizedFile": "public/assets/models/operative.glb",
+      "optimizedSha256": "9b33c8de2423924ada2e231c37bbe55e89a310eea949931f50ec1b211332b7ae",
+      "optimizedBytes": 2131000,
+      "optimizedVertices": 18371,
+      "optimizedTriangles": 10344,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5987,
+          0,
+          -0.2111
+        ],
+        "max": [
+          0.5987,
+          1.7,
+          0.2111
+        ]
+      }
+    },
+    {
+      "id": "warden",
+      "role": "Sector C Core Warden Boss (Rigged + Multi-Clip)",
+      "generator": "Meshy 7.1 SmartRig + Biped Auto-Rigging (WebP 512 + Merged Clips)",
+      "license": "Private (비공식적인)",
+      "pose": "Rigged SmartRigArmature",
+      "rigged": true,
+      "joints": 66,
+      "clips": [
+        {
+          "name": "idle",
+          "durationSec": 4,
+          "channels": 192
+        },
+        {
+          "name": "walk",
+          "durationSec": 1.033,
+          "channels": 192
+        },
+        {
+          "name": "run",
+          "durationSec": 0.633,
+          "channels": 192
+        },
+        {
+          "name": "attack",
+          "durationSec": 1.833,
+          "channels": 192
+        },
+        {
+          "name": "death",
+          "durationSec": 2.967,
+          "channels": 192
+        }
+      ],
+      "taskId": "01a1d9fb-72e9-705f-b61d-3040157b9bd5",
+      "meshyName": "Embercore Titan (30K SmartRig)",
+      "rawFile": "assets/meshy-raw/rigged/warden/Character_output.glb",
+      "rawSha256": "939de3a7010b5c58514b742a37c946c5049d33355f5a216c97ff8390fcad1066",
+      "rawBytes": 20332876,
+      "rawVertices": 56286,
+      "rawTriangles": 31061,
+      "optimizedFile": "public/assets/models/warden.glb",
+      "optimizedSha256": "108070a58b8fb9c9fa6148526057432435d8c591537a114a49bf140275074872",
+      "optimizedBytes": 4186512,
+      "optimizedVertices": 56286,
+      "optimizedTriangles": 31061,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.7815,
+          0,
+          -0.3126
+        ],
+        "max": [
+          0.7815,
+          1.7,
+          0.3126
+        ]
+      }
+    },
+    {
+      "id": "bio-stalker",
+      "role": "Xenomorph Bio-Stalker Hunter (Rigged + Multi-Clip)",
+      "generator": "Meshy 7.1 SmartRig + Biped Auto-Rigging (WebP 512 + Merged Clips)",
+      "license": "Private (비공식적인)",
+      "pose": "Rigged SmartRigArmature",
+      "rigged": true,
+      "joints": 66,
+      "clips": [
+        {
+          "name": "idle",
+          "durationSec": 4,
+          "channels": 192
+        },
+        {
+          "name": "walk",
+          "durationSec": 1.033,
+          "channels": 192
+        },
+        {
+          "name": "run",
+          "durationSec": 0.467,
+          "channels": 192
+        },
+        {
+          "name": "attack",
+          "durationSec": 4.333,
+          "channels": 192
+        },
+        {
+          "name": "death",
+          "durationSec": 2.967,
+          "channels": 192
+        }
+      ],
+      "taskId": "01a1d9fc-b613-70d2-9b75-84dad49c4089",
+      "meshyName": "Crimson Reaper (30K SmartRig)",
+      "rawFile": "assets/meshy-raw/rigged/bio-stalker/Character_output.glb",
+      "rawSha256": "c76f7fccc793b76134924492dadda6854ab6a83ae7766ce2a6e6b9539a54354f",
+      "rawBytes": 15326468,
+      "rawVertices": 33242,
+      "rawTriangles": 30974,
+      "optimizedFile": "public/assets/models/bio-stalker.glb",
+      "optimizedSha256": "4ef9d9af02ceee8d080a2797a2597dc3b0411992479ad0c5b0ed928e6a4da110",
+      "optimizedBytes": 3093224,
+      "optimizedVertices": 33242,
+      "optimizedTriangles": 30974,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.6175,
+          0,
+          -0.1567
+        ],
+        "max": [
+          0.6175,
+          1.7,
+          0.1567
+        ]
+      }
+    },
+    {
+      "id": "pulse-rifle",
+      "role": "Heavy Plasma Pulse Rifle Weapon Prop",
+      "generator": "Meshy 7.1 - Flagship (WebP 512 + Meshopt)",
+      "license": "Private (비공식적인)",
+      "pose": "none",
+      "taskId": "01a1d9f7-64af-72cf-8d25-917c327763e4",
+      "meshyName": "Neon Reaper",
+      "rawFile": "assets/meshy-raw/pulse-rifle.glb",
+      "rawSha256": "75a05c9d3e845a6b05a24977e09de542356840d58f721bfeff3f3d01b1193adb",
+      "rawBytes": 29019384,
+      "rawVertices": 387631,
+      "rawTriangles": 697944,
+      "optimizedFile": "public/assets/models/pulse-rifle.glb",
+      "optimizedSha256": "9bc5da5689a1a0db497a313ecab96ce2b6ad19ebd49f86bf54e40bc49f906bca",
+      "optimizedBytes": 562032,
+      "optimizedVertices": 12382,
+      "optimizedTriangles": 8332,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          -0.1487,
+          -0.0509
+        ],
+        "max": [
+          0.5,
+          0.1487,
+          0.0509
+        ]
+      }
+    },
+    {
+      "id": "bio-barrel",
+      "role": "Explosive Bio-Hazard Reactor Barrel",
+      "generator": "Meshy 7.1 - Flagship (WebP 512 + Meshopt)",
+      "license": "Private (비공식적인)",
+      "pose": "none",
+      "taskId": "01a1d9f7-a3f5-700b-a25d-b98237c84b31",
+      "meshyName": "Toxic Reactor Canister",
+      "rawFile": "assets/meshy-raw/bio-barrel.glb",
+      "rawSha256": "5a331cdea5e47b9e387387914fed87c24230b5830426d7b028200dfdf64d7c53",
+      "rawBytes": 40163184,
+      "rawVertices": 580057,
+      "rawTriangles": 1090664,
+      "optimizedFile": "public/assets/models/bio-barrel.glb",
+      "optimizedSha256": "46633ce72b723d6736ea6e0c86df08c3dddea91bfcc8528db2ee7cede3deb230",
+      "optimizedBytes": 474200,
+      "optimizedVertices": 10031,
+      "optimizedTriangles": 7500,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.2612,
+          0,
+          -0.2611
+        ],
+        "max": [
+          0.2612,
+          1,
+          0.2611
+        ]
+      }
+    },
+    {
+      "id": "crawler",
+      "role": "Skitter-Husk Melee Enemy",
+      "generator": "Meshy 7.1 - Flagship (2K texture pass)",
+      "license": "Private (비공식적인)",
+      "pose": "none",
+      "taskId": "01a1d9bc-727c-72f7-95f4-60d2f8579db0",
+      "meshyName": "Ironclad Stalker",
+      "rawFile": "assets/meshy-raw/crawler.glb",
+      "rawSha256": "2b8d71202419009427c7e406f3b0fef7659859c84d6b7ac819080c943b6d215d",
+      "rawBytes": 77236856,
+      "rawVertices": 1239686,
+      "rawTriangles": 2339920,
+      "optimizedFile": "public/assets/models/crawler.glb",
+      "optimizedSha256": "25e2d7290ae1016ff7d4c9ea7ce916ad1cd101e81eb37e07092f08bd4e6bc38f",
+      "optimizedBytes": 596704,
+      "optimizedVertices": 13304,
+      "optimizedTriangles": 11992,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5299,
+          0,
+          -0.6832
+        ],
+        "max": [
+          0.5299,
+          1,
+          0.6832
+        ]
+      }
+    },
+    {
+      "id": "spitter",
+      "role": "Spore-Sentinel Hovering Ranged Enemy",
+      "generator": "Meshy 7.1 - Flagship (2K texture pass)",
+      "license": "Private (비공식적인)",
+      "pose": "none",
+      "taskId": "01a1d9bc-6598-7449-b373-eba88b4ad4cf",
+      "meshyName": "Neon Abyssal Sentinel",
+      "rawFile": "assets/meshy-raw/spitter.glb",
+      "rawSha256": "61514385d470bb79d2f942f6c8a44ff5083c88e1ecb9eeda8d8c205bde5ccb6d",
+      "rawBytes": 70005316,
+      "rawVertices": 1089898,
+      "rawTriangles": 2071346,
+      "optimizedFile": "public/assets/models/spitter.glb",
+      "optimizedSha256": "99569ce998f4ea87d980f0d21cb47a99113ba05ebcc7500e9a73ab5a363385fb",
+      "optimizedBytes": 608696,
+      "optimizedVertices": 12034,
+      "optimizedTriangles": 12000,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.2829,
+          0,
+          -0.3257
+        ],
+        "max": [
+          0.2829,
+          1,
+          0.3257
+        ]
+      }
+    },
+    {
+      "id": "power-core",
+      "role": "Sector C Reactor Power Core",
+      "generator": "Meshy 7.1 - Flagship (2K texture pass)",
+      "license": "Private (비공식적인)",
+      "pose": "none",
+      "taskId": "01a1d9bc-9cb7-732b-9360-400faeb73139",
+      "meshyName": "Arc Reactor Core",
+      "rawFile": "assets/meshy-raw/power-core.glb",
+      "rawSha256": "efb28274b63458dd60654364fc3acafe6853021231a2ea4eb59c8a0129bcc99e",
+      "rawBytes": 107678792,
+      "rawVertices": 1796182,
+      "rawTriangles": 3441204,
+      "optimizedFile": "public/assets/models/power-core.glb",
+      "optimizedSha256": "3c555e1b6baeb6c4b2730e2246cebb99b012132a0a2c75045dad61201c729c04",
+      "optimizedBytes": 600268,
+      "optimizedVertices": 12838,
+      "optimizedTriangles": 10000,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.3838,
+          0,
+          -0.3291
+        ],
+        "max": [
+          0.3838,
+          1,
+          0.3291
+        ]
+      }
+    },
+    {
+      "id": "exit-gate",
+      "role": "Sector D Extraction Airlock Gate",
+      "generator": "Meshy 7.1 - Flagship (2K texture pass)",
+      "license": "Private (비공식적인)",
+      "pose": "none",
+      "taskId": "01a1d9bc-8d68-7583-9415-bdf7eaf36251",
+      "meshyName": "Industrial Gateway",
+      "rawFile": "assets/meshy-raw/exit-gate.glb",
+      "rawSha256": "fd7a5f7dad76a574d34d64435b9cfc3593c717f93782e457e495d1ed7d42d2a4",
+      "rawBytes": 59380036,
+      "rawVertices": 938127,
+      "rawTriangles": 1691636,
+      "optimizedFile": "public/assets/models/exit-gate.glb",
+      "optimizedSha256": "7db59a686e08b437b570fa431001c41549024accc0caf19a54f8089f7a4f58e5",
+      "optimizedBytes": 1275864,
+      "optimizedVertices": 32048,
+      "optimizedTriangles": 21774,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.4894,
+          0,
+          -0.114
+        ],
+        "max": [
+          0.4894,
+          1,
+          0.114
+        ]
+      }
+    }
+  ]
+}

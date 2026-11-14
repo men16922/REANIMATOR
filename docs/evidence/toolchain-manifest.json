@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-14",
+  "node": {
+    "version": "26.13.1",
+    "platform": "darwin-arm64",
+    "url": "https://nodejs.org/dist/v26.13.1/node-v26.13.1-darwin-arm64.tar.gz",
+    "sha256": "aec2514ea1ceb2ba52455e9ec65986f6749a06dd759e5db2a72e6889668c9735",
+    "verifiedAgainst": "https://nodejs.org/dist/v26.13.1/SHASUMS256.txt"
+  },
+  "rea": {
+    "version": "6.9.0",
+    "resolved": "https://registry.npmjs.org/rea-agents/-/rea-agents-6.9.0.tgz",
+    "integrity": "sha512-KqDn1UR5BMqHoQ3MGAnPuWiSKwgdFaz1L/uUNgrKt+1W8kPtgYP8AWEOXIF1lDIOBVyPuYIIst2iamo1Wf3r8g==",
+    "registryLatestAtCheck": "6.9.0"
+  },
+  "wrapper": "scripts/rea.sh",
+  "globalConfigChanged": false,
+  "sharedReaSourceChanged": false,
+  "kiroConnected": false,
+  "gameAnalyzed": false
+}

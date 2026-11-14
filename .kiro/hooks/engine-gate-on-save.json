@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Run reference gate when engine or verifier changes",
+      "trigger": "PostFileSave",
+      "description": "Runs make check (engine tests + development reference scenarios) after the engine, verifier, or scenario file is saved. Never regenerates or edits expected data and does not run the sealed holdout.",
+      "matcher": "(src/engine/.*\\.ts|tools/reference/.*\\.ts|reference/fixtures/scenarios\\.json)$",
+      "action": {
+        "type": "command",
+        "command": "cd /Users/men1692/Desktop/AWS/Kiroween2026 && make check > docs/evidence/g2/last_hook_gate.log 2>&1; code=$?; echo \"$(date -u +%FT%TZ) make check exit=$code\" >> docs/evidence/g2/hook_runs.log; exit 0",
+        "timeout": 120
+      }
+    }
+  ]
+}

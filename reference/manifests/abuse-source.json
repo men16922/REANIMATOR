@@ -1,0 +1,2230 @@
+{
+ "sourcePage": "https://www.dosgamesarchive.com/download/abuse",
+ "resolvedDownloadUrl": "https://image.dosgamesarchive.com/games/abuse-box.zip (via https://www.dosgamesarchive.com/file.php?id=3, HTTP 302)",
+ "retrievedAt": "2026-11-14T05:55:31Z (server Date header)",
+ "packageFilename": "abuse-box.zip",
+ "packageBytes": 2352078,
+ "packageSha256": "5ef911f88284b8deab6fcb0a3ea5779eab54bf781f764c47f7b7b369097d4026",
+ "packageProvenance": "DOS Games Archive repack (MrFlibble), configured for DOSBox 0.74-3; adds ABSWEB.BAT, ABUSE.BAT, ABUSE-Info-Card.txt, ABUSE/END.MEM, GAMMA.LSP, SNDCARD.CFG (2024-10-24 timestamps). Info card says original abuse105.zip from cdrom.com via Wayback 1996-12-25; original zip not independently obtained.",
+ "claimedVersion": "Abuse Shareware 1.05 (info card, ABSWEB.BAT)",
+ "observedVersion": null,
+ "observedVersionReason": "Not yet read from the running game/binary; EXE timestamp in zip is 1995-09-20, consistent with claim but not proof.",
+ "gameExecutablePath": "ABUSE/ABUSE.EXE",
+ "executableSha256": "8ba92587d070936cc776be4d15e0e68f62859fb0e473b068ac608b812b01074f",
+ "executableFormat": "MZ stub + DOS/4GW (Rational) extender + LE (Linear Executable, 32-bit protected mode); `file` output: 'LE for MS-DOS, DOS4GW DOS extender (embedded)'. Watcom-built per strings. Same for ABUSE/SETUP.EXE.",
+ "executableFormatEvidence": "`file` and `strings` (observed in this session); MZ header bytes 4d5a. Not yet verified with a PE/LE parser.",
+ "reaDosProviderSupport": "Unsupported per REA docs/providers/ghidra-dos.md as recorded in ABUSE_SOURCE_REGISTER.md (LE/extender outside 16-bit MZ real-mode). Not tested; Ghidra not installed.",
+ "dataFiles": [
+  {
+   "path": "ABUSE/ABUSE.DOC",
+   "bytes": 77939,
+   "sha256": "674452a26364441bd456744c199a857573e52d2827054041ecb9a197a8b08109"
+  },
+  {
+   "path": "ABUSE/ABUSE.EXE",
+   "bytes": 1183861,
+   "sha256": "8ba92587d070936cc776be4d15e0e68f62859fb0e473b068ac608b812b01074f"
+  },
+  {
+   "path": "ABUSE/ABUSE.LSP",
+   "bytes": 1252,
+   "sha256": "d72f7b7f6feb8d81586fe4bdb6993dd9a63ff724864dc17d7d2b9779338237df"
+  },
+  {
+   "path": "ABUSE/ADDON/EXAMPLE/EXAMPLE.LSP",
+   "bytes": 2054,
+   "sha256": "401967975b722d2a3f8c6f4fb79fc48e6ed4710e9132b1396df0c139f9838813"
+  },
+  {
+   "path": "ABUSE/ADDON/EXAMPLE/EXAMPLE.LVL",
+   "bytes": 29563,
+   "sha256": "2062aed68e433d49fff250705c93e305a0c075605745fb56e9b875edd5e8fc38"
+  },
+  {
+   "path": "ABUSE/ADDON/EXAMPLE/EXAMPLE.SPE",
+   "bytes": 4070,
+   "sha256": "d5ffacb860cec7392eaabad1128b905d9861709514945343491ac609886d25b8"
+  },
+  {
+   "path": "ABUSE/ADDON/PONG/PONG.LSP",
+   "bytes": 12132,
+   "sha256": "7481240b67ef463441bf5328645b6c1adbcb2cfc04ca6080b2e629007c5f5f77"
+  },
+  {
+   "path": "ABUSE/ADDON/PONG/PONG.SPE",
+   "bytes": 81106,
+   "sha256": "87836ce93abaa6c772672cbe54e88f07513672d76a812a8af9003895b762969e"
+  },
+  {
+   "path": "ABUSE/ADDON/PONG/PONG01.CPF",
+   "bytes": 1311,
+   "sha256": "2fda5f50f39675fcec8ba3e3b448357cd9f617a842d7bb5dd33c105fd4b9b348"
+  },
+  {
+   "path": "ABUSE/ADDON/PONG/PONG01.LVL",
+   "bytes": 26127,
+   "sha256": "36aaec7a55c0867532f8804cb2e46c962470b2db25597b738e26f591a3db37a0"
+  },
+  {
+   "path": "ABUSE/ART/ANT.SPE",
+   "bytes": 94983,
+   "sha256": "866b10c68ad8d4acdf1c407fe04b5d4552d01375d6c09dcbd0d62600c18c1abd"
+  },
+  {
+   "path": "ABUSE/ART/BACK/BACKGRND.SPE",
+   "bytes": 35418,
+   "sha256": "9b8a7a578e88f4668420d850ad5cb89e355cdaff67b069f082d840a841d4c758"
+  },
+  {
+   "path": "ABUSE/ART/BACK/CAVE.SPE",
+   "bytes": 37203,
+   "sha256": "31313268fd3887a0d21443d2fe4f83bd7decc919674330d4693fd59aaaf8d14f"
+  },
+  {
+   "path": "ABUSE/ART/BACK/CITY.SPE",
+   "bytes": 57219,
+   "sha256": "a04869215c308dc93e49a9029df69ae1a7f05326e196a75bc520a9125cb6db5a"
+  },
+  {
+   "path": "ABUSE/ART/BACK/INTRO.SPE",
+   "bytes": 53574,
+   "sha256": "7ed14703065531ab68f6e24ee44c6ec5ff61983bfa4b14b9a9e7ce054a99d074"
+  },
+  {
+   "path": "ABUSE/ART/BACK/TECH.SPE",
+   "bytes": 55429,
+   "sha256": "fc636782d78db7a0e72ded18ce8d6f167e31a03d413660107322ad55282193e9"
+  },
+  {
+   "path": "ABUSE/ART/BALL.SPE",
+   "bytes": 1007,
+   "sha256": "64652561fb405f5d588e0a765a4a4a51de32a226d4cb019f34744f51b1ca603b"
+  },
+  {
+   "path": "ABUSE/ART/BLOWUPS.SPE",
+   "bytes": 8427,
+   "sha256": "6873841398da0140406329f41951afff0558d63db88cd87c85baf34d66acbbb9"
+  },
+  {
+   "path": "ABUSE/ART/BOLD.SPE",
+   "bytes": 10260,
+   "sha256": "611f50125661de83afa9608846a2d3cc7b514bcbfd90af5a290a2871a282433e"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/AMMO.SPE",
+   "bytes": 5322,
+   "sha256": "1f3e2392bf6086864492fa25dae17d77889df23ae05ab333c0ac48379fea10c0"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/BLOCK.SPE",
+   "bytes": 7068,
+   "sha256": "79860253620cf8f254823fa875aac11a20f74c30e81a5a39427e2fde21d73542"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/CONCUS.SPE",
+   "bytes": 2444,
+   "sha256": "ab881540e178a600d292589fa64b901304744a62485ca2e6e90839958071ac04"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/DOOR.SPE",
+   "bytes": 9667,
+   "sha256": "c2bc45d4b18605bd564e5a3976ff893aa1e6c69bff3e6b60febf6e777bbaf461"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/LAVA.SPE",
+   "bytes": 9994,
+   "sha256": "aa763116cfc412b3ca87a248bcafc7b019dc01d4011120bf0b1b952e878fad56"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/LAVAP.SPE",
+   "bytes": 15231,
+   "sha256": "ecae104a21f6df78044e60c06cccf17c3d9f714f54ca3ccfb89e12a26ebb4723"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/LIGHTIN.SPE",
+   "bytes": 17236,
+   "sha256": "00562df7b5f15ad582dadea3bbf517697d70e8d19f80f2f4d1b80d18f4310131"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/MINE.SPE",
+   "bytes": 40227,
+   "sha256": "a89a63af388fb4c090535842d34587fe344162e5840dd00a00f66d916307fd45"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/PLATFORM.SPE",
+   "bytes": 22836,
+   "sha256": "18494b9288efaa3594e241d6a76bb32623bc4f95a0301fe4e430907a883e5218"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/PUSH.SPE",
+   "bytes": 5584,
+   "sha256": "f4975b3830d0a87c9ec4f68a3481cdbc43ce06e65ebb1f1c7f51f453bb6e369a"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/SECT.SPE",
+   "bytes": 34741,
+   "sha256": "e565c36cb67cf2eac126114c138f0c32c14cf239b21b59d04ace39171e043e21"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/STEP.SPE",
+   "bytes": 3174,
+   "sha256": "2e8c04bed8a95af425e6117f2429abe38ce69a2972609d87a3bd77f0415720b2"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/TDOOR.SPE",
+   "bytes": 9021,
+   "sha256": "482114186b490b9636fa58453e1b12846c296553c1d3f16cb3a5655cef7e1287"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/TELEPORT.SPE",
+   "bytes": 37305,
+   "sha256": "f63156278a610be1da6762f342cacbf0b504587d0fd177b93de4e4fbbc7d30f0"
+  },
+  {
+   "path": "ABUSE/ART/CLOUD.SPE",
+   "bytes": 5241,
+   "sha256": "9e211d810ecf935a752ed28a025db46aa7e4439b195472f6170b31c6e224c71e"
+  },
+  {
+   "path": "ABUSE/ART/CONSFNT.SPE",
+   "bytes": 9781,
+   "sha256": "74ce4643d8f4840637029d38a05be536aa7831cf4fe71fc5c35e2830a2eb4b89"
+  },
+  {
+   "path": "ABUSE/ART/COP.SPE",
+   "bytes": 83422,
+   "sha256": "a41a9d57a5855466340747c237ec784639884c6258bce1e0104a83eb9f5bf248"
+  },
+  {
+   "path": "ABUSE/ART/COPTOP.SPE",
+   "bytes": 127043,
+   "sha256": "3a3099446c011068a2bd5872cc88b07d3213b1b67234c608e99a6fa55fe1163e"
+  },
+  {
+   "path": "ABUSE/ART/DEV.SPE",
+   "bytes": 13395,
+   "sha256": "1d8abc895ba0ad316bf43cf3fed8397105942828073e8993ea5f9ddfd97df957"
+  },
+  {
+   "path": "ABUSE/ART/DOOR.SPE",
+   "bytes": 14013,
+   "sha256": "039f5d22b31390c7b9f892da5c084b73335d021a1643c82519de7ca2a467405f"
+  },
+  {
+   "path": "ABUSE/ART/ENDGAME.SPE",
+   "bytes": 155906,
+   "sha256": "e5920ab10754e4b529ec165c3466f00d239105c469fc5b7c2ecb1c5339b067bc"
+  },
+  {
+   "path": "ABUSE/ART/EXP1.SPE",
+   "bytes": 46179,
+   "sha256": "f86742e6da7bd73bf6d800af39ed39c532063762cbc959de3ee0e048fb421f0b"
+  },
+  {
+   "path": "ABUSE/ART/FLYER.SPE",
+   "bytes": 38961,
+   "sha256": "44178fc5e8b23c4167d48b66f487911a0e579113fbdbf1a5569e9e90e1c806aa"
+  },
+  {
+   "path": "ABUSE/ART/FORE/CAVE.SPE",
+   "bytes": 65534,
+   "sha256": "35e8e43066c7161e5b36dee19e8a6dffe10dc8c1ffc7583323c7b2cdb13c3410"
+  },
+  {
+   "path": "ABUSE/ART/FORE/FOREGRND.SPE",
+   "bytes": 1270,
+   "sha256": "590caf2a679c34eb7c70eaff281c1b01723963d8b7b754bc8a131740e5f7c9c1"
+  },
+  {
+   "path": "ABUSE/ART/FORE/TECHNO.SPE",
+   "bytes": 44083,
+   "sha256": "a68664e718ba089277fc9a4a6440d73606f00110effefdfd047f861bfe8bc98d"
+  },
+  {
+   "path": "ABUSE/ART/FORE/TECHNO2.SPE",
+   "bytes": 33035,
+   "sha256": "d6b34a3f65149b3ade52fd3928e8e510226da306fdaa5b5f19210ce12df402f4"
+  },
+  {
+   "path": "ABUSE/ART/FORE/TECHNO3.SPE",
+   "bytes": 18300,
+   "sha256": "eb5a27d9b046db9e2d60aa81e432959f9a22329b054a67f6c57ded3c7d07d0eb"
+  },
+  {
+   "path": "ABUSE/ART/FORE/TECHNO4.SPE",
+   "bytes": 77042,
+   "sha256": "994d5f80f83aeb0f5276ac674879c714bd1261d8b05e12734cfeb923f33bb2a3"
+  },
+  {
+   "path": "ABUSE/ART/FRAME.SPE",
+   "bytes": 11396,
+   "sha256": "8a84d8fca9333c0ea91a7c4ebe52e57eaaafeffcc1f3d2779636f84366c9d0c0"
+  },
+  {
+   "path": "ABUSE/ART/GUN2.SPE",
+   "bytes": 61868,
+   "sha256": "1a6734e7a33829b81fae4860c8a4370764a072765feea738a0dc938a45866353"
+  },
+  {
+   "path": "ABUSE/ART/HELP.SPE",
+   "bytes": 256883,
+   "sha256": "5060c5096e8220db962a79df81167589e18840eacc5664e89755cc6e84436991"
+  },
+  {
+   "path": "ABUSE/ART/ICONS.SPE",
+   "bytes": 39793,
+   "sha256": "44cc0887ce1b1dc7b7dbd68ac03dd7a230d41cad4cf09f4707c036fbb00e3731"
+  },
+  {
+   "path": "ABUSE/ART/JUG.SPE",
+   "bytes": 75543,
+   "sha256": "8a65359b55e380b03467ce4fe48aae718238453e67f7955549e6323399a90825"
+  },
+  {
+   "path": "ABUSE/ART/LETTERS.SPE",
+   "bytes": 26192,
+   "sha256": "6187117cd37484f30b3723f9540c9f5160de48e57375892bcfbf635632d12f87"
+  },
+  {
+   "path": "ABUSE/ART/MISC.SPE",
+   "bytes": 78647,
+   "sha256": "9f92228a0c70b9257eef35c1d534e5d14bc32590ab498e6b81a4e4b6a280dab5"
+  },
+  {
+   "path": "ABUSE/ART/MISSLE.SPE",
+   "bytes": 13716,
+   "sha256": "0283d59c5e2be0d4bce5ce3c31f96a6fea391a8bd2dc17eab61f9adc2996c866"
+  },
+  {
+   "path": "ABUSE/ART/PFORM.SPE",
+   "bytes": 3397,
+   "sha256": "96114af756e8e0e6b41dc322140bb42903f2991eff599b861f23bd0668201cf0"
+  },
+  {
+   "path": "ABUSE/ART/ROB1.SPE",
+   "bytes": 36082,
+   "sha256": "a15acfb9ec39b23863ac5e976e12405fd7ebdc258f000cc51b56ce7d36a54803"
+  },
+  {
+   "path": "ABUSE/ART/ROB2.SPE",
+   "bytes": 37089,
+   "sha256": "92cecbcc198ab596429fc8aa941e7572516c8312b536c2e08376fe9c79ebf0e6"
+  },
+  {
+   "path": "ABUSE/ART/SCREEN11.SPE",
+   "bytes": 20535,
+   "sha256": "0d746b31a4e75b3164b863c98eaaf1fce4de0c3f9e000a10f7087ca1b97086bc"
+  },
+  {
+   "path": "ABUSE/ART/SMOKE.SPE",
+   "bytes": 74564,
+   "sha256": "7ec1ff8b70101663ebc587d8875fcb4aed34d0f74d2ff5426f1cb00a63771c5f"
+  },
+  {
+   "path": "ABUSE/ART/STATBAR.SPE",
+   "bytes": 30085,
+   "sha256": "a657af29e24e7c232b0dda6c0ee3e4e4507095d45a0973401c9751bc8bda390c"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/BLUE.SPE",
+   "bytes": 799,
+   "sha256": "2e60f3a32234c243fb88733b6117e8fb302578bc2cb5ccb2d980c38798e55001"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/BROWN.SPE",
+   "bytes": 799,
+   "sha256": "a22425c0ad3cbf2a0548cb783d582532c29920cbedd1a939a9995ede10416f79"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/DARKBLUE.SPE",
+   "bytes": 799,
+   "sha256": "388d652884657ec559f173819adeee82667fe2f5b434a12020e91e63a8dc3ddf"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/EGG.SPE",
+   "bytes": 799,
+   "sha256": "c0021a7cddcad0bb4f8f1ba7a2e3ec5f2cd115535f9029be9561c66c461150b2"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/EVIL.SPE",
+   "bytes": 75493,
+   "sha256": "09f83db377c91104c5e1e7c5624436d612fae3abfb36e2bca79a02c64620ab03"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/GRAY.SPE",
+   "bytes": 799,
+   "sha256": "6fe38c6691ad2e69040f4600d8ca421b5bd6936da7220d1f0146c4a3a271c914"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/GREEN.SPE",
+   "bytes": 799,
+   "sha256": "1afa04f5931b746b6bae9c1461aa679d6c1289ee65862ab555b08f3dc6892584"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/MUSTARD.SPE",
+   "bytes": 799,
+   "sha256": "cba01f923ef10e4747923ef0377ffe106db1299cf2bfffbba0bbbe0022ed39de"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/ORANGE.SPE",
+   "bytes": 799,
+   "sha256": "48a4fe1d410ed88aa4e0745ec04ef30db859ae7904b7b68cb6332aa518d825b4"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/YELLOW.SPE",
+   "bytes": 799,
+   "sha256": "89a4f706a2429bd0a784a82c669dca26cad02fe1cfba661496fb2a94178c19ff"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/AFRICA.SPE",
+   "bytes": 799,
+   "sha256": "1b6255612c9cf21f359a85a8ebf6700d06d4cf353809f9a38e9515c743d17a24"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/BLUE.SPE",
+   "bytes": 799,
+   "sha256": "e93d2250d782105ad0cded4c26e9434ecc318d0cea821884bfe8248bd3de0b86"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/BRIGHT.SPE",
+   "bytes": 799,
+   "sha256": "65f3b22908d47f79a850f4848d644a75ab05be57ccb7d2f4668fa3381db90cf0"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/FIRE.SPE",
+   "bytes": 799,
+   "sha256": "6efe21891f0e966a77655527fad83f4c41a19925472f3a17d6586058bb8e9f22"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/GOLD.SPE",
+   "bytes": 799,
+   "sha256": "13013f848ac5b2330477ba08630f0b54c895419f69387072bb8e8c9a99a28095"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/LAND.SPE",
+   "bytes": 799,
+   "sha256": "fd6ccf9c6ec88828be6d5c95affcfb7937e714b80acf556e2c393da56d7876b5"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/OLIVE.SPE",
+   "bytes": 799,
+   "sha256": "7e44ef42c85697064dad158cddee9904f1f8f9f53b67625eb32905c9886b2647"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/GUNS/BLUE.SPE",
+   "bytes": 799,
+   "sha256": "b32740bdc3f39451c3762c4eafdcdaa31495066a0b0c1c27622bf13ab874f5b3"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/GUNS/GREEN.SPE",
+   "bytes": 799,
+   "sha256": "d9b626cdcd38b6d6e5e33d9f286bbc810d473eb6467f0e6830af66e1fe20d5b8"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/GUNS/ORANGE.SPE",
+   "bytes": 799,
+   "sha256": "8d910959046eac308d970e0f2ef02607b352ffa92e8e69c801f5994abc488646"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/GUNS/REDISH.SPE",
+   "bytes": 799,
+   "sha256": "95f384847b788c4c57b1021c923ab679e6d937b5eeeff54974bfd29b8aa4b0fe"
+  },
+  {
+   "path": "ABUSE/ART/TITLE.SPE",
+   "bytes": 79931,
+   "sha256": "a8016f76d6bb36c9f49fe74d1e5ef9b928948304b052506ffc4361be4532fd1c"
+  },
+  {
+   "path": "ABUSE/END.MEM",
+   "bytes": 358,
+   "sha256": "acc55135824a19569de8143619c440dfdeb640d2ae3e36bce628caf7bec621fa"
+  },
+  {
+   "path": "ABUSE/GAMMA.LSP",
+   "bytes": 68,
+   "sha256": "8cb0ae45313c90c9ff56818e2bb53b304e93b1b8001752ff911b27c87b85ae60"
+  },
+  {
+   "path": "ABUSE/HMIDET.386",
+   "bytes": 83774,
+   "sha256": "6a5f9b019586607995609040857eeafc143ce90e83a2d0b3d1ec23bad81ee932"
+  },
+  {
+   "path": "ABUSE/HMIDRV.386",
+   "bytes": 317317,
+   "sha256": "348ca810def83a52273fd3ba0987af9208c0a585942e7a542ee99da035d65bcf"
+  },
+  {
+   "path": "ABUSE/HMIMDRV.386",
+   "bytes": 117852,
+   "sha256": "a64e69c59f761fe3d23994fd07377564cf229a8656294383e874e0b6e53ac2fc"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL00.CPF",
+   "bytes": 9638,
+   "sha256": "02ec406f9dcfdaff9285ae8fbb4970c152312cb06788a3cff32628b13bba7288"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL00.SPE",
+   "bytes": 47335,
+   "sha256": "e10aa633ab8b44f5fbe04f09bb1dfb6fd344582964d111204206c527a4c4ae39"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL01.CPF",
+   "bytes": 9148,
+   "sha256": "4e4287b158c93707387ad7fcadc65a104b9a4ad7b299f051095fbd39b0a06c7d"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL01.SPE",
+   "bytes": 59377,
+   "sha256": "5deb21cd5c19f693c7afad11137f7436ee07aa3e097863b21a9482ef0945b1fb"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL02.CPF",
+   "bytes": 7573,
+   "sha256": "de4e2ade936d0709fb2011e7edf267ceb57fc68be5b081365b9b4aeaf867aebf"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL02.SPE",
+   "bytes": 82291,
+   "sha256": "1118ff4af411fb600ec9ed4058a4ae259a49d3a113e3d0ad44299f85277dffd3"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL03.CPF",
+   "bytes": 7405,
+   "sha256": "99486a8558597abe06ca63399fcf061c3689528c5e3d2cf60ed3f44291a863bc"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL03.SPE",
+   "bytes": 67491,
+   "sha256": "6e07a572a6df1903d528412751c31da605eb05e5d33b5d02109cdff08f6334cf"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL04.CPF",
+   "bytes": 8483,
+   "sha256": "fa4727e1d2520aedcd809f1ac7ad23e984e76b9ee10406ff0c4e746f6df6a3c4"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL04.SPE",
+   "bytes": 75788,
+   "sha256": "f9be00378ef4f684803bfe3f39f84e1ce452861b4db48bef363a4323c811691d"
+  },
+  {
+   "path": "ABUSE/LIGHT.TBL",
+   "bytes": 35330,
+   "sha256": "1ea791de73f3ed6793fba45454df341cd924818d59a5d2878a0647f5012117b0"
+  },
+  {
+   "path": "ABUSE/SETUP.EXE",
+   "bytes": 419081,
+   "sha256": "fcd9084ad628ffb521a1e93fb3f5d5e86d9a31eaeea75448f5b714ce8d19648f"
+  },
+  {
+   "path": "ABUSE/SETUP.INI",
+   "bytes": 3395,
+   "sha256": "4ffaf3f5f1f66d7576de8865ee19dab46647740b1f45c0e956240a9e85f7d20b"
+  },
+  {
+   "path": "ABUSE/SFX/ADIE02.WAV",
+   "bytes": 14394,
+   "sha256": "e0e11925352dec52dd619eb6787e10312eac7dbdc0765a852e27d8f76b67906d"
+  },
+  {
+   "path": "ABUSE/SFX/ADIE03.WAV",
+   "bytes": 11654,
+   "sha256": "ba697503319c129fc4075ba9e0f21fffa14ffeb60ad66d2663d056f51904d202"
+  },
+  {
+   "path": "ABUSE/SFX/ADIE05.WAV",
+   "bytes": 6920,
+   "sha256": "f7571445038a84d0db6893581d5299f9fe8d175b3b5675f24f93094ddf422303"
+  },
+  {
+   "path": "ABUSE/SFX/AHIT01.WAV",
+   "bytes": 2656,
+   "sha256": "ad54f2b24e8ea25ec2663998d5f395f34e77661a9ba68a33d536343dc7c9a246"
+  },
+  {
+   "path": "ABUSE/SFX/ALAND01.WAV",
+   "bytes": 2524,
+   "sha256": "0a6948b678d9699a8ef6786fcfed7469834676b3ce7c74e58733e84334e85257"
+  },
+  {
+   "path": "ABUSE/SFX/ALIEN01.WAV",
+   "bytes": 23690,
+   "sha256": "f6990c8856c4cb4074f101038b51ab6c6d2428965e509c26befc8583f3fe1f75"
+  },
+  {
+   "path": "ABUSE/SFX/AMB07.WAV",
+   "bytes": 16434,
+   "sha256": "fa1504ec997b38926d344c8373102b402468db96a3289bbcbd8a153f602e5e44"
+  },
+  {
+   "path": "ABUSE/SFX/AMB10.WAV",
+   "bytes": 16620,
+   "sha256": "9ede67bac549eff37a33e87d0fa347de7e3d27a48c2b94b76e2914b33b1ea768"
+  },
+  {
+   "path": "ABUSE/SFX/AMB11.WAV",
+   "bytes": 20486,
+   "sha256": "3faccbc43e6e2bb6de59cb97efe776da83fdd361a12a46cc0fb484e97aad0c85"
+  },
+  {
+   "path": "ABUSE/SFX/AMB13.WAV",
+   "bytes": 20776,
+   "sha256": "19c85014b3a22c1a6038f2637cd2eff7f7ab083996ac42252151a050f7b7957c"
+  },
+  {
+   "path": "ABUSE/SFX/AMB15.WAV",
+   "bytes": 16074,
+   "sha256": "0ac042a4608f5fa907a27e2055ced082b2ccfa13cfa63efcd3012096b172d85f"
+  },
+  {
+   "path": "ABUSE/SFX/AMB16.WAV",
+   "bytes": 17168,
+   "sha256": "fdef75dd1de410e0d440e1a663d39ef8e45e99d86d046f0d7b49aaa65e23c398"
+  },
+  {
+   "path": "ABUSE/SFX/AMBCAVE1.WAV",
+   "bytes": 11918,
+   "sha256": "a4aea9a3be2f96d21211706a3c4ebedbf5219b3929f6e07a699cbb6f7f7acbfc"
+  },
+  {
+   "path": "ABUSE/SFX/AMBCAVE2.WAV",
+   "bytes": 18740,
+   "sha256": "3a7ee877f86003c24e41fac632d304f71ffc675d082473f4ae05ad7f7c046c95"
+  },
+  {
+   "path": "ABUSE/SFX/AMBCAVE3.WAV",
+   "bytes": 21850,
+   "sha256": "9cbf6d6aaf4e5fcaadff5f33264b433a86b560c0d7cb15a2896dd11a9339d5d2"
+  },
+  {
+   "path": "ABUSE/SFX/AMBCAVE4.WAV",
+   "bytes": 13778,
+   "sha256": "ba911bb3e2bb6f101a4434c4ac54ee0caaaf6d53dfc77f2356a388b5627a2310"
+  },
+  {
+   "path": "ABUSE/SFX/AMBFRST2.WAV",
+   "bytes": 20708,
+   "sha256": "aaae7e3f022d1528733c2f26d6d30e903ce85209adeb94992571afc9a0596c74"
+  },
+  {
+   "path": "ABUSE/SFX/AMBTECH1.WAV",
+   "bytes": 6300,
+   "sha256": "27e6d75ebac438644547ba7225cf56afce8069a971bd00fd561b1786024ae6c4"
+  },
+  {
+   "path": "ABUSE/SFX/AMBTECH2.WAV",
+   "bytes": 15414,
+   "sha256": "8501912dd6a45c0af6a67977a45a4eaaff191dc112be9b8575af7db99ac5f4cb"
+  },
+  {
+   "path": "ABUSE/SFX/AMBTECH3.WAV",
+   "bytes": 7826,
+   "sha256": "4f2a9f4086f1f973f8f34d4bd868b1c04d25b86a9bcc36bacd2401338d688b63"
+  },
+  {
+   "path": "ABUSE/SFX/AMMO01.WAV",
+   "bytes": 6524,
+   "sha256": "ba43a6179bbd8210e7e5cbef9ca1df34e7f9f22e67aa8277388cf20e72ad1fa2"
+  },
+  {
+   "path": "ABUSE/SFX/AMMO02.WAV",
+   "bytes": 1468,
+   "sha256": "207e9042d774b0557b9a9305b0756ae96dd0187aec184aedeec4d3bc435fa4cb"
+  },
+  {
+   "path": "ABUSE/SFX/APAIN01.WAV",
+   "bytes": 5642,
+   "sha256": "491968ba93a82a900b6fdf6691adcfc82ac2915e6e52175549c6399f57075f47"
+  },
+  {
+   "path": "ABUSE/SFX/ASLASH01.WAV",
+   "bytes": 2822,
+   "sha256": "7ff33fcfb489784f0cf58498e87c196ad611ff89569162bcb97fab616b67ac0f"
+  },
+  {
+   "path": "ABUSE/SFX/BALL01.WAV",
+   "bytes": 11508,
+   "sha256": "94073c680acede3ed5153f89ab8638c37b1e02f48b21d845b7785114dd199185"
+  },
+  {
+   "path": "ABUSE/SFX/BLKFOOT4.WAV",
+   "bytes": 10342,
+   "sha256": "2ad66003204581eb98d07d72cb083479bd4f749466328574fed9cacf8c948a96"
+  },
+  {
+   "path": "ABUSE/SFX/BUTTON02.WAV",
+   "bytes": 4616,
+   "sha256": "eb67efdaff0e91c9e3c4bf4b82890c12cc7548824347a2cb79a56013d8cb2e78"
+  },
+  {
+   "path": "ABUSE/SFX/CLEANER.WAV",
+   "bytes": 9852,
+   "sha256": "0119d22e269ecf699098ccd9e5cce4869110e34ebfacfee01d83707097990ca0"
+  },
+  {
+   "path": "ABUSE/SFX/CRMBLE01.WAV",
+   "bytes": 18254,
+   "sha256": "29973a6e94554992451982b2be1c175f2d05ee6f0841a2cbbea478ca4fe6c293"
+  },
+  {
+   "path": "ABUSE/SFX/DELOBJ01.WAV",
+   "bytes": 14136,
+   "sha256": "aa9e48d5c3665e75544949b85ac9db98b814847f3bcd447d2bcadc7a948ba643"
+  },
+  {
+   "path": "ABUSE/SFX/DOORUP01.WAV",
+   "bytes": 6040,
+   "sha256": "bccca44e28babd68fef3fc54bd28264914f254e88a0e7711b5b6f4df5575380d"
+  },
+  {
+   "path": "ABUSE/SFX/DOORUP02.WAV",
+   "bytes": 4958,
+   "sha256": "c9bf3f4b437dd6ffe45688a4bfa0d00cbb506050de803c5ae953f3599aba6c24"
+  },
+  {
+   "path": "ABUSE/SFX/ELEACC01.WAV",
+   "bytes": 10634,
+   "sha256": "9dd48b234614a08122200d080abf291a7fd40093ed420c4a20db40fa880df351"
+  },
+  {
+   "path": "ABUSE/SFX/ELECT02.WAV",
+   "bytes": 10964,
+   "sha256": "f85890d81bced74af282353b23f52e27b22d904609a9bf88f4634986cd05a049"
+  },
+  {
+   "path": "ABUSE/SFX/ELEDEC01.WAV",
+   "bytes": 11034,
+   "sha256": "dea65302106e415b9ebf2d16c7e185744d12cebc4bd1dc0cfce54e2ffe734db2"
+  },
+  {
+   "path": "ABUSE/SFX/ENDLVL02.WAV",
+   "bytes": 11468,
+   "sha256": "a7b155a766af325a92f6eec866d2d04ea670d88f6f1299c9206fcdb121d1367c"
+  },
+  {
+   "path": "ABUSE/SFX/EXPLOD02.WAV",
+   "bytes": 29860,
+   "sha256": "e998f84b71604a9bbd0e63b3c95fbb6493c18fbad56eead61f75596c9f0d253e"
+  },
+  {
+   "path": "ABUSE/SFX/FADEON01.WAV",
+   "bytes": 11118,
+   "sha256": "c7f34989d7613e6b32fd38f2515c49e6ebe1ef7303fefddc675cb9a334347dd4"
+  },
+  {
+   "path": "ABUSE/SFX/FIREBMB1.WAV",
+   "bytes": 12856,
+   "sha256": "2a26d99cadb69f52bd814807989b19a49332ca060132d559e8510e5613038dc6"
+  },
+  {
+   "path": "ABUSE/SFX/FLAMLOOP.WAV",
+   "bytes": 27764,
+   "sha256": "f1739138cb1a95aaa1a040719764be4b340eb6d27ce7de22eacb8d5a6b8ed5b3"
+  },
+  {
+   "path": "ABUSE/SFX/FLY03.WAV",
+   "bytes": 2838,
+   "sha256": "b5682dea1697f88e524a76ef9ddd818a39849135aef8af1498ddd78338cb09c5"
+  },
+  {
+   "path": "ABUSE/SFX/FORCE01.WAV",
+   "bytes": 7678,
+   "sha256": "571885d6f1b3f76b2c97372cb0291cca3220128c152ac8ed3ead6929e772a112"
+  },
+  {
+   "path": "ABUSE/SFX/GRENAD01.WAV",
+   "bytes": 24980,
+   "sha256": "a30f30ad2e51657e0c1f631feace2361473a676f43b38bf9b45f8ac0958a36aa"
+  },
+  {
+   "path": "ABUSE/SFX/HEALTH01.WAV",
+   "bytes": 3520,
+   "sha256": "1dde9bb4c794f97e87d8cc85c76e3b8af127fb217fcbf670a120910fb51729ed"
+  },
+  {
+   "path": "ABUSE/SFX/LASRMIS2.WAV",
+   "bytes": 2662,
+   "sha256": "80f4344c7c3f8c72bc9067df0ca0e5cf38c2cf3d2d61c038678ddd01b225623d"
+  },
+  {
+   "path": "ABUSE/SFX/LAVA01.WAV",
+   "bytes": 38588,
+   "sha256": "d42047a4f51890c6d06a9912f5eca9e90f846c3790084010b0041780cfc66486"
+  },
+  {
+   "path": "ABUSE/SFX/LINK01.WAV",
+   "bytes": 12566,
+   "sha256": "cd49f9dd61352887962c85c560d4a156328c93b8bc60120968d98df46f746561"
+  },
+  {
+   "path": "ABUSE/SFX/LOGO09.WAV",
+   "bytes": 27692,
+   "sha256": "3b3df7d2968162aa5654e969d407853c07405e1124475510eb2bec0a86b60aa5"
+  },
+  {
+   "path": "ABUSE/SFX/METAL.WAV",
+   "bytes": 5886,
+   "sha256": "82978f0e421b2daed3e874381e88791ed55cb6463bf6bdfa1802968396a50b81"
+  },
+  {
+   "path": "ABUSE/SFX/MGHIT01.WAV",
+   "bytes": 4370,
+   "sha256": "9f1e880e99096219ba608081f8ed201fe238b36dde053bfb5e36a87676c0e913"
+  },
+  {
+   "path": "ABUSE/SFX/MGHIT02.WAV",
+   "bytes": 6484,
+   "sha256": "f104c410b6e8f3a811727a53c256144a7df18c03470b650fcf12ceef0b6fbf60"
+  },
+  {
+   "path": "ABUSE/SFX/PLAND01.WAV",
+   "bytes": 2262,
+   "sha256": "5f1434418dbc1d68631c205f46aa03f3edd296320aca1b4fcd7421cd38e49aab"
+  },
+  {
+   "path": "ABUSE/SFX/PLASMA02.WAV",
+   "bytes": 8062,
+   "sha256": "2effa714a9f659489840150bd44be7821f8ce23578994954e645550cbdd95384"
+  },
+  {
+   "path": "ABUSE/SFX/PLASMA03.WAV",
+   "bytes": 8062,
+   "sha256": "745700a14fecd8e2a94af079726bedc7d55f568da2cff6e7ae5624d66a619535"
+  },
+  {
+   "path": "ABUSE/SFX/PLDETH02.WAV",
+   "bytes": 17020,
+   "sha256": "3aafd325847b307235d06818fce50c7053095cafe96a8f008139496c086eedda"
+  },
+  {
+   "path": "ABUSE/SFX/PLDETH04.WAV",
+   "bytes": 11410,
+   "sha256": "231bd324c07fa4bf6b2b42951bc9dcd3cb71cd04b6947e95c7416ee3b5d2d959"
+  },
+  {
+   "path": "ABUSE/SFX/PLDETH05.WAV",
+   "bytes": 14748,
+   "sha256": "acdc0196e1922b996dfb20ea99a64c9a969cdba5cc7ca3887de65089edebf0c6"
+  },
+  {
+   "path": "ABUSE/SFX/PLDETH07.WAV",
+   "bytes": 10738,
+   "sha256": "505a90904cb8fa615f3b0dbda2b3f0fe74ea24a641e7c5c13a4b5fd2e99820a2"
+  },
+  {
+   "path": "ABUSE/SFX/PLPAIN01.WAV",
+   "bytes": 3774,
+   "sha256": "f16941fc4c6ca3ffe820ce241fea85512c9066f944c10b1093706bbd74c839c8"
+  },
+  {
+   "path": "ABUSE/SFX/PLPAIN02.WAV",
+   "bytes": 5036,
+   "sha256": "484d939485badf63bef04a2b31c3302a5a6a3763d5ae480363e15cf2040d3ce4"
+  },
+  {
+   "path": "ABUSE/SFX/PLPAIN04.WAV",
+   "bytes": 4548,
+   "sha256": "1fe1f90e5fdbba29c0f401bfa22bf62cc3d3ff9e65fd9f908dbbe97d48d7da3b"
+  },
+  {
+   "path": "ABUSE/SFX/PLPAIN10.WAV",
+   "bytes": 6192,
+   "sha256": "ced01f14ec86e90c7ef461e6bb5d76bef077dc42128978bb6ab062e05a1bbe86"
+  },
+  {
+   "path": "ABUSE/SFX/POOF05.WAV",
+   "bytes": 4988,
+   "sha256": "ca178f49215e13d77d59239a401506152b1495f7063b153eed9261fd93cfdc4e"
+  },
+  {
+   "path": "ABUSE/SFX/POOF06.WAV",
+   "bytes": 4988,
+   "sha256": "44d2546c5125bde8221c70a6dcc4fdc483447eff6411093dd9e05c3dc2a99bdb"
+  },
+  {
+   "path": "ABUSE/SFX/ROBOT02.WAV",
+   "bytes": 5572,
+   "sha256": "94ab6cccf65e0f71ba351b231e3868ba2b500891051563a570c0ff6693f30432"
+  },
+  {
+   "path": "ABUSE/SFX/ROCKET02.WAV",
+   "bytes": 10456,
+   "sha256": "7f23a24fa3009d611bc6974970e2526ea03eba20e1a600883a2322481f72199c"
+  },
+  {
+   "path": "ABUSE/SFX/SAVE01.WAV",
+   "bytes": 14266,
+   "sha256": "7bbb7b156d5ee029e35c07e965d40c0cc4873bf9dfbc6b7408d48c6fb31602f2"
+  },
+  {
+   "path": "ABUSE/SFX/SAVE05.WAV",
+   "bytes": 24566,
+   "sha256": "fe23b47ff79ba57ae4aea287ce99823b53fe9769e439eca6f3f4b19eab7f9865"
+  },
+  {
+   "path": "ABUSE/SFX/SCREAM02.WAV",
+   "bytes": 23556,
+   "sha256": "a99576a84f43a41e45d346fabebaa5636d09e7aa3709fb4f47c32f8f39b43ecc"
+  },
+  {
+   "path": "ABUSE/SFX/SCREAM03.WAV",
+   "bytes": 25844,
+   "sha256": "2c23f673c1041667a92267c13ac0fcb8f2e53088b54cf70ecf139c236ffa2a50"
+  },
+  {
+   "path": "ABUSE/SFX/SCREAM08.WAV",
+   "bytes": 14724,
+   "sha256": "55b972895b5d41dbe5c7cc7893dbf762a6aad29d49a00ae89f28c8065b3d340e"
+  },
+  {
+   "path": "ABUSE/SFX/SHOTGN31.WAV",
+   "bytes": 5052,
+   "sha256": "45af63ae6b495e1a112b949b2e6400f3f80adbb56ecbe2a9d922984616a7787f"
+  },
+  {
+   "path": "ABUSE/SFX/SPEED02.WAV",
+   "bytes": 4050,
+   "sha256": "3fcb75fa4fa8280ac8314ce7c4da2f38a76dcc1e3b55686857c3f09944a8770b"
+  },
+  {
+   "path": "ABUSE/SFX/SPRING03.WAV",
+   "bytes": 8130,
+   "sha256": "66b21b81a95be26015cef33bc6ff1930f702dca87d3407d2537413b301a9b783"
+  },
+  {
+   "path": "ABUSE/SFX/SWISH01.WAV",
+   "bytes": 10902,
+   "sha256": "a389600958d4be5897503fd18295b4afd7e47c5ab6cfc4981241894cb68f4c36"
+  },
+  {
+   "path": "ABUSE/SFX/SWITCH01.WAV",
+   "bytes": 5056,
+   "sha256": "f7c655d7cb0bc8c27ab0f23d3719133e551018ded6fba7d8b04fd2403dced3c8"
+  },
+  {
+   "path": "ABUSE/SFX/TELEPT01.WAV",
+   "bytes": 15106,
+   "sha256": "b046af9d9fd75a380b80951cd895b315dae3130407e642822f41c1e39dff77f8"
+  },
+  {
+   "path": "ABUSE/SFX/THROW01.WAV",
+   "bytes": 6478,
+   "sha256": "6cfec14cb5e94a8f5a9037dce6ab6b79d345cdea419f6495357d46b025a8d17d"
+  },
+  {
+   "path": "ABUSE/SFX/TIMERFST.WAV",
+   "bytes": 848,
+   "sha256": "99c72c65bfe7e927c5d5c2459b75db5827b9e332ae905886b56fc77c2417b0ec"
+  },
+  {
+   "path": "ABUSE/SFX/ZAP2.WAV",
+   "bytes": 7544,
+   "sha256": "030c9bd4dfeaac63e225eaab0b11a8e88cdcd0b9dde4aa384ed2eaf21f7fcdda"
+  },
+  {
+   "path": "ABUSE/SFX/ZAP3.WAV",
+   "bytes": 9448,
+   "sha256": "74cbf93675d5c97005be2d0342bc49dec46b774f22218a58d2e016758ad7fa1e"
+  },
+  {
+   "path": "ABUSE/SNDCARD.CFG",
+   "bytes": 236,
+   "sha256": "964a267da957c339a7d019240233d25902117b2f950507729e7fe527460199a2"
+  },
+  {
+   "path": "ABUSE/TEST.RAW",
+   "bytes": 40320,
+   "sha256": "d187d0bfd05c16462f66e61eee14cb6e6c3bc2ba48ab09cc5e8b8fdf980698f8"
+  }
+ ],
+ "lispFiles": [
+  {
+   "path": "ABUSE/ABUSE.LSP",
+   "bytes": 1252,
+   "sha256": "d72f7b7f6feb8d81586fe4bdb6993dd9a63ff724864dc17d7d2b9779338237df"
+  },
+  {
+   "path": "ABUSE/ADDON/EXAMPLE/EXAMPLE.LSP",
+   "bytes": 2054,
+   "sha256": "401967975b722d2a3f8c6f4fb79fc48e6ed4710e9132b1396df0c139f9838813"
+  },
+  {
+   "path": "ABUSE/ADDON/PONG/PONG.LSP",
+   "bytes": 12132,
+   "sha256": "7481240b67ef463441bf5328645b6c1adbcb2cfc04ca6080b2e629007c5f5f77"
+  },
+  {
+   "path": "ABUSE/GAMMA.LSP",
+   "bytes": 68,
+   "sha256": "8cb0ae45313c90c9ff56818e2bb53b304e93b1b8001752ff911b27c87b85ae60"
+  },
+  {
+   "path": "ABUSE/LISP/ANT.LSP",
+   "bytes": 16749,
+   "sha256": "3af76d9c5cfac1fbead97d15d0ac845abc7616b674993382bace92affe21802c"
+  },
+  {
+   "path": "ABUSE/LISP/COMMON.LSP",
+   "bytes": 3667,
+   "sha256": "24ba6fd40e3c0401929f8a9ee729830ba7917a38cd4c03e4b556ad863263fa3e"
+  },
+  {
+   "path": "ABUSE/LISP/DOORS.LSP",
+   "bytes": 5715,
+   "sha256": "cace08abd52abe4b27e8b3352c27bfce0895e2fe2fc31cc547fca12a94a3cb14"
+  },
+  {
+   "path": "ABUSE/LISP/DUONG.LSP",
+   "bytes": 10747,
+   "sha256": "7ae570a0f845116c9fa92ca8cf9d2a826023ca3092bb8090e1af6768be2d8303"
+  },
+  {
+   "path": "ABUSE/LISP/ENGLISH.LSP",
+   "bytes": 3412,
+   "sha256": "579f7625a23bbbd17dc74552a37e1fa20dd1271aff88c55bcab2fd19c9bd9da4"
+  },
+  {
+   "path": "ABUSE/LISP/EXPLO.LSP",
+   "bytes": 2919,
+   "sha256": "757d502be232a0522e431d98dd766d6522e5d5c1973566aa64a02cccf0ac2003"
+  },
+  {
+   "path": "ABUSE/LISP/FLYER.LSP",
+   "bytes": 4211,
+   "sha256": "97c3bf68c4688689950ca3c09273f9241808b22f9fd70e3a429fd32ae3a83949"
+  },
+  {
+   "path": "ABUSE/LISP/GATES.LSP",
+   "bytes": 3511,
+   "sha256": "5bb7c2dfbca1126d5c8b5fad1909be0b695f2de4d259e2ece8cb70e188476a2e"
+  },
+  {
+   "path": "ABUSE/LISP/GENERAL.LSP",
+   "bytes": 3420,
+   "sha256": "9241c52b483248fcd6868550714fc10c9ad1aebaf21a5e1e8137792b587faa49"
+  },
+  {
+   "path": "ABUSE/LISP/GUNS.LSP",
+   "bytes": 11904,
+   "sha256": "50c768cb01b22bc4c226eddf90b12207c70cc7d1a5a97b1cb0faa82a53d5cf5f"
+  },
+  {
+   "path": "ABUSE/LISP/INPUT.LSP",
+   "bytes": 2609,
+   "sha256": "8ae547c31e7f4435e9bcc5e85cfc1f5b39b172458b5bf7917750d62309f2ca9b"
+  },
+  {
+   "path": "ABUSE/LISP/JUGGER.LSP",
+   "bytes": 8706,
+   "sha256": "f9f59ada9951ebd61e3ede1b12aeff09635356ac32afce344f8625df8ccb2d44"
+  },
+  {
+   "path": "ABUSE/LISP/LADDER.LSP",
+   "bytes": 1236,
+   "sha256": "dc8fd4f5270423b26c63be41362e134fb6572db85e1345665e2808544b5cbb67"
+  },
+  {
+   "path": "ABUSE/LISP/LANGUAGE.LSP",
+   "bytes": 225,
+   "sha256": "d076c2f12bf40093830d1a65546e9e84c4c73fcad70a69ecacd2dca99e1080e8"
+  },
+  {
+   "path": "ABUSE/LISP/LIGHT.LSP",
+   "bytes": 2530,
+   "sha256": "eb96f3ed05a7f8fb8549788ba45b242e80d346b4b17420462724282feddbd946"
+  },
+  {
+   "path": "ABUSE/LISP/OPTIONS.LSP",
+   "bytes": 1260,
+   "sha256": "f765015263628eb573789a4a1b459e1a6876e2b16d4cdaff3b61091ce4de92ef"
+  },
+  {
+   "path": "ABUSE/LISP/PEOPLE.LSP",
+   "bytes": 23284,
+   "sha256": "53278dfc2c2fd197be6041b501db1d74a02e8bd1a0df697f169d8779c1ee71e1"
+  },
+  {
+   "path": "ABUSE/LISP/PLATFORM.LSP",
+   "bytes": 2835,
+   "sha256": "e6c51a78fb4f07a4574eec03016a82b07bc89de8fdce336ff174dd9ad13f4420"
+  },
+  {
+   "path": "ABUSE/LISP/PLAYWAV.LSP",
+   "bytes": 570,
+   "sha256": "a6fc78b98de4f2143c7946e44f4f303b63bcfe4bc71b8373ea41d5156aea4884"
+  },
+  {
+   "path": "ABUSE/LISP/POWERUP.LSP",
+   "bytes": 1075,
+   "sha256": "5daf4f0a1b9b8e58c2d920ac55d0ec2a89774434725d02b0331ab754b6c65464"
+  },
+  {
+   "path": "ABUSE/LISP/SFX.LSP",
+   "bytes": 7117,
+   "sha256": "bd14fdb8303871cb275b4aecac1b596c5f043fd0d60a1ccc9c44860da8058c15"
+  },
+  {
+   "path": "ABUSE/LISP/SHARE.LSP",
+   "bytes": 554,
+   "sha256": "c3fb06fdf479f6f798176cea00a0598404340391ed61470be72dd30de0935d23"
+  },
+  {
+   "path": "ABUSE/LISP/STARTUP.LSP",
+   "bytes": 1748,
+   "sha256": "7886d53562842cb6e780efd7740ce18e7acc72c58cfe0495196b71630a810c0a"
+  },
+  {
+   "path": "ABUSE/LISP/SWITCH.LSP",
+   "bytes": 7428,
+   "sha256": "e153b2ad86034e3fe14bc2bb707cbb36977ae32d4657f7e151867a07016d711c"
+  },
+  {
+   "path": "ABUSE/LISP/TELEPORT.LSP",
+   "bytes": 1801,
+   "sha256": "16db24d0b675fec9bd9aaebdfc3214029a0ffe14dd8f35a7abcbc69d44c66799"
+  },
+  {
+   "path": "ABUSE/LISP/USERFUNS.LSP",
+   "bytes": 1297,
+   "sha256": "07a18ee915a4c259d467bc7a8b236cb2448e2803332751a6de5d26923e22b1c3"
+  },
+  {
+   "path": "ABUSE/LISP/WEAPONS.LSP",
+   "bytes": 13236,
+   "sha256": "f21479a369dfec92a57a0ed3f15fa8437375ca02de52065d2f2a499f898108f0"
+  }
+ ],
+ "notices": [
+  {
+   "path": "ABUSE-Info-Card.txt",
+   "bytes": 3884,
+   "sha256": "00769d1fe8ba393cdbf06156876539a83702e3ff54684b31a14f7f85ac617c70"
+  },
+  {
+   "path": "ABUSE/ABUSE.DOC",
+   "bytes": 77939,
+   "sha256": "674452a26364441bd456744c199a857573e52d2827054041ecb9a197a8b08109"
+  },
+  {
+   "path": "ABUSE/DOS_NOTE.TXT",
+   "bytes": 2030,
+   "sha256": "ba100978c66a2fb0688a20656f4faf808468a4ee04d3d660c486de7aeede47ce"
+  },
+  {
+   "path": "ABUSE/GAMEDEV.TXT",
+   "bytes": 8698,
+   "sha256": "d720c49a2686bcd6adb08b17c393d1b7816f42a5ddd599343a48d1b98d4b4354"
+  },
+  {
+   "path": "ABUSE/LICENSE.TXT",
+   "bytes": 6284,
+   "sha256": "da4983dc066b0d9aef448340211c4652bab0decd74797d78e81b9cefae53fd44"
+  }
+ ],
+ "allFiles": [
+  {
+   "path": "ABSWEB.BAT",
+   "bytes": 178,
+   "sha256": "fd67289a2314c2c4e5a8ee06cecfb45a6749078cf3c7145a68ac1e053b2389a6"
+  },
+  {
+   "path": "ABUSE-Info-Card.txt",
+   "bytes": 3884,
+   "sha256": "00769d1fe8ba393cdbf06156876539a83702e3ff54684b31a14f7f85ac617c70"
+  },
+  {
+   "path": "ABUSE.BAT",
+   "bytes": 393,
+   "sha256": "c15c19fdbe5b5e824a005ceab4d6b781e4bae27e2f2aa15bff90ff3b846e407b"
+  },
+  {
+   "path": "ABUSE/ABUSE.DOC",
+   "bytes": 77939,
+   "sha256": "674452a26364441bd456744c199a857573e52d2827054041ecb9a197a8b08109"
+  },
+  {
+   "path": "ABUSE/ABUSE.EXE",
+   "bytes": 1183861,
+   "sha256": "8ba92587d070936cc776be4d15e0e68f62859fb0e473b068ac608b812b01074f"
+  },
+  {
+   "path": "ABUSE/ABUSE.LSP",
+   "bytes": 1252,
+   "sha256": "d72f7b7f6feb8d81586fe4bdb6993dd9a63ff724864dc17d7d2b9779338237df"
+  },
+  {
+   "path": "ABUSE/ADDON/EXAMPLE/EXAMPLE.LSP",
+   "bytes": 2054,
+   "sha256": "401967975b722d2a3f8c6f4fb79fc48e6ed4710e9132b1396df0c139f9838813"
+  },
+  {
+   "path": "ABUSE/ADDON/EXAMPLE/EXAMPLE.LVL",
+   "bytes": 29563,
+   "sha256": "2062aed68e433d49fff250705c93e305a0c075605745fb56e9b875edd5e8fc38"
+  },
+  {
+   "path": "ABUSE/ADDON/EXAMPLE/EXAMPLE.SPE",
+   "bytes": 4070,
+   "sha256": "d5ffacb860cec7392eaabad1128b905d9861709514945343491ac609886d25b8"
+  },
+  {
+   "path": "ABUSE/ADDON/PONG/PONG.LSP",
+   "bytes": 12132,
+   "sha256": "7481240b67ef463441bf5328645b6c1adbcb2cfc04ca6080b2e629007c5f5f77"
+  },
+  {
+   "path": "ABUSE/ADDON/PONG/PONG.SPE",
+   "bytes": 81106,
+   "sha256": "87836ce93abaa6c772672cbe54e88f07513672d76a812a8af9003895b762969e"
+  },
+  {
+   "path": "ABUSE/ADDON/PONG/PONG01.CPF",
+   "bytes": 1311,
+   "sha256": "2fda5f50f39675fcec8ba3e3b448357cd9f617a842d7bb5dd33c105fd4b9b348"
+  },
+  {
+   "path": "ABUSE/ADDON/PONG/PONG01.LVL",
+   "bytes": 26127,
+   "sha256": "36aaec7a55c0867532f8804cb2e46c962470b2db25597b738e26f591a3db37a0"
+  },
+  {
+   "path": "ABUSE/ART/ANT.SPE",
+   "bytes": 94983,
+   "sha256": "866b10c68ad8d4acdf1c407fe04b5d4552d01375d6c09dcbd0d62600c18c1abd"
+  },
+  {
+   "path": "ABUSE/ART/BACK/BACKGRND.SPE",
+   "bytes": 35418,
+   "sha256": "9b8a7a578e88f4668420d850ad5cb89e355cdaff67b069f082d840a841d4c758"
+  },
+  {
+   "path": "ABUSE/ART/BACK/CAVE.SPE",
+   "bytes": 37203,
+   "sha256": "31313268fd3887a0d21443d2fe4f83bd7decc919674330d4693fd59aaaf8d14f"
+  },
+  {
+   "path": "ABUSE/ART/BACK/CITY.SPE",
+   "bytes": 57219,
+   "sha256": "a04869215c308dc93e49a9029df69ae1a7f05326e196a75bc520a9125cb6db5a"
+  },
+  {
+   "path": "ABUSE/ART/BACK/INTRO.SPE",
+   "bytes": 53574,
+   "sha256": "7ed14703065531ab68f6e24ee44c6ec5ff61983bfa4b14b9a9e7ce054a99d074"
+  },
+  {
+   "path": "ABUSE/ART/BACK/TECH.SPE",
+   "bytes": 55429,
+   "sha256": "fc636782d78db7a0e72ded18ce8d6f167e31a03d413660107322ad55282193e9"
+  },
+  {
+   "path": "ABUSE/ART/BALL.SPE",
+   "bytes": 1007,
+   "sha256": "64652561fb405f5d588e0a765a4a4a51de32a226d4cb019f34744f51b1ca603b"
+  },
+  {
+   "path": "ABUSE/ART/BLOWUPS.SPE",
+   "bytes": 8427,
+   "sha256": "6873841398da0140406329f41951afff0558d63db88cd87c85baf34d66acbbb9"
+  },
+  {
+   "path": "ABUSE/ART/BOLD.SPE",
+   "bytes": 10260,
+   "sha256": "611f50125661de83afa9608846a2d3cc7b514bcbfd90af5a290a2871a282433e"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/AMMO.SPE",
+   "bytes": 5322,
+   "sha256": "1f3e2392bf6086864492fa25dae17d77889df23ae05ab333c0ac48379fea10c0"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/BLOCK.SPE",
+   "bytes": 7068,
+   "sha256": "79860253620cf8f254823fa875aac11a20f74c30e81a5a39427e2fde21d73542"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/CONCUS.SPE",
+   "bytes": 2444,
+   "sha256": "ab881540e178a600d292589fa64b901304744a62485ca2e6e90839958071ac04"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/DOOR.SPE",
+   "bytes": 9667,
+   "sha256": "c2bc45d4b18605bd564e5a3976ff893aa1e6c69bff3e6b60febf6e777bbaf461"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/LAVA.SPE",
+   "bytes": 9994,
+   "sha256": "aa763116cfc412b3ca87a248bcafc7b019dc01d4011120bf0b1b952e878fad56"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/LAVAP.SPE",
+   "bytes": 15231,
+   "sha256": "ecae104a21f6df78044e60c06cccf17c3d9f714f54ca3ccfb89e12a26ebb4723"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/LIGHTIN.SPE",
+   "bytes": 17236,
+   "sha256": "00562df7b5f15ad582dadea3bbf517697d70e8d19f80f2f4d1b80d18f4310131"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/MINE.SPE",
+   "bytes": 40227,
+   "sha256": "a89a63af388fb4c090535842d34587fe344162e5840dd00a00f66d916307fd45"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/PLATFORM.SPE",
+   "bytes": 22836,
+   "sha256": "18494b9288efaa3594e241d6a76bb32623bc4f95a0301fe4e430907a883e5218"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/PUSH.SPE",
+   "bytes": 5584,
+   "sha256": "f4975b3830d0a87c9ec4f68a3481cdbc43ce06e65ebb1f1c7f51f453bb6e369a"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/SECT.SPE",
+   "bytes": 34741,
+   "sha256": "e565c36cb67cf2eac126114c138f0c32c14cf239b21b59d04ace39171e043e21"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/STEP.SPE",
+   "bytes": 3174,
+   "sha256": "2e8c04bed8a95af425e6117f2429abe38ce69a2972609d87a3bd77f0415720b2"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/TDOOR.SPE",
+   "bytes": 9021,
+   "sha256": "482114186b490b9636fa58453e1b12846c296553c1d3f16cb3a5655cef7e1287"
+  },
+  {
+   "path": "ABUSE/ART/CHARS/TELEPORT.SPE",
+   "bytes": 37305,
+   "sha256": "f63156278a610be1da6762f342cacbf0b504587d0fd177b93de4e4fbbc7d30f0"
+  },
+  {
+   "path": "ABUSE/ART/CLOUD.SPE",
+   "bytes": 5241,
+   "sha256": "9e211d810ecf935a752ed28a025db46aa7e4439b195472f6170b31c6e224c71e"
+  },
+  {
+   "path": "ABUSE/ART/CONSFNT.SPE",
+   "bytes": 9781,
+   "sha256": "74ce4643d8f4840637029d38a05be536aa7831cf4fe71fc5c35e2830a2eb4b89"
+  },
+  {
+   "path": "ABUSE/ART/COP.SPE",
+   "bytes": 83422,
+   "sha256": "a41a9d57a5855466340747c237ec784639884c6258bce1e0104a83eb9f5bf248"
+  },
+  {
+   "path": "ABUSE/ART/COPTOP.SPE",
+   "bytes": 127043,
+   "sha256": "3a3099446c011068a2bd5872cc88b07d3213b1b67234c608e99a6fa55fe1163e"
+  },
+  {
+   "path": "ABUSE/ART/DEV.SPE",
+   "bytes": 13395,
+   "sha256": "1d8abc895ba0ad316bf43cf3fed8397105942828073e8993ea5f9ddfd97df957"
+  },
+  {
+   "path": "ABUSE/ART/DOOR.SPE",
+   "bytes": 14013,
+   "sha256": "039f5d22b31390c7b9f892da5c084b73335d021a1643c82519de7ca2a467405f"
+  },
+  {
+   "path": "ABUSE/ART/ENDGAME.SPE",
+   "bytes": 155906,
+   "sha256": "e5920ab10754e4b529ec165c3466f00d239105c469fc5b7c2ecb1c5339b067bc"
+  },
+  {
+   "path": "ABUSE/ART/EXP1.SPE",
+   "bytes": 46179,
+   "sha256": "f86742e6da7bd73bf6d800af39ed39c532063762cbc959de3ee0e048fb421f0b"
+  },
+  {
+   "path": "ABUSE/ART/FLYER.SPE",
+   "bytes": 38961,
+   "sha256": "44178fc5e8b23c4167d48b66f487911a0e579113fbdbf1a5569e9e90e1c806aa"
+  },
+  {
+   "path": "ABUSE/ART/FORE/CAVE.SPE",
+   "bytes": 65534,
+   "sha256": "35e8e43066c7161e5b36dee19e8a6dffe10dc8c1ffc7583323c7b2cdb13c3410"
+  },
+  {
+   "path": "ABUSE/ART/FORE/FOREGRND.SPE",
+   "bytes": 1270,
+   "sha256": "590caf2a679c34eb7c70eaff281c1b01723963d8b7b754bc8a131740e5f7c9c1"
+  },
+  {
+   "path": "ABUSE/ART/FORE/TECHNO.SPE",
+   "bytes": 44083,
+   "sha256": "a68664e718ba089277fc9a4a6440d73606f00110effefdfd047f861bfe8bc98d"
+  },
+  {
+   "path": "ABUSE/ART/FORE/TECHNO2.SPE",
+   "bytes": 33035,
+   "sha256": "d6b34a3f65149b3ade52fd3928e8e510226da306fdaa5b5f19210ce12df402f4"
+  },
+  {
+   "path": "ABUSE/ART/FORE/TECHNO3.SPE",
+   "bytes": 18300,
+   "sha256": "eb5a27d9b046db9e2d60aa81e432959f9a22329b054a67f6c57ded3c7d07d0eb"
+  },
+  {
+   "path": "ABUSE/ART/FORE/TECHNO4.SPE",
+   "bytes": 77042,
+   "sha256": "994d5f80f83aeb0f5276ac674879c714bd1261d8b05e12734cfeb923f33bb2a3"
+  },
+  {
+   "path": "ABUSE/ART/FRAME.SPE",
+   "bytes": 11396,
+   "sha256": "8a84d8fca9333c0ea91a7c4ebe52e57eaaafeffcc1f3d2779636f84366c9d0c0"
+  },
+  {
+   "path": "ABUSE/ART/GUN2.SPE",
+   "bytes": 61868,
+   "sha256": "1a6734e7a33829b81fae4860c8a4370764a072765feea738a0dc938a45866353"
+  },
+  {
+   "path": "ABUSE/ART/HELP.SPE",
+   "bytes": 256883,
+   "sha256": "5060c5096e8220db962a79df81167589e18840eacc5664e89755cc6e84436991"
+  },
+  {
+   "path": "ABUSE/ART/ICONS.SPE",
+   "bytes": 39793,
+   "sha256": "44cc0887ce1b1dc7b7dbd68ac03dd7a230d41cad4cf09f4707c036fbb00e3731"
+  },
+  {
+   "path": "ABUSE/ART/JUG.SPE",
+   "bytes": 75543,
+   "sha256": "8a65359b55e380b03467ce4fe48aae718238453e67f7955549e6323399a90825"
+  },
+  {
+   "path": "ABUSE/ART/LETTERS.SPE",
+   "bytes": 26192,
+   "sha256": "6187117cd37484f30b3723f9540c9f5160de48e57375892bcfbf635632d12f87"
+  },
+  {
+   "path": "ABUSE/ART/MISC.SPE",
+   "bytes": 78647,
+   "sha256": "9f92228a0c70b9257eef35c1d534e5d14bc32590ab498e6b81a4e4b6a280dab5"
+  },
+  {
+   "path": "ABUSE/ART/MISSLE.SPE",
+   "bytes": 13716,
+   "sha256": "0283d59c5e2be0d4bce5ce3c31f96a6fea391a8bd2dc17eab61f9adc2996c866"
+  },
+  {
+   "path": "ABUSE/ART/PFORM.SPE",
+   "bytes": 3397,
+   "sha256": "96114af756e8e0e6b41dc322140bb42903f2991eff599b861f23bd0668201cf0"
+  },
+  {
+   "path": "ABUSE/ART/ROB1.SPE",
+   "bytes": 36082,
+   "sha256": "a15acfb9ec39b23863ac5e976e12405fd7ebdc258f000cc51b56ce7d36a54803"
+  },
+  {
+   "path": "ABUSE/ART/ROB2.SPE",
+   "bytes": 37089,
+   "sha256": "92cecbcc198ab596429fc8aa941e7572516c8312b536c2e08376fe9c79ebf0e6"
+  },
+  {
+   "path": "ABUSE/ART/SCREEN11.SPE",
+   "bytes": 20535,
+   "sha256": "0d746b31a4e75b3164b863c98eaaf1fce4de0c3f9e000a10f7087ca1b97086bc"
+  },
+  {
+   "path": "ABUSE/ART/SMOKE.SPE",
+   "bytes": 74564,
+   "sha256": "7ec1ff8b70101663ebc587d8875fcb4aed34d0f74d2ff5426f1cb00a63771c5f"
+  },
+  {
+   "path": "ABUSE/ART/STATBAR.SPE",
+   "bytes": 30085,
+   "sha256": "a657af29e24e7c232b0dda6c0ee3e4e4507095d45a0973401c9751bc8bda390c"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/BLUE.SPE",
+   "bytes": 799,
+   "sha256": "2e60f3a32234c243fb88733b6117e8fb302578bc2cb5ccb2d980c38798e55001"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/BROWN.SPE",
+   "bytes": 799,
+   "sha256": "a22425c0ad3cbf2a0548cb783d582532c29920cbedd1a939a9995ede10416f79"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/DARKBLUE.SPE",
+   "bytes": 799,
+   "sha256": "388d652884657ec559f173819adeee82667fe2f5b434a12020e91e63a8dc3ddf"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/EGG.SPE",
+   "bytes": 799,
+   "sha256": "c0021a7cddcad0bb4f8f1ba7a2e3ec5f2cd115535f9029be9561c66c461150b2"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/EVIL.SPE",
+   "bytes": 75493,
+   "sha256": "09f83db377c91104c5e1e7c5624436d612fae3abfb36e2bca79a02c64620ab03"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/GRAY.SPE",
+   "bytes": 799,
+   "sha256": "6fe38c6691ad2e69040f4600d8ca421b5bd6936da7220d1f0146c4a3a271c914"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/GREEN.SPE",
+   "bytes": 799,
+   "sha256": "1afa04f5931b746b6bae9c1461aa679d6c1289ee65862ab555b08f3dc6892584"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/MUSTARD.SPE",
+   "bytes": 799,
+   "sha256": "cba01f923ef10e4747923ef0377ffe106db1299cf2bfffbba0bbbe0022ed39de"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/ORANGE.SPE",
+   "bytes": 799,
+   "sha256": "48a4fe1d410ed88aa4e0745ec04ef30db859ae7904b7b68cb6332aa518d825b4"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/ANT/YELLOW.SPE",
+   "bytes": 799,
+   "sha256": "89a4f706a2429bd0a784a82c669dca26cad02fe1cfba661496fb2a94178c19ff"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/AFRICA.SPE",
+   "bytes": 799,
+   "sha256": "1b6255612c9cf21f359a85a8ebf6700d06d4cf353809f9a38e9515c743d17a24"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/BLUE.SPE",
+   "bytes": 799,
+   "sha256": "e93d2250d782105ad0cded4c26e9434ecc318d0cea821884bfe8248bd3de0b86"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/BRIGHT.SPE",
+   "bytes": 799,
+   "sha256": "65f3b22908d47f79a850f4848d644a75ab05be57ccb7d2f4668fa3381db90cf0"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/FIRE.SPE",
+   "bytes": 799,
+   "sha256": "6efe21891f0e966a77655527fad83f4c41a19925472f3a17d6586058bb8e9f22"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/GOLD.SPE",
+   "bytes": 799,
+   "sha256": "13013f848ac5b2330477ba08630f0b54c895419f69387072bb8e8c9a99a28095"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/LAND.SPE",
+   "bytes": 799,
+   "sha256": "fd6ccf9c6ec88828be6d5c95affcfb7937e714b80acf556e2c393da56d7876b5"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/COP/OLIVE.SPE",
+   "bytes": 799,
+   "sha256": "7e44ef42c85697064dad158cddee9904f1f8f9f53b67625eb32905c9886b2647"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/GUNS/BLUE.SPE",
+   "bytes": 799,
+   "sha256": "b32740bdc3f39451c3762c4eafdcdaa31495066a0b0c1c27622bf13ab874f5b3"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/GUNS/GREEN.SPE",
+   "bytes": 799,
+   "sha256": "d9b626cdcd38b6d6e5e33d9f286bbc810d473eb6467f0e6830af66e1fe20d5b8"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/GUNS/ORANGE.SPE",
+   "bytes": 799,
+   "sha256": "8d910959046eac308d970e0f2ef02607b352ffa92e8e69c801f5994abc488646"
+  },
+  {
+   "path": "ABUSE/ART/TINTS/GUNS/REDISH.SPE",
+   "bytes": 799,
+   "sha256": "95f384847b788c4c57b1021c923ab679e6d937b5eeeff54974bfd29b8aa4b0fe"
+  },
+  {
+   "path": "ABUSE/ART/TITLE.SPE",
+   "bytes": 79931,
+   "sha256": "a8016f76d6bb36c9f49fe74d1e5ef9b928948304b052506ffc4361be4532fd1c"
+  },
+  {
+   "path": "ABUSE/DOS_NOTE.TXT",
+   "bytes": 2030,
+   "sha256": "ba100978c66a2fb0688a20656f4faf808468a4ee04d3d660c486de7aeede47ce"
+  },
+  {
+   "path": "ABUSE/END.MEM",
+   "bytes": 358,
+   "sha256": "acc55135824a19569de8143619c440dfdeb640d2ae3e36bce628caf7bec621fa"
+  },
+  {
+   "path": "ABUSE/GAMEDEV.TXT",
+   "bytes": 8698,
+   "sha256": "d720c49a2686bcd6adb08b17c393d1b7816f42a5ddd599343a48d1b98d4b4354"
+  },
+  {
+   "path": "ABUSE/GAMMA.LSP",
+   "bytes": 68,
+   "sha256": "8cb0ae45313c90c9ff56818e2bb53b304e93b1b8001752ff911b27c87b85ae60"
+  },
+  {
+   "path": "ABUSE/HMIDET.386",
+   "bytes": 83774,
+   "sha256": "6a5f9b019586607995609040857eeafc143ce90e83a2d0b3d1ec23bad81ee932"
+  },
+  {
+   "path": "ABUSE/HMIDRV.386",
+   "bytes": 317317,
+   "sha256": "348ca810def83a52273fd3ba0987af9208c0a585942e7a542ee99da035d65bcf"
+  },
+  {
+   "path": "ABUSE/HMIMDRV.386",
+   "bytes": 117852,
+   "sha256": "a64e69c59f761fe3d23994fd07377564cf229a8656294383e874e0b6e53ac2fc"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL00.CPF",
+   "bytes": 9638,
+   "sha256": "02ec406f9dcfdaff9285ae8fbb4970c152312cb06788a3cff32628b13bba7288"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL00.SPE",
+   "bytes": 47335,
+   "sha256": "e10aa633ab8b44f5fbe04f09bb1dfb6fd344582964d111204206c527a4c4ae39"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL01.CPF",
+   "bytes": 9148,
+   "sha256": "4e4287b158c93707387ad7fcadc65a104b9a4ad7b299f051095fbd39b0a06c7d"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL01.SPE",
+   "bytes": 59377,
+   "sha256": "5deb21cd5c19f693c7afad11137f7436ee07aa3e097863b21a9482ef0945b1fb"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL02.CPF",
+   "bytes": 7573,
+   "sha256": "de4e2ade936d0709fb2011e7edf267ceb57fc68be5b081365b9b4aeaf867aebf"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL02.SPE",
+   "bytes": 82291,
+   "sha256": "1118ff4af411fb600ec9ed4058a4ae259a49d3a113e3d0ad44299f85277dffd3"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL03.CPF",
+   "bytes": 7405,
+   "sha256": "99486a8558597abe06ca63399fcf061c3689528c5e3d2cf60ed3f44291a863bc"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL03.SPE",
+   "bytes": 67491,
+   "sha256": "6e07a572a6df1903d528412751c31da605eb05e5d33b5d02109cdff08f6334cf"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL04.CPF",
+   "bytes": 8483,
+   "sha256": "fa4727e1d2520aedcd809f1ac7ad23e984e76b9ee10406ff0c4e746f6df6a3c4"
+  },
+  {
+   "path": "ABUSE/LEVELS/LEVEL04.SPE",
+   "bytes": 75788,
+   "sha256": "f9be00378ef4f684803bfe3f39f84e1ce452861b4db48bef363a4323c811691d"
+  },
+  {
+   "path": "ABUSE/LICENSE.TXT",
+   "bytes": 6284,
+   "sha256": "da4983dc066b0d9aef448340211c4652bab0decd74797d78e81b9cefae53fd44"
+  },
+  {
+   "path": "ABUSE/LIGHT.TBL",
+   "bytes": 35330,
+   "sha256": "1ea791de73f3ed6793fba45454df341cd924818d59a5d2878a0647f5012117b0"
+  },
+  {
+   "path": "ABUSE/LISP/ANT.LSP",
+   "bytes": 16749,
+   "sha256": "3af76d9c5cfac1fbead97d15d0ac845abc7616b674993382bace92affe21802c"
+  },
+  {
+   "path": "ABUSE/LISP/COMMON.LSP",
+   "bytes": 3667,
+   "sha256": "24ba6fd40e3c0401929f8a9ee729830ba7917a38cd4c03e4b556ad863263fa3e"
+  },
+  {
+   "path": "ABUSE/LISP/DOORS.LSP",
+   "bytes": 5715,
+   "sha256": "cace08abd52abe4b27e8b3352c27bfce0895e2fe2fc31cc547fca12a94a3cb14"
+  },
+  {
+   "path": "ABUSE/LISP/DUONG.LSP",
+   "bytes": 10747,
+   "sha256": "7ae570a0f845116c9fa92ca8cf9d2a826023ca3092bb8090e1af6768be2d8303"
+  },
+  {
+   "path": "ABUSE/LISP/ENGLISH.LSP",
+   "bytes": 3412,
+   "sha256": "579f7625a23bbbd17dc74552a37e1fa20dd1271aff88c55bcab2fd19c9bd9da4"
+  },
+  {
+   "path": "ABUSE/LISP/EXPLO.LSP",
+   "bytes": 2919,
+   "sha256": "757d502be232a0522e431d98dd766d6522e5d5c1973566aa64a02cccf0ac2003"
+  },
+  {
+   "path": "ABUSE/LISP/FLYER.LSP",
+   "bytes": 4211,
+   "sha256": "97c3bf68c4688689950ca3c09273f9241808b22f9fd70e3a429fd32ae3a83949"
+  },
+  {
+   "path": "ABUSE/LISP/GATES.LSP",
+   "bytes": 3511,
+   "sha256": "5bb7c2dfbca1126d5c8b5fad1909be0b695f2de4d259e2ece8cb70e188476a2e"
+  },
+  {
+   "path": "ABUSE/LISP/GENERAL.LSP",
+   "bytes": 3420,
+   "sha256": "9241c52b483248fcd6868550714fc10c9ad1aebaf21a5e1e8137792b587faa49"
+  },
+  {
+   "path": "ABUSE/LISP/GUNS.LSP",
+   "bytes": 11904,
+   "sha256": "50c768cb01b22bc4c226eddf90b12207c70cc7d1a5a97b1cb0faa82a53d5cf5f"
+  },
+  {
+   "path": "ABUSE/LISP/INPUT.LSP",
+   "bytes": 2609,
+   "sha256": "8ae547c31e7f4435e9bcc5e85cfc1f5b39b172458b5bf7917750d62309f2ca9b"
+  },
+  {
+   "path": "ABUSE/LISP/JUGGER.LSP",
+   "bytes": 8706,
+   "sha256": "f9f59ada9951ebd61e3ede1b12aeff09635356ac32afce344f8625df8ccb2d44"
+  },
+  {
+   "path": "ABUSE/LISP/LADDER.LSP",
+   "bytes": 1236,
+   "sha256": "dc8fd4f5270423b26c63be41362e134fb6572db85e1345665e2808544b5cbb67"
+  },
+  {
+   "path": "ABUSE/LISP/LANGUAGE.LSP",
+   "bytes": 225,
+   "sha256": "d076c2f12bf40093830d1a65546e9e84c4c73fcad70a69ecacd2dca99e1080e8"
+  },
+  {
+   "path": "ABUSE/LISP/LIGHT.LSP",
+   "bytes": 2530,
+   "sha256": "eb96f3ed05a7f8fb8549788ba45b242e80d346b4b17420462724282feddbd946"
+  },
+  {
+   "path": "ABUSE/LISP/OPTIONS.LSP",
+   "bytes": 1260,
+   "sha256": "f765015263628eb573789a4a1b459e1a6876e2b16d4cdaff3b61091ce4de92ef"
+  },
+  {
+   "path": "ABUSE/LISP/PEOPLE.LSP",
+   "bytes": 23284,
+   "sha256": "53278dfc2c2fd197be6041b501db1d74a02e8bd1a0df697f169d8779c1ee71e1"
+  },
+  {
+   "path": "ABUSE/LISP/PLATFORM.LSP",
+   "bytes": 2835,
+   "sha256": "e6c51a78fb4f07a4574eec03016a82b07bc89de8fdce336ff174dd9ad13f4420"
+  },
+  {
+   "path": "ABUSE/LISP/PLAYWAV.LSP",
+   "bytes": 570,
+   "sha256": "a6fc78b98de4f2143c7946e44f4f303b63bcfe4bc71b8373ea41d5156aea4884"
+  },
+  {
+   "path": "ABUSE/LISP/POWERUP.LSP",
+   "bytes": 1075,
+   "sha256": "5daf4f0a1b9b8e58c2d920ac55d0ec2a89774434725d02b0331ab754b6c65464"
+  },
+  {
+   "path": "ABUSE/LISP/SFX.LSP",
+   "bytes": 7117,
+   "sha256": "bd14fdb8303871cb275b4aecac1b596c5f043fd0d60a1ccc9c44860da8058c15"
+  },
+  {
+   "path": "ABUSE/LISP/SHARE.LSP",
+   "bytes": 554,
+   "sha256": "c3fb06fdf479f6f798176cea00a0598404340391ed61470be72dd30de0935d23"
+  },
+  {
+   "path": "ABUSE/LISP/STARTUP.LSP",
+   "bytes": 1748,
+   "sha256": "7886d53562842cb6e780efd7740ce18e7acc72c58cfe0495196b71630a810c0a"
+  },
+  {
+   "path": "ABUSE/LISP/SWITCH.LSP",
+   "bytes": 7428,
+   "sha256": "e153b2ad86034e3fe14bc2bb707cbb36977ae32d4657f7e151867a07016d711c"
+  },
+  {
+   "path": "ABUSE/LISP/TELEPORT.LSP",
+   "bytes": 1801,
+   "sha256": "16db24d0b675fec9bd9aaebdfc3214029a0ffe14dd8f35a7abcbc69d44c66799"
+  },
+  {
+   "path": "ABUSE/LISP/USERFUNS.LSP",
+   "bytes": 1297,
+   "sha256": "07a18ee915a4c259d467bc7a8b236cb2448e2803332751a6de5d26923e22b1c3"
+  },
+  {
+   "path": "ABUSE/LISP/WEAPONS.LSP",
+   "bytes": 13236,
+   "sha256": "f21479a369dfec92a57a0ed3f15fa8437375ca02de52065d2f2a499f898108f0"
+  },
+  {
+   "path": "ABUSE/SETUP.EXE",
+   "bytes": 419081,
+   "sha256": "fcd9084ad628ffb521a1e93fb3f5d5e86d9a31eaeea75448f5b714ce8d19648f"
+  },
+  {
+   "path": "ABUSE/SETUP.INI",
+   "bytes": 3395,
+   "sha256": "4ffaf3f5f1f66d7576de8865ee19dab46647740b1f45c0e956240a9e85f7d20b"
+  },
+  {
+   "path": "ABUSE/SFX/ADIE02.WAV",
+   "bytes": 14394,
+   "sha256": "e0e11925352dec52dd619eb6787e10312eac7dbdc0765a852e27d8f76b67906d"
+  },
+  {
+   "path": "ABUSE/SFX/ADIE03.WAV",
+   "bytes": 11654,
+   "sha256": "ba697503319c129fc4075ba9e0f21fffa14ffeb60ad66d2663d056f51904d202"
+  },
+  {
+   "path": "ABUSE/SFX/ADIE05.WAV",
+   "bytes": 6920,
+   "sha256": "f7571445038a84d0db6893581d5299f9fe8d175b3b5675f24f93094ddf422303"
+  },
+  {
+   "path": "ABUSE/SFX/AHIT01.WAV",
+   "bytes": 2656,
+   "sha256": "ad54f2b24e8ea25ec2663998d5f395f34e77661a9ba68a33d536343dc7c9a246"
+  },
+  {
+   "path": "ABUSE/SFX/ALAND01.WAV",
+   "bytes": 2524,
+   "sha256": "0a6948b678d9699a8ef6786fcfed7469834676b3ce7c74e58733e84334e85257"
+  },
+  {
+   "path": "ABUSE/SFX/ALIEN01.WAV",
+   "bytes": 23690,
+   "sha256": "f6990c8856c4cb4074f101038b51ab6c6d2428965e509c26befc8583f3fe1f75"
+  },
+  {
+   "path": "ABUSE/SFX/AMB07.WAV",
+   "bytes": 16434,
+   "sha256": "fa1504ec997b38926d344c8373102b402468db96a3289bbcbd8a153f602e5e44"
+  },
+  {
+   "path": "ABUSE/SFX/AMB10.WAV",
+   "bytes": 16620,
+   "sha256": "9ede67bac549eff37a33e87d0fa347de7e3d27a48c2b94b76e2914b33b1ea768"
+  },
+  {
+   "path": "ABUSE/SFX/AMB11.WAV",
+   "bytes": 20486,
+   "sha256": "3faccbc43e6e2bb6de59cb97efe776da83fdd361a12a46cc0fb484e97aad0c85"
+  },
+  {
+   "path": "ABUSE/SFX/AMB13.WAV",
+   "bytes": 20776,
+   "sha256": "19c85014b3a22c1a6038f2637cd2eff7f7ab083996ac42252151a050f7b7957c"
+  },
+  {
+   "path": "ABUSE/SFX/AMB15.WAV",
+   "bytes": 16074,
+   "sha256": "0ac042a4608f5fa907a27e2055ced082b2ccfa13cfa63efcd3012096b172d85f"
+  },
+  {
+   "path": "ABUSE/SFX/AMB16.WAV",
+   "bytes": 17168,
+   "sha256": "fdef75dd1de410e0d440e1a663d39ef8e45e99d86d046f0d7b49aaa65e23c398"
+  },
+  {
+   "path": "ABUSE/SFX/AMBCAVE1.WAV",
+   "bytes": 11918,
+   "sha256": "a4aea9a3be2f96d21211706a3c4ebedbf5219b3929f6e07a699cbb6f7f7acbfc"
+  },
+  {
+   "path": "ABUSE/SFX/AMBCAVE2.WAV",
+   "bytes": 18740,
+   "sha256": "3a7ee877f86003c24e41fac632d304f71ffc675d082473f4ae05ad7f7c046c95"
+  },
+  {
+   "path": "ABUSE/SFX/AMBCAVE3.WAV",
+   "bytes": 21850,
+   "sha256": "9cbf6d6aaf4e5fcaadff5f33264b433a86b560c0d7cb15a2896dd11a9339d5d2"
+  },
+  {
+   "path": "ABUSE/SFX/AMBCAVE4.WAV",
+   "bytes": 13778,
+   "sha256": "ba911bb3e2bb6f101a4434c4ac54ee0caaaf6d53dfc77f2356a388b5627a2310"
+  },
+  {
+   "path": "ABUSE/SFX/AMBFRST2.WAV",
+   "bytes": 20708,
+   "sha256": "aaae7e3f022d1528733c2f26d6d30e903ce85209adeb94992571afc9a0596c74"
+  },
+  {
+   "path": "ABUSE/SFX/AMBTECH1.WAV",
+   "bytes": 6300,
+   "sha256": "27e6d75ebac438644547ba7225cf56afce8069a971bd00fd561b1786024ae6c4"
+  },
+  {
+   "path": "ABUSE/SFX/AMBTECH2.WAV",
+   "bytes": 15414,
+   "sha256": "8501912dd6a45c0af6a67977a45a4eaaff191dc112be9b8575af7db99ac5f4cb"
+  },
+  {
+   "path": "ABUSE/SFX/AMBTECH3.WAV",
+   "bytes": 7826,
+   "sha256": "4f2a9f4086f1f973f8f34d4bd868b1c04d25b86a9bcc36bacd2401338d688b63"
+  },
+  {
+   "path": "ABUSE/SFX/AMMO01.WAV",
+   "bytes": 6524,
+   "sha256": "ba43a6179bbd8210e7e5cbef9ca1df34e7f9f22e67aa8277388cf20e72ad1fa2"
+  },
+  {
+   "path": "ABUSE/SFX/AMMO02.WAV",
+   "bytes": 1468,
+   "sha256": "207e9042d774b0557b9a9305b0756ae96dd0187aec184aedeec4d3bc435fa4cb"
+  },
+  {
+   "path": "ABUSE/SFX/APAIN01.WAV",
+   "bytes": 5642,
+   "sha256": "491968ba93a82a900b6fdf6691adcfc82ac2915e6e52175549c6399f57075f47"
+  },
+  {
+   "path": "ABUSE/SFX/ASLASH01.WAV",
+   "bytes": 2822,
+   "sha256": "7ff33fcfb489784f0cf58498e87c196ad611ff89569162bcb97fab616b67ac0f"
+  },
+  {
+   "path": "ABUSE/SFX/BALL01.WAV",
+   "bytes": 11508,
+   "sha256": "94073c680acede3ed5153f89ab8638c37b1e02f48b21d845b7785114dd199185"
+  },
+  {
+   "path": "ABUSE/SFX/BLKFOOT4.WAV",
+   "bytes": 10342,
+   "sha256": "2ad66003204581eb98d07d72cb083479bd4f749466328574fed9cacf8c948a96"
+  },
+  {
+   "path": "ABUSE/SFX/BUTTON02.WAV",
+   "bytes": 4616,
+   "sha256": "eb67efdaff0e91c9e3c4bf4b82890c12cc7548824347a2cb79a56013d8cb2e78"
+  },
+  {
+   "path": "ABUSE/SFX/CLEANER.WAV",
+   "bytes": 9852,
+   "sha256": "0119d22e269ecf699098ccd9e5cce4869110e34ebfacfee01d83707097990ca0"
+  },
+  {
+   "path": "ABUSE/SFX/CRMBLE01.WAV",
+   "bytes": 18254,
+   "sha256": "29973a6e94554992451982b2be1c175f2d05ee6f0841a2cbbea478ca4fe6c293"
+  },
+  {
+   "path": "ABUSE/SFX/DELOBJ01.WAV",
+   "bytes": 14136,
+   "sha256": "aa9e48d5c3665e75544949b85ac9db98b814847f3bcd447d2bcadc7a948ba643"
+  },
+  {
+   "path": "ABUSE/SFX/DOORUP01.WAV",
+   "bytes": 6040,
+   "sha256": "bccca44e28babd68fef3fc54bd28264914f254e88a0e7711b5b6f4df5575380d"
+  },
+  {
+   "path": "ABUSE/SFX/DOORUP02.WAV",
+   "bytes": 4958,
+   "sha256": "c9bf3f4b437dd6ffe45688a4bfa0d00cbb506050de803c5ae953f3599aba6c24"
+  },
+  {
+   "path": "ABUSE/SFX/ELEACC01.WAV",
+   "bytes": 10634,
+   "sha256": "9dd48b234614a08122200d080abf291a7fd40093ed420c4a20db40fa880df351"
+  },
+  {
+   "path": "ABUSE/SFX/ELECT02.WAV",
+   "bytes": 10964,
+   "sha256": "f85890d81bced74af282353b23f52e27b22d904609a9bf88f4634986cd05a049"
+  },
+  {
+   "path": "ABUSE/SFX/ELEDEC01.WAV",
+   "bytes": 11034,
+   "sha256": "dea65302106e415b9ebf2d16c7e185744d12cebc4bd1dc0cfce54e2ffe734db2"
+  },
+  {
+   "path": "ABUSE/SFX/ENDLVL02.WAV",
+   "bytes": 11468,
+   "sha256": "a7b155a766af325a92f6eec866d2d04ea670d88f6f1299c9206fcdb121d1367c"
+  },
+  {
+   "path": "ABUSE/SFX/EXPLOD02.WAV",
+   "bytes": 29860,
+   "sha256": "e998f84b71604a9bbd0e63b3c95fbb6493c18fbad56eead61f75596c9f0d253e"
+  },
+  {
+   "path": "ABUSE/SFX/FADEON01.WAV",
+   "bytes": 11118,
+   "sha256": "c7f34989d7613e6b32fd38f2515c49e6ebe1ef7303fefddc675cb9a334347dd4"
+  },
+  {
+   "path": "ABUSE/SFX/FIREBMB1.WAV",
+   "bytes": 12856,
+   "sha256": "2a26d99cadb69f52bd814807989b19a49332ca060132d559e8510e5613038dc6"
+  },
+  {
+   "path": "ABUSE/SFX/FLAMLOOP.WAV",
+   "bytes": 27764,
+   "sha256": "f1739138cb1a95aaa1a040719764be4b340eb6d27ce7de22eacb8d5a6b8ed5b3"
+  },
+  {
+   "path": "ABUSE/SFX/FLY03.WAV",
+   "bytes": 2838,
+   "sha256": "b5682dea1697f88e524a76ef9ddd818a39849135aef8af1498ddd78338cb09c5"
+  },
+  {
+   "path": "ABUSE/SFX/FORCE01.WAV",
+   "bytes": 7678,
+   "sha256": "571885d6f1b3f76b2c97372cb0291cca3220128c152ac8ed3ead6929e772a112"
+  },
+  {
+   "path": "ABUSE/SFX/GRENAD01.WAV",
+   "bytes": 24980,
+   "sha256": "a30f30ad2e51657e0c1f631feace2361473a676f43b38bf9b45f8ac0958a36aa"
+  },
+  {
+   "path": "ABUSE/SFX/HEALTH01.WAV",
+   "bytes": 3520,
+   "sha256": "1dde9bb4c794f97e87d8cc85c76e3b8af127fb217fcbf670a120910fb51729ed"
+  },
+  {
+   "path": "ABUSE/SFX/LASRMIS2.WAV",
+   "bytes": 2662,
+   "sha256": "80f4344c7c3f8c72bc9067df0ca0e5cf38c2cf3d2d61c038678ddd01b225623d"
+  },
+  {
+   "path": "ABUSE/SFX/LAVA01.WAV",
+   "bytes": 38588,
+   "sha256": "d42047a4f51890c6d06a9912f5eca9e90f846c3790084010b0041780cfc66486"
+  },
+  {
+   "path": "ABUSE/SFX/LINK01.WAV",
+   "bytes": 12566,
+   "sha256": "cd49f9dd61352887962c85c560d4a156328c93b8bc60120968d98df46f746561"
+  },
+  {
+   "path": "ABUSE/SFX/LOGO09.WAV",
+   "bytes": 27692,
+   "sha256": "3b3df7d2968162aa5654e969d407853c07405e1124475510eb2bec0a86b60aa5"
+  },
+  {
+   "path": "ABUSE/SFX/METAL.WAV",
+   "bytes": 5886,
+   "sha256": "82978f0e421b2daed3e874381e88791ed55cb6463bf6bdfa1802968396a50b81"
+  },
+  {
+   "path": "ABUSE/SFX/MGHIT01.WAV",
+   "bytes": 4370,
+   "sha256": "9f1e880e99096219ba608081f8ed201fe238b36dde053bfb5e36a87676c0e913"
+  },
+  {
+   "path": "ABUSE/SFX/MGHIT02.WAV",
+   "bytes": 6484,
+   "sha256": "f104c410b6e8f3a811727a53c256144a7df18c03470b650fcf12ceef0b6fbf60"
+  },
+  {
+   "path": "ABUSE/SFX/PLAND01.WAV",
+   "bytes": 2262,
+   "sha256": "5f1434418dbc1d68631c205f46aa03f3edd296320aca1b4fcd7421cd38e49aab"
+  },
+  {
+   "path": "ABUSE/SFX/PLASMA02.WAV",
+   "bytes": 8062,
+   "sha256": "2effa714a9f659489840150bd44be7821f8ce23578994954e645550cbdd95384"
+  },
+  {
+   "path": "ABUSE/SFX/PLASMA03.WAV",
+   "bytes": 8062,
+   "sha256": "745700a14fecd8e2a94af079726bedc7d55f568da2cff6e7ae5624d66a619535"
+  },
+  {
+   "path": "ABUSE/SFX/PLDETH02.WAV",
+   "bytes": 17020,
+   "sha256": "3aafd325847b307235d06818fce50c7053095cafe96a8f008139496c086eedda"
+  },
+  {
+   "path": "ABUSE/SFX/PLDETH04.WAV",
+   "bytes": 11410,
+   "sha256": "231bd324c07fa4bf6b2b42951bc9dcd3cb71cd04b6947e95c7416ee3b5d2d959"
+  },
+  {
+   "path": "ABUSE/SFX/PLDETH05.WAV",
+   "bytes": 14748,
+   "sha256": "acdc0196e1922b996dfb20ea99a64c9a969cdba5cc7ca3887de65089edebf0c6"
+  },
+  {
+   "path": "ABUSE/SFX/PLDETH07.WAV",
+   "bytes": 10738,
+   "sha256": "505a90904cb8fa615f3b0dbda2b3f0fe74ea24a641e7c5c13a4b5fd2e99820a2"
+  },
+  {
+   "path": "ABUSE/SFX/PLPAIN01.WAV",
+   "bytes": 3774,
+   "sha256": "f16941fc4c6ca3ffe820ce241fea85512c9066f944c10b1093706bbd74c839c8"
+  },
+  {
+   "path": "ABUSE/SFX/PLPAIN02.WAV",
+   "bytes": 5036,
+   "sha256": "484d939485badf63bef04a2b31c3302a5a6a3763d5ae480363e15cf2040d3ce4"
+  },
+  {
+   "path": "ABUSE/SFX/PLPAIN04.WAV",
+   "bytes": 4548,
+   "sha256": "1fe1f90e5fdbba29c0f401bfa22bf62cc3d3ff9e65fd9f908dbbe97d48d7da3b"
+  },
+  {
+   "path": "ABUSE/SFX/PLPAIN10.WAV",
+   "bytes": 6192,
+   "sha256": "ced01f14ec86e90c7ef461e6bb5d76bef077dc42128978bb6ab062e05a1bbe86"
+  },
+  {
+   "path": "ABUSE/SFX/POOF05.WAV",
+   "bytes": 4988,
+   "sha256": "ca178f49215e13d77d59239a401506152b1495f7063b153eed9261fd93cfdc4e"
+  },
+  {
+   "path": "ABUSE/SFX/POOF06.WAV",
+   "bytes": 4988,
+   "sha256": "44d2546c5125bde8221c70a6dcc4fdc483447eff6411093dd9e05c3dc2a99bdb"
+  },
+  {
+   "path": "ABUSE/SFX/ROBOT02.WAV",
+   "bytes": 5572,
+   "sha256": "94ab6cccf65e0f71ba351b231e3868ba2b500891051563a570c0ff6693f30432"
+  },
+  {
+   "path": "ABUSE/SFX/ROCKET02.WAV",
+   "bytes": 10456,
+   "sha256": "7f23a24fa3009d611bc6974970e2526ea03eba20e1a600883a2322481f72199c"
+  },
+  {
+   "path": "ABUSE/SFX/SAVE01.WAV",
+   "bytes": 14266,
+   "sha256": "7bbb7b156d5ee029e35c07e965d40c0cc4873bf9dfbc6b7408d48c6fb31602f2"
+  },
+  {
+   "path": "ABUSE/SFX/SAVE05.WAV",
+   "bytes": 24566,
+   "sha256": "fe23b47ff79ba57ae4aea287ce99823b53fe9769e439eca6f3f4b19eab7f9865"
+  },
+  {
+   "path": "ABUSE/SFX/SCREAM02.WAV",
+   "bytes": 23556,
+   "sha256": "a99576a84f43a41e45d346fabebaa5636d09e7aa3709fb4f47c32f8f39b43ecc"
+  },
+  {
+   "path": "ABUSE/SFX/SCREAM03.WAV",
+   "bytes": 25844,
+   "sha256": "2c23f673c1041667a92267c13ac0fcb8f2e53088b54cf70ecf139c236ffa2a50"
+  },
+  {
+   "path": "ABUSE/SFX/SCREAM08.WAV",
+   "bytes": 14724,
+   "sha256": "55b972895b5d41dbe5c7cc7893dbf762a6aad29d49a00ae89f28c8065b3d340e"
+  },
+  {
+   "path": "ABUSE/SFX/SHOTGN31.WAV",
+   "bytes": 5052,
+   "sha256": "45af63ae6b495e1a112b949b2e6400f3f80adbb56ecbe2a9d922984616a7787f"
+  },
+  {
+   "path": "ABUSE/SFX/SPEED02.WAV",
+   "bytes": 4050,
+   "sha256": "3fcb75fa4fa8280ac8314ce7c4da2f38a76dcc1e3b55686857c3f09944a8770b"
+  },
+  {
+   "path": "ABUSE/SFX/SPRING03.WAV",
+   "bytes": 8130,
+   "sha256": "66b21b81a95be26015cef33bc6ff1930f702dca87d3407d2537413b301a9b783"
+  },
+  {
+   "path": "ABUSE/SFX/SWISH01.WAV",
+   "bytes": 10902,
+   "sha256": "a389600958d4be5897503fd18295b4afd7e47c5ab6cfc4981241894cb68f4c36"
+  },
+  {
+   "path": "ABUSE/SFX/SWITCH01.WAV",
+   "bytes": 5056,
+   "sha256": "f7c655d7cb0bc8c27ab0f23d3719133e551018ded6fba7d8b04fd2403dced3c8"
+  },
+  {
+   "path": "ABUSE/SFX/TELEPT01.WAV",
+   "bytes": 15106,
+   "sha256": "b046af9d9fd75a380b80951cd895b315dae3130407e642822f41c1e39dff77f8"
+  },
+  {
+   "path": "ABUSE/SFX/THROW01.WAV",
+   "bytes": 6478,
+   "sha256": "6cfec14cb5e94a8f5a9037dce6ab6b79d345cdea419f6495357d46b025a8d17d"
+  },
+  {
+   "path": "ABUSE/SFX/TIMERFST.WAV",
+   "bytes": 848,
+   "sha256": "99c72c65bfe7e927c5d5c2459b75db5827b9e332ae905886b56fc77c2417b0ec"
+  },
+  {
+   "path": "ABUSE/SFX/ZAP2.WAV",
+   "bytes": 7544,
+   "sha256": "030c9bd4dfeaac63e225eaab0b11a8e88cdcd0b9dde4aa384ed2eaf21f7fcdda"
+  },
+  {
+   "path": "ABUSE/SFX/ZAP3.WAV",
+   "bytes": 9448,
+   "sha256": "74cbf93675d5c97005be2d0342bc49dec46b774f22218a58d2e016758ad7fa1e"
+  },
+  {
+   "path": "ABUSE/SNDCARD.CFG",
+   "bytes": 236,
+   "sha256": "964a267da957c339a7d019240233d25902117b2f950507729e7fe527460199a2"
+  },
+  {
+   "path": "ABUSE/TEST.RAW",
+   "bytes": 40320,
+   "sha256": "d187d0bfd05c16462f66e61eee14cb6e6c3bc2ba48ab09cc5e8b8fdf980698f8"
+  }
+ ],
+ "transformations": [
+  "unzip into reference/private/abuse-box/; chmod a-w. No other change."
+ ],
+ "rightsFlag": "ABUSE/LICENSE.TXT section 1 prohibits modify/translate/disassemble/decompile/reverse engineer/create derivative works of the shareware Software. Info card: License/Permissions 'Not specified'. Conflicts with binary reverse engineering; user decision required before G1 binary analysis.",
+ "unresolved": [
+  "Whether later public-domain source release/permissions supersede the 1995 EULA for this binary",
+  "Original abuse105.zip hash",
+  "observedVersion",
+  "Per-file rights for SFX/music/art"
+ ]
+}

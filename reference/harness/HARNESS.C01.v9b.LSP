@@ -1,0 +1,25 @@
+;; REANIMATOR G3 C01 harness v9b (fire in B1 slot) (work copy only). Fixed fire input, fixed mouse (290,110).
+;; Small functions only (engine pages each user function body into a small user space).
+;; Logs per call: n tick fire objects(level object count via find? no -> focus total_objects)
+;;   focus (x y state aistate xvel) and top half (state aistate angle) and ammo of weapon 0.
+(load "abuse.lsp")
+(perm-space)
+(setq h_n 0)
+(setq h_m "ab")
+(setq h_f "hlog.txt")
+(tmp-space)
+(defun h_fire (n) (and (>= n 30) (< n 60)))
+(defun h_top () (if (> (total_objects) 0) (with_obj0 (list (state) (aistate) (player_angle_suggestion))) nil))
+(defun h_rec (fire)
+  (open_file h_f h_m
+    (print (list h_n (game_tick) (if fire 1 0)
+                 (with_object (bg) (list (x) (y) (state) (aistate) (ammo_total (current_weapon_type)) (h_top)))))))
+(defun h_inc () (perm-space) (setq h_n (+ h_n 1)) (tmp-space))
+(defun get_local_input ()
+  (if (bg)
+      (let ((fire (h_fire h_n)))
+        (h_rec fire)
+        (h_inc)
+        (if (> h_n 100) (quit))
+        (list 0 0 fire nil 0 290 110))
+    (list 0 0 nil nil 0 290 110)))

@@ -1,0 +1,73 @@
+date       time         | 
+2026-11-14 15:17:14.209 | arguments: /Users/men1692/Desktop/AWS/Kiroween2026/.tools/DOSBox\ Staging.app/Contents/MacOS/dosbox --noprimaryconf --conf /Users/men1692/Desktop/AWS/Kiroween2026/docs/evidence/g1/runs/probe5/dosbox.conf
+2026-11-14 15:17:14.209 | Current dir: /Users/men1692/Desktop/AWS/Kiroween2026
+2026-11-14 15:17:14.209 | stderr verbosity: 0
+2026-11-14 15:17:14.209 | -----------------------------------
+2026-11-14 15:17:14.209 | dosbox-staging version 0.83.0 (7b400)
+2026-11-14 15:17:14.209 | ---
+2026-11-14 15:17:14.209 | Loguru version 2.1.0 initialised
+2026-11-14 15:17:14.211 | CONFIG: Deprecated setting 'glshader'
+2026-11-14 15:17:14.211 | CONFIG: The 'glshader' setting is deprecated but still accepted; please use 'shader' instead.
+2026-11-14 15:17:14.211 | CONFIG: Deprecated setting 'cycles'
+2026-11-14 15:17:14.211 | CONFIG: The 'cycles' setting is deprecated but still accepted; please use 'cpu_cycles', 'cpu_cycles_protected' and 'cpu_throttle' instead.
+2026-11-14 15:17:14.211 | CONFIG: Loaded custom config file '/Users/men1692/Desktop/AWS/Kiroween2026/docs/evidence/g1/runs/probe5/dosbox.conf'
+2026-11-14 15:17:14.214 | LOCALE: Using internal English language messages (detected from 'ko-KR; GUI: en-KR')
+2026-11-14 15:17:14.285 | SDL: Version 2.32.10 initialised
+2026-11-14 15:17:14.285 | SDL: cocoa video initialised
+2026-11-14 15:17:14.401 | VIDEO: Using the DOS video modes' refresh rate
+2026-11-14 15:17:14.401 | DOS: Setting hard disk disk speed to maximum
+2026-11-14 15:17:14.401 | DOS: Setting floppy disk speed to maximum
+2026-11-14 15:17:14.403 | MEMORY: Using 4096 DOS memory pages (16 MB) at address: 0x68ec00000
+2026-11-14 15:17:14.403 | FPU: Using reduced-precision floating-point emulation
+2026-11-14 15:17:14.403 | VIDEO: Initialised S3 Trio64 VESA 2.0 compatible with 4 MB of FP DRAM supporting 89 modes
+2026-11-14 15:17:14.404 | VOODOO: Initialized with 4 MB of RAM, 16 threads, and bilinear filtering
+2026-11-14 15:17:14.404 | CAPTURE: Image capturer started
+2026-11-14 15:17:14.404 | MIXER: Sound output disabled ('nosound' mode)
+2026-11-14 15:17:14.404 | MIXER: Reverb disabled
+2026-11-14 15:17:14.404 | MIXER: Master compressor enabled
+2026-11-14 15:17:14.404 | MPU-401: Running in intelligent mode on ports 330h and 331h
+2026-11-14 15:17:14.987 | MIDI: Opened device 'coremidi'
+2026-11-14 15:17:14.987 | OPL: Operating at 49716 Hz and downsampling to the output rate
+2026-11-14 15:17:14.987 | OPL: Noise gate enabled
+2026-11-14 15:17:14.987 | OPL: Running OPL3 on ports 220h and 388h
+2026-11-14 15:17:14.987 | OPL: Sound Blaster 16 OPL output filter enabled
+2026-11-14 15:17:14.987 | DMA: Initialised primary controller
+2026-11-14 15:17:14.987 | DMA: Initialised secondary controller
+2026-11-14 15:17:14.987 | SB: Operating at 22050 Hz and upsampling to the output rate
+2026-11-14 15:17:14.987 | SB16: Modern DAC output filter enabled
+2026-11-14 15:17:14.987 | SB16: Setting 'BLASTER' environment variable to 'A220 I7 D1 H5 T6'
+2026-11-14 15:17:14.987 | SB16: Running on port 220h, IRQ 7, DMA 1, and high DMA 5
+2026-11-14 15:17:14.992 | LOCALE: Country detected from 'en-KR'
+2026-11-14 15:17:14.992 | LOCALE: Loading native locale for country 99 - 'Asia (English)'
+2026-11-14 15:17:14.992 | LOCALE: Using numeric/time/date format detected from host OS
+2026-11-14 15:17:14.992 | LOCALE: Keyboard layout and code page detected from '252 (ABC)'
+2026-11-14 15:17:14.992 | LOCALE: Loaded keyboard layout 'us' - 'US (standard, QWERTY/national)'
+2026-11-14 15:17:15.051 | CONFIG: Loaded auto-mounted drive config file '/Users/men1692/Desktop/AWS/Kiroween2026/.tools/DOSBox Staging.app/Contents/Resources/drives/y.conf'
+2026-11-14 15:17:15.051 | AUTOEXEC: Using autoexec from one or more joined sections
+2026-11-14 15:17:15.051 | DISPLAY: Using 960x720 window size in windowed mode on display-0
+2026-11-14 15:17:15.085 | OPENGL: Version: 4.1, GLSL version: 4.10, vendor: Apple
+2026-11-14 15:17:15.088 | RENDER: Using shader 'interpolation/bilinear'
+2026-11-14 15:17:15.089 | VGA: Double scanning VGA video modes enabled
+2026-11-14 15:17:15.089 | VGA: Pixel doubling enabled
+2026-11-14 15:17:15.089 | RENDER: Auto-switched to P22 CRT color profile
+2026-11-14 15:17:15.089 | RENDER: Auto-switched to 7800K colour temperature
+2026-11-14 15:17:15.089 | MOUSE: Will be captured after the first left or right button click
+2026-11-14 15:17:15.089 | MOUSE: Middle button will capture/release the mouse (clicks not sent to the game/program)
+2026-11-14 15:17:15.089 | RENDER: Deinterlacing disabled
+2026-11-14 15:17:15.089 | RENDER: Dedithering disabled
+2026-11-14 15:17:15.098 | MAPPER: No joysticks found
+2026-11-14 15:17:15.099 | MAPPER: Loaded default key bindings
+2026-11-14 15:17:15.165 | RENDER: Auto-switched to P22 CRT color profile
+2026-11-14 15:17:15.165 | RENDER: Auto-switched to 7800K colour temperature
+2026-11-14 15:17:15.171 | DISPLAY: VGA 720x400 16-colour text mode 03h at 70.087 Hz, scaled to 1920x1440 pixels with 1:1.35 (20:27) pixel aspect ratio
+2026-11-14 15:17:15.171 | DISPLAY: Presenting at DOS rate without vsync
+2026-11-14 15:17:15.173 | MOUSE (DOS): Built-in driver is simulating a 2 buttons model
+2026-11-14 15:17:17.356 | SB16: Resetting DSP
+2026-11-14 15:17:20.523 | DISPLAY: VGA 320x200 256-colour graphics mode 13h at 70.086 Hz, scaled to 1920x1440 pixels with 1:1.2 (5:6) pixel aspect ratio
+2026-11-14 15:17:47.580 | OPL: Shutting down OPL3
+2026-11-14 15:17:47.580 | SB16: Shutting down
+2026-11-14 15:17:47.581 | MPU-401: Shutting down
+2026-11-14 15:17:47.581 | CAPTURE: Image capturer shutting down
+2026-11-14 15:17:47.581 | DMA: Shutting down primary controller
+2026-11-14 15:17:47.581 | DMA: Shutting down secondary controller
+2026-11-14 15:17:47.594 | atexit
