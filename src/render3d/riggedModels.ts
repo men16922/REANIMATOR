@@ -30,6 +30,8 @@ export interface RiggedInstance {
   mixer: THREE.AnimationMixer;
   actions: Partial<Record<ActorAnimAction, THREE.AnimationAction>>;
   currentAnim: ActorAnimAction;
+  /** Rest-pose quaternions of additively tweaked bones (spine/head), captured on first step */
+  restRot?: Map<THREE.Object3D, THREE.Quaternion>;
   materials: THREE.MeshStandardMaterial[];
   baseEmissive: THREE.Color[];
   hips?: THREE.Object3D;
@@ -471,6 +473,14 @@ export function stepRiggedAnimation3D(
       active.timeScale = inst.currentAnim === 'run' || inst.currentAnim === 'walk' ? timeScale : 1;
     }
   }
+
+  // Additive spine/head tweaks must start from the rest pose each frame; otherwise bones that the active clip
+  // does not animate accumulate rotation frame after frame (the head spinning). Animated tracks overwrite this.
+  if (!inst.restRot) {
+    inst.restRot = new Map();
+    for (const b of [inst.spine, inst.spine1, inst.spine2, inst.head]) if (b) inst.restRot.set(b, b.quaternion.clone());
+  }
+  for (const [b, q] of inst.restRot) b.quaternion.copy(q);
 
   inst.mixer.update(dt);
 
