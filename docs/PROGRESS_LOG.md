@@ -1,5 +1,18 @@
 # 진행 기록
 
+## 2026-11-15 — 사망 화면 체크포인트 복귀 안내 보강 (Kiro)
+- Status: 구현 완료, 로컬 커밋(푸시 보류).
+- Changed: `index.html`(`#resume-save` 버튼), `src/ui/main.ts`(공용 `resumeAtSave()`, 버튼·`C` 키 공유, 저장 없으면 "Play again restarts" 안내), `src/ui/style.css`. 봉인 파일 무변경, `w.light` 미참조.
+- Verified: `make check` exit 0(dist-guard PASS). `make smoke-local`은 Chrome 실행 불가(NOT RUN)로 unverified.
+- Next: 사람 플레이(G5)에서 사망 화면 흐름 확인.
+
+## 2026-11-15 — 렌더 자연스러움 보정: 턴·점프 포즈·머리 회전 (Kiro)
+- Status: 후속 수정 커밋 `e15e9a0`, `d13ea1e`(로컬, 미푸시). 사람 눈 확인(G5)은 미실시.
+- Changed: `src/render3d/scene3dFull.ts`(부드러운 방향 전환, 공중 0.1 s 디바운스 점프 포즈, 플레이어 보조 PointLight 1개), `src/render3d/riggedModels.ts`(척추·머리 가산 회전을 매 프레임 기본 자세에서 시작).
+- Verified: `make check` 44/44, `make smoke-local` 29/29(60.5 fps), 쇼케이스 재생성. 머리 회전 수정은 600틱 후 캡처로 각도 정상 확인(단, 그 캡처는 사망 자세). 살아서 장시간 움직일 때는 unverified.
+- Blockers: 푸시 승인 대기, 사람 플레이 필요. 로컬 dev 서버 `http://localhost:5173/` 기동 중.
+- Next: 사람이 움직임(머리·턴·점프)을 보고 피드백 → 필요 시 추가 보정.
+
 ## 2026-11-15 — Side-View Metroidvania Wave 2–3 완료 (Kiro)
 - Status: 전체 파이프라인 연결 완료, 게이트·스모크·쇼케이스 통과, 로컬 커밋(푸시 보류).
 - Changed: `src/game3d/{world3d,bot3d,nav3d}.ts`, `src/render3d/{scene3dFull,fallback2d}.ts`, `src/ui/main.ts`, `tools/game/{reach3d,playthrough}.ts`, `tools/smoke/{smoke,capture-showcase}.ts`, `tests/game3d.test.ts`, spec tasks, steering, `docs/*`.

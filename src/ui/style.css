@@ -52,6 +52,8 @@ canvas { display: block; }
 h1 { font-size: clamp(28px, 5vw, 56px); letter-spacing: 0.18em; margin: 0; color: #eef5fc; text-shadow: 0 4px 18px rgba(70, 195, 255, 0.3); }
 button { font: inherit; padding: 0.55em 1.5em; background: #182332; color: #e8f1fa; border: 1px solid #5982a8; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, background 0.15s; }
 button:hover { border-color: #6ce8ff; background: #203147; }
+button[hidden] { display: none; }
+button#resume-save { background: #1c3a4f; border-color: #5ee7ff; font-weight: 700; }
 button#play { background: #1c3a4f; border-color: #5ee7ff; font-weight: 700; padding: 0.65em 2.2em; }
 button:focus-visible { outline: 2px solid #f2d36b; outline-offset: 2px; }
 button.link { background: none; border: none; text-decoration: underline; color: #8ec5ff; padding: 0.25em 0.5em; }

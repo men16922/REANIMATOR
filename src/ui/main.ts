@@ -283,8 +283,11 @@ function frame(t: number): void {
       if (world.status !== 'playing') {
         const secs = (world.tick / SIM_HZ_3D).toFixed(1);
         ui.resultTitle.textContent = world.status === 'won' ? 'Escaped with the core' : 'Signal lost';
-        const cp = world.status === 'lost' && world.lastSaveId ? ' · press C to resume at the last Save station' : '';
+        const lost = world.status === 'lost';
+        const canResume = lost && !!world.lastSaveId;
+        const cp = lost ? (canResume ? ' · press C or use the button to resume at the last Save station' : ' · no Save station reached yet, Play again restarts the run') : '';
         ui.resultDetail.textContent = `${secs}s · ${world.player.kills} hostiles eliminated · weapon [${WEAPON_META[world.player.weapon].name}]${cp}`;
+        $('resume-save').hidden = !canResume;
         if (world.status === 'lost') sfx.lose();
         show('result');
         break;
@@ -295,6 +298,14 @@ function frame(t: number): void {
   renderWorld(mode === 'playing' && !manualHold ? Math.min(1, acc * SIM_HZ_3D) : 1);
   hud();
   requestAnimationFrame(frame);
+}
+
+function resumeAtSave(): boolean {
+  if (mode !== 'result' || world.status !== 'lost' || !world.lastSaveId) return false;
+  respawnPlayer3D(world);
+  releaseInput();
+  show('playing');
+  return true;
 }
 
 // ---- Input Listeners ----
@@ -311,10 +322,7 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     return;
   }
-  if (mode === 'result' && e.code === 'KeyC' && world.status === 'lost' && world.lastSaveId) {
-    respawnPlayer3D(world);
-    releaseInput();
-    show('playing');
+  if (mode === 'result' && e.code === 'KeyC' && resumeAtSave()) {
     e.preventDefault();
     return;
   }
@@ -387,6 +395,7 @@ for (const id of ['volume', 'volume-p']) {
   });
 }
 $('restart').addEventListener('click', start);
+$('resume-save').addEventListener('click', () => { resumeAtSave(); });
 $('restart-p').addEventListener('click', start);
 $('resume').addEventListener('click', () => {
   manualHold = false;
