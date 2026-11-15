@@ -73,7 +73,7 @@ import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
 import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
 import { reactorPulse } from './mood3d.ts';
 import { bossCameraBlend, bossFramingWanted } from './bossCamera.ts';
-import { CAM_BASE_DIST, clampFocusToRect, dynamicZoomTarget, frameHalfExtents, FrameRectSmoother, rectIncludingPlayer, sectorCameraHint, stepZoom, verticalFocusOffset } from './cameraFrame.ts';
+import { CAM_BASE_DIST, clampFocusToRect, dynamicZoomTarget, frameHalfExtents, FrameRectSmoother, rectIncludingPlayer, ROOM_EASE_MAX_SPEED, ROOM_EASE_RATE, sectorCameraHint, stepZoom, verticalFocusOffset } from './cameraFrame.ts';
 import { applyFrontLift } from './frontLift.ts';
 import { mergeStaticChildren } from './meshMerge.ts';
 import { buildHazards3D, type Hazards3D } from './hazards3d.ts';
@@ -375,6 +375,8 @@ export class Scene3DRenderer {
   private bossFrameK = 0;
   private readonly frameRect = new FrameRectSmoother();
   private camZoomK = 1;
+  /** R14: sector framing hint eased across room changes (the Shaft's 1.14x pull-back used to pop in one frame). */
+  private camHint: { distMul: number; screenY: number } | null = null;
   private readonly camProbe = new THREE.Vector3();
   private camRoomClamp = false;
   private camPlayerScreenY = 0.5;
@@ -1108,6 +1110,7 @@ export class Scene3DRenderer {
     this.ambientLife = null;
     this.vista = null;
     this.frameRect.reset();
+    this.camHint = null;
     this.mood?.dispose();
     this.mood = null;
     this.hazards3d?.dispose();
@@ -2518,7 +2521,14 @@ export class Scene3DRenderer {
     this.fx.update(dt * this.fxTimeScale, w);
     this.frameMs.fx = performance.now() - fxT0;
     // Vertical composition: the player sits at ~42% from the bottom (sector hint may lower it); room clamp comes after boss framing.
-    const hint = sectorCameraHint(w.currentRoom);
+    const hintTarget = sectorCameraHint(w.currentRoom);
+    if (!this.camHint || this.reduceMotion) this.camHint = { ...hintTarget };
+    else {
+      const k = 1 - Math.exp(-Math.max(0, dt) * 3);
+      this.camHint.distMul += (hintTarget.distMul - this.camHint.distMul) * k;
+      this.camHint.screenY += (hintTarget.screenY - this.camHint.screenY) * k;
+    }
+    const hint = this.camHint;
     const anchorY = py + 0.9 + verticalFocusOffset(this.camHalfH, hint.screenY);
     this.fx.rig.update(dt, px, anchorY, p.body.vx, p.aimX - px, p.aimY - py, p.body.grounded);
     this.camFocus.set(this.fx.rig.fx, this.fx.rig.fy, 0);
@@ -2552,7 +2562,8 @@ export class Scene3DRenderer {
     {
       // Room clamp: keep the frustum inside the (smoothed) room rectangle; narrow rooms are centered. Skipped for the intro pan.
       if (room) {
-        const smoothed = this.frameRect.update(dt, { minX: room.minX, maxX: room.maxX, minY: room.minY, maxY: room.maxY }, px, py);
+        // R14: a room change pans at most 16 m/s (Reduce motion cuts instead); rectIncludingPlayer keeps the operative in frame.
+        const smoothed = this.frameRect.update(dt, { minX: room.minX, maxX: room.maxX, minY: room.minY, maxY: room.maxY }, px, py, this.reduceMotion ? Infinity : ROOM_EASE_RATE, ROOM_EASE_MAX_SPEED);
         const ext = frameHalfExtents(camDistZ, this.baseFov, this.camera.aspect);
         const rect = rectIncludingPlayer(smoothed, px, py, ext.halfW, ext.halfH);
         this.camHalfH = ext.halfH;

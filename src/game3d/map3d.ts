@@ -414,7 +414,7 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'e-esc-1', kind: 'stalker', x: 64.0, y: 0, z: 0, zone: 'biolabs' },
     { id: 'e-esc-2', kind: 'crawler', x: 49.0, y: 0, z: 0, zone: 'biolabs' },
     { id: 'e-esc-3', kind: 'spitter', x: 33.0, y: 0, z: 0, zone: 'shaft' },
-    { id: 'e-esc-4', kind: 'crawler', x: 39.5, y: 0, z: 0, zone: 'shaft' },
+    { id: 'e-esc-4', kind: 'crawler', x: 39.0, y: 0, z: 0, zone: 'shaft' },
     { id: 'e-esc-5', kind: 'spitter', x: 9.0, y: 5.2, z: 0, zone: 'airlock' },
     // Round 4 lift ambush: dead until the cargo lift passes y -9 on its way up
     { id: 'e-lift-1', kind: 'crawler', x: 27.2, y: -4.4, z: 0, zone: 'shaft' },

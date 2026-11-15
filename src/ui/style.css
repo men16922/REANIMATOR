@@ -131,6 +131,8 @@ body.meltdown-calm.hunter-alarm #hud::after { animation: none; }
 #sector-card { position: absolute; left: 8%; bottom: 22%; pointer-events: none; display: flex; flex-direction: column; gap: 0.15em; opacity: 0; text-shadow: 0 2px 12px #000; }
 #sector-card[hidden] { display: none; }
 #sector-card.show { animation: card-in 4.2s ease both; }
+body.reduce-fx #sector-card.show { animation: card-fade 4.2s linear both; }
+@keyframes card-fade { 0% { opacity: 0; } 8% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
 @keyframes card-in { 0% { opacity: 0; transform: translateX(-1.5em); } 12% { opacity: 1; transform: none; } 78% { opacity: 1; } 100% { opacity: 0; transform: translateX(1em); } }
 .sc-eyebrow { font-size: 0.8em; letter-spacing: 0.4em; color: var(--c-cyan); }
 #sector-card h3 { margin: 0; font-size: 2.6em; letter-spacing: 0.16em; font-weight: 600; color: #f2f8ff; border-bottom: 1px solid var(--c-line); padding-bottom: 0.1em; }
@@ -419,6 +421,7 @@ body.reduce-fx .wpn-slot.switch { animation: none; }
   .logo-svg *, #title .scan, #title .scan::after, button.mi .mi-mark, .tagline, #title-menu, .letterbox, .vitals path, .dots::after, #hud.hit, #result.won { animation: none; }
   .logo-svg .wm-glow, .logo-svg .heart-glow { opacity: 0.4; }
   #loading { transition: none; }
+  #sector-card.show { animation: card-fade 4.2s linear both; }
 }
 
 /* ---- Classic View (1996): original pixel status strip, crosshair cursor, transition overlay (see docs/R3_CLASSIC.md) ---- */

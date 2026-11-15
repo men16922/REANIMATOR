@@ -58,7 +58,8 @@ test('Normal is the identity preset and keeps the pinned bot result', () => {
   // R12 fix (foes drop from crates, hold counts from wake-up): 5123 / HP 118. Before: 5444 / 140.
   // R13 integration (separation slides at most 0.07 m/tick, knockback launch capped at 12 m/s, foes wait behind a
   // stalled foe instead of shoving it): 5208 / HP 126. Before: 5123 / 118 with 45 enemy pops over 0.2 m.
-  assert.equal(w.tick, 5208);
+  // R14 room transitions (0.7 s walk-through at side doors, 2.5 s entry grace within 14 m): 4978 / HP 126.
+  assert.equal(w.tick, 4978);
   assert.equal(w.player.hp, 126);
   assert.equal(deaths, 0);
   const d = newWorld3D();
@@ -68,8 +69,9 @@ test('Normal is the identity preset and keeps the pinned bot result', () => {
 
 test('default reckless probe is unchanged on Normal', () => {
   const r = runReckless(3600);
-  assert.equal(r.hpLost, 281);
-  assert.equal(r.deaths, 2);
+  // R14: the entry grace keeps foes near a door passive for 2.5 s, so the probe walks in safer (was 281 / 2 deaths).
+  assert.equal(r.hpLost, 160);
+  assert.equal(r.deaths, 1);
   assert.deepEqual(r, runReckless(3600, 'normal'));
 });
 
