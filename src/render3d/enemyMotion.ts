@@ -76,6 +76,8 @@ export interface ProcPose {
   sy: number;
   sz: number;
   visible: boolean;
+  /** Extra heading wiggle (rad) added to the body yaw: the single-mesh foes scuttle by swinging side to side */
+  yaw: number;
 }
 
 export const CRAWLER_REF_SPEED = 5;
@@ -100,6 +102,7 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
   let sy = 1;
   let sz = 1;
   let visible = true;
+  let yaw = 0;
 
   if (!p.alive) {
     const t = Math.min(1, p.deathTicks / DEATH_FALL_TICKS);
@@ -115,11 +118,11 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
       lift -= (1 - s) * 0.2;
     }
     visible = p.deathTicks < DEATH_HIDE_TICKS;
-    return { clip: 'death', timeScale: t < 1 ? 1 : 0, lift, pitch, roll, sx, sy, sz, visible };
+    return { clip: 'death', timeScale: t < 1 ? 1 : 0, lift, pitch, roll, sx, sy, sz, visible, yaw: 0 };
   }
 
   if (p.kind === 'crawler') {
-    const run = Math.min(1, p.speed / 6);
+    const run = Math.min(1, p.speed / 4);
     const airborne = Math.abs(p.vy) > 1.2;
     if (p.winding) {
       clip = 'crouch';
@@ -144,21 +147,32 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
     } else if (p.speed > 0.4) {
       clip = 'crawl';
       timeScale = Math.max(0.4, Math.min(1.8, p.speed / CRAWLER_REF_SPEED));
-      const s = Math.sin(p.gait);
-      lift = Math.abs(s) * 0.05 * run;
-      pitch = 0.14 * run + Math.sin(p.gait * 2) * 0.03 * run;
-      roll += s * 0.05 * run;
+      // Single mesh, no bones: the scuttle is a stride-locked body motion. Bob (twice per stride), diagonal roll and
+      // yaw swing (once per stride), nose dip and a stretch/squash surge, all scaled by ground speed.
+      const g = Math.sin(p.gait);
+      const g2 = Math.sin(p.gait * 2);
+      const k = Math.max(0.5, run);
+      lift = Math.abs(g) * 0.13 * k;
+      pitch = 0.14 * k + g2 * 0.09 * k;
+      roll += g * 0.13 * k;
+      yaw = g * 0.2 * k;
+      sz = 1 + g2 * 0.07 * k;
+      sy = 1 - Math.abs(g) * 0.05 * k;
     } else {
       clip = p.alerting ? 'alert' : 'idle';
       // Breathing; alert crouches low and stays tense
       const b = Math.sin(p.tSec * 3 + p.phase);
-      sy = 1 + b * 0.012 - (p.alerting ? 0.08 : 0);
-      sx = sz = 1 - b * 0.006 + (p.alerting ? 0.04 : 0);
-      pitch = p.alerting ? 0.1 : 0;
+      sy = 1 + b * 0.02 - (p.alerting ? 0.08 : 0);
+      sx = sz = 1 - b * 0.01 + (p.alerting ? 0.04 : 0);
+      pitch = (p.alerting ? 0.1 : 0) + Math.sin(p.tSec * 1.3 + p.phase) * 0.04;
+      yaw = Math.sin(p.tSec * 0.9 + p.phase * 2) * 0.08;
+      if (p.alerting) roll += Math.sin(p.tSec * 22) * 0.02;
     }
   } else {
     clip = 'hover';
     lift = 0.05 + Math.sin(p.tSec * 2.2 + p.phase) * 0.12;
+    pitch = Math.sin(p.tSec * 1.6 + p.phase) * 0.07;
+    yaw = Math.sin(p.tSec * 1.1 + p.phase) * 0.12;
     roll += Math.sin(p.tSec * 1.7 + p.phase) * 0.05;
     if (p.winding) {
       clip = 'inflate';
@@ -188,7 +202,7 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
     sy *= 1 - 0.05 * p.recoil;
   }
 
-  return { clip, timeScale, lift, pitch, roll, sx, sy, sz, visible };
+  return { clip, timeScale, lift, pitch, roll, sx, sy, sz, visible, yaw };
 }
 
 export interface EnemyTraceFrame {

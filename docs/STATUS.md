@@ -85,3 +85,8 @@
 
 ## R11 final fix pass
 - Hunter: steel on every material slot (maps dropped, linear-space flash tints cut), armour fitted to the measured torso in bone-local space ([R10_HUNTER](R10_HUNTER.md)). Debug hooks: `__reanimatorAdvance` exits a held showcase/opening (`skipIntro`, frozen or running), `__reanimatorShowcase` drops the loading screen at once. Pause: Escape/P resumes from the root menu, sub-panels step back first, handled before the opening skip. UI chrome is English in every language (`CHROME_LANG`, `chromeLabel()` in `lore.ts`); only story text is KO/EN. `make check` exit 0, 534/534. Browser-checked in Playwright (ko-KR): dark hunter, no floating plates, overlay cleared, Escape toggles, `Logs` label.
+
+## R12 (English only, enemy locomotion)
+
+- All game text is English: `lore.ts` KO tables, locale detection and the LOGS language toggle were removed (`pickLang` always returns `en`; `__reanimatorShowLog` unchanged). README Korean summary removed.
+- Frozen enemies: crawlers, droppers, climbers and spitters are single-mesh GLBs without bones, and their procedural gait moved only 0.05 m / 0.05 rad, which read as a frozen pose. Stalker and warden rigs were already animating (telemetry showed walk/run/attack weights). `proceduralEnemyPose` now drives a stride-locked scuttle (bob, roll, yaw swing, stretch) scaled by ground speed, plus stronger idle motion. Display only. Test: `tests/enemy-locomotion.test.ts`. Visual check in Chrome was limited to telemetry plus one screenshot, no before/after frame comparison (partly unverified).

@@ -2222,10 +2222,10 @@ export class Scene3DRenderer {
         if (Math.abs(sa) > 1e-3) {
           const hh = e.height;
           r.position.set(ex + Math.sin(sa) * hh * 0.5, ey + hh * 0.5 - Math.cos(sa) * hh * 0.5 + lift, 0);
-          r.rotation.set(pitch - (Math.sin(v.yaw) >= 0 ? 1 : -1) * sa, v.yaw, roll);
+          r.rotation.set(pitch - (Math.sin(v.yaw) >= 0 ? 1 : -1) * sa, v.yaw + proc.yaw, roll);
         } else {
           r.position.set(ex, ey + lift, 0);
-          r.rotation.set(pitch, v.yaw, roll);
+          r.rotation.set(pitch, v.yaw + proc.yaw, roll);
         }
         r.scale.set(sx * pulse, sy * pulse, sz * pulse);
         flashMaterials3D(st.materials, st.baseEmissive, flashHex, flashAmt, flashCap);

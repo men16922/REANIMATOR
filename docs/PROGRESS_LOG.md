@@ -72,3 +72,5 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - 오케스트레이터 Playwright 관찰: R9 uiAudit 12개 시나리오 ok, 스캔 윤곽, Vault Nook 발견과 카메라 추적(`8376998`), 콘솔 경고 0. R10/R11 오프닝(레터박스, HUD 없음, 무릎 꿇은 operative, 1996), HUD 한 줄 HUNTER pill, 헌터 외형 개선. `3c8e7a0` 최종 외형은 재확인 전.
 - `__reanimatorAdvance` 후 타이틀 재출현 보고: 실제 Chrome에서 재현 불가(상세 STATUS). 유력 원인은 동시 편집에 의한 Vite 리로드. 코드 변경 없음.
 - Unverified: 패리/카운터 창 체감, G5 사람 플레이, `make smoke-local`(실제 Chrome 필요).
+
+- R12: English-only text (lore KO tables, locale, language toggle removed). Crawler/spitter procedural gait amplified (yaw swing added) so single-mesh enemies visibly move; `tests/enemy-locomotion.test.ts` added; `make check` passed.
