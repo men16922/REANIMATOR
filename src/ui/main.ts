@@ -872,6 +872,10 @@ export interface DebugSetup3D {
   hp?: number;
   aimX?: number;
   aimY?: number;
+  /** Debug: force the Core Warden to phase 1|2|3 (sets HP just inside the phase). */
+  bossPhase?: 1 | 2 | 3;
+  /** Debug: mark the Warden intro as already played (no cinematic). */
+  skipIntro?: boolean;
 }
 
 function applyDebugSetup(w: WorldState3D, o: DebugSetup3D): void {
@@ -894,6 +898,14 @@ function applyDebugSetup(w: WorldState3D, o: DebugSetup3D): void {
   if (o.hp !== undefined) p.hp = o.hp;
   if (o.aimX !== undefined) p.aimX = o.aimX;
   if (o.aimY !== undefined) p.aimY = o.aimY;
+  if (o.skipIntro) w.bossIntroDone = true;
+  if (o.bossPhase) {
+    const wd = w.enemies.find((e) => e.kind === 'warden' && !e.minion);
+    if (wd) {
+      wd.phase = o.bossPhase;
+      wd.hp = Math.floor(wd.maxHp * (o.bossPhase === 1 ? 0.95 : o.bossPhase === 2 ? 0.6 : 0.28));
+    }
+  }
 }
 
 // Read-only test & showcase inspection hooks

@@ -23,6 +23,8 @@ import {
   tryOpenDoor3D,
   type InputState3D,
   type WorldState3D,
+  BOSS_INTRO_TICKS,
+  skipBossIntro3D,
 } from '../src/game3d/world3d.ts';
 import { runReckless } from '../tools/game/difficulty.ts';
 import { buildReachRoute, dashReaches, walkTo } from '../tools/game/reach3d.ts';
@@ -359,6 +361,7 @@ test('Core Warden: shielded core, Phase 2 at <= 2/3 HP, jump dodges shockwave, M
   w.openDoors.add('door_boss');
   w.phase = 'warden';
   place(w, 76, 0);
+  w.bossIntroDone = true;
   w.player.unlocked[4] = true;
   w.player.ammo[4] = 20;
   const warden = w.enemies.find((e) => e.kind === 'warden')!;
@@ -921,6 +924,7 @@ function bossWorld(): { w: WorldState3D; warden: EnemyState3D } {
   w.openDoors.add('door_boss');
   place(w, 76, 0);
   w.currentRoom = 'core';
+  w.bossIntroDone = true; // the intro has its own tests
   w.player.hp = w.player.maxHp = 100000;
   w.player.hurtInvulnTicks = 0;
   const warden = w.enemies.find((e) => e.kind === 'warden')!;
@@ -1201,4 +1205,35 @@ test('extraction ambush: meltdown wakes hold-outs along the escape route and sto
   railShot(w, w.level.corePos.x, 1.4);
   assert.ok(w.coreDestroyed);
   assert.ok(esc.every((e) => e.alive), 'ambush slots are live');
+});
+
+test('Core Warden intro: starts once on core entry, freezes input and boss, is deterministic and skippable', () => {
+  const run = (skipAt: number): { x: number; active: boolean; ticks: number } => {
+    const w = newWorld3D();
+    w.consoleUnlocked = true;
+    w.openDoors.add('door_boss');
+    place(w, 76, 0);
+    const warden = w.enemies.find((e) => e.kind === 'warden')!;
+    let x0 = -1;
+    let introTicks = 0;
+    for (let i = 0; i < 400; i++) {
+      if (i === skipAt) skipBossIntro3D(w);
+      stepWorld3D(w, { ...emptyInput3D(), moveX: 1, aimX: 90, aimY: 1 });
+      if (w.bossIntroTicks > 0) {
+        if (introTicks === 0) x0 = w.player.body.x;
+        introTicks++;
+        assert.equal(warden.active, false, 'boss dormant during the intro');
+        assert.ok(Math.abs(w.player.body.x - x0) < 1, 'player input ignored during the intro (only coasting)');
+      }
+    }
+    return { x: w.player.body.x, active: warden.active, ticks: introTicks };
+  };
+  const a = run(-1);
+  const b = run(-1);
+  assert.deepEqual(a, b, 'identical replays');
+  assert.ok(a.ticks >= BOSS_INTRO_TICKS - 2 && a.ticks <= BOSS_INTRO_TICKS, `intro length ${a.ticks}`);
+  assert.ok(BOSS_INTRO_TICKS <= 240, 'under four seconds at 60 Hz');
+  assert.equal(a.active, true, 'boss wakes after the intro');
+  const s = run(20);
+  assert.ok(s.ticks < 30, 'skip ends the intro quickly');
 });
