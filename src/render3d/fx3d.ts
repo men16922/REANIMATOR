@@ -4,6 +4,7 @@
 // stepWorld3D is untouched. GPU upload lives in fx3dGfx.ts.
 
 import { RAIL_CHARGE_TICKS } from '../game3d/world3d.ts';
+import { chooseMuzzle } from './heroPose.ts';
 import type { EnemyKind3D, EnemyState3D, WorldState3D } from '../game3d/world3d.ts';
 import { PopupPool } from './popups3d.ts';
 import { GoreSim, goreScale, type GoreKind } from './gore3d.ts';
@@ -359,6 +360,8 @@ export class FxDirector {
   readonly gore = new GoreSim();
   /** Smoke columns left by explosions, emitted per frame. */
   private readonly columns: { x: number; y: number; t: number; life: number; r: number }[] = [];
+  /** Rendered weapon muzzle socket (world XY), written by the scene each frame; used for player flashes and beams. */
+  readonly muzzleWorld = { x: 0, y: 0, valid: false };
   /** Last muzzle position and remaining seconds of barrel smoke. */
   private barrel = { x: 0, y: 0, t: 0 };
   readonly alpha = new ParticlePool(700);
@@ -513,7 +516,10 @@ export class FxDirector {
         else if (pr.kind === 'grenade' && !flashedGrenade) { flashedGrenade = true; this.muzzle('grenade', pr.x, pr.y, pr.vx, pr.vy, px); }
       }
       for (const bm of w.beams) {
-        if (bm.id >= this.prevNextId) this.railBeam(bm.x1, bm.y1, bm.x2, bm.y2);
+        if (bm.id >= this.prevNextId) {
+          const mz = chooseMuzzle(this.muzzleWorld, bm.x1, bm.y1);
+          this.railBeam(mz.x, mz.y, bm.x2, bm.y2);
+        }
       }
       for (const ex of w.explosions) {
         if (ex.id >= this.prevNextId) this.onExplosion(ex.x, ex.y, ex.maxRadius, ex.color, px, py);
@@ -922,8 +928,9 @@ export class FxDirector {
       const ax = p.aimX - cx;
       const ay = p.aimY - cy;
       const al = Math.hypot(ax, ay) || 1;
-      const mx = cx + (ax / al) * 1.1;
-      const my = cy + (ay / al) * 1.1;
+      const mz = chooseMuzzle(this.muzzleWorld, cx + (ax / al) * 1.1, cy + (ay / al) * 1.1);
+      const mx = mz.x;
+      const my = mz.y;
       const a = this.rr(0, Math.PI * 2);
       const r = 0.5 + 0.9 * (1 - f);
       const life = 0.14;
@@ -1021,7 +1028,10 @@ export class FxDirector {
     }
   }
 
-  private muzzle(kind: 'pulse' | 'scatter' | 'grenade', x: number, y: number, vx: number, vy: number, px: number): void {
+  private muzzle(kind: 'pulse' | 'scatter' | 'grenade', sx: number, sy: number, vx: number, vy: number, px: number): void {
+    const mz = chooseMuzzle(this.muzzleWorld, sx, sy);
+    const x = mz.x;
+    const y = mz.y;
     const len = Math.hypot(vx, vy) || 1;
     const dx = vx / len;
     const dy = vy / len;

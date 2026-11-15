@@ -18,7 +18,9 @@ import { buildBootsItem, buildEnergyTankItem, buildSaveStation, createHoloMateri
 import { applyPostParams, createFireballMaterial, createGroundWaveMaterial, createPostPass, createShockRingMaterial, ParticleLayer } from './fx3dGfx.ts';
 import type { SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
-import { getPlayerPose3D, skipBossIntro3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
+import { getPlayerPose3D, RAIL_CHARGE_TICKS, skipBossIntro3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
+import { HeroController, type HeroFrame } from './heroPose.ts';
+import { HeroGear } from './heroGear3d.ts';
 import {
   applyEnemyRim3D,
   flashMaterials3D,
@@ -306,6 +308,10 @@ export class Scene3DRenderer {
   private secretDoorIds = new Set<string>();
 
   private operativeRig: RiggedInstance | null = null;
+  private heroGear: HeroGear | null = null;
+  private readonly heroCtl = new HeroController();
+  private heroFrame: HeroFrame | null = null;
+  private heroMuzzle = { x: 0, y: 0, z: 0 };
   private wardenTelegraphRing: THREE.Mesh;
   private readonly enemyViz = new Map<string, EnemyViz>();
   private readonly lungeDecals: THREE.Mesh[] = [];
@@ -595,6 +601,19 @@ export class Scene3DRenderer {
       triangles: this.renderer.info.render.triangles,
       perf: this.getPerfTelemetry(),
       fx: this.fx.telemetry(),
+      player: this.heroFrame && this.heroGear
+        ? {
+            weapon: this.heroFrame.shown,
+            ...this.heroGear.telemetry(),
+            poseState: this.heroFrame.state,
+            recoil: r3(this.heroFrame.recoil),
+            railFrac: r3(this.heroFrame.railFrac),
+            swapping: this.heroFrame.swapping,
+            lower: r3(this.heroFrame.lower),
+            muzzle: { x: r3(this.heroMuzzle.x), y: r3(this.heroMuzzle.y), z: r3(this.heroMuzzle.z) },
+            offsets: Object.fromEntries(Object.entries(this.heroFrame.offsets).map(([k, v]) => [k, r3(v)])),
+          }
+        : null,
       cinematic: {
         active: this.introLast.bars > 0,
         pan: r3(this.introPan),
@@ -1304,6 +1323,9 @@ export class Scene3DRenderer {
     if (this.operativeRig) {
       this.scene.remove(this.operativeRig.root);
       this.operativeRig = null;
+      this.heroGear = null;
+      this.heroFrame = null;
+      this.fx.muzzleWorld.valid = false;
     }
     for (const r of this.riggedEnemies.values()) this.scene.remove(r.root);
     this.riggedEnemies.clear();
@@ -1337,6 +1359,12 @@ export class Scene3DRenderer {
     // Operative with attached Pulse Rifle on RightHand
     this.operativeRig = instantiateRiggedModel3D('operative', 1.82, true);
     this.scene.add(this.operativeRig.root);
+    // Weapon models, headlamp lens and HP pack (meshes only). A cool fresnel rim keeps the silhouette readable in
+    // the darker R3 mood without adding lights.
+    this.heroGear = this.operativeRig.riflePivot ? new HeroGear(this.operativeRig) : null;
+    this.heroCtl.reset(1);
+    applyEnemyRim3D(this.operativeRig.materials, 0x8fdcff, 0.42, 0.06);
+    if (this.heroGear) applyEnemyRim3D(this.heroGear.materials, 0x8fdcff, 0.3, 0.04);
 
     // Enemies
     const enemySpecs = 'enemies' in w && w.enemies ? w.enemies : w.level.enemies;
@@ -1676,8 +1704,34 @@ export class Scene3DRenderer {
               ? 'run'
               : 'idle';
 
-      stepRiggedAnimation3D(rig, desiredAnim, dt, 1.08, 0, p.hp > 0, { ...pose, grounded: pose.grounded || !airborne });
+      const heroFrame = this.heroCtl.step(dt, {
+        hp: p.hp,
+        maxHp: p.maxHp,
+        weapon: p.weapon,
+        muzzleFlashTicks: p.muzzleFlashTicks,
+        hurtFlashTicks: p.hurtFlashTicks,
+        railCharge: p.railCharge,
+        railChargeMax: RAIL_CHARGE_TICKS,
+        airborne,
+        vx: pb.vx,
+        vy: pb.vy,
+        aimSignX: pose.aimSignX,
+        landingFactor: pose.landingFactor,
+        dashTicks: pb.dashTicks,
+        wallDir: pb.wallDir,
+        wallJumpLock: pb.wallJumpLock,
+        stomping: pb.stomping,
+        saveCooldown: w.saveCooldown,
+        tick: w.tick,
+      });
+      this.heroFrame = heroFrame;
+      stepRiggedAnimation3D(rig, desiredAnim, dt, 1.08, 0, p.hp > 0, { ...pose, grounded: pose.grounded || !airborne }, {
+        frame: heroFrame,
+        tSec,
+        wallDir: pb.wallDir,
+      });
       rig.root.updateMatrixWorld(true);
+      this.heroGear?.update(tSec, heroFrame, this.lampK);
 
       // Classic: the suit is lit to only a few percent in dark rooms, so any emissive tint (red hurt flash 0.35 after the
       // clamp, even a 0.14 teal lift) outweighs the diffuse texture and the palette pass maps the whole body to one entry
@@ -1692,13 +1746,22 @@ export class Scene3DRenderer {
       else flashRiggedMaterials3D(rig, 0x000000, 0);
 
       const muzzlePos = new THREE.Vector3();
-      if (rig.muzzleLocal) rig.muzzleLocal.getWorldPosition(muzzlePos);
+      const muzzleObj = this.heroGear?.activeMuzzle() ?? rig.muzzleLocal;
+      if (muzzleObj) muzzleObj.getWorldPosition(muzzlePos);
       else muzzlePos.set(px + pose.aimDirX * 0.85, py + 1.15 + pose.aimDirY * 0.85, 0.2);
 
       const posAttr = this.laserGeom.attributes.position as THREE.BufferAttribute;
       posAttr.setXYZ(0, muzzlePos.x, muzzlePos.y, muzzlePos.z);
       posAttr.setXYZ(1, p.aimX, p.aimY, 0.2);
       posAttr.needsUpdate = true;
+
+      // Hand the rendered muzzle socket to the FX director so flashes and beam origins sit on the barrel
+      this.heroMuzzle.x = muzzlePos.x;
+      this.heroMuzzle.y = muzzlePos.y;
+      this.heroMuzzle.z = muzzlePos.z;
+      this.fx.muzzleWorld.x = muzzlePos.x;
+      this.fx.muzzleWorld.y = muzzlePos.y;
+      this.fx.muzzleWorld.valid = p.hp > 0;
 
       this.reticleGroup.position.set(p.aimX, p.aimY, 0.3);
       this.reticleGroup.rotation.z = tSec * 3.2;
