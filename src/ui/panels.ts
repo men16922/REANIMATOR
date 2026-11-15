@@ -15,6 +15,12 @@ export interface PanelState {
   revived: boolean;
   /** Controls grid inside the pause menu. Only valid while paused. */
   pauseControls: boolean;
+  /** LOGS archive inside the pause menu. Only valid while paused. */
+  logArchive: boolean;
+  /** Data log reader (Metroid scan style). Opens over the frozen game or over the archive. Not valid on the title or result. */
+  logReader: boolean;
+  /** Short credits roll over the won result screen. Only valid in result mode. */
+  creditsRoll: boolean;
 }
 
 /** DOM id of the single layer that owns the top of the stack, or null when only the canvas is showing. */
@@ -25,8 +31,9 @@ export function topLayer(s: PanelState): string | null {
     if (s.titlePanel) return PANEL_IDS[s.titlePanel];
     return 'title';
   }
-  if (s.mode === 'paused') return s.pauseControls ? 'controls-panel' : 'pause';
-  if (s.mode === 'result') return 'result';
+  if (s.logReader && (s.mode === 'playing' || s.mode === 'paused')) return 'log-reader';
+  if (s.mode === 'paused') return s.logArchive ? 'log-archive' : s.pauseControls ? 'controls-panel' : 'pause';
+  if (s.mode === 'result') return s.creditsRoll ? 'credits-roll' : 'result';
   return null;
 }
 
@@ -36,7 +43,7 @@ export function titleCovered(s: PanelState): boolean {
 }
 
 /** Every layer id this contract manages. */
-export const LAYER_IDS: readonly string[] = ['title', ...Object.values(PANEL_IDS), 'lab', 'revived', 'pause', 'controls-panel', 'result'];
+export const LAYER_IDS: readonly string[] = ['title', ...Object.values(PANEL_IDS), 'lab', 'revived', 'pause', 'controls-panel', 'log-archive', 'log-reader', 'result', 'credits-roll'];
 
 /** Which managed layers may be visible for a state. Several can be (the title stays under its panels); the top one wins. */
 export function visibleLayers(s: PanelState): string[] {
@@ -49,8 +56,13 @@ export function visibleLayers(s: PanelState): string[] {
   } else if (s.mode === 'paused') {
     out.push('pause');
     if (s.pauseControls) out.push('controls-panel');
+    if (s.logArchive) out.push('log-archive');
+    if (s.logReader) out.push('log-reader');
   } else if (s.mode === 'result') {
     out.push('result');
+    if (s.creditsRoll) out.push('credits-roll');
+  } else if (s.mode === 'playing' && s.logReader) {
+    out.push('log-reader');
   }
   return out;
 }
@@ -64,5 +76,8 @@ export function normalizePanelState(s: PanelState): PanelState {
     lab: title && s.lab,
     revived: title && s.revived,
     pauseControls: s.mode === 'paused' && s.pauseControls,
+    logArchive: s.mode === 'paused' && s.logArchive,
+    creditsRoll: s.mode === 'result' && s.creditsRoll,
+    logReader: (s.mode === 'playing' || s.mode === 'paused') && s.logReader,
   };
 }

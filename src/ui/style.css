@@ -146,7 +146,7 @@ kbd {
 .opts, .links { display: flex; gap: 1.4em; align-items: center; flex-wrap: wrap; justify-content: center; }
 .panel { justify-content: flex-start; overflow: auto; text-align: left; align-items: stretch; background: #05070b; }
 /* Lab and How-it-was-revived open over the title (and its panels), never behind it. */
-#lab, #revived { z-index: var(--z-subpanel); }
+#lab, #revived, #log-archive { z-index: var(--z-subpanel); }
 .panel ul { line-height: 1.55; max-width: 82ch; }
 h2 { letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; font-size: 2em; margin: 0.1em 0; }
 button { font: inherit; padding: 0.55em 1.5em; background: #182332; color: #e8f1fa; border: 1px solid #5982a8; border-radius: 1px; cursor: pointer; letter-spacing: 0.06em; transition: border-color 0.15s, background 0.15s, transform 0.1s; }
@@ -329,3 +329,42 @@ body.classic #screen {
 #settings-panel .form .note { margin: 0; max-width: 28em; font-size: 0.78em; letter-spacing: 0.06em; color: #b9a58b; text-transform: none; }
 #settings-panel .form .settings-h { margin-top: 0.3em; }
 .result .cause, #result .cause { margin: 0.2em 0; font-size: 1.05em; letter-spacing: 0.14em; text-transform: uppercase; color: #ff7a4a; text-shadow: 0 0 12px rgba(255, 90, 40, 0.4); }
+/* ---- data logs: archive list, scan-style reader, credits roll (layers use --z-subpanel; reader follows archive in DOM order) ---- */
+#log-archive { align-items: center; justify-content: center; text-align: center; }
+#log-archive h2 { margin: 0; }
+.log-count { margin: 0; font-size: 0.78em; letter-spacing: 0.3em; color: var(--c-cyan); }
+.log-list { list-style: none; margin: 0.6em 0; padding: 0; display: flex; flex-direction: column; gap: 0.4em; width: min(34em, 92%); }
+.log-list li { display: block; }
+.log-row { display: flex; width: 100%; align-items: baseline; gap: 0.9em; text-align: left; font-family: var(--font-mono); padding: 0.55em 1em; background: rgba(8, 14, 22, 0.7); border: 1px solid var(--c-line-dim); }
+.log-row .lr-n { color: var(--c-amber); letter-spacing: 0.2em; }
+.log-row .lr-t { flex: 1; }
+.log-row .lr-s { font-size: 0.72em; letter-spacing: 0.18em; color: var(--c-dim); text-transform: uppercase; }
+.log-row.locked { color: var(--c-dim); cursor: default; border-style: dashed; }
+.log-row.locked .lr-t { letter-spacing: 0.3em; }
+.log-actions { display: flex; gap: 1em; }
+.scan-panel { position: absolute; inset: 0; z-index: var(--z-subpanel); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; padding: 1.4em; background: rgba(2, 8, 12, 0.88); }
+.scan-panel[hidden] { display: none; }
+.scan-panel::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(0deg, rgba(106, 230, 255, 0.07) 0, rgba(106, 230, 255, 0.07) 1px, transparent 1px, transparent 3px); }
+.scan-sweep { position: absolute; left: 0; right: 0; height: 18%; top: -18%; pointer-events: none; background: linear-gradient(180deg, transparent, rgba(106, 230, 255, 0.16), transparent); animation: scan-sweep 2.4s linear infinite; }
+@keyframes scan-sweep { 0% { top: -18%; } 100% { top: 100%; } }
+.scan-frame { position: relative; width: min(46em, 92%); padding: 1.4em 1.8em; border: 1px solid var(--c-cyan); background: rgba(6, 18, 26, 0.82); box-shadow: 0 0 28px rgba(106, 230, 255, 0.18), inset 0 0 22px rgba(106, 230, 255, 0.06); display: flex; flex-direction: column; gap: 0.5em; text-align: left; animation: scan-open 0.28s ease-out both; }
+@keyframes scan-open { 0% { opacity: 0; transform: scaleY(0.05); } 100% { opacity: 1; transform: none; } }
+.scan-eyebrow { font-size: 0.74em; letter-spacing: 0.34em; color: var(--c-cyan); }
+.scan-frame h3 { margin: 0; font-size: 1.4em; letter-spacing: 0.1em; color: var(--c-amber); text-transform: uppercase; }
+.scan-meta { margin: 0; display: flex; justify-content: space-between; gap: 1em; font-family: var(--font-mono); font-size: 0.8em; color: var(--c-dim); }
+.scan-meta b { font-weight: 400; color: #cfe9f5; }
+.scan-meta i { font-style: normal; letter-spacing: 0.12em; }
+.scan-body { margin: 0.4em 0; min-height: 9em; font-family: var(--font-mono); font-size: 0.95em; line-height: 1.65; color: #e3f4fb; white-space: pre-wrap; }
+.scan-body.typing::after { content: '\2588'; margin-left: 2px; color: var(--c-cyan); animation: caret 0.7s steps(1) infinite; }
+@keyframes caret { 50% { opacity: 0; } }
+.scan-hint { align-self: flex-end; font-size: 0.72em; letter-spacing: 0.3em; color: var(--c-dim); }
+.roll-lines { display: flex; flex-direction: column; align-items: center; gap: 0.7em; text-align: center; animation: roll-up 14s linear forwards; }
+.roll-lines p { margin: 0; letter-spacing: 0.12em; color: #dbe9f2; }
+.roll-lines p.h { margin-top: 1.4em; font-size: 1.2em; letter-spacing: 0.3em; color: var(--c-amber); }
+@keyframes roll-up { 0% { transform: translateY(70vh); } 100% { transform: translateY(-70vh); } }
+#ending { max-width: 44em; padding: 0.8em 1.2em; border-top: 1px solid var(--c-line-dim); border-bottom: 1px solid var(--c-line-dim); text-align: left; }
+#ending[hidden] { display: none; }
+#ending h3 { margin: 0 0 0.4em; font-size: 0.85em; letter-spacing: 0.3em; color: var(--c-amber); text-align: center; }
+#ending.true h3 { color: var(--c-gold); text-shadow: 0 0 14px currentColor; }
+#ending p { margin: 0 0 0.5em; line-height: 1.55; font-size: 0.92em; color: #dbe6ee; }
+body.reduce-fx .scan-sweep, body.reduce-fx .scan-frame, body.reduce-fx .roll-lines { animation: none; }

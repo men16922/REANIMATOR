@@ -2,6 +2,7 @@
 // retry tips, and the onboarding hint state machine. Kept DOM-free so tests/ui.test.ts can cover it.
 
 import type { DoorLockKind3D, SectorId3D } from '../game3d/types3d.ts';
+import { SECTOR_SUB } from './lore.ts';
 import { getRunSummary3D, updateCompletion3D, type InputState3D, type WorldState3D } from '../game3d/world3d.ts';
 
 export type Rank = 'S' | 'A' | 'B' | 'C';
@@ -55,13 +56,14 @@ export function formatClock(seconds: number): string {
   return `${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
+/** English sector subtitles. The text lives in lore.ts (SECTOR_SUB, bilingual) so the story and the title cards stay in sync. */
 export const SECTOR_SUBTITLE: Record<SectorId3D, string> = {
-  airlock: 'Where you woke up. The extraction balcony is the way out.',
-  shaft: 'Everything connects here. Not everything is open yet.',
-  mines: 'Acid pools. Something here lets you jump twice.',
-  biolabs: 'The specimens are not in their tanks anymore.',
-  security: 'Armed locks. The console decides which doors die.',
-  core: 'The reactor never stopped burning.',
+  airlock: SECTOR_SUB.airlock.en,
+  shaft: SECTOR_SUB.shaft.en,
+  mines: SECTOR_SUB.mines.en,
+  biolabs: SECTOR_SUB.biolabs.en,
+  security: SECTOR_SUB.security.en,
+  core: SECTOR_SUB.core.en,
 };
 
 export const RETRY_TIPS: string[] = [
