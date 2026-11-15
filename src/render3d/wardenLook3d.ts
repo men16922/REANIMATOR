@@ -11,7 +11,7 @@ export type Rgb = readonly [number, number, number];
 export const WARDEN_ARMOUR_ALBEDO = 0.4;
 /** Cool rim, chosen opposite the orange arena light so the outline always separates. */
 export const WARDEN_RIM_HEX = 0x9fd8ff;
-export const WARDEN_RIM_STRENGTH = 0.55;
+export const WARDEN_RIM_STRENGTH = 0.35;
 /** Seam emissive ceiling: seams may never out-glow an exposed core. */
 export const WARDEN_SEAM_MAX = 1.6;
 /** Core emissive while the weak point is exposed. */

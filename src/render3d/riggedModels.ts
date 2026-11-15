@@ -5,6 +5,7 @@
 //   - Velocity-locked 3-phase jump clip scrubbing (strips baked pre-jump squat & +0.42m root jump spike)
 //   - Touchdown landing knee/hip cushion on grounded landing frames
 
+import { CHAR_ENV_INTENSITY, CHAR_LIGHT, CHAR_LIGHT_GLSL, type CharKind3D } from './charLight3d.ts';
 import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
@@ -677,7 +678,7 @@ export function tuneEnemyMaterials3D(
     const m = materials[i];
     m.roughness = Math.max(0.55, m.roughness);
     m.metalness = Math.min(0.35, m.metalness);
-    m.envMapIntensity = 0.6;
+    m.envMapIntensity = CHAR_ENV_INTENSITY;
     m.emissiveIntensity = 1;
     m.color.multiply(_flashColor.setHex(tintHex));
     const e = baseEmissive[i];
@@ -702,7 +703,7 @@ export function tuneWardenMaterials3D(materials: THREE.MeshStandardMaterial[], b
     m.color.multiplyScalar(WARDEN_ARMOUR_ALBEDO);
     m.metalness = 0.82;
     m.roughness = Math.min(0.62, Math.max(0.42, m.roughness));
-    m.envMapIntensity = 0.9;
+    m.envMapIntensity = Math.max(0.9, CHAR_ENV_INTENSITY);
     m.emissiveIntensity = 1;
     m.transparent = false;
     m.opacity = 1;
@@ -718,24 +719,36 @@ export function tuneWardenMaterials3D(materials: THREE.MeshStandardMaterial[], b
  * Render-only readability pass for dark enemies: a fresnel rim plus a small albedo self-lift injected into the
  * standard shader. No lights are added. Works for skinned and static meshes (shader chunks are shared).
  */
-export function applyEnemyRim3D(materials: THREE.MeshStandardMaterial[], rimHex: number, rim = 0.55, lift = 0.16): void {
+export function applyEnemyRim3D(
+  materials: THREE.MeshStandardMaterial[],
+  rimHex: number,
+  rim = 0.55,
+  lift = 0.16,
+  kind?: CharKind3D,
+): void {
   const rimColor = new THREE.Color(rimHex);
+  const t = kind ? CHAR_LIGHT[kind] : undefined;
   for (const m of materials) {
-    const uniforms = { uEnemyRim: { value: rimColor.clone().multiplyScalar(rim) }, uEnemyLift: { value: lift } };
+    const uniforms = {
+      uEnemyRim: { value: rimColor.clone().multiplyScalar(rim) },
+      uEnemyLift: { value: lift },
+      uCharLight: { value: new THREE.Vector3(t ? t.key : 0, t ? t.fill : 0, t ? t.exposure : 1) },
+    };
     m.userData.enemyRim = uniforms;
     m.onBeforeCompile = (shader) => {
       shader.uniforms.uEnemyRim = uniforms.uEnemyRim;
       shader.uniforms.uEnemyLift = uniforms.uEnemyLift;
+      shader.uniforms.uCharLight = uniforms.uCharLight;
       shader.fragmentShader = shader.fragmentShader
-        .replace('void main() {', 'uniform vec3 uEnemyRim;\nuniform float uEnemyLift;\nvoid main() {')
+        .replace('void main() {', 'uniform vec3 uEnemyRim;\nuniform float uEnemyLift;\nuniform vec3 uCharLight;\nvoid main() {')
         .replace(
           '#include <opaque_fragment>',
           `float enemyRimF = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.2);
-  outgoingLight += uEnemyRim * enemyRimF + diffuseColor.rgb * uEnemyLift;
+  outgoingLight += uEnemyRim * enemyRimF + diffuseColor.rgb * uEnemyLift;${CHAR_LIGHT_GLSL}
   #include <opaque_fragment>`,
         );
     };
-    m.customProgramCacheKey = () => 'enemy-rim-v1';
+    m.customProgramCacheKey = () => 'enemy-rim-v2';
     m.needsUpdate = true;
   }
 }
@@ -770,7 +783,7 @@ export function applyCrawlerScuttle3D(materials: THREE.MeshStandardMaterial[]): 
   transformed.y += max(0.0, cos(scPh)) * uScuttleAmp * 0.45 * scLeg;`,
         );
     };
-    m.customProgramCacheKey = () => 'enemy-rim-v1+scuttle-v1';
+    m.customProgramCacheKey = () => 'enemy-rim-v2+scuttle-v1';
     m.needsUpdate = true;
   }
   return u;
@@ -784,6 +797,7 @@ export interface WardenLookUniforms3D {
   uWardenCore: { value: number };
   uWardenMin: { value: THREE.Vector3 };
   uWardenSize: { value: THREE.Vector3 };
+  uCharLight: { value: THREE.Vector3 };
 }
 
 /**
@@ -810,6 +824,7 @@ export function applyWardenLook3D(inst: RiggedInstance, rimHex: number, rim: num
     uWardenSeam: { value: 0 },
     uWardenCore: { value: 0 },
     uWardenMin: { value: found ? box.min.clone() : new THREE.Vector3(-0.5, 0, -0.5) },
+    uCharLight: { value: new THREE.Vector3(CHAR_LIGHT.warden.key, CHAR_LIGHT.warden.fill, CHAR_LIGHT.warden.exposure) },
     uWardenSize: { value: new THREE.Vector3(Math.max(1e-4, size.x), Math.max(1e-4, size.y), Math.max(1e-4, size.z)) },
   };
   for (const m of inst.materials) {
@@ -822,7 +837,7 @@ export function applyWardenLook3D(inst: RiggedInstance, rimHex: number, rim: num
       shader.fragmentShader = shader.fragmentShader
         .replace(
           'void main() {',
-          'uniform vec3 uEnemyRim;\nuniform vec3 uWardenGlow;\nuniform vec3 uWardenCoreColor;\nuniform float uWardenSeam;\nuniform float uWardenCore;\nvarying vec3 vWardenN;\nvoid main() {',
+          'uniform vec3 uEnemyRim;\nuniform vec3 uWardenGlow;\nuniform vec3 uWardenCoreColor;\nuniform float uWardenSeam;\nuniform float uWardenCore;\nuniform vec3 uCharLight;\nvarying vec3 vWardenN;\nvoid main() {',
         )
         .replace(
           '#include <opaque_fragment>',
@@ -835,11 +850,11 @@ export function applyWardenLook3D(inst: RiggedInstance, rimHex: number, rim: num
   vec2 wCd = (wN.xy - vec2(0.5, 0.63)) * vec2(1.0, 1.25);
   float wCoreD = dot(wCd, wCd);
   float wCore = exp(-wCoreD * 140.0) + 0.35 * exp(-wCoreD * 28.0);
-  outgoingLight += uEnemyRim * wRimF + uWardenGlow * (wSeam * uWardenSeam) + uWardenCoreColor * (wCore * uWardenCore);
+  outgoingLight += uEnemyRim * wRimF + uWardenGlow * (wSeam * uWardenSeam) + uWardenCoreColor * (wCore * uWardenCore);${CHAR_LIGHT_GLSL}
   #include <opaque_fragment>`,
         );
     };
-    m.customProgramCacheKey = () => 'warden-look-v1';
+    m.customProgramCacheKey = () => 'warden-look-v2';
     m.needsUpdate = true;
   }
   return u;

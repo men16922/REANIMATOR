@@ -31,7 +31,7 @@ export const HUNTER_COLORS = {
 export const HUNTER_STEEL = { color: 0x39434f, metalness: 0.55, roughness: 0.5, env: 0.5, emissive: 0x140605 } as const;
 
 /** Cool, narrow rim for the steel body. The shared enemy rim (0.7, lift 0.12) washes a dark metal out to pale grey. */
-export const HUNTER_RIM = { rim: 0.22, lift: 0 } as const;
+export const HUNTER_RIM = { rim: 0.25, lift: 0 } as const;
 
 /** Flat gunmetal on one material: drops every colour/PBR map so no flesh albedo or baked emissive survives. */
 function steelOne(m: THREE.MeshStandardMaterial): void {
@@ -284,7 +284,7 @@ export class HunterView {
       this.rig.materials.push(m);
       this.rig.baseEmissive.push(m.emissive.clone());
     }
-    applyEnemyRim3D(this.rig.materials, 0x8fb4ff, HUNTER_RIM.rim, HUNTER_RIM.lift);
+    applyEnemyRim3D(this.rig.materials, 0x8fb4ff, HUNTER_RIM.rim, HUNTER_RIM.lift, 'hunter');
     this.rig.root.rotation.order = 'YXZ';
     this.visorMat = new THREE.MeshBasicMaterial({ color: HUNTER_COLORS.quiet, toneMapped: false });
     this.visor = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.07, 0.12), this.visorMat);
