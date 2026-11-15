@@ -19,3 +19,10 @@ export function resultCheckpointLine(i: ResultCopyInput): string {
   if (i.lastSaveId) return 'Press C or Enter to resume at the last Save station.';
   return 'Press C or Enter to retry from the start. Your run is kept.';
 }
+
+/** Label of the primary result button (#resume-save); matches resultCheckpointLine. */
+export function resumeButtonLabel(i: Pick<ResultCopyInput, 'lastSaveId' | 'nearRespawn'>): string {
+  if (i.nearRespawn) return 'Resume (C)';
+  if (i.lastSaveId) return 'Resume at Save (C)';
+  return 'Retry from Start (C)';
+}

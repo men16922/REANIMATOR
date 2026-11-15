@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { canResume, resultCheckpointLine } from '../src/ui/resultCopy.ts';
+import { canResume, resultCheckpointLine, resumeButtonLabel } from '../src/ui/resultCopy.ts';
 import { readLayers } from '../src/ui/debugLayers.ts';
 
 test('result copy: won has no checkpoint line', () => {
@@ -38,4 +38,11 @@ test('debug layers: loading logo outranks everything, then intro, then title', (
   const play = readLayers({ mode: 'playing', titleHidden: true, loadingHidden: true, introHidden: true });
   assert.deepEqual(play, { title: false, loading: false, intro: false, showcase: false, topLayer: 'playing' });
   assert.equal(readLayers({ mode: 'showcase', titleHidden: true, loadingHidden: true, introHidden: true }).topLayer, 'showcase');
+});
+
+test('result copy: resume button label follows the checkpoint case', () => {
+  assert.equal(resumeButtonLabel({ lastSaveId: null, nearRespawn: false }), 'Retry from Start (C)');
+  assert.equal(resumeButtonLabel({ lastSaveId: 'mines_save', nearRespawn: false }), 'Resume at Save (C)');
+  assert.equal(resumeButtonLabel({ lastSaveId: null, nearRespawn: true }), 'Resume (C)');
+  assert.equal(resumeButtonLabel({ lastSaveId: 'mines_save', nearRespawn: true }), 'Resume (C)');
 });

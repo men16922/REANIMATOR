@@ -45,7 +45,7 @@ import { normalizePanelState, titleCovered, topLayer } from './panels.ts';
 import { archiveRows, canOpen, LOG_FREEZE_S, openReader, pressReader, tickReader, visibleBody, type ReaderState } from './logReader.ts';
 import { CREDITS_LINES, endingText, INTRO_LINES, LORE_LOGS, chromeLabel, loreLogById, SECTOR_SUB, type Lang } from './lore.ts';
 import { runUiAudit, type UiAuditReport } from './uiAudit.ts';
-import { resultCheckpointLine } from './resultCopy.ts';
+import { resultCheckpointLine, resumeButtonLabel } from './resultCopy.ts';
 import { readLayers } from './debugLayers.ts';
 import { getFailedModelNames3D, getLoadedModelNames3D } from '../render3d/riggedModels.ts';
 
@@ -997,6 +997,7 @@ function showResult(): void {
   ui.result.classList.toggle('won', won);
   ui.result.classList.toggle('lost', !won);
   $('resume-save').hidden = !canResume;
+  $('resume-save').textContent = resumeButtonLabel({ lastSaveId: world.lastSaveId, nearRespawn: world.diff.nearRespawn });
   show('result');
 }
 

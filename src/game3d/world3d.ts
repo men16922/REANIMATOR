@@ -399,6 +399,9 @@ export const DEATH_CAUSES_3D: Record<DeathCauseKey3D, { label: string; tip: stri
   unknown: { label: 'Systems failure', tip: 'Heal at Save stations and keep your hull topped up.' },
 };
 
+/** Wording when a single crawler did the damage (key stays 'crawler'). */
+export const CRAWLER_SINGLE_CAUSE = { label: 'Mauled by a Crawler', tip: 'Scattergun at close range clears crawlers. Dash past the lunge, then turn and shoot.' };
+
 export function deathCauseOf3D(key: DeathCauseKey3D | null): DeathCause3D {
   const k = key ?? 'unknown';
   return { key: k, ...DEATH_CAUSES_3D[k] };
@@ -552,6 +555,8 @@ export interface WorldState3D {
   deathCause: DeathCause3D | null;
   /** Source of the most recent hit on the player. */
   lastHurt: DeathCauseKey3D | null;
+  /** Recent crawler melee hits (enemy id + tick), only used to word the death cause. */
+  crawlerHits: { id: string; tick: number }[];
   /** Rolling safe spot used by Story to respawn close to where the player fell. */
   checkpoint: { x: number; y: number; tick: number } | null;
   /** Round 10: the Reclaimer hunter that owns the Bio-Labs east wing. */
@@ -970,6 +975,7 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
     assist,
     deathCause: null,
     lastHurt: null,
+    crawlerHits: [],
     checkpoint: null,
     hunter: newHunter3D(level.hunterZone),
   };
@@ -1111,11 +1117,18 @@ function doorSolids(w: Readonly<WorldState3D>): MapSolid3D[] {
   return w.level.solids.filter((s) => s.doorId && !w.openDoors.has(s.doorId));
 }
 
-function damagePlayer(w: WorldState3D, rawDamage: number, knockX = 0, cause: DeathCauseKey3D = 'unknown'): void {
+/** Window (60 Hz ticks) in which crawler hits count toward "Swarmed". */
+const CRAWLER_SWARM_WINDOW = 600;
+
+function damagePlayer(w: WorldState3D, rawDamage: number, knockX = 0, cause: DeathCauseKey3D = 'unknown', sourceId?: string): void {
   const p = w.player;
   if (p.hurtInvulnTicks > 0 || p.dashInvulnTicks > 0 || w.status !== 'playing') return;
   if (w.diff.damage !== 1) rawDamage = Math.max(1, Math.round(rawDamage * w.diff.damage));
   w.lastHurt = cause;
+  if (cause === 'crawler' && sourceId) {
+    w.crawlerHits = w.crawlerHits.filter((h) => w.tick - h.tick <= CRAWLER_SWARM_WINDOW);
+    w.crawlerHits.push({ id: sourceId, tick: w.tick });
+  }
   p.hp = Math.max(0, p.hp - rawDamage);
   w.run.damageTaken += rawDamage;
   w.combo.count = 0; // getting hit breaks the chain
@@ -1129,6 +1142,7 @@ function damagePlayer(w: WorldState3D, rawDamage: number, knockX = 0, cause: Dea
   if (p.hp <= 0) {
     w.status = 'lost';
     w.deathCause = deathCauseOf3D(cause);
+    if (cause === 'crawler' && new Set(w.crawlerHits.map((h) => h.id)).size < 2) w.deathCause = { key: cause, ...CRAWLER_SINGLE_CAUSE };
   }
 }
 
@@ -2320,7 +2334,7 @@ function stepEnemies3D(w: WorldState3D): void {
           if (landed) {
             // Touchdown: a close landing hits, unless the body already clipped the player on the way down
             if (e.meleeCooldown === 0 && Math.abs(pb.x - e.x) <= e.radius + ABILITY_3D.radius + 0.9 && Math.abs(dy) < 1.3) {
-              damagePlayer(w, scaledDamage(w, e, 14), Math.sign(dx) * 5, foeCause(e));
+              damagePlayer(w, scaledDamage(w, e, 14), Math.sign(dx) * 5, foeCause(e), e.id);
             }
             w.events.push({ type: 'enemy_drop', value: 1 });
             w.shakeTicks = Math.max(w.shakeTicks, 5);
@@ -2330,11 +2344,11 @@ function stepEnemies3D(w: WorldState3D): void {
             if (airborne) {
               // Mid-air graze: one hit per drop, the body keeps falling to its landing
               if (e.meleeCooldown === 0) {
-                damagePlayer(w, scaledDamage(w, e, 12), e.facing * 5, foeCause(e));
+                damagePlayer(w, scaledDamage(w, e, 12), e.facing * 5, foeCause(e), e.id);
                 e.meleeCooldown = 400;
               }
             } else {
-              damagePlayer(w, scaledDamage(w, e, e.kind === 'stalker' ? 14 : 9), e.facing * 5, foeCause(e));
+              damagePlayer(w, scaledDamage(w, e, e.kind === 'stalker' ? 14 : 9), e.facing * 5, foeCause(e), e.id);
               e.lungeTicks = 0;
             }
           }
