@@ -263,6 +263,8 @@ export class Scene3DRenderer {
   private readonly beamMeshes = new Map<number, THREE.Mesh>();
 
   private readonly camFocus = new THREE.Vector3(3.5, 1.2, 0);
+  /** Title attract mode: seconds driving a slow cinematic camera drift, or null for the normal follow camera. */
+  private attractT: number | null = null;
   private modelsReady = false;
   private lastRenderMs = performance.now();
 
@@ -1249,6 +1251,11 @@ export class Scene3DRenderer {
     return grp;
   }
 
+  /** Title attract mode: pass elapsed seconds for a cinematic camera drift, or null to restore the follow camera. */
+  public setAttractCamera(t: number | null): void {
+    this.attractT = t;
+  }
+
   /** Snapshot positions once per simulation tick so render() can interpolate at the display rate. */
   private captureTick(w: WorldState3D): void {
     if (w.tick === this.lastTick) return;
@@ -1613,11 +1620,21 @@ export class Scene3DRenderer {
     }
     this.fx.rig.update(dt, px, anchorY, p.body.vx, p.aimX - px, p.aimY - py, p.body.grounded);
     this.camFocus.set(this.fx.rig.fx, this.fx.rig.fy, 0);
-    const shk = this.fx.trauma.sample(tSec, this.reduceMotion);
-    this.camera.position.set(this.camFocus.x + shk.x, this.camFocus.y + 1.7 + shk.y, 15.5);
-    this.camera.lookAt(this.camFocus.x, this.camFocus.y, 0);
-    this.camera.rotation.z += shk.roll;
-    const fov = this.baseFov - this.fx.rig.fovKick;
+    if (this.attractT !== null) {
+      // Cinematic drift: slow dolly in/out and lateral sway around the followed bot (title screen only).
+      const t = this.attractT;
+      const dolly = 15.5 - 4.2 * (0.5 + 0.5 * Math.sin(t * 0.21));
+      const sway = Math.sin(t * 0.33) * 3.4;
+      const lift = 1.2 + Math.sin(t * 0.17 + 1.3) * 1.1;
+      this.camera.position.set(this.camFocus.x + sway, this.camFocus.y + lift, dolly);
+      this.camera.lookAt(this.camFocus.x, this.camFocus.y + 0.4, 0);
+    } else {
+      const shk = this.fx.trauma.sample(tSec, this.reduceMotion);
+      this.camera.position.set(this.camFocus.x + shk.x, this.camFocus.y + 1.7 + shk.y, 15.5);
+      this.camera.lookAt(this.camFocus.x, this.camFocus.y, 0);
+      this.camera.rotation.z += shk.roll;
+    }
+    const fov = this.baseFov - (this.attractT !== null ? 0 : this.fx.rig.fovKick);
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
