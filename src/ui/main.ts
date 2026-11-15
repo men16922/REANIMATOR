@@ -28,7 +28,7 @@ import { AudioDirector, snapshotPre } from './audioDirector.ts';
 import { Attract, freshWorld, REEL_SEGMENT_SECONDS, Showcase } from './attract.ts';
 import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type DebugSetup3D, type DemoStop } from './demo.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type Hint } from './flow.ts';
-import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
+import { initLab } from './labView.ts';
 import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
 import { objectiveFor } from './objective.ts';
@@ -1111,54 +1111,9 @@ $('revived-close').addEventListener('click', () => {
   ui.revived.hidden = true;
 });
 
-// ---- Restoration Lab (Preserved 15 Hz DOS Engine Proof) ----
-const labSel = $<HTMLSelectElement>('lab-scenario');
-const labMut = $<HTMLInputElement>('lab-mutation');
-const labTick = $<HTMLInputElement>('lab-tick');
-const labPlot = $<HTMLCanvasElement>('lab-plot').getContext('2d')!;
-let lab: LabCase | null = null;
-for (const s of labScenarios()) {
-  const o = document.createElement('option');
-  o.value = s.id;
-  o.textContent = `${s.id}${s.holdout ? ' (holdout, judged once)' : ''}`;
-  labSel.append(o);
-}
-function labRender(): void {
-  if (!lab) return;
-  const i = Number(labTick.value);
-  plot(labPlot, lab, i);
-  const e = lab.expected[i],
-    a = lab.actual[i];
-  const n = lab.scenario.startN + i;
-  $('lab-n').textContent = `n=${n}`;
-  $('lab-table').innerHTML =
-    '<tr><th>field</th><th>recorded</th><th>replay</th></tr>' +
-    labFields()
-      .map((f) => `<tr class="${e[f] !== a[f] ? 'diff' : ''}"><th>${f}</th><td>${e[f]}</td><td>${a[f]}</td></tr>`)
-      .join('');
-}
-function labRun(): void {
-  const s = labScenarios().find((x) => x.id === labSel.value)!;
-  lab = runCase(s, labMut.checked);
-  labTick.max = String(lab.expected.length - 1);
-  if (Number(labTick.value) > lab.expected.length - 1) labTick.value = '0';
-  const fd = lab.firstDifference as { index: number; field: string } | undefined;
-  $('lab-status').textContent = `${lab.status}${lab.mutation ? ' — demo mutation' : ''}${
-    fd ? ` · first difference n=${lab.scenario.startN + fd.index} ${fd.field}` : ` · ${lab.expected.length} ticks × ${labFields().length} fields`
-  }`;
-  if (fd) labTick.value = String(fd.index);
-  labRender();
-}
-labSel.addEventListener('change', labRun);
-labMut.addEventListener('change', labRun);
-labTick.addEventListener('input', labRender);
-$('lab-open').addEventListener('click', () => {
-  $('lab').hidden = false;
-  labRun();
-});
-$('lab-close').addEventListener('click', () => {
-  $('lab').hidden = true;
-});
+// ---- Restoration Lab (Preserved 15 Hz DOS Engine Proof): view in src/ui/labView.ts, pure model in labModel.ts ----
+const labCtl = initLab();
+$('lab-open').addEventListener('click', () => labCtl.open());
 
 function buildSnapshot() {
   const warden = world.enemies.find((e) => e.kind === 'warden');
@@ -1167,7 +1122,7 @@ function buildSnapshot() {
     : { modelsLoaded: false, loadedModels: [], failedModels: [], riggedCount: 0, activeAnimations: {}, fx: null, player: null, enemyRender: {} as Record<string, { yaw: number; clip: string; timeScale: number; x: number; y: number; z: number }> };
   const b = world.player.body;
   return {
-    lab: lab ? { id: lab.scenario.id, status: lab.status, mutation: lab.mutation } : null,
+    lab: ((l) => (l ? { id: l.scenario.id, status: l.status, mutation: l.mutation } : null))(labCtl.current()),
     mode,
     intro: introActive,
     combo: { ...world.combo },
