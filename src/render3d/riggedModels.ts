@@ -10,6 +10,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { ActorAnimAction, PlayerPoseState3D } from '../game3d/types3d.ts';
 import { RECOIL_PROFILE, type HeroFrame } from './heroPose.ts';
+import { GAIT, type EnemyRigFrame, type RigChannels, type RigKind } from './enemyRig3d.ts';
 
 export { THREE };
 
@@ -57,8 +58,8 @@ export interface RiggedInstance {
   modelScale: number;
   riflePivot?: THREE.Group;
   muzzleLocal?: THREE.Object3D;
-  /** Enemy attack clip is parked at its windup pose (see stepRiggedEnemyAnimation3D) */
-  attackHeld?: boolean;
+  /** Enemy weight-blended animation state (see stepEnemyRigAnimation3D) */
+  enemyBlend?: { started: boolean; deathStarted: boolean };
 }
 
 const MODEL_FILES: Record<ModelKey3D, string> = {
@@ -97,6 +98,7 @@ const _qWorld = new THREE.Quaternion();
 const _qTwist = new THREE.Quaternion();
 const _mBasis = new THREE.Matrix4();
 const X_AXIS = new THREE.Vector3(1, 0, 0);
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
 const _vAxis = new THREE.Vector3();
 const _qDelta = new THREE.Quaternion();
 const _qModel = new THREE.Quaternion();
@@ -714,68 +716,88 @@ export function applyEnemyRim3D(materials: THREE.MeshStandardMaterial[], rimHex:
   }
 }
 
-export interface EnemyAnimInput {
-  desired: 'idle' | 'walk' | 'run' | 'attack' | 'death';
-  /** Actual horizontal speed in m/s (drives locomotion timeScale so feet do not skate) */
-  speed: number;
-  /** Speed at which the clip plays at timeScale 1 */
-  refSpeed: number;
-  /** 'hold' parks the attack clip at its windup pose, 'play' runs through the strike */
-  attackMode: 'hold' | 'play';
-  /** 0..1 progress of the windup, scrubs the hold pose */
-  attackFrac: number;
+const ATTACK_START_FRAC = 0.35;
+const BLEND_ACTIONS = ['idle', 'walk', 'run', 'attack', 'death'] as const;
+
+/**
+ * Weight-blended enemy clip stepper. The rig driver (enemyRig3d.ts) owns the crossfade weights and a stride-locked
+ * gait phase: walk and run share one normalised phase, so their feet stay in step while the mix changes with speed
+ * and the cycle rate is exactly ground speed / stride (no sliding). Attack plays through once per strike, death once.
+ */
+export function stepEnemyRigAnimation3D(inst: RiggedInstance, kind: RigKind, frame: EnemyRigFrame, dt: number): void {
+  const st = (inst.enemyBlend ??= { started: false, deathStarted: false });
+  if (!st.started) {
+    for (const name of BLEND_ACTIONS) {
+      const a = inst.actions[name];
+      if (!a) continue;
+      a.reset();
+      a.enabled = true;
+      a.setLoop(name === 'attack' || name === 'death' ? THREE.LoopOnce : THREE.LoopRepeat, name === 'attack' || name === 'death' ? 1 : Infinity);
+      a.clampWhenFinished = name === 'attack' || name === 'death';
+      a.play();
+    }
+    st.started = true;
+  }
+  const w = frame.weights;
+  const atk = inst.actions.attack;
+  if (atk && frame.attackRestart) {
+    atk.reset();
+    atk.enabled = true;
+    atk.play();
+    atk.time = ATTACK_START_FRAC * atk.getClip().duration;
+  }
+  const death = inst.actions.death;
+  if (death && w.death > 0.001 && !st.deathStarted) {
+    death.reset();
+    death.enabled = true;
+    death.play();
+    st.deathStarted = true;
+  }
+  if (frame.poseState !== 'dead' && st.deathStarted) st.deathStarted = false;
+  const g = GAIT[kind];
+  const walk = inst.actions.walk;
+  const run = inst.actions.run;
+  if (walk) {
+    walk.timeScale = 0;
+    walk.time = frame.gaitPhase * g.walkDur;
+    walk.setEffectiveWeight(w.walk);
+  }
+  if (run) {
+    run.timeScale = 0;
+    run.time = frame.gaitPhase * g.runDur;
+    run.setEffectiveWeight(w.run);
+  }
+  inst.actions.idle?.setEffectiveWeight(w.idle);
+  atk?.setEffectiveWeight(w.attack);
+  death?.setEffectiveWeight(w.death);
+  const top = frame.clip as ActorAnimAction;
+  if (inst.actions[top]) inst.currentAnim = top;
+  inst.mixer.update(dt);
 }
 
-const ATTACK_HOLD_FRAC = 0.35;
-
-/** Enemy animation stepper: no operative IK, shorter crossfades, attack is never restarted while playing. */
-export function stepRiggedEnemyAnimation3D(inst: RiggedInstance, input: EnemyAnimInput, dt: number): void {
-  let target: ActorAnimAction = input.desired;
-  if (!inst.actions[target]) {
-    target = target === 'run' && inst.actions.walk ? 'walk' : inst.actions.idle ? 'idle' : inst.currentAnim;
-  }
-
-  if (target !== inst.currentAnim) {
-    const prev = inst.actions[inst.currentAnim];
-    const next = inst.actions[target];
-    if (next) {
-      next.reset();
-      if (target === 'death' || target === 'attack') {
-        next.setLoop(THREE.LoopOnce, 1);
-        next.clampWhenFinished = true;
-      } else {
-        next.setLoop(THREE.LoopRepeat, Infinity);
-      }
-      next.play();
-      if (prev && prev !== next) {
-        prev.crossFadeTo(next, target === 'attack' || target === 'death' ? 0.08 : 0.18, false);
-      }
-    }
-    inst.currentAnim = target;
-  }
-
-  const active = inst.actions[inst.currentAnim];
-  if (active) {
-    if (inst.currentAnim === 'attack') {
-      const dur = active.getClip().duration;
-      if (input.attackMode === 'hold') {
-        active.enabled = true;
-        active.paused = false;
-        active.timeScale = 0;
-        active.time = Math.max(0, Math.min(1, input.attackFrac)) * ATTACK_HOLD_FRAC * dur;
-        inst.attackHeld = true;
-      } else {
-        if (inst.attackHeld) {
-          active.time = Math.max(active.time, ATTACK_HOLD_FRAC * dur);
-          inst.attackHeld = false;
-        }
-        active.timeScale = 1;
-      }
-    } else if (inst.currentAnim === 'walk' || inst.currentAnim === 'run') {
-      active.timeScale = Math.max(0.45, Math.min(1.8, input.speed / Math.max(0.1, input.refSpeed)));
-    } else {
-      active.timeScale = 1;
-    }
-  }
-  inst.mixer.update(dt);
+/**
+ * Lays the driver's additive channels on top of the freshly evaluated clip pose. Bones are rotated about rig axes
+ * (not their own local axes), parents before children, starting from the clip pose every frame so nothing accumulates.
+ */
+export function applyEnemyRigChannels3D(inst: RiggedInstance, ch: RigChannels): void {
+  if (inst.hips && Math.abs(ch.hipsDrop) > 1e-5) inst.hips.position.y -= ch.hipsDrop / inst.modelScale;
+  rotateBoneAboutRigAxis(inst, inst.leftUpLeg, X_AXIS, -ch.thighL);
+  rotateBoneAboutRigAxis(inst, inst.leftLeg, X_AXIS, ch.kneeL);
+  rotateBoneAboutRigAxis(inst, inst.rightUpLeg, X_AXIS, -ch.thighR);
+  rotateBoneAboutRigAxis(inst, inst.rightLeg, X_AXIS, ch.kneeR);
+  rotateBoneAboutRigAxis(inst, inst.spine, X_AXIS, ch.spine * 0.3);
+  rotateBoneAboutRigAxis(inst, inst.spine1, X_AXIS, ch.spine * 0.35);
+  rotateBoneAboutRigAxis(inst, inst.spine2, X_AXIS, ch.spine * 0.35);
+  rotateBoneAboutRigAxis(inst, inst.spine1, Y_AXIS, ch.spineTwist * 0.4);
+  rotateBoneAboutRigAxis(inst, inst.spine2, Y_AXIS, ch.spineTwist * 0.6);
+  rotateBoneAboutRigAxis(inst, inst.spine2, Z_AXIS, ch.spineRoll);
+  rotateBoneAboutRigAxis(inst, inst.head, X_AXIS, ch.headPitch);
+  rotateBoneAboutRigAxis(inst, inst.head, Y_AXIS, ch.headYaw);
+  rotateBoneAboutRigAxis(inst, inst.leftArm, X_AXIS, -ch.armUpL);
+  rotateBoneAboutRigAxis(inst, inst.leftArm, Z_AXIS, ch.armOutL);
+  rotateBoneAboutRigAxis(inst, inst.leftForeArm, X_AXIS, -ch.foreL);
+  rotateBoneAboutRigAxis(inst, inst.rightArm, X_AXIS, -ch.armUpR);
+  rotateBoneAboutRigAxis(inst, inst.rightArm, Z_AXIS, -ch.armOutR);
+  rotateBoneAboutRigAxis(inst, inst.rightForeArm, X_AXIS, -ch.foreR);
+  inst.root.updateMatrixWorld(true);
 }
