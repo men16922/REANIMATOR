@@ -1254,7 +1254,7 @@ export class Scene3DRenderer {
       v.land = Math.max(0, v.land - dt * 7);
 
       const speed = Math.abs(e.vx);
-      const windTotal = e.kind === 'warden' && e.phase === 2 ? 28 : ENEMY_WINDUP_TOTAL_3D[e.kind];
+      const windTotal = e.kind === 'warden' && e.phase >= 2 ? 28 : ENEMY_WINDUP_TOTAL_3D[e.kind];
       const winding = e.alive && (e.windupTicks > 0 || e.state === 'windup');
       const alerting = e.alive && e.state === 'alert';
       const striking = e.alive && !winding && (e.state === 'attack' || e.attackAnimTicks > 0);
@@ -1300,7 +1300,7 @@ export class Scene3DRenderer {
           flashRiggedMaterials3D(rig, ENEMY_FLASH_HEX_3D, flashAmt);
         } else if (e.kind === 'warden' && winding) {
           flashRiggedMaterials3D(rig, 0xff451f, 0.22);
-        } else if (e.kind === 'warden' && e.phase === 2 && e.alive) {
+        } else if (e.kind === 'warden' && e.phase >= 2 && e.alive) {
           flashRiggedMaterials3D(rig, 0xff3b18, 0.09);
         } else {
           flashRiggedMaterials3D(rig, 0x000000, 0);
@@ -1363,7 +1363,7 @@ export class Scene3DRenderer {
 
     if (telegraphWarden) {
       this.wardenTelegraphRing.visible = true;
-      const pct = 1 - telegraphWarden.windupTicks / (telegraphWarden.phase === 2 ? 28 : 36);
+      const pct = 1 - telegraphWarden.windupTicks / (telegraphWarden.phase >= 2 ? 28 : 36);
       this.wardenTelegraphRing.position.set(telegraphWarden.x, telegraphWarden.y + 0.1, 0);
       this.wardenTelegraphRing.scale.setScalar(1.2 + pct * 2.2);
     } else {

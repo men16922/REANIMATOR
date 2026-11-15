@@ -28,6 +28,18 @@ export const EVENT_SOUND: Record<SoundEventType3D, string> = {
   pickup: 'world.pickup',
   meltdown: 'stinger.meltdown',
   win: 'stinger.win',
+  // Gameplay-depth events: mapped onto existing recipes until dedicated ones exist
+  wall_jump: 'player.double_jump',
+  dash_cancel: 'player.dash',
+  stomp: 'world.explosion',
+  combo: 'world.pickup',
+  boss_telegraph: 'world.unlock',
+  boss_charge: 'enemy.warden.slam',
+  boss_summon: 'world.explosion',
+  boss_phase: 'stinger.meltdown',
+  boss_exposed: 'world.unlock',
+  collect: 'world.upgrade',
+  secret: 'world.upgrade',
 };
 
 export function soundIdForEvent(type: SoundEventType3D): string {

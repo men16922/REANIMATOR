@@ -246,7 +246,7 @@ function hud(): void {
   ui.wardenHud.hidden = !showBoss;
   if (showBoss && warden) {
     ui.wardenHp.style.width = `${Math.max(0, Math.min(100, (warden.hp / warden.maxHp) * 100))}%`;
-    ui.wardenPhase.textContent = warden.phase === 2 ? 'PHASE II' : 'PHASE I';
+    ui.wardenPhase.textContent = warden.phase === 3 ? 'PHASE III' : warden.phase === 2 ? 'PHASE II' : 'PHASE I';
   }
 
   ui.damageFlash.style.opacity = ui.reduceFlash.checked ? '0' : String(Math.min(0.85, flash));

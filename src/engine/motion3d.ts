@@ -28,6 +28,17 @@ export interface Body3D {
   jumpsUsed: number;
   prevJumpHeld: boolean;
   dropThroughTicks: number;
+  /** -1 wall on the west, +1 wall on the east, 0 none (airborne contact probe) */
+  wallDir: number;
+  /** Ticks left in which input toward the wall is ignored after a wall jump */
+  wallJumpLock: number;
+  /** True while a down-dash stomp dive is in progress */
+  stomping: boolean;
+  /** Transient one-tick flags read by the world to raise events and effects */
+  wallJumped: boolean;
+  dashCanceled: boolean;
+  stompStarted: boolean;
+  stompLanded: boolean;
 }
 
 export interface MoveInput3D {
@@ -62,6 +73,17 @@ export const ABILITY_3D = {
   dashTicks: 11,
   dashCooldownTicks: 58,
   landTicks: 5,
+  /** Wall slide: max fall speed while pressing into a wall (all players) */
+  wallSlideSpeed: -3.2,
+  /** Wall jump (needs Thruster Boots): up and away from the wall */
+  wallJumpVy: 10.0,
+  wallJumpVx: 8.6,
+  wallJumpLockTicks: 8,
+  /** Dash cancel: jumping out of a dash keeps this fraction of dash speed */
+  dashCancelKeep: 0.62,
+  /** Down-dash stomp dive */
+  stompSpeed: -27,
+  stompCooldownTicks: 40,
 } as const;
 
 export function spawnBody3D(x: number, y: number, z: number): Body3D {
@@ -85,6 +107,13 @@ export function spawnBody3D(x: number, y: number, z: number): Body3D {
     jumpsUsed: 0,
     prevJumpHeld: false,
     dropThroughTicks: 0,
+    wallDir: 0,
+    wallJumpLock: 0,
+    stomping: false,
+    wallJumped: false,
+    dashCanceled: false,
+    stompStarted: false,
+    stompLanded: false,
   };
 }
 
@@ -219,6 +248,11 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
 
   if (b.dashCooldown > 0) b.dashCooldown--;
   if (b.dropThroughTicks > 0) b.dropThroughTicks--;
+  if (b.wallJumpLock > 0) b.wallJumpLock--;
+  b.wallJumped = false;
+  b.dashCanceled = false;
+  b.stompStarted = false;
+  b.stompLanded = false;
 
   const jumpPressed = input.jump && !prev.prevJumpHeld;
   b.prevJumpHeld = input.jump;
@@ -256,8 +290,30 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
 
   let launchedThisTick = false;
 
+  // Dash cancel: a fresh jump press ends the dash and keeps momentum (needs a jump to spend)
+  if (b.dashTicks > 0 && jumpPressed && !b.stomping) {
+    const canJump = b.grounded || b.coyoteTicks > 0 || (maxJumps > 1 && b.jumpsUsed < maxJumps);
+    if (canJump) {
+      b.dashTicks = 0;
+      b.vx = b.dashDirX * ABILITY_3D.dashSpeed * ABILITY_3D.dashCancelKeep;
+      b.dashCanceled = true;
+    }
+  }
+
+  // Down-dash stomp: airborne dash while holding down dives straight to the floor
+  const wantStomp =
+    input.dash && !!input.dropDown && !b.grounded && b.dashTicks === 0 && b.dashCooldown === 0 && !b.stomping && b.y > -24;
+  if (wantStomp) {
+    b.stomping = true;
+    b.stompStarted = true;
+    b.dashCooldown = ABILITY_3D.stompCooldownTicks;
+    b.vx *= 0.15;
+    b.vy = ABILITY_3D.stompSpeed;
+    b.dropThroughTicks = Math.max(b.dropThroughTicks, 0);
+  }
+
   // Trigger tactical Jet-Dash
-  if (input.dash && b.dashTicks === 0 && b.dashCooldown === 0) {
+  if (!wantStomp && !b.stomping && input.dash && b.dashTicks === 0 && b.dashCooldown === 0) {
     let dx = mx;
     let dz = mz;
     if (moveMag < 0.05) {
@@ -287,7 +343,11 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
     b.state = 5;
   }
 
-  if (b.dashTicks > 0) {
+  if (b.stomping) {
+    b.vx = 0;
+    b.vy = ABILITY_3D.stompSpeed;
+    b.state = 3;
+  } else if (b.dashTicks > 0) {
     b.dashTicks--;
     b.vx = b.dashDirX * ABILITY_3D.dashSpeed;
     b.vz = lockZ ? 0 : b.dashDirZ * ABILITY_3D.dashSpeed;
@@ -295,7 +355,7 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
     b.state = 5;
   } else {
     // Horizontal acceleration / high-traction Abuse stop
-    if (moveMag > 0.05) {
+    if (moveMag > 0.05 && b.wallJumpLock === 0) {
       const targetVx = mx * ABILITY_3D.runTopSpeed;
       const targetVz = mz * ABILITY_3D.runTopSpeed;
       const accel = (b.grounded ? ABILITY_3D.startAccelPerSec : ABILITY_3D.airAccelPerSec) * dt;
@@ -334,7 +394,7 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
         b.state = 2;
         b.landTicks = 0;
         launchedThisTick = true;
-      } else if (jumpPressed && !b.grounded && maxJumps > 1 && b.jumpsUsed < maxJumps) {
+      } else if (jumpPressed && !b.grounded && maxJumps > 1 && b.jumpsUsed < maxJumps && b.wallDir === 0) {
         b.vy = ABILITY_3D.doubleJumpVel;
         b.jumpsUsed = Math.max(2, b.jumpsUsed + 1);
         b.jumpBufferTicks = 0;
@@ -342,11 +402,23 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
         b.landTicks = 0;
         launchedThisTick = true;
       }
+      // Wall jump (Thruster Boots only, so it never opens a Boots gate for an unequipped player)
+      if (!launchedThisTick && jumpPressed && !b.grounded && maxJumps > 1 && b.wallDir !== 0 && prev.wallDir !== 0) {
+        b.vy = ABILITY_3D.wallJumpVy;
+        b.vx = -b.wallDir * ABILITY_3D.wallJumpVx;
+        b.wallJumpLock = ABILITY_3D.wallJumpLockTicks;
+        b.jumpsUsed = 1;
+        b.jumpBufferTicks = 0;
+        b.state = 2;
+        b.landTicks = 0;
+        b.wallJumped = true;
+        launchedThisTick = true;
+      }
     }
   }
 
   // Asymmetric Abuse jump curve gravity & terminal fall clamp
-  if (!b.grounded && b.dashTicks === 0 && !launchedThisTick) {
+  if (!b.grounded && b.dashTicks === 0 && !launchedThisTick && !b.stomping) {
     let g = 23.0;
     if (Math.abs(b.vy) < 1.65) {
       g = 12.0;
@@ -356,6 +428,10 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
       g = 34.0;
     }
     b.vy = Math.max(ABILITY_3D.terminalFallVel, b.vy - g * dt);
+    // Wall slide: pressing into a wall while falling caps the fall speed
+    if (b.wallDir !== 0 && b.vy < ABILITY_3D.wallSlideSpeed && Math.sign(mx) === b.wallDir) {
+      b.vy = ABILITY_3D.wallSlideSpeed;
+    }
   }
 
   // Horizontal integration + smooth wall/pillar slide
@@ -396,6 +472,10 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
       b.vy = 0;
       b.grounded = true;
       justLanded = true;
+      if (b.stomping) {
+        b.stomping = false;
+        b.stompLanded = true;
+      }
     } else {
       b.y = wantY;
       // Check ceiling clip (skip one-way platforms so rising passes freely through them)
@@ -418,8 +498,22 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
     }
   }
 
+  // Wall contact probe (airborne only): used by wall slide / wall jump next tick
+  b.wallDir = 0;
+  if (!b.grounded && !b.stomping) {
+    const pref = mx !== 0 ? Math.sign(mx) : 0;
+    const order = pref === -1 ? [-1, 1] : [1, -1];
+    for (const dir of order) {
+      if (resolveHorizontal3D(b.x + dir * 0.08, b.y, b.z, ABILITY_3D.radius, ABILITY_3D.height, col).hitWall) {
+        b.wallDir = dir;
+        break;
+      }
+    }
+  }
+
   // Fallback safety floor clamp below deepest map sector
   if (b.y < -25) {
+    b.stomping = false;
     if (!b.grounded) justLanded = true;
     b.y = 0;
     b.vy = 0;
