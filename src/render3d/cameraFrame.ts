@@ -80,25 +80,34 @@ export function outsideFraction(fx: number, fy: number, halfW: number, halfH: nu
   return 1 - (w * h) / (4 * halfW * halfH);
 }
 
-/** Smooths the clamp rectangle across room changes (about 0.4 s to settle) and snaps on teleports. */
+/** R14 door transition: the clamp eases at 5/s and no rect edge moves faster than 16 m/s, so a room change pans instead of whipping. */
+export const ROOM_EASE_RATE = 5;
+export const ROOM_EASE_MAX_SPEED = 16;
+
+/** Smooths the clamp rectangle across room changes (about 0.4 s to settle at the default rate) and snaps on teleports. */
 export class FrameRectSmoother {
   rect: FrameRect = { minX: 0, maxX: 0, minY: 0, maxY: 0 };
   private ready = false;
 
-  /** `rate` of 8/s reaches 96% of a boundary change in 0.4 s. */
-  update(dt: number, target: FrameRect, px: number, py: number, rate = 8): FrameRect {
+  /**
+   * `rate` of 8/s reaches 96% of a boundary change in 0.4 s. `maxSpeed` (m/s) caps how fast any edge moves, which
+   * bounds the pan speed of a clamped camera. A player more than 3 m outside the current rect (teleport, respawn) snaps.
+   */
+  update(dt: number, target: FrameRect, px: number, py: number, rate = 8, maxSpeed = Infinity): FrameRect {
     const r = this.rect;
     const away = Math.max(r.minX - px, px - r.maxX, r.minY - py, py - r.maxY);
-    if (!this.ready || away > 3) {
+    if (!this.ready || away > 3 || !Number.isFinite(rate)) {
       this.rect = { ...target };
       this.ready = true;
       return this.rect;
     }
     const k = 1 - Math.exp(-Math.max(0, dt) * rate);
-    r.minX += (target.minX - r.minX) * k;
-    r.maxX += (target.maxX - r.maxX) * k;
-    r.minY += (target.minY - r.minY) * k;
-    r.maxY += (target.maxY - r.maxY) * k;
+    const cap = Math.max(0, dt) * maxSpeed;
+    const step = (from: number, to: number): number => from + Math.max(-cap, Math.min(cap, (to - from) * k));
+    r.minX = step(r.minX, target.minX);
+    r.maxX = step(r.maxX, target.maxX);
+    r.minY = step(r.minY, target.minY);
+    r.maxY = step(r.maxY, target.maxY);
     return r;
   }
 

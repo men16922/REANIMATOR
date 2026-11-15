@@ -508,6 +508,13 @@ export interface WorldState3D {
   player: PlayerState3D;
   /** Sector the player currently stands in */
   currentRoom: SectorId3D;
+  /** R14 Metroid-style room transition: ticks left of the walk-through hold (0 = none) and its travel direction (-1, 0, 1). */
+  transitionTicks: number;
+  transitionDir: -1 | 0 | 1;
+  /** Ticks left of the entry grace window: hostiles of the new room near the player stay passive. */
+  entryGraceTicks: number;
+  /** Enemies hit during the current grace window: they fight back at once. */
+  graceReleased: string[];
   visitedRooms: SectorId3D[];
   /** Sectors whose full layout a map terminal has revealed on the minimap */
   mapRevealed: SectorId3D[];
@@ -946,6 +953,10 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
     hint: '',
     hintTicks: 0,
     hintSector: '',
+    transitionTicks: 0,
+    transitionDir: 0,
+    entryGraceTicks: 0,
+    graceReleased: [],
     light: newLight(),
     enemies,
     hives,
@@ -2047,6 +2058,16 @@ function stepEnemies3D(w: WorldState3D): void {
     const isWarden = e.kind === 'warden';
 
     if (w.tutorialWakeTick < 0 && e.id === TUTORIAL_FIRST_ID && e.active) w.tutorialWakeTick = w.tick;
+    if (w.entryGraceTicks > 0 && e.hitFlashTicks > 0 && !w.graceReleased.includes(e.id)) w.graceReleased.push(e.id);
+    if (w.entryGraceTicks > 0 && !isWarden && e.zone === w.currentRoom && e.staggerTicks === 0 && !w.graceReleased.includes(e.id) && Math.hypot(dx, dy) < ENTRY_GRACE_RADIUS_3D) {
+      // Entry grace: no aggro, no attacks, no movement for hostiles near the doorway the player just walked through.
+      e.anim = 'idle';
+      e.speedNow = 0;
+      e.vx = 0;
+      e.windupTicks = 0;
+      e.lungeTicks = 0;
+      continue;
+    }
     if (e.surface !== 'floor') {
       stepHanging(w, e);
       e.speedNow = Math.abs(e.vx);
@@ -3318,6 +3339,21 @@ export function skipBossIntro3D(w: WorldState3D): void {
   if (w.bossIntroTicks > 1) w.bossIntroTicks = 1;
 }
 
+/** R14 room transition: 0.7 s walk-through, 2.5 s entry grace, grace radius, and the clear distance enemies keep from a doorway. */
+export const TRANSITION_TICKS_3D = 42;
+export const ENTRY_GRACE_TICKS_3D = 150;
+export const ENTRY_GRACE_RADIUS_3D = 14;
+export const DOORWAY_CLEAR_M_3D = 3;
+/** Doorway sills (x, floor y) of every sector door; secret hatches are not room entrances. */
+export function doorways3D(level: Level3D): { id: string; x: number; y: number }[] {
+  return level.solids
+    .filter((s) => s.kind === 'door' && s.doorId && !s.doorId.startsWith('door_secret'))
+    .map((s) => ({ id: s.doorId as string, x: (s.minX + s.maxX) / 2, y: s.minY }));
+}
+
+/** Share of full walking speed used by the auto-walk through a doorway. */
+const TRANSITION_WALK_3D = 0.55;
+
 export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState3D {
   w.events = [];
   if (w.status !== 'playing') return w;
@@ -3328,6 +3364,13 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
     w.bossIntroTicks--;
     input = { ...emptyInput3D(), aimX: rawInput.aimX, aimY: rawInput.aimY };
   }
+  if (w.transitionTicks > 0) {
+    // Room transition: the operative walks a step through the doorway. Jump, dash and fire wait; aim stays live.
+    w.transitionTicks--;
+    input = { ...input, moveX: w.transitionDir * TRANSITION_WALK_3D, jump: false, dash: false, dropDown: false, fire: false };
+    w.player.hurtInvulnTicks = Math.max(w.player.hurtInvulnTicks, 2);
+  }
+  if (w.entryGraceTicks > 0) w.entryGraceTicks--;
 
   // Reclaimer claw: while the grab windup holds the player, movement, jump and dash are ignored (counter and fire still work)
   if (hunterSnares(w.hunter, w.player.body.x, w.player.body.y)) {
@@ -3362,6 +3405,8 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   if (Math.abs(aimDx) > 0.25) p.facing = aimDx > 0 ? 1 : -1;
 
   stepElevators3D(w);
+  const preX = p.body.x;
+  const preY = p.body.y;
   const prevState = p.body.state;
   const prevDash = p.body.dashTicks;
   const prevJumps = p.body.jumpsUsed;
@@ -3405,6 +3450,20 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   const room = roomAt3D(w.level, p.body.x, p.body.y + 0.9);
   if (w.diff.nearRespawn) stepCheckpoint3D(w, room);
   if (room) {
+    if (room !== w.currentRoom && w.meltdownTicks < 0 && (roomAt3D(w.level, preX, preY + 0.9) ?? w.currentRoom) === w.currentRoom && Math.hypot(p.body.x - preX, p.body.y - preY) < 3) {
+      // Crossed a room boundary on foot: hold the pace for 0.6 s and give the new room a grace window.
+      // Side entries (doors) get the walk-through hold and the grace window. Floor and ceiling entries (lifts, drops) are
+      // slow and visible already; they only get the title card and the camera ease.
+      const dx = p.body.x - preX;
+      const rd = w.level.rooms.find((r) => r.sector === room);
+      const side = !!rd && Math.min(Math.abs(p.body.x - rd.minX), Math.abs(p.body.x - rd.maxX)) < 1.5;
+      w.transitionTicks = side ? TRANSITION_TICKS_3D : 0;
+      w.transitionDir = side && Math.abs(dx) > 0.005 ? (dx > 0 ? 1 : -1) : 0;
+      if (side) {
+        w.entryGraceTicks = ENTRY_GRACE_TICKS_3D;
+        w.graceReleased = [];
+      }
+    }
     w.currentRoom = room;
     if (!w.visitedRooms.includes(room)) w.visitedRooms.push(room);
     if (room === 'core' && !w.bossIntroDone && !w.coreDestroyed && w.enemies.some((e) => e.kind === 'warden' && e.alive)) {

@@ -222,16 +222,16 @@ export interface ShowCut {
 
 export const SHOWCASE_CUT_SECONDS = 7.5;
 
-/** Eight cuts of 7.5 s: one minute. Ticks are from the shipped bot run. */
+/** Eight cuts of 7.5 s: one minute. Ticks are from the shipped bot run (R14 room transitions: Normal wins at 4978). */
 export const SHOWCASE_REEL: readonly ShowCut[] = [
   { tick: 60, sector: 'airlock', caption: '1996 physics, frame-exact', sub: 'Abuse movement restored and checked field by field against the original' },
   { tick: 260, sector: 'shaft', caption: 'Six sectors, one connected map', sub: 'Central Shaft: every route in the facility passes through here' },
   { tick: 600, sector: 'mines', caption: 'Hazards that read before they hit', sub: 'Crushers, vents and hive nests all telegraph', view: 'modern' },
-  { tick: 1900, sector: 'biolabs', caption: 'Locks that need the right weapon', sub: 'Pulse, Scattergun, Grenade and Rail open different doors' },
+  { tick: 2150, sector: 'biolabs', caption: 'Locks that need the right weapon', sub: 'Pulse, Scattergun, Grenade and Rail open different doors' },
   { tick: 3000, sector: 'security', caption: 'Classic View: press V', sub: '320x200, 256 colours, Bayer dither. Same sim, 1996 look', view: 'classic' },
   { tick: 4100, sector: 'core', caption: 'Core Warden', sub: 'Three phases, telegraphed attacks, a weak-point window', view: 'modern' },
-  { tick: 4700, sector: 'biolabs', caption: 'Meltdown: 90 seconds', sub: 'The reactor is gone. Get to the hatch.' },
-  { tick: 5160, sector: 'airlock', caption: 'Built with Kiro', sub: 'Spec-driven, steering files, parallel sub-agents. Press any key to play.' },
+  { tick: 4420, sector: 'biolabs', caption: 'Meltdown: 90 seconds', sub: 'The reactor is gone. Get to the hatch.' },
+  { tick: 4920, sector: 'airlock', caption: 'Built with Kiro', sub: 'Spec-driven, steering files, parallel sub-agents. Press any key to play.' },
 ];
 
 /** Index of the showcase cut for an elapsed time, clamped to the last cut. */
