@@ -155,7 +155,8 @@ kbd {
 
 /* ---- overlays ---- */
 .overlay { position: absolute; inset: 0; z-index: var(--z-overlay); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.65em; background: rgba(5, 8, 14, 0.72); backdrop-filter: blur(4px); text-align: center; padding: 1.4em; }
-.overlay[hidden] { display: none; }
+.overlay[hidden] { display: none !important; }
+#loading[hidden], #title[hidden] { display: none !important; visibility: hidden; }
 .badge { font-size: 0.78em; letter-spacing: 0.24em; color: #6ae6ff; border: 1px solid rgba(106, 230, 255, 0.42); padding: 0.25em 0.75em; border-radius: 1px; background: rgba(12, 26, 38, 0.74); }
 .opts, .links { display: flex; gap: 1.4em; align-items: center; flex-wrap: wrap; justify-content: center; }
 .panel { justify-content: flex-start; overflow: auto; text-align: left; align-items: stretch; background: #05070b; }
@@ -427,6 +428,10 @@ body.reduce-fx .wpn-slot.switch { animation: none; }
 body.classic #hud:not([hidden]) ~ #classic-hud { display: block; }
 /* The strip replaces the DOM health, weapon, kills, tank and hint readouts. Objective, meltdown, boss and minimap stay. */
 body.classic .hp-pill, body.classic .kills-pill, body.classic .etank-pill, body.classic #weapon-bar, body.classic .hud-sub { display: none; }
+/* R13: ability pills (dash, light, boots, scan) collapse into one pixel status line, so Classic shows a single HUD. */
+.classic-status { display: none; }
+body.classic .pill-ability { display: none; }
+body.classic .classic-status:not([hidden]) { display: inline-flex; color: #90f0e0; border-color: #18787c; }
 /* 16x16 pixel-art crosshair (SVG data URI), hot spot at the centre. */
 body.classic #screen {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%23101010' d='M6 0h4v6h6v4h-6v6H6v-6H0V6h6z'/%3E%3Cpath fill='%23f0c040' d='M7 1h2v5H7zM7 10h2v5H7zM1 7h5v2H1zM10 7h5v2h-5z'/%3E%3Cpath fill='%23ff5030' d='M7 7h2v2H7z'/%3E%3C/svg%3E") 8 8, crosshair;
@@ -434,7 +439,7 @@ body.classic #screen {
 }
 
 /* R10: remaining DOM overlays under Classic. Pixel type, hard edges, no blur, glow, gradient or rounding, palette colours only. */
-body.classic .pill, body.classic #pickup-banner, body.classic #sector-card, body.classic #coach, body.classic .banner, body.classic .scan-pill, body.classic .meltdown-pill, body.classic .combo-pill, body.classic .rail-pill, body.classic .upgrade-pill, body.classic .core-pill, body.classic .hunter-pill {
+body.classic .pill, body.classic #pickup-banner, body.classic #sector-card, body.classic #coach, body.classic .banner, body.classic .scan-pill, body.classic .meltdown-pill, body.classic .combo-pill, body.classic .rail-pill, body.classic .upgrade-pill, body.classic .core-pill, body.classic .hunter-pill, body.classic .classic-status {
   font-family: 'Courier New', ui-monospace, monospace; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
   border-radius: 0; box-shadow: none; text-shadow: 1px 1px 0 #000; background-image: none; backdrop-filter: none; filter: none;
   border-width: 2px; border-style: solid; background-color: #101014;
@@ -451,6 +456,19 @@ body.classic .hunter-pill.exposed { color: #90f0e0; border-color: #18787c; }
 body.classic .hunter-pill.off { color: #b8ffd4; border-color: #2fae68; }
 body.classic.hunter-alarm #hud::after { animation: none; }
 body.classic #pickup-banner, body.classic #sector-card, body.classic #coach { background-color: #101014; border: 2px solid #e0a040; color: #f0e0b0; text-shadow: 1px 1px 0 #000; }
+/* R13: boss bar and minimap under Classic get the same pixel treatment (square 2 px borders, flat colours, Courier, no blur or glow) */
+body.classic #warden-hud, body.classic #minimap-wrap {
+  font-family: 'Courier New', ui-monospace, monospace; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  border-radius: 0; box-shadow: none; text-shadow: 1px 1px 0 #000; background-image: none; backdrop-filter: none; filter: none;
+  border-width: 2px; border-style: solid; background-color: #101014;
+}
+body.classic #warden-hud { border-color: #a01810; color: #f0c040; }
+body.classic #minimap-wrap { border-color: #18787c; }
+body.classic #warden-hud::before, body.classic #warden-hud::after, body.classic #minimap-wrap::before, body.classic #minimap-wrap::after { display: none; }
+body.classic .phase-tag { border-radius: 0; border-width: 2px; background-color: #a01810; background-image: none; color: #f0e0b0; }
+body.classic .boss-bar, body.classic .boss-bar i { border-radius: 0; border-width: 2px; box-shadow: none; background-image: none; background-color: #101014; }
+body.classic .boss-bar i { background-color: #a01810; }
+body.classic .minimap-label { font-family: 'Courier New', ui-monospace, monospace; font-weight: 700; color: #90f0e0; opacity: 1; letter-spacing: 0.04em; }
 body.classic .bar, body.classic .bar i { border-radius: 0; box-shadow: none; background-image: none; }
 body.classic #hud.hit, body.classic .wpn-slot.switch { animation: none; box-shadow: none; }
 body.classic #damage-flash { display: none; }

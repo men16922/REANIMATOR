@@ -516,6 +516,8 @@ export interface WorldState3D {
   saveCooldown: number;
   hint: string;
   hintTicks: number;
+  /** Sector the hint belongs to ('' = global). The HUD shows a scoped hint only while the player is in that sector. */
+  hintSector: SectorId3D | '';
   light: Light; // STRICT R3.3: Never read outside HUD/renderer!
   enemies: EnemyState3D[];
   hives: HiveState3D[];
@@ -943,6 +945,7 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
     saveCooldown: 0,
     hint: '',
     hintTicks: 0,
+    hintSector: '',
     light: newLight(),
     enemies,
     hives,
@@ -1054,9 +1057,11 @@ function pointToSegmentDistSq(px: number, py: number, ax: number, ay: number, bx
   return (px - (ax + vx * t)) ** 2 + (py - (ay + vy * t)) ** 2;
 }
 
-function setHint(w: WorldState3D, text: string): void {
-  if (w.hint === text && w.hintTicks > 0) return;
+/** Hints belong to the sector the player is in when they fire, unless the caller names another (Reclaimer) or '' (global). */
+function setHint(w: WorldState3D, text: string, sector: SectorId3D | '' = w.currentRoom): void {
+  if (w.hint === text && w.hintTicks > 0 && w.hintSector === sector) return;
   w.hint = text;
+  w.hintSector = sector;
   w.hintTicks = 150;
 }
 
@@ -1065,6 +1070,11 @@ export const SHAFT_CRACKED_WALL_ID = 'door-shaft-biolabs';
 export const CRACKED_WALL_PROMPT = 'CRACKED WALL — GRENADE REQUIRED';
 
 /** Contextual prompt while the player stands near the sealed shaft wall without the Grenade. Pure on state; sets only the hint. */
+/** The hint line to show now, or '' when none is live or it belongs to another sector (pure; HUD only). */
+export function visibleHint(w: Pick<WorldState3D, 'hint' | 'hintTicks' | 'hintSector' | 'currentRoom'>): string {
+  return w.hintTicks > 0 && (!w.hintSector || w.hintSector === w.currentRoom) ? w.hint : '';
+}
+
 export function updateCrackedWallPrompt3D(w: WorldState3D): void {
   const p = w.player;
   if (p.unlocked[3] || w.openDoors.has(SHAFT_CRACKED_WALL_ID)) return;
@@ -1074,6 +1084,7 @@ export function updateCrackedWallPrompt3D(w: WorldState3D): void {
   if (dx > 3.5 || p.body.y < wall.minY - 1 || p.body.y > wall.maxY) return;
   if (w.hintTicks > 0 && w.hint !== CRACKED_WALL_PROMPT) return;
   w.hint = CRACKED_WALL_PROMPT;
+  w.hintSector = '';
   w.hintTicks = Math.max(w.hintTicks, 2);
 }
 
@@ -1625,7 +1636,7 @@ function fireWeapon3D(w: WorldState3D, railFrac = 0): void {
       if (railHitHunter(hu, frac, hunterPush(w))) {
         w.shakeTicks = Math.max(w.shakeTicks, 24);
         w.shakeStrength = Math.max(w.shakeStrength, 0.42);
-        setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE');
+        setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE', w.level.hunterZone.sector);
       }
     }
     for (const h of w.hives) {
@@ -2698,7 +2709,7 @@ function stepHunter(w: WorldState3D): void {
   };
   const wasAlive = w.hunter.alive;
   stepHunter3D(w.hunter, ctx);
-  if (wasAlive && !w.hunter.alive) setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE');
+  if (wasAlive && !w.hunter.alive) setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE', w.level.hunterZone.sector);
 }
 
 /** True while the player is inside the hunter zone volume (HUD, tests). */
@@ -3245,6 +3256,7 @@ function stepEscapeBeats3D(w: WorldState3D): void {
     if (w.meltdownTicks === b.at) {
       w.events.push({ type: 'seal_warn', value: b.index });
       w.hint = b.text;
+      w.hintSector = '';
       w.hintTicks = 150;
       w.shakeTicks = Math.max(w.shakeTicks, 10);
       w.shakeStrength = Math.max(w.shakeStrength, b.index === 4 ? 0.34 : 0.18);
@@ -3255,6 +3267,7 @@ function stepEscapeBeats3D(w: WorldState3D): void {
     w.openDoors.add(SEAL_FINAL_ID);
     w.events.push({ type: 'seal_close' });
     w.hint = 'HATCH SHUT';
+    w.hintSector = '';
     w.hintTicks = 120;
     w.shakeTicks = Math.max(w.shakeTicks, 16);
     w.shakeStrength = Math.max(w.shakeStrength, 0.4);
@@ -3299,7 +3312,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   if (p.hurtFlashTicks > 0) p.hurtFlashTicks--;
   if (p.acidCooldown > 0) p.acidCooldown--;
   if (w.saveCooldown > 0) w.saveCooldown--;
-  if (w.hintTicks > 0 && --w.hintTicks === 0) w.hint = '';
+  if (w.hintTicks > 0 && --w.hintTicks === 0) { w.hint = ''; w.hintSector = ''; }
   updateCrackedWallPrompt3D(w);
   if (w.shakeTicks > 0) {
     w.shakeTicks--;
