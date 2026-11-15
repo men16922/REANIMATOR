@@ -207,13 +207,15 @@ void main() {
   float core = pow(facing, 0.8);
   // Burn-off: the noise threshold climbs with age so the ball breaks up into embers instead of fading evenly.
   float cut = uP * 0.95;
-  float a = smoothstep(cut, cut + 0.22, n * 0.75 + core * 0.4);
-  float heat = clamp((n * 0.75 + core * 0.3 - 0.1) * (1.05 - uP * 0.8), 0.0, 1.0);
+  // Radial mask: alpha falls to zero at the silhouette (facing -> 0) so the ball reads round and wispy, never a flat fill.
+  float rim = smoothstep(0.0, 0.55, facing);
+  float a = smoothstep(cut + 0.08, cut + 0.34, n * 0.85 + core * 0.22) * rim;
+  float heat = clamp((n * 1.05 + core * 0.22 - 0.2) * (1.05 - uP * 0.8), 0.0, 1.0);
   vec3 ember = vec3(0.35, 0.05, 0.02);
   vec3 fire = mix(ember, vec3(1.0, 0.45, 0.08), smoothstep(0.1, 0.5, heat));
   fire = mix(fire, vec3(1.0, 0.92, 0.6), smoothstep(0.7, 1.0, heat) * 0.8);
   fire = mix(fire, fire * uTint * 1.6, 0.35);
-  gl_FragColor = vec4(fire * (0.85 - 0.4 * uP), a * (1.0 - uP * uP));
+  gl_FragColor = vec4(fire * (0.8 - 0.4 * uP), a * 0.85 * (1.0 - uP * uP));
 }
 `;
 
@@ -230,13 +232,14 @@ void main() {
   vec2 d = (vUv - 0.5) * 2.0;
   float r = length(d);
   float front = 1.0 - pow(1.0 - min(1.0, uP * 1.5), 2.0);
-  float w = 0.05 + 0.09 * (1.0 - uP);
+  float w = 0.03 + 0.06 * (1.0 - uP);
   float band = smoothstep(w, 0.0, abs(r - front * 0.96));
   float tail = smoothstep(front * 0.96, front * 0.6, r) * 0.18 * step(r, front * 0.96);
   float ang = atan(d.y, d.x);
   float jag = 0.8 + 0.2 * sin(ang * 13.0 + uP * 9.0);
-  float a = (band * jag + tail) * (1.0 - uP) * (1.0 - uP);
-  gl_FragColor = vec4(mix(vec3(1.0, 0.85, 0.6), uTint, 0.5) * 0.9, a * 0.8);
+  float edgeFade = smoothstep(1.0, 0.82, r);
+  float a = (band * jag + tail * 0.5) * (1.0 - uP) * (1.0 - uP) * edgeFade;
+  gl_FragColor = vec4(mix(vec3(1.0, 0.85, 0.6), uTint, 0.5) * 0.9, a * 0.55);
 }
 `;
 

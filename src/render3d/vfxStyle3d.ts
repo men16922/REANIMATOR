@@ -27,6 +27,15 @@ export function hitFlashAmount(ticksLeft: number, reduce: boolean): number {
   return hitFlashEnvelope(ticksLeft, reduce) * HIT_FLASH_PEAK;
 }
 
+/** Player hurt flash lasts this many display seconds (wall clock, so a paused sim never holds it). */
+export const PLAYER_HURT_FLASH_SEC = 0.2;
+/** Emissive lerp amount for the player's hurt flash: same warm white and 0.3 ceiling as enemies, decays by display time. */
+export function playerHurtFlashAmount(ageSec: number, reduce: boolean): number {
+  if (!(ageSec >= 0) || ageSec >= PLAYER_HURT_FLASH_SEC) return 0;
+  const k = 1 - ageSec / PLAYER_HURT_FLASH_SEC;
+  return k * k * HIT_FLASH_PEAK * (reduce ? 0.35 : 1);
+}
+
 /** Brighter, 2-frame white pop on the first ticks of death (deathTicks counts up from 1). */
 export const DEATH_POP_CAP = 0.85;
 export function deathPopAmount(deathTicks: number, reduce: boolean): number {
