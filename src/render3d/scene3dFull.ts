@@ -17,7 +17,7 @@ import { BossTelegraph3D } from './bossTelegraph3d.ts';
 import { BossSetPieces3D } from './bossSetPieces3d.ts';
 import { meltdownIntensity, vignetteAlpha } from './setpieces3d.ts';
 import { BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
-import { PopupLayer } from './popups3d.ts';
+import { PopupLayer, popupCeilWorldY } from './popups3d.ts';
 import { CLASSIC_GLOW_SPRITE_SCALE, ClassicPipeline, classicOrthoHalf, gateStrobe, remapNdcToClassic, type ViewMode } from './classicView.ts';
 import { buildBootsItem, buildEnergyTankItem, buildSaveStation, createHoloMaterial, createShieldMaterial, type SaveStationProps } from './propsGfx.ts';
 import { applyPostParams, createFireballMaterial, createGroundWaveMaterial, createPostPass, createShockRingMaterial, ParticleLayer } from './fx3dGfx.ts';
@@ -46,7 +46,9 @@ import {
 } from './riggedModels.ts';
 import { EnemyRigDriver, ProcSecondary, type EnemyRigFrame } from './enemyRig3d.ts';
 import {
+  crawlerFootSpeed,
   gaitStep,
+  smoothDisplaySpeed,
   proceduralEnemyPose,
   flinchStep,
   flinchPose,
@@ -186,6 +188,8 @@ interface EnemyViz {
   flinch: Flinch;
   /** Turn-around error (rad) before this frame's yaw step */
   turnErr: number;
+  /** R13: smoothed display speed (m/s) driving the single-mesh gait */
+  dispSpeed?: number;
 }
 
 const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
@@ -331,6 +335,8 @@ export class Scene3DRenderer {
   private readonly bossTele = new BossTelegraph3D();
   private readonly bossSet = new BossSetPieces3D();
   private readonly popupLayer: PopupLayer;
+  /** Highest NDC y a damage popup may reach (main.ts lowers it below the boss bar). */
+  popupCeilNdc = 0.86;
   private readonly introOverlay = new BossIntroOverlay(() => this.renderer.domElement.parentElement);
   private introSkipPending = false;
   /** Display-side intro countdown (see nextIntroDisplayTicks): keeps the cinematic playing while the world is frozen. */
@@ -2221,7 +2227,10 @@ export class Scene3DRenderer {
         r.userData.state = e.alive ? e.state : 'dead';
         // Wall/ceiling crawlers move along the surface (vy is crawl speed there, not a fall)
         const onSurface = e.surface !== 'floor' && !e.dropping;
-        const surfSpeed = onSurface ? Math.hypot(e.vx, e.vy) : speed;
+        const surfTarget = onSurface ? Math.hypot(e.vx, e.vy) : speed;
+        // Smoothed display speed drives the gait so the legs never snap when the sim speed steps
+        v.dispSpeed = smoothDisplaySpeed(v.dispSpeed ?? 0, surfTarget, dt);
+        const surfSpeed = v.dispSpeed;
         const proc = proceduralEnemyPose({
           kind: e.kind === 'spitter' ? 'spitter' : 'crawler',
           alive: e.alive,
@@ -2244,7 +2253,7 @@ export class Scene3DRenderer {
           dropping: e.dropping,
           heavy: e.variant === 'dropper',
         });
-        if (e.alive) v.gait += dt * gaitStep(e.kind === 'spitter' ? 'spitter' : 'crawler', speed);
+        if (e.alive) v.gait += dt * gaitStep(e.kind === 'spitter' ? 'spitter' : 'crawler', surfSpeed);
         const sec = (v.sec ??= new ProcSecondary(e.surfaceAngle));
         const sc = sec.step(
           {
@@ -2273,7 +2282,7 @@ export class Scene3DRenderer {
         r.visible = proc.visible;
         const inner = r.children[0];
         if (inner) inner.rotation.set(sc.innerPitch, 0, sc.innerRoll);
-        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: proc.clip, timeScale: proc.timeScale, poseState: proc.clip });
+        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: proc.clip, timeScale: proc.timeScale, poseState: proc.clip, footSpeed: e.kind === 'crawler' && proc.clip === 'crawl' ? crawlerFootSpeed(surfSpeed) : undefined });
         const pulse = e.alive ? 1 + v.recoil * 0.06 : 1;
         // Wall/ceiling crawling: rotate the body about the world Z axis around its box centre (sim exposes surfaceAngle)
         const sa = sc.surf;
@@ -2499,6 +2508,14 @@ export class Scene3DRenderer {
     this.fxSmoke.sync();
     this.goreChunks.sync();
     this.goreDecals.sync();
+    {
+      // Keep damage popups under the top HUD (boss bar): convert the NDC ceiling to a world-y ceiling on the z = 0 lane.
+      this.camera.updateMatrixWorld();
+      const cx = this.camera.position.x;
+      const a = this.camProbe.set(cx, 0, 1.2).project(this.camera).y;
+      const b = this.camProbe.set(cx, 10, 1.2).project(this.camera).y;
+      this.popupLayer.maxY = popupCeilWorldY(a, b, this.popupCeilNdc);
+    }
     this.popupLayer.sync();
     stepPostParams(this.postParams, w.currentRoom, dt, tSec, p.hp / Math.max(1, p.maxHp), this.fx.chroma, this.reduceMotion);
     {

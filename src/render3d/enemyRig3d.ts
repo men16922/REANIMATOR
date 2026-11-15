@@ -8,7 +8,7 @@
 // Axis convention (verified against the GLB rest poses): the model faces +Z, its left is +X, bone rotations below are
 // about the rig X/Y/Z axes: +X = forward lean, +Y = turn toward +X, +Z = left arm outward.
 
-import { stepEnemyYaw, wrapAngle } from './enemyMotion.ts';
+import { latchHysteresis, runLean, stepEnemyYaw, wrapAngle } from './enemyMotion.ts';
 
 export type RigKind = 'stalker' | 'warden';
 
@@ -212,6 +212,7 @@ export class EnemyRigDriver {
   private tuckK = 0;
   private windK = 0;
   private moveW = 0;
+  private moveLatch = false;
   private aimW = 0;
   private aimPitch = 0;
   private hitFront = 1;
@@ -292,7 +293,8 @@ export class EnemyRigDriver {
 
     // --- clip weights (smoothed crossfades, 0.12..0.25 s)
     // Windup keeps walking while the sim's slide decays so the feet never skate across the floor
-    const moving = alive && !staggered && !striking && speed > 0.35;
+    this.moveLatch = latchHysteresis(this.moveLatch, speed, 0.5, 0.25);
+    const moving = alive && !staggered && !striking && this.moveLatch;
     this.moveW += ((moving ? 1 : 0) - this.moveW) * expK(moving ? 40 : 18, dt);
     const rb = runBlend(kind, speed);
     const t: ClipWeights = { idle: 0, walk: 0, run: 0, attack: 0, death: 0 };
@@ -356,6 +358,9 @@ export class EnemyRigDriver {
     tgt.spineTwist += this.recoil.x * 0.25 * this.hitFront;
     tgt.armUpL += this.recoil.x * 0.8;
     tgt.armUpR += this.recoil.x * 0.8;
+
+    // lean into the run (stalker leans harder than the heavy warden)
+    tgt.spine += runLean(kind, speed, this.moveW);
 
     // lateral acceleration sway (secondary spring on the upper body)
     stepSpring(this.sway, clamp((this.moveW > 0.3 ? 0.04 : 0) * Math.sin(this.gaitPhase * Math.PI * 4), -0.05, 0.05), dt, 3, 0.4);
