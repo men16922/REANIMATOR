@@ -226,8 +226,14 @@ export function createBot3D(w0: WorldState3D): Bot3D {
       // Read the Warden's telegraphs: dash through a charge, hop incoming plasma rings
       const wd = w.enemies.find((e) => e.kind === 'warden' && e.alive);
       if (wd && wd.bossPattern === 'charge' && wd.lungeTicks > 0 && Math.abs(wd.x - b.x) < 5.5 && b.dashCooldown === 0) {
-        inp.dash = true;
-        inp.moveX = wd.chargeDir;
+        // Out-run the charge in open floor; with the wall close ahead, dash back through the Warden on the dash i-frames
+        const ahead = (b.x - wd.x) * wd.chargeDir > 0;
+        const room = wd.chargeDir > 0 ? 95.9 - b.x : b.x - 72.4;
+        const cornered = ahead && room < 12;
+        if (!cornered || Math.abs(wd.x - b.x) < 3) {
+          inp.dash = true;
+          inp.moveX = cornered ? -wd.chargeDir : wd.chargeDir;
+        }
       }
       for (const pr of w.projectiles) {
         if (pr.fromPlayer || pr.kind !== 'boss_plasma') continue;
@@ -236,7 +242,9 @@ export function createBot3D(w0: WorldState3D): Bot3D {
       }
       // Dash long flat stretches during the meltdown run and to cross the Warden
       const flat = Math.abs(target.y - b.y) < 0.5 && Math.abs(target.x - b.x) > 9;
-      if (!holding && b.dashCooldown === 0 && b.grounded && ((w.phase === 'escape' && flat) || (step.mode === 'boss' && bossSide === 1 && Math.abs(b.x - target.x) > 6))) {
+      // Keep the dash for a charge that is winding up or under way (it is the only way through it)
+      const chargeComing = !!wd && wd.bossPattern === 'charge' && (wd.windupTicks > 0 || wd.lungeTicks > 0);
+      if (!holding && b.dashCooldown === 0 && b.grounded && ((w.phase === 'escape' && flat) || (step.mode === 'boss' && bossSide === 1 && !chargeComing && Math.abs(b.x - target.x) > 6))) {
         inp.dash = true;
       }
 

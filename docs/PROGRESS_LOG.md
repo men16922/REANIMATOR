@@ -74,3 +74,4 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - Unverified: 패리/카운터 창 체감, G5 사람 플레이, `make smoke-local`(실제 Chrome 필요).
 
 - R12: English-only text (lore KO tables, locale, language toggle removed). Crawler/spitter procedural gait amplified (yaw swing added) so single-mesh enemies visibly move; `tests/enemy-locomotion.test.ts` added; `make check` passed.
+- R12 enemy locomotion: airlock crawlers were stuck against `airlock-crate` (1.4 m) at x 11.02 with `vx` -8.8 (pose ran in place). Sim now hops low obstacles, gives up to patrol behind walls/doors, separates stalled foes, and drives pose from real displacement with hysteresis. Bot keeps its dash for Warden charges. Bot Normal 5522 ticks HP 95 (pin updated), Story 5606 HP 146, Hard 5633 HP 48. `make check` exit 0 (544/544). Playwright sampling in six sectors showed crawl/leap/land/idle with changing x.

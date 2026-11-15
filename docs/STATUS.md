@@ -46,12 +46,18 @@
 
 - **R11** (main 직접 커밋 `b94f861`, `0c77ca8`, `3c8e7a0`): 헌터 철제 갑옷을 리그 본에 장착(모든 재질 슬롯 steel, 몸통 실측 맞춤), 오프닝 HUD 페이드인·레터박스·기상 포즈·타이틀 카드, 쇼케이스 hold 종료, 일시정지 Escape 재개, UI 크롬 영어 고정(`CHROME_LANG`).
 
+- **R12 Enemy locomotion** (main): root cause of "enemies do not move" was the sim, not the renderer. Airlock crawlers ran into `airlock-crate` (x 9..10.6, 1.4 m, above the 0.38 m step) and pressed against it at x 11.02 forever: `vx` stayed at -8.8 so the pose read `run`/`crawl`, `stuckTicks` drifted, and chase/recover cycled. Fix in `world3d.ts`: crate hop (0.4..1.5 m with headroom and a landing), give-up to `patrol` with a 150-tick re-aggro cooldown, sight check (walls/doors block, low cover does not), deterministic separation of stalled foes (gap 0.85 m), `vx` clamped to the real displacement and `speedNow` smoothed from it, walk/run hysteresis. Renderer: single-mesh foes use `speedNow` with a 0.6/0.25 m/s latch. Bot: keeps the dash for a Warden charge and dashes back through it when cornered. `__reanimatorAdvance` resets the world on every call (`newWorld3D()`), so calling it repeatedly shows enemies at spawn; use `__reanimatorStep` to continue. Bot Normal 5522 ticks HP 95/160 (was 5533/95), Story 5606 HP 146, Hard 5633 HP 48 min 48, 0 deaths. Tests `tests/enemy-ai.test.ts` (8). Playwright telemetry sampled in all six sectors.
+
 ## 세션 마감 검증 (오케스트레이터 Playwright 관찰, 2026-11-15)
 
 - **R9**: `__reanimatorUiAudit()` 12개 시나리오 ok, Z 스캔 윤곽 표시, 보안 데크 Vault Nook 시크릿 발견, `8376998` 이후 카메라가 Nook 안까지 따라감, 콘솔 경고 0.
 - **R10/R11**: 오프닝 알람·기상 비트가 레터박스와 HUD 없이 렌더, 무릎 꿇은 operative, 푸터 1996, HUD 한 줄에 HUNTER pill, 헌터 외형 개선 확인. 최종 `3c8e7a0`의 외형은 오케스트레이터가 재확인하지 않았다(unverified).
 - **회귀 의심 조사(재현 불가)**: `__reanimatorAdvance`(skipIntro) 후 1.5 s 뒤 타이틀+어트랙트가 다시 나온다는 보고를 실제 Chrome(Playwright)에서 현재 코드로 조사했다(`src/ui/main.ts`: `__reanimatorAdvance` ~L1576, `hideIntro` ~L471, `exitShowcase` ~L1118). 5 s 후 호출과 로드 직후 호출 모두 mode `playing` 유지, `#title` display none, `#hud` 표시, 내비게이션 없음, 4 s 안정. `show('title')` 호출처는 `exitShowcase`, 쇼케이스 `title` 장면, `uiAudit`, 시작 시뿐이며 Advance 뒤에는 발동하지 않는다. 유력한 원인은 오케스트레이터 세션 중 동시 파일 편집으로 인한 Vite 전체 리로드 또는 낡은 HMR 인스턴스(리로드되면 타이틀+Bio-Labs 어트랙트와 이전 HUD 상태가 나온다). 코드 변경 없음. dev 서버를 깨끗이 재시작해 재확인할 것.
 - Abuse·Metroid 느낌 요청은 R4_METROID_GAPS, R5-Rig, R9 Vault Nook, Warden 카운터, Classic View로 이미 반영됐다. 원본 Abuse 데이터는 쓰지 않았다.
+
+## 검증 기준선 (R12 enemy locomotion, make check 544/544)
+
+- `make check` exit 0: 테스트 544/544, reach3d 52 waypoints 3432 ticks, 봇 Normal 5522 ticks HP 95/160, dist-guard PASS. 봉인 파일 무변경.
 
 ## 검증 기준선 (R11 최종, make check 534/534)
 

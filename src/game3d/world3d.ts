@@ -152,6 +152,8 @@ export interface EnemyState3D {
   lungeTicks: number;
   stuckTicks: number;
   lostTicks: number;
+  /** Ticks during which a foe that gave up on an unreachable player will not re-acquire it (stops chase/recover flicker) */
+  aggroCooldown: number;
   /** Crawler variant: `dropper` ambushes from the ceiling, `climber` crawls a wall/ceiling toward the player first */
   variant: EnemyVariant3D;
   /** Surface the body clings to. Gameplay y is always the bottom of the body box. */
@@ -821,6 +823,7 @@ function buildEnemy3D(sp: EnemySpawn3D, hiveId = '', hpMul = 1): EnemyState3D {
     facing: -1,
     turnTicks: 0,
     speedNow: 0,
+    aggroCooldown: 0,
     lungeTicks: 0,
     stuckTicks: 0,
     lostTicks: 0,
@@ -1996,7 +1999,8 @@ function stepEnemies3D(w: WorldState3D): void {
         e.facing = dirX;
         e.turnTicks = 0;
         if (isWarden) setEnemyState(e, 'chase', 0);
-        else setEnemyState(e, 'alert', ENEMY_ALERT_TICKS_3D);
+        else if (enemyCanSee(w, e)) setEnemyState(e, 'alert', ENEMY_ALERT_TICKS_3D);
+        else setEnemyState(e, 'patrol', 0);
       } else {
         e.anim = 'idle';
         e.state = 'dormant';
@@ -2008,6 +2012,7 @@ function stepEnemies3D(w: WorldState3D): void {
     if (e.attackCooldown > 0) e.attackCooldown--;
     if (e.meleeCooldown > 0) e.meleeCooldown--;
     if (e.attackAnimTicks > 0) e.attackAnimTicks--;
+    if (e.aggroCooldown > 0) e.aggroCooldown--;
 
     let wantVx = 0;
     let direct = false; // lunge: velocity set by the state, not by accel
@@ -2219,7 +2224,7 @@ function stepEnemies3D(w: WorldState3D): void {
         case 'patrol': {
           patrolling = true;
           e.anim = 'idle';
-          if ((e.zone === w.currentRoom && dist < 18 && Math.abs(dy) < 6) || e.hitFlashTicks > 0) {
+          if (((e.zone === w.currentRoom && dist < 18 && Math.abs(dy) < 6 && e.aggroCooldown === 0 && enemyCanSee(w, e))) || e.hitFlashTicks > 0) {
             e.facing = dirX;
             e.turnTicks = 0;
             setEnemyState(e, 'alert', ENEMY_ALERT_TICKS_3D);
@@ -2391,10 +2396,8 @@ function stepEnemies3D(w: WorldState3D): void {
         }
       }
       if (e.state === 'chase') {
+        // walk/run/idle are picked after the move from the real displacement (with hysteresis), see below
         if (e.attackAnimTicks > 0) e.anim = 'attack';
-        else if (Math.abs(e.vx) > 4.2) e.anim = 'run';
-        else if (Math.abs(e.vx) > 0.6) e.anim = 'walk';
-        else e.anim = 'idle';
       } else if (patrolling && Math.abs(e.vx) > 0.4) {
         e.anim = 'walk';
       }
@@ -2402,11 +2405,12 @@ function stepEnemies3D(w: WorldState3D): void {
 
     // Never walk off a ledge deeper than a short hop
     let blocked = false;
+    const intendedVx = wantVx;
     const guardDir = direct ? Math.sign(e.vx) : Math.sign(wantVx);
     if (guardDir !== 0 && !e.dropping) {
       const ahead = e.x + guardDir * (e.radius + 0.5);
       const fyAhead = floorHeightAt3D(ahead, 0, e.y, 0.1, col);
-      if (!(fyAhead > -Infinity) || e.y - fyAhead > 1.3) {
+      if (!(fyAhead > -Infinity) || e.y - fyAhead > 1.5) {
         blocked = true;
         if (direct) {
           e.vx = 0;
@@ -2424,17 +2428,107 @@ function stepEnemies3D(w: WorldState3D): void {
     e.z = 0;
     if (!isWarden && moving && Math.abs(wantVx) > 0.5 && (blocked || Math.abs(e.x - prevX) < 0.002)) e.stuckTicks++;
     else if (Math.abs(e.x - prevX) > 0.01) e.stuckTicks = 0;
+    if (!isWarden && !direct && e.vy === 0 && e.stuckTicks >= 3 && intendedVx !== 0 && tryEnemyHop(e, col, Math.sign(intendedVx))) {
+      e.stuckTicks = 0; // a low crate or step: hop over it
+    }
     if (!isWarden && e.state === 'chase' && e.stuckTicks > 20) {
-      setEnemyState(e, 'recover', 30); // blocked by wall/ledge: stand and idle instead of jittering
+      // Blocked by a wall, closed door or ledge: give up, walk back and patrol, and do not re-acquire at once
+      setEnemyState(e, 'patrol', 0);
+      e.aggroCooldown = 150;
+      e.facing = e.x > e.homeX ? -1 : 1;
       e.stuckTicks = 0;
       e.vx = 0;
     }
 
+    // Locomotion follows what the body actually did: pressing into a wall or door is standing still
+    const actualVx = (e.x - prevX) / dt;
+    if (!isWarden && !direct && Math.abs(actualVx) < Math.abs(e.vx) * 0.5) e.vx = actualVx;
+    e.speedNow += (Math.abs(actualVx) - e.speedNow) * 0.2;
+    if (!isWarden && e.state === 'chase' && e.attackAnimTicks === 0) {
+      // Pose hysteresis: walk/run switch on separate enter and exit speeds
+      const sp = e.speedNow;
+      if (e.anim === 'run') e.anim = sp < 3.4 ? (sp > 0.4 ? 'walk' : 'idle') : 'run';
+      else if (e.anim === 'walk') e.anim = sp > 4.8 ? 'run' : sp < 0.25 ? 'idle' : 'walk';
+      else e.anim = sp > 0.9 ? (sp > 4.8 ? 'run' : 'walk') : 'idle';
+    }
+
     settleEnemyY(e, col, dt);
     e.yaw = e.facing * (Math.PI / 2);
-    e.speedNow = Math.abs(e.vx);
     if (isWarden && e.windupTicks === 0 && e.attackAnimTicks === 0) e.anim = Math.abs(e.vx) > 0.5 ? 'walk' : 'idle';
   }
+  separateEnemies3D(w, col);
+}
+
+const ENEMY_GAP_3D = 0.85;
+
+/** Deterministic queueing: two grounded foes never share a spot. The one further from the player yields. */
+function separateEnemies3D(w: WorldState3D, col: ReturnType<typeof buildCollider3D>): void {
+  const px = w.player.body.x;
+  const list = w.enemies.filter((o) => o.alive && o.active && o.surface === 'floor' && (o.kind === 'crawler' || o.kind === 'stalker') && o.state !== 'attack');
+  for (let i = 0; i < list.length; i++) {
+    for (let j = i + 1; j < list.length; j++) {
+      const a = list[i];
+      const b = list[j];
+      if (Math.abs(a.y - b.y) > 1.0) continue;
+      const d = b.x - a.x;
+      if (Math.abs(d) >= ENEMY_GAP_3D) continue;
+      // A moving chaser steers itself (chase repel, flank run-past); patrolling, idle or stalled bodies are pulled apart
+      const steering = (a.state === 'chase' && a.speedNow > 0.4) || (b.state === 'chase' && b.speedNow > 0.4);
+      if (steering && Math.abs(d) > 0.12) continue;
+      // Mover = the one further from the player (ties: later in list); it slides away from the other, away from the player
+      const da = Math.abs(a.x - px);
+      const db = Math.abs(b.x - px);
+      const mover = da > db ? a : b;
+      const stay = mover === a ? b : a;
+      const side = Math.abs(d) > 1e-6 ? Math.sign(mover.x - stay.x) : px < stay.x ? 1 : -1;
+      const r = resolveHorizontal3D(stay.x + side * ENEMY_GAP_3D, mover.y, 0, mover.radius, mover.height, col);
+      if (Math.abs(r.x - stay.x) >= ENEMY_GAP_3D * 0.5) mover.x = r.x;
+      else {
+        // Wall behind the mover: the one nearer the player gives way instead
+        const r2 = resolveHorizontal3D(mover.x - side * ENEMY_GAP_3D, stay.y, 0, stay.radius, stay.height, col);
+        if (Math.abs(r2.x - mover.x) >= ENEMY_GAP_3D * 0.5) stay.x = r2.x;
+      }
+    }
+  }
+}
+
+/** True unless a wall or closed door stands between a same-level foe and the player. */
+function enemyCanSee(w: WorldState3D, e: EnemyState3D): boolean {
+  const pb = w.player.body;
+  const dx = pb.x - e.x;
+  // Eye level above crates (1.4 m): walls and closed doors block sight, low cover does not
+  const sy = e.y + 1.5;
+  const ty = pb.y + 1.5;
+  if (Math.abs(pb.y - e.y) >= 1.5) return true;
+  const len = Math.hypot(dx, ty - sy) || 1;
+  return castRaySolidDistance3D(w, e.x, sy, 0, dx / len, (ty - sy) / len, 0, len) >= len - 0.3;
+}
+
+/** Hop over a low obstacle straight ahead (0.4 to 1.5 m tall with headroom). Returns whether a hop started. */
+function tryEnemyHop(e: EnemyState3D, col: ReturnType<typeof buildCollider3D>, dir: number): boolean {
+  const x0 = e.x + dir * e.radius;
+  const x1 = e.x + dir * (e.radius + 0.5);
+  const lo = Math.min(x0, x1);
+  const hi = Math.max(x0, x1);
+  let top = -Infinity;
+  for (const s of col.solids) {
+    if (col.isSolidActive && !col.isSolidActive(s)) continue;
+    if (s.kind === 'platform' || s.maxX < lo || s.minX > hi || s.minZ > 0.2 || s.maxZ < -0.2) continue;
+    if (s.maxY <= e.y + 0.38 || s.minY > e.y + 0.5) continue;
+    top = Math.max(top, s.maxY);
+  }
+  const h = top - e.y;
+  if (!(h > 0.38) || h > 1.5) return false;
+  for (const s of col.solids) {
+    if (col.isSolidActive && !col.isSolidActive(s)) continue;
+    if (s.kind === 'platform' || s.maxX < lo || s.minX > hi || s.minZ > 0.2 || s.maxZ < -0.2) continue;
+    if (s.minY >= top - 0.01 && s.minY < top + e.height) return false;
+  }
+  // Only hop onto ground it can leave again on the far side
+  const far = floorHeightAt3D(e.x + dir * (e.radius + 1.1), 0, top, e.radius, col);
+  if (!(far > -Infinity) || top - far > 1.5) return false;
+  e.vy = Math.sqrt(2 * 24 * (h + 0.35));
+  return true;
 }
 
 /**

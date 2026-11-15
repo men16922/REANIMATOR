@@ -166,6 +166,8 @@ interface EnemyViz {
   prevWindup: number;
   phase: number;
   gait: number;
+  /** Locomotion latch for single-mesh foes: starts above 0.6 m/s, stops below 0.25 m/s, so the clip never flickers */
+  walking?: boolean;
   land: number;
   stagger: number;
   prevVy: number;
@@ -2087,7 +2089,10 @@ export class Scene3DRenderer {
       v.prevVy = e.vy;
       v.land = Math.max(0, v.land - dt * 7);
 
-      const speed = Math.abs(e.vx);
+      // Ground speed the sim actually achieved (pressing into a wall reads 0), latched so the clip never flickers
+      const rawSpeed = e.surface === 'floor' && !e.dropping && e.state !== 'attack' ? e.speedNow : Math.abs(e.vx);
+      v.walking = v.walking ? rawSpeed > 0.25 : rawSpeed > 0.6;
+      const speed = v.walking ? Math.max(rawSpeed, 0.45) : 0;
       const windTotal = e.kind === 'warden' && e.phase >= 2 ? 28 : ENEMY_WINDUP_TOTAL_3D[e.kind];
       const winding = e.alive && (e.windupTicks > 0 || e.state === 'windup');
       const alerting = e.alive && e.state === 'alert';

@@ -185,3 +185,4 @@ worktree `/private/tmp/r8-{leak,lab,assist,lore}`에서 4트랙을 돌리고 통
 - R11 polish 2커밋과 final fix pass 1커밋, 이후 문서 마감을 서브에이전트가 수행. 오케스트레이터가 Playwright(실제 Chrome)로 R9 uiAudit 12개 시나리오, 스캔·Vault Nook, R10/R11 오프닝과 헌터 pill을 직접 관찰했다. `__reanimatorAdvance` 재출현 보고는 재현되지 않았고 원인 후보(Vite 리로드)를 STATUS에 기록했다. 서브에이전트 샌드박스에서는 브라우저를 띄울 수 없어 해당 구간은 오케스트레이터 관찰이다. 푸시는 DNS 실패로 보류.
 
 - R12: delegated sub-agent made the game English-only and amplified single-mesh enemy locomotion; checked with Playwright telemetry and `make check`.
+- R12 enemy locomotion: delegated sub-agent diagnosed the stuck crawlers with headless sim traces, fixed `world3d.ts`/`bot3d.ts`/`scene3dFull.ts`, added `tests/enemy-ai.test.ts`, ran `make check` (exit 0) and sampled `__reanimator().enemyRender` with Playwright.
