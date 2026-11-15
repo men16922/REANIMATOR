@@ -24,3 +24,18 @@ test('sector label keeps the room name when the full text is too long', () => {
   assert.equal(classicSectorLabel('SECURITY \u00b7 SECURITY DECK', 14), 'SECURITY DECK');
   assert.equal(sanitizeHudText('a\u2013b \u00a7 c'), 'A-B C');
 });
+
+import { readFileSync } from 'node:fs';
+import { CLASSIC_ADDITIVE_SCALE, CLASSIC_GLOW_SPRITE_SCALE } from '../src/render3d/classicLogic.ts';
+
+test('classic additive glow is damped and the sprite layer is hidden', () => {
+  assert.ok(CLASSIC_ADDITIVE_SCALE > 0 && CLASSIC_ADDITIVE_SCALE <= 0.3);
+  assert.equal(CLASSIC_GLOW_SPRITE_SCALE, 0);
+});
+
+test('scene source has no wireframe explosion and no extra PointLight', () => {
+  const src = readFileSync(new URL('../src/render3d/scene3dFull.ts', import.meta.url), 'utf8');
+  assert.ok(!/explosion[^\n]*wireframe|IcosahedronGeometry\(1, 1\)/.test(src));
+  const lights = src.match(/new THREE\.PointLight\(/g) ?? [];
+  assert.equal(lights.length, 4, 'alarm, fill, muzzle and acid pool only; blasts reuse the alarm light');
+});
