@@ -197,6 +197,9 @@ export const SHOWCASE_SCENES: Readonly<Record<string, ShowcaseScene>> = {
   'opening-wake': { kind: 'world', openingAt: 3.0, sector: 'airlock', settleFrames: 8 },
   'opening-alarm': { kind: 'world', openingAt: 5.6, sector: 'airlock', settleFrames: 8 },
   opening: { kind: 'world', openingAt: 8.7, sector: 'airlock', settleFrames: 6 },
+  // R12 bestiary: the Sunken Mines floor holds a stalker, two crawlers, two droppers, a climber and a spitter within
+  // one screen of x = 14. The operative stands still with two tanks while they close in, so every foe is on camera.
+  bestiary: { kind: 'world', setup: { ...KIT, x: 14, y: -11 }, inputs: rep(100, {}), sector: 'mines', settleFrames: 8 },
   lab: { kind: 'lab', settleFrames: 6 },
 };
 
