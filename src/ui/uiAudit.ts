@@ -49,6 +49,7 @@ const STEPS: readonly Step[] = [
   { name: 'credits', expectedTop: 'title-credits', clicks: ['extras-open', 'credits-open'], mode: 'title' },
   { name: 'pause', expectedTop: 'pause', clicks: [], mode: 'paused' },
   { name: 'pause-controls', expectedTop: 'controls-panel', clicks: ['controls-open'], mode: 'paused' },
+  { name: 'logs', expectedTop: 'log-archive', clicks: ['logs-open'], mode: 'paused' },
   { name: 'result', expectedTop: 'result', clicks: [], mode: 'result' },
 ];
 

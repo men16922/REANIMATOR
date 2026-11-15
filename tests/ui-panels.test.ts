@@ -162,8 +162,8 @@ test('every layer id the state machine manages exists in index.html', () => {
 const MODES: UiMode[] = ['title', 'playing', 'paused', 'result', 'showcase'];
 const TITLE_PANELS: Array<TitlePanel | null> = [null, 'settings', 'extras', 'controls', 'credits', 'demo'];
 function* allStates(): Generator<PanelState> {
-  for (const mode of MODES) for (const titlePanel of TITLE_PANELS) for (const lab of [false, true]) for (const revived of [false, true]) for (const pauseControls of [false, true]) {
-    yield normalizePanelState({ mode, titlePanel, lab, revived, pauseControls });
+  for (const mode of MODES) for (const titlePanel of TITLE_PANELS) for (const lab of [false, true]) for (const revived of [false, true]) for (const pauseControls of [false, true]) for (const logArchive of [false, true]) for (const logReader of [false, true]) for (const creditsRoll of [false, true]) {
+    yield normalizePanelState({ mode, titlePanel, lab, revived, pauseControls, logArchive, logReader, creditsRoll });
   }
 }
 
@@ -177,7 +177,7 @@ test('at most one top layer; it is always one of the visible layers', () => {
 });
 
 test('Lab and revived beat every title panel; title panels beat the bare title', () => {
-  const base: PanelState = { mode: 'title', titlePanel: 'extras', lab: false, revived: false, pauseControls: false };
+  const base: PanelState = { mode: 'title', titlePanel: 'extras', lab: false, revived: false, pauseControls: false, logArchive: false, logReader: false, creditsRoll: false };
   assert.equal(topLayer(base), 'extras-panel');
   assert.equal(topLayer({ ...base, lab: true }), 'lab');
   assert.equal(topLayer({ ...base, revived: true }), 'revived');
@@ -192,14 +192,51 @@ test('title logo and menu are covered exactly when something other than the bare
     assert.equal(titleCovered(s), expected, JSON.stringify(s));
     if (s.mode === 'title' && (s.lab || s.revived || s.titlePanel)) assert.equal(titleCovered(s), true);
   }
-  assert.equal(titleCovered({ mode: 'title', titlePanel: null, lab: false, revived: false, pauseControls: false }), false);
+  assert.equal(titleCovered({ mode: 'title', titlePanel: null, lab: false, revived: false, pauseControls: false, logArchive: false, logReader: false, creditsRoll: false }), false);
 });
 
 test('impossible combinations are normalized away', () => {
-  const n = normalizePanelState({ mode: 'playing', titlePanel: 'extras', lab: true, revived: true, pauseControls: true });
-  assert.deepEqual(n, { mode: 'playing', titlePanel: null, lab: false, revived: false, pauseControls: false });
+  const n = normalizePanelState({ mode: 'playing', titlePanel: 'extras', lab: true, revived: true, pauseControls: true, logArchive: true, logReader: false, creditsRoll: true });
+  assert.deepEqual(n, { mode: 'playing', titlePanel: null, lab: false, revived: false, pauseControls: false, logArchive: false, logReader: false, creditsRoll: false });
   assert.equal(topLayer(n), null);
-  assert.equal(topLayer(normalizePanelState({ mode: 'paused', titlePanel: null, lab: true, revived: false, pauseControls: true })), 'controls-panel');
-  assert.equal(topLayer(normalizePanelState({ mode: 'result', titlePanel: 'demo', lab: false, revived: false, pauseControls: true })), 'result');
-  assert.equal(topLayer(normalizePanelState({ mode: 'showcase', titlePanel: 'demo', lab: true, revived: false, pauseControls: false })), null);
+  assert.equal(topLayer(normalizePanelState({ mode: 'paused', titlePanel: null, lab: true, revived: false, pauseControls: true, logArchive: false, logReader: false, creditsRoll: false })), 'controls-panel');
+  assert.equal(topLayer(normalizePanelState({ mode: 'result', titlePanel: 'demo', lab: false, revived: false, pauseControls: true, logArchive: false, logReader: false, creditsRoll: false })), 'result');
+  assert.equal(topLayer(normalizePanelState({ mode: 'showcase', titlePanel: 'demo', lab: true, revived: false, pauseControls: false, logArchive: false, logReader: false, creditsRoll: false })), null);
+});
+
+// ---- data log layers (R8 lore track) ----
+const CLEAR = { titlePanel: null, lab: false, revived: false, pauseControls: false, logArchive: false, logReader: false, creditsRoll: false } as const;
+
+test('log layers: reader beats archive beats pause controls; archive and reader never reach the title or result', () => {
+  assert.equal(topLayer(normalizePanelState({ ...CLEAR, mode: 'paused', logArchive: true })), 'log-archive');
+  assert.equal(topLayer(normalizePanelState({ ...CLEAR, mode: 'paused', logArchive: true, logReader: true })), 'log-reader');
+  assert.equal(topLayer(normalizePanelState({ ...CLEAR, mode: 'paused', logArchive: true, pauseControls: true })), 'log-archive');
+  assert.equal(topLayer(normalizePanelState({ ...CLEAR, mode: 'playing', logReader: true })), 'log-reader');
+  assert.equal(topLayer(normalizePanelState({ ...CLEAR, mode: 'title', logArchive: true, logReader: true })), 'title');
+  assert.equal(topLayer(normalizePanelState({ ...CLEAR, mode: 'result', logArchive: true, logReader: true })), 'result');
+  assert.equal(topLayer(normalizePanelState({ ...CLEAR, mode: 'result', creditsRoll: true })), 'credits-roll');
+  assert.equal(topLayer(normalizePanelState({ ...CLEAR, mode: 'paused', creditsRoll: true })), 'pause');
+});
+
+test('log panels: ids exist, start hidden, sit on the stage, and use the sub panel layer', () => {
+  for (const id of ['log-archive', 'log-reader', 'credits-roll']) {
+    const el = dom.get(id);
+    assert.ok(el, `#${id} exists`);
+    assert.equal(el.parent, 'stage', `${id} is a stage child`);
+    assert.ok(el.hidden, `${id} starts hidden`);
+  }
+  assert.equal(z('#log-archive'), z('#revived'));
+  assert.equal(z('.scan-panel'), Number(rootVars['--z-subpanel']));
+  assert.ok(z('.scan-panel') > z('.overlay'), 'reader and credits open above pause and result');
+  assert.ok(z('#intro') > z('.scan-panel'), 'the intro still covers menus');
+  const order = (id: string): number => html.indexOf(`id="${id}"`);
+  assert.ok(order('log-reader') > order('log-archive'), 'reader follows the archive in DOM order so it wins the tie');
+  for (const id of ['logs-open', 'logs-close', 'log-lang', 'credits-roll-open', 'ending', 'lr-body', 'lr-title', 'lr-speaker', 'lr-stamp']) assert.ok(dom.has(id), `#${id}`);
+  assert.equal(dom.get('logs-open')!.parent, 'pause', 'LOGS button lives in the pause menu');
+  assert.equal(dom.get('log-archive')!.classes.includes('panel'), true, 'archive is opaque like the other panels');
+});
+
+test('uiAudit has a logs scenario that opens the archive from pause', () => {
+  const src = read('src/ui/uiAudit.ts');
+  assert.match(src, /name: 'logs', expectedTop: 'log-archive', clicks: \['logs-open'\], mode: 'paused'/);
 });

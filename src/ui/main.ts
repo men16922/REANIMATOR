@@ -27,7 +27,7 @@ import { rankPitch } from './audioLogic.ts';
 import { AudioDirector, snapshotPre } from './audioDirector.ts';
 import { Attract, freshWorld, REEL_SEGMENT_SECONDS, Showcase } from './attract.ts';
 import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type DebugSetup3D, type DemoStop } from './demo.ts';
-import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type Hint } from './flow.ts';
+import { buildRunStats, formatClock, Onboarding, retryTip, type Hint } from './flow.ts';
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
 import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
@@ -35,6 +35,8 @@ import { objectiveFor } from './objective.ts';
 import { parseGoreLevel, type GoreLevel } from '../render3d/gore3d.ts';
 import { loadProgress, menuKeyAction, PANEL_IDS, stepIndex, type TitlePanel } from './menu.ts';
 import { normalizePanelState, titleCovered, topLayer } from './panels.ts';
+import { archiveRows, canOpen, LOG_FREEZE_S, openReader, pressReader, tickReader, visibleBody, type ReaderState } from './logReader.ts';
+import { CREDITS_LINES, endingText, INTRO_LINES, LANG_STORE_KEY, LORE_LOGS, LORE_UI, loreLogById, otherLang, pickLang, SECTOR_SUB, type Lang } from './lore.ts';
 import { runUiAudit, type UiAuditReport } from './uiAudit.ts';
 import { getFailedModelNames3D, getLoadedModelNames3D } from '../render3d/riggedModels.ts';
 
@@ -188,6 +190,11 @@ let mapExpanded = false;
 let mapMarkers = true;
 /** Metroid-style item freeze: seconds the display clock stays stopped after an upgrade pickup */
 let itemFreeze = 0;
+/** Story language (EN default, KO from the browser language or the LOGS archive toggle) and the data log reader. */
+let lang: Lang = pickLang(store(LANG_STORE_KEY), typeof navigator !== 'undefined' ? navigator.language : 'en');
+let reader: ReaderState | null = null;
+let pendingLog = '';
+let creditsTimer = 0;
 let bot: Bot3D | null = null;
 const audioDirector = new AudioDirector();
 
@@ -262,6 +269,10 @@ function show(m: Mode): void {
   if (m !== 'showcase') $('showcase-caption').hidden = true;
   ui.revived.hidden = true;
   ui.controlsPanel.hidden = true;
+  closeLogReader(false);
+  pendingLog = '';
+  $('log-archive').hidden = true;
+  closeCredits(false);
   $('lab').hidden = true;
   for (const id of Object.values(PANEL_IDS)) $(id).hidden = true;
   syncPanels();
@@ -300,13 +311,13 @@ function closeTitlePanel(returnFocus: string): void {
 function syncPanels(): void {
   const tp = openTitlePanel();
   const name = (Object.keys(PANEL_IDS) as TitlePanel[]).find((k) => PANEL_IDS[k] === tp?.id) ?? null;
-  const st = normalizePanelState({ mode, titlePanel: name, lab: !$('lab').hidden, revived: !ui.revived.hidden, pauseControls: !ui.controlsPanel.hidden });
+  const st = normalizePanelState({ mode, titlePanel: name, lab: !$('lab').hidden, revived: !ui.revived.hidden, pauseControls: !ui.controlsPanel.hidden, logArchive: !$('log-archive').hidden, logReader: !$('log-reader').hidden, creditsRoll: !$('credits-roll').hidden });
   ui.title.classList.toggle('covered', titleCovered(st));
   $('stage').dataset.topLayer = topLayer(st) ?? '';
 }
 {
   const mo = new MutationObserver(syncPanels);
-  for (const id of [...Object.values(PANEL_IDS), 'title', 'lab', 'revived', 'pause', 'controls-panel', 'result']) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
+  for (const id of [...Object.values(PANEL_IDS), 'title', 'lab', 'revived', 'pause', 'controls-panel', 'log-archive', 'log-reader', 'credits-roll', 'result']) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
 }
 
 function hideTransient(): void {
@@ -368,6 +379,150 @@ function hideIntro(): void {
   window.clearTimeout(introTimer);
   ui.intro.hidden = true;
   seen.room = ''; // let the sector card appear now that the intro is gone
+}
+
+// ---- story language, data log reader, LOGS archive, credits roll (pure rules in lore.ts / logReader.ts) ----
+function applyLang(): void {
+  INTRO_LINES.forEach((l, i) => {
+    $(`intro-l${i}`).textContent = l[lang];
+  });
+  $('log-lang').textContent = LORE_UI.langButton[lang];
+  $('logs-open').textContent = LORE_UI.logsButton[lang];
+  $('logs-close').textContent = LORE_UI.back[lang];
+  $('credits-roll-open').textContent = LORE_UI.creditsButton[lang];
+  document.querySelector('#log-archive h2')!.textContent = LORE_UI.archiveTitle[lang];
+  $('lr-hint').textContent = LORE_UI.hintTyping[lang];
+  if (!$('log-archive').hidden) renderArchive();
+}
+
+function takenLogIds(): Set<string> {
+  return new Set(world.collectibles.filter((l) => l.taken).map((l) => l.id));
+}
+
+function openLogReader(id: string, from: 'pickup' | 'archive'): void {
+  const e = loreLogById(id);
+  if (!e) return;
+  releaseInput();
+  reader = openReader(e, lang, from);
+  $('lr-eyebrow').textContent = `${LORE_UI.dataLog[lang]} ${e.order}/${LORE_LOGS.length}`;
+  $('lr-title').textContent = e.title[lang];
+  $('lr-speaker').textContent = e.speaker[lang];
+  $('lr-stamp').textContent = e.stamp;
+  $('lr-body').textContent = '';
+  $('log-reader').hidden = false;
+  playSound('ui.banner');
+  renderReader();
+}
+
+function renderReader(): void {
+  if (!reader) return;
+  const body = $('lr-body');
+  const txt = visibleBody(reader);
+  if (body.textContent !== txt) body.textContent = txt;
+  body.classList.toggle('typing', reader.phase === 'typing');
+  const hint = reader.phase === 'typing' ? LORE_UI.hintTyping[reader.lang] : LORE_UI.hintDone[reader.lang];
+  if ($('lr-hint').textContent !== hint) $('lr-hint').textContent = hint;
+}
+
+/** Hide the reader. refocus = the player closed it: hand control back to the game or to the archive row. */
+function closeLogReader(refocus: boolean): void {
+  const from = reader?.from;
+  reader = null;
+  $('log-reader').hidden = true;
+  if (!refocus) return;
+  releaseInput();
+  playSound('ui.back');
+  if (from === 'archive' && mode === 'paused') ($('log-list').querySelector<HTMLElement>(`[data-id="${seenArchiveId}"]`) ?? $('logs-close')).focus({ preventScroll: true });
+  else if (mode === 'playing') {
+    manualHold = false;
+    canvas.focus();
+  }
+}
+let seenArchiveId = '';
+
+/** Any key (or click) while the reader or credits are up. */
+function pressLayer(): void {
+  if (!$('credits-roll').hidden) {
+    closeCredits(true);
+    return;
+  }
+  if (!reader) return;
+  reader = pressReader(reader);
+  if (reader.phase === 'closed') closeLogReader(true);
+  else renderReader();
+}
+
+function renderArchive(): void {
+  const taken = takenLogIds();
+  const rows = archiveRows(taken, lang);
+  $('log-count').textContent = `${rows.filter((r) => r.unlocked).length}/${rows.length} ${LORE_UI.recovered[lang]}`;
+  const list = $('log-list');
+  list.textContent = '';
+  for (const r of rows) {
+    const li = document.createElement('li');
+    const row = document.createElement(r.unlocked ? 'button' : 'div');
+    row.className = r.unlocked ? 'log-row' : 'log-row locked';
+    if (r.unlocked) {
+      (row as HTMLButtonElement).type = 'button';
+      row.dataset.id = r.id;
+      row.addEventListener('click', () => {
+        if (!canOpen(takenLogIds(), r.id)) return;
+        seenArchiveId = r.id;
+        openLogReader(r.id, 'archive');
+      });
+    }
+    for (const [cls, text] of [['lr-n', String(r.order).padStart(2, '0')], ['lr-t', r.label], ['lr-s', r.sector]] as const) {
+      const span = document.createElement('span');
+      span.className = cls;
+      span.textContent = text;
+      row.append(span);
+    }
+    li.append(row);
+    list.append(li);
+  }
+}
+
+function openArchive(): void {
+  renderArchive();
+  $('log-archive').hidden = false;
+  ($('log-list').querySelector<HTMLElement>('button.log-row') ?? $('logs-close')).focus({ preventScroll: true });
+}
+
+function openCredits(): void {
+  const box = $('credits-lines');
+  box.textContent = '';
+  for (const l of CREDITS_LINES) {
+    const t = l[lang];
+    const p = document.createElement('p');
+    p.textContent = t.replace(/^#\s*/, '');
+    if (t.startsWith('#')) p.className = 'h';
+    box.append(p);
+  }
+  box.style.animation = 'none';
+  void box.offsetWidth;
+  box.style.animation = '';
+  $('credits-roll').querySelector('.scan-hint')!.textContent = LORE_UI.hintCredits[lang];
+  $('credits-roll').hidden = false;
+  window.clearTimeout(creditsTimer);
+  creditsTimer = window.setTimeout(() => closeCredits(true), 14500);
+}
+
+function closeCredits(refocus: boolean): void {
+  window.clearTimeout(creditsTimer);
+  $('credits-roll').hidden = true;
+  if (refocus && mode === 'result') $('credits-roll-open').focus({ preventScroll: true });
+}
+
+function showEnding(won: boolean, pct: number): void {
+  const el = $('ending');
+  el.hidden = !won;
+  $('credits-roll-open').hidden = !won;
+  if (!won) return;
+  const t = endingText(pct, lang);
+  el.className = t.tier;
+  $('ending-heading').textContent = t.heading;
+  $('ending-p1').textContent = t.paragraphs[0];
+  $('ending-p2').textContent = t.paragraphs[1];
 }
 
 function applyReduceFx(on: boolean): void {
@@ -443,7 +598,7 @@ function showSectorCard(): void {
   const idx = world.level.rooms.indexOf(r) + 1;
   $('sc-eyebrow').textContent = `SECTOR ${String(idx).padStart(2, '0')}`;
   $('sc-name').textContent = r.name.toUpperCase();
-  $('sc-sub').textContent = SECTOR_SUBTITLE[r.sector] ?? r.hint;
+  $('sc-sub').textContent = SECTOR_SUB[r.sector]?.[lang] ?? r.hint;
   ui.sectorCard.hidden = false;
   popClass(ui.sectorCard, 'show', 0);
   playSound('ui.sector');
@@ -507,7 +662,13 @@ function observeWorld(): void {
   if (logsNow.length !== seen.logs) {
     if (logsNow.length > seen.logs) {
       const lg = logsNow[logsNow.length - 1];
-      showPickupBanner({ title: `DATA LOG ${logsNow.length}/${world.collectibles.length}`, desc: lg.title });
+      const entry = loreLogById(lg.id);
+      showPickupBanner({ title: `DATA LOG ${logsNow.length}/${world.collectibles.length}`, desc: entry ? entry.title[lang] : lg.title }, playFanfare('crawl_slide') /* reuse the synth sweep fanfare: no dedicated log recipe */);
+      if (entry) {
+        // Short freeze first, then the reader opens (see frameBody).
+        pendingLog = lg.id;
+        itemFreeze = LOG_FREEZE_S;
+      }
     }
     seen.logs = logsNow.length;
   }
@@ -701,6 +862,7 @@ function showResult(): void {
   ui.rank.textContent = st.rank;
   ui.rank.className = `rank r-${st.rank}`;
   if (won) setTimeout(() => playSound('ui.rank', { pitch: rankPitch(st.rank) }), 450);
+  showEnding(won, st.collectionPct);
   $('result-tip').textContent = won ? '' : retryTip(deaths);
   $('result-tip').hidden = won;
   ui.result.classList.toggle('won', won);
@@ -741,12 +903,20 @@ function frameBody(t: number): void {
   last = t;
   const fx = scene3d?.fx;
   let frozen = false;
-  if (mode === 'playing' && !manualHold) {
+  if (reader) {
+    reader = tickReader(reader, dt);
+    renderReader();
+  }
+  if (mode === 'playing' && !manualHold && !reader) {
     // Hit-stop and kill slow-motion only retime the display clock. Every simulation tick still runs, in order.
     frozen = fx ? fx.hitstop.step() : false;
     if (itemFreeze > 0) {
       itemFreeze = Math.max(0, itemFreeze - dt);
       frozen = true;
+      if (itemFreeze === 0 && pendingLog) {
+        openLogReader(pendingLog, 'pickup');
+        pendingLog = '';
+      }
     }
     const clock = fx ? fx.slowmo.step(dt) : 1;
     if (!frozen) acc += dt * clock;
@@ -852,7 +1022,7 @@ const NON_START_KEYS = new Set(['Tab', 'Escape', 'ShiftLeft', 'ShiftRight', 'Con
 
 /** Topmost visible menu container, used for keyboard focus navigation. */
 function activeMenu(): HTMLElement {
-  for (const el of [$('lab'), ui.revived, ui.controlsPanel]) if (!el.hidden) return el;
+  for (const el of [$('log-reader'), $('credits-roll'), $('log-archive'), $('lab'), ui.revived, ui.controlsPanel]) if (!el.hidden) return el;
   if (mode === 'title') return openTitlePanel() ?? ui.title;
   return mode === 'paused' ? ui.pause : ui.result;
 }
@@ -862,7 +1032,11 @@ function closeSubPanels(): boolean {
   if (!$('lab').hidden) $('lab').hidden = true;
   else if (!ui.revived.hidden) ui.revived.hidden = true;
   else if (!ui.controlsPanel.hidden) ui.controlsPanel.hidden = true;
-  else if (tp) {
+  else if (!$('log-archive').hidden) {
+    $('log-archive').hidden = true;
+    $('logs-open').focus({ preventScroll: true });
+    return true;
+  } else if (tp) {
     // Controls opens from Extras, so it goes back there; everything else returns to the main menu.
     if (tp.id === PANEL_IDS.controls) return openPanelFor('extras', 'title-controls-open'), true;
     if (tp.id === PANEL_IDS.credits) return openPanelFor('extras', 'credits-open'), true;
@@ -896,6 +1070,12 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     return;
   }
+  if (reader || !$('credits-roll').hidden) {
+    // Reader and credits own the keyboard: any key advances or closes them (modifier-only presses are ignored).
+    e.preventDefault();
+    if (!e.repeat && !/^(Shift|Control|Alt|Meta)(Left|Right)$/.test(e.code)) pressLayer();
+    return;
+  }
   if (e.code === 'KeyV' && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey && $('loading').hidden) {
     toggleView();
     e.preventDefault();
@@ -924,7 +1104,7 @@ window.addEventListener('keydown', (e) => {
     }
     return;
   }
-  if (mode === 'paused' && e.code === 'Escape' && !ui.controlsPanel.hidden) {
+  if (mode === 'paused' && e.code === 'Escape' && (!ui.controlsPanel.hidden || !$('log-archive').hidden)) {
     closeSubPanels();
     e.preventDefault();
     return;
@@ -1072,6 +1252,21 @@ $('controls-close').addEventListener('click', () => {
   ui.controlsPanel.hidden = true;
   $('controls-open').focus();
 });
+$('logs-open').addEventListener('click', openArchive);
+$('logs-close').addEventListener('click', () => {
+  $('log-archive').hidden = true;
+  $('logs-open').focus();
+});
+$('log-lang').addEventListener('click', () => {
+  lang = otherLang(lang);
+  store(LANG_STORE_KEY, lang);
+  applyLang();
+  $('log-lang').focus({ preventScroll: true });
+});
+$('credits-roll-open').addEventListener('click', openCredits);
+$('log-reader').addEventListener('click', pressLayer);
+$('credits-roll').addEventListener('click', pressLayer);
+applyLang();
 $('view-toggle').addEventListener('click', toggleView);
 $('crt-toggle').addEventListener('click', () => applyCrt(!crtOn));
 applyView(parseViewMode(store(VIEW_STORE.mode)), false);
@@ -1238,6 +1433,7 @@ const wAny = window as unknown as {
   __reanimatorDemo: (id: string) => ReturnType<typeof buildSnapshot>;
   __reanimatorSoak: (n?: number, opts?: SoakOptions) => Promise<SoakReport>;
   __reanimatorUiAudit: () => Promise<UiAuditReport>;
+  __reanimatorShowLog: (id: string, view?: 'reader' | 'archive' | 'credits' | 'ending') => ReturnType<typeof buildSnapshot>;
 };
 
 function enterManual(): void {
@@ -1327,6 +1523,30 @@ wAny.__reanimatorShowBanner = (kind) => {
     c.hidden = false;
     c.classList.add('show');
     c.textContent = 'RUN  [A] [D]';
+  }
+  return buildSnapshot();
+};
+
+/**
+ * Debug only: `__reanimatorShowLog('log_core')` opens the scan reader for any log id (taken or not) over the frozen game with the
+ * text fully typed. view 'archive' opens the pause LOGS list (ids ignored), 'credits' rolls the credits, 'ending' shows a won result.
+ */
+wAny.__reanimatorShowLog = (id, view = 'reader') => {
+  if (view === 'archive') {
+    enterManual();
+    show('paused');
+    openArchive();
+  } else if (view === 'credits' || view === 'ending') {
+    wAny.__reanimatorShowResult('won');
+    if (view === 'credits') openCredits();
+  } else {
+    enterManual();
+    hud();
+    openLogReader(id, 'pickup');
+    if (reader) {
+      reader = { ...reader, phase: 'done', shown: reader.total, elapsed: 5 };
+      renderReader();
+    }
   }
   return buildSnapshot();
 };
@@ -1521,7 +1741,7 @@ wAny.__reanimatorSoak = async (n = 3, opts = {}) => {
 
 /**
  * Debug only: `await __reanimatorUiAudit()`. Opens every panel through its real buttons (title, settings, extras, demo,
- * controls, revived, lab, credits, pause, pause controls, result) and checks, per control, that elementFromPoint at its
+ * controls, revived, lab, credits, pause, pause controls, logs, result) and checks, per control, that elementFromPoint at its
  * center is the control itself, that it is opaque, and that the title logo and menu are hidden under any open panel.
  * Resets to a fresh title screen afterwards (the current run is discarded). Returns { ok, scenarios[] }.
  */

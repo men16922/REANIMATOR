@@ -63,10 +63,10 @@
           <div class="lid lid-top"></div>
           <div class="lid lid-bot"></div>
           <div class="intro-lines">
-            <p style="--d: 0.9s">SIGNAL RESTORED</p>
-            <p style="--d: 2.9s">The facility sealed itself nineteen years ago.</p>
-            <p style="--d: 5.0s">The reactor is still burning. Something below wants it that way.</p>
-            <p style="--d: 7.1s" class="strong">Reach the core. Break it. Get out.</p>
+            <p id="intro-l0" style="--d: 0.9s">SIGNAL RESTORED</p>
+            <p id="intro-l1" style="--d: 2.9s">Pod Nine opens. The station sealed itself nineteen years ago.</p>
+            <p id="intro-l2" style="--d: 5.0s">Something below keeps the reactor burning, and it wants you to stay.</p>
+            <p id="intro-l3" style="--d: 7.1s" class="strong">Reach the core. Break it. Get out.</p>
           </div>
           <button id="intro-skip" type="button">Skip intro</button>
         </section>
@@ -164,6 +164,7 @@
             <button id="resume">Resume</button>
             <button id="restart-p">Restart</button>
             <button id="controls-open">Controls</button>
+            <button id="logs-open">Logs</button>
           </div>
           <div class="settings">
             <span class="settings-h">SETTINGS</span>
@@ -198,7 +199,13 @@
             <span><em>DEATHS</em><b id="rs-deaths">0</b></span>
             <span><em>COLLECTED</em><b id="rs-collect">0%</b></span>
           </div>
+          <div id="ending" hidden>
+            <h3 id="ending-heading"></h3>
+            <p id="ending-p1"></p>
+            <p id="ending-p2"></p>
+          </div>
           <p id="result-tip" class="tip"></p>
+          <button id="credits-roll-open" hidden>Roll credits</button>
           <button id="resume-save" hidden>Resume at Save (C)</button>
           <button id="restart">Play again</button>
         </section>
@@ -214,6 +221,29 @@
             <li><b>Rigged Meshy 3D Layer with Split-Body IK (<code>src/render3d/</code>)</b>: Rigged Meshy <code>.glb</code> bipeds (<code>operative</code> with hand-socketed <code>pulse-rifle</code>, <code>warden</code>, <code>bio-stalker</code>) animated by Three.js <code>AnimationMixer</code>. Split-Body IK keeps legs on the run/jump clip while the torso and arms aim at the mouse.</li>
           </ul>
           <button id="revived-close">Back</button>
+        </section>
+        <section id="log-archive" class="overlay panel" hidden aria-label="Data log archive">
+          <h2>Logs</h2>
+          <p class="log-count" id="log-count">0/6 RECOVERED</p>
+          <ol id="log-list" class="log-list"></ol>
+          <div class="log-actions">
+            <button id="log-lang" type="button">한국어</button>
+            <button id="logs-close" type="button">Back</button>
+          </div>
+        </section>
+        <section id="log-reader" class="scan-panel" hidden role="dialog" aria-modal="true" aria-label="Data log">
+          <div class="scan-sweep" aria-hidden="true"></div>
+          <div class="scan-frame">
+            <span class="scan-eyebrow" id="lr-eyebrow">DATA LOG 1/6</span>
+            <h3 id="lr-title"></h3>
+            <p class="scan-meta"><b id="lr-speaker"></b><i id="lr-stamp"></i></p>
+            <p id="lr-body" class="scan-body" aria-live="polite"></p>
+            <span class="scan-hint" id="lr-hint">Press any key</span>
+          </div>
+        </section>
+        <section id="credits-roll" class="scan-panel" hidden aria-label="Credits">
+          <div id="credits-lines" class="roll-lines"></div>
+          <span class="scan-hint">Press any key to skip</span>
         </section>
         <section id="lab" class="overlay panel" hidden>
           <h2>Restoration Lab</h2>
