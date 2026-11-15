@@ -61,6 +61,7 @@ code { color: var(--c-gold); font-family: var(--font-mono); }
   display: inline-flex; align-items: center; gap: 0.42em; padding: 0.2em 0.6em; background: var(--c-panel);
   border: 1px solid var(--c-line-dim); border-left: 2px solid var(--c-cyan); border-radius: 1px; font-variant-numeric: tabular-nums;
 }
+.pill[hidden] { display: none; }
 .pill b { font-family: var(--font-mono); }
 .hp-pill b { color: #5eff9c; }
 .hp-pill.low { border-left-color: var(--c-red); animation: low-hp 0.9s ease-in-out infinite; }

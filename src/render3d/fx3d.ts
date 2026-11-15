@@ -652,7 +652,7 @@ export class FxDirector {
     const dy = vy / len;
     const dir = dx >= 0 ? 1 : -1;
     if (kind === 'pulse') {
-      this.add.emit(x, y, 0.5, dx, dy, 0, 0.07, 0.55, 0.15, 0.4, 1.0, 1.6, 0.95, 0, 0, 1);
+      this.add.emit(x, y, 0.5, dx, dy, 0, 0.06, 0.26, 0.08, 0.25, 0.7, 1.0, 0.8, 0, 0, 1);
       for (let i = 0; i < 4; i++) {
         const a = Math.atan2(dy, dx) + this.rr(-0.35, 0.35);
         const sp = this.rr(8, 16);
@@ -660,7 +660,7 @@ export class FxDirector {
       }
       this.casing(px, y, dir, 0.9);
     } else if (kind === 'scatter') {
-      this.add.emit(x, y, 0.5, dx, dy, 0, 0.1, 1.1, 0.3, 1.6, 1.1, 0.4, 0.95, 0, 0, 1);
+      this.add.emit(x, y, 0.5, dx, dy, 0, 0.08, 0.5, 0.15, 1.0, 0.7, 0.28, 0.8, 0, 0, 1);
       for (let i = 0; i < 12; i++) {
         const a = Math.atan2(dy, dx) + this.rr(-0.55, 0.55);
         const sp = this.rr(6, 18);
@@ -671,7 +671,7 @@ export class FxDirector {
       }
       this.casing(px, y, dir, 1.4);
     } else {
-      this.add.emit(x, y, 0.5, dx, dy, 0, 0.12, 0.8, 0.2, 1.4, 0.7, 0.2, 0.9, 0, 0, 1);
+      this.add.emit(x, y, 0.5, dx, dy, 0, 0.1, 0.42, 0.12, 1.0, 0.55, 0.15, 0.8, 0, 0, 1);
       for (let i = 0; i < 6; i++) {
         this.alpha.emit(x, y, 0.4, dx * this.rr(1, 5), dy * this.rr(1, 5) + this.rr(0, 1), 0, this.rr(0.5, 0.9), 0.2, 0.7, 0.4, 0.38, 0.36, 0.55, -0.4, 1.5, 1);
       }
@@ -683,7 +683,7 @@ export class FxDirector {
     const dx = x2 - x1;
     const dy = y2 - y1;
     const len = Math.hypot(dx, dy) || 1;
-    this.add.emit(x1, y1, 0.5, 0, 0, 0, 0.18, 1.0, 0.2, 1.6, 0.5, 2.0, 0.95, 0, 0, 1);
+    this.add.emit(x1, y1, 0.5, 0, 0, 0, 0.15, 0.5, 0.12, 1.0, 0.4, 1.2, 0.85, 0, 0, 1);
     this.ring(x1, y1, 0.9, 0.9, 0.45, 1.0);
     const n = Math.min(26, 6 + Math.floor(len * 1.2));
     for (let i = 0; i < n; i++) {
@@ -692,7 +692,7 @@ export class FxDirector {
       const y = y1 + dy * t;
       this.add.emit(x, y, 0.4, this.rr(-1.5, 1.5), this.rr(-1.5, 1.5), 0, this.rr(0.18, 0.5), this.rr(0.1, 0.2), 0.02, 0.9, 0.4, 1.6, 0.8, 0, 2.5, 3);
     }
-    this.add.emit(x2, y2, 0.5, 0, 0, 0, 0.2, 1.2, 0.3, 1.5, 0.6, 1.8, 0.9, 0, 0, 1);
+    this.add.emit(x2, y2, 0.5, 0, 0, 0, 0.18, 0.7, 0.2, 1.0, 0.4, 1.2, 0.85, 0, 0, 1);
     this.burst(x2, y2, 0.9, 0.5, 1.7, 1, 14, 8);
   }
 

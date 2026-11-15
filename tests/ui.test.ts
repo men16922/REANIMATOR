@@ -108,9 +108,42 @@ test('attract mode runs a private world and shares one level with fresh worlds',
 
 test('attract mode loops after the demo ends', () => {
   const a = new Attract();
+  const base = a.resetCount;
   a.world.status = 'lost';
   const reset = a.advance(1 / 60);
   assert.ok(reset);
   assert.equal(a.world.status, 'playing');
-  assert.equal(a.resetCount, 1);
+  assert.equal(a.resetCount, base + 1);
+});
+
+// ---------------- R2 fixes ----------------
+import { readFileSync } from 'node:fs';
+import { attractShot, REEL, REEL_SEGMENT_SECONDS, reelFade, reelIndex } from '../src/ui/attract.ts';
+
+test('reel: cut index cycles, fades are black at cut edges and clear mid-cut', () => {
+  assert.equal(reelIndex(0), 0);
+  assert.equal(reelIndex(REEL_SEGMENT_SECONDS + 0.1), 1);
+  assert.equal(reelIndex(REEL_SEGMENT_SECONDS * REEL.length + 0.1), 0);
+  assert.equal(reelFade(0), 1);
+  assert.equal(reelFade(REEL_SEGMENT_SECONDS / 2), 0);
+  assert.ok(reelFade(REEL_SEGMENT_SECONDS - 0.01) > 0.9);
+});
+
+test('reel: shot goes from a wide view to a closer one', () => {
+  assert.ok(attractShot(0.5).dolly > attractShot(REEL_SEGMENT_SECONDS - 0.5).dolly + 4);
+});
+
+test('attract: seeking to a cut is deterministic and lands on the cut tick', () => {
+  const a = new Attract();
+  const b = new Attract();
+  assert.equal(a.world.tick, REEL[0].tick);
+  assert.equal(a.world.player.body.x, b.world.player.body.x);
+  a.advance(REEL_SEGMENT_SECONDS + 0.05);
+  assert.ok(a.world.tick >= REEL[1].tick);
+  assert.equal(a.cut, REEL[1]);
+});
+
+test('combo/rail pills respect the hidden attribute (CSS must not override it)', () => {
+  const css = readFileSync(new URL('../src/ui/style.css', import.meta.url), 'utf8');
+  assert.match(css, /\.pill\[hidden\]\s*\{\s*display:\s*none/);
 });
