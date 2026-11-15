@@ -127,8 +127,17 @@ function exposedTexture(): THREE.CanvasTexture {
   return t;
 }
 
-const additive = (color: number, map?: THREE.Texture): THREE.MeshBasicMaterial =>
-  new THREE.MeshBasicMaterial({ color, map, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+// Only set `map` when there is one: an explicit `map: undefined` makes three.js warn once per material.
+export const additive = (color: number, map?: THREE.Texture): THREE.MeshBasicMaterial =>
+  new THREE.MeshBasicMaterial({
+    color,
+    ...(map ? { map } : {}),
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    side: THREE.DoubleSide,
+  });
 
 export class BossTelegraph3D {
   readonly group = new THREE.Group();
@@ -232,13 +241,13 @@ export class BossTelegraph3D {
     const exposed = wd.exposedTicks > 0;
     this.coreGlow.visible = wd.alive;
     this.coreGlow.position.set(bx, by + wd.height * 0.6, 0.9);
-    const base = dormant ? 0.5 + 2.2 * intro : 1.9;
+    const base = dormant ? 0.4 + 1.2 * intro : 1.35;
     const sc = exposed ? 3.6 + (reduce ? 0 : Math.sin(tSec * 14) * 0.5) : base + (reduce ? 0 : Math.sin(tSec * 3) * 0.15);
     this.coreGlow.scale.set(sc, sc, 1);
     const cgm = this.coreGlow.material as THREE.SpriteMaterial;
     this.tmp.setRGB(c[0], c[1], c[2]);
     cgm.color.copy(exposed ? this.tmp.set(1.0, 0.82, 0.3) : this.tmp);
-    cgm.opacity = exposed ? 0.85 : dormant ? 0.15 + 0.5 * intro : 0.35 + 0.1 * pulse;
+    cgm.opacity = exposed ? 0.7 : dormant ? 0.1 + 0.3 * intro : 0.22 + 0.08 * pulse;
 
     if (exposed) {
       const f = Math.min(1, wd.exposedTicks / 24);

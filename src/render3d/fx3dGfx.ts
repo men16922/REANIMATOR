@@ -104,7 +104,8 @@ float hash(vec2 p) {
 void main() {
   vec2 c = vUv - 0.5;
   float r2 = dot(c, c);
-  float k = 0.0030 + uChroma * 0.020;
+  // Near-zero at rest (sub-pixel at the edges); only the hit/explosion kick (uChroma) splits the channels visibly.
+  float k = 0.0002 + uChroma * 0.010;
   vec2 off = c * k * (0.35 + r2 * 3.0);
   vec3 col;
   col.r = texture2D(tDiffuse, vUv + off).r;

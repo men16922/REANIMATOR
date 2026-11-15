@@ -554,6 +554,33 @@ export function tuneEnemyMaterials3D(
   }
 }
 
+/** Hull emissive ceiling for the Core Warden: only the core and seams may glow, never the whole plate. */
+export const WARDEN_EMISSIVE_PEAK_3D = 0.28;
+/** Whole-body flash multiplier for the Warden (the shared flash is tuned for small enemies). */
+export const WARDEN_FLASH_SCALE_3D = 0.3;
+
+/**
+ * Core Warden material pass: a heavy gunmetal colossus instead of the shared lifted, rough, half-metal enemy look.
+ * Dark albedo, high metalness, emissive capped so only baked-in glow (core, seams) survives.
+ */
+export function tuneWardenMaterials3D(materials: THREE.MeshStandardMaterial[], baseEmissive: THREE.Color[]): void {
+  for (let i = 0; i < materials.length; i++) {
+    const m = materials[i];
+    m.color.multiplyScalar(0.62);
+    m.metalness = 0.82;
+    m.roughness = Math.min(0.62, Math.max(0.42, m.roughness));
+    m.envMapIntensity = 0.9;
+    m.emissiveIntensity = 1;
+    m.transparent = false;
+    m.opacity = 1;
+    m.depthWrite = true;
+    const e = baseEmissive[i];
+    const peak = Math.max(e.r, e.g, e.b);
+    if (peak > WARDEN_EMISSIVE_PEAK_3D) e.multiplyScalar(WARDEN_EMISSIVE_PEAK_3D / peak);
+    m.emissive.copy(e);
+  }
+}
+
 /**
  * Render-only readability pass for dark enemies: a fresnel rim plus a small albedo self-lift injected into the
  * standard shader. No lights are added. Works for skinned and static meshes (shader chunks are shared).

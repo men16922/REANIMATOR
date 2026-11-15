@@ -28,6 +28,7 @@ import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
 import { renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
+import { objectiveFor } from './objective.ts';
 import { loadProgress, menuKeyAction, PANEL_IDS, stepIndex, type TitlePanel } from './menu.ts';
 import { getFailedModelNames3D, getLoadedModelNames3D } from '../render3d/riggedModels.ts';
 
@@ -471,14 +472,7 @@ function hud(): void {
   ui.time.textContent = `${(world.tick / SIM_HZ_3D).toFixed(1)}s`;
 
   // Objective & Meltdown
-  const objMap = {
-    console: { text: 'OBJ: Arm the Security Console, break locks to reach the Core Vault', color: '#8ec5ff' },
-    warden: { text: 'OBJ: Slay the Core Warden (Core Vault)', color: '#ffae6b' },
-    core: { text: 'OBJ: Shatter the Reactor Core!', color: '#4be8ff' },
-    escape: { text: 'OBJ: ESCAPE to the Airlock extraction balcony!', color: '#5aff9c' },
-    won: { text: 'EXTRACTED SAFELY', color: '#5aff9c' },
-  } as const;
-  const obj = objMap[world.phase];
+  const obj = objectiveFor(world);
   ui.objective.textContent = obj.text;
   ui.objective.style.color = obj.color;
 
@@ -1012,6 +1006,8 @@ const wAny = window as unknown as {
 };
 
 function enterManual(): void {
+  // Leave attract mode first: a stale attract camera makes the next render skip the Warden intro (debug entry points).
+  scene3d?.setAttractCamera(null);
   manualHold = true;
   acc = 0;
   flash = 0;

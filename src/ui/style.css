@@ -212,6 +212,7 @@ button.mi .mi-mark { flex: none; width: 0.9em; height: 0.9em; clip-path: polygon
 button.mi:hover, button.mi:focus { background: linear-gradient(90deg, rgba(255, 154, 60, 0.28), rgba(255, 154, 60, 0.04)); border-color: #ff9a3c; color: #fff; outline: none; transform: none; }
 button.mi:hover .mi-mark, button.mi:focus .mi-mark { background: #ff9a3c; animation: mark-pulse 1s steps(2) infinite; }
 @keyframes mark-pulse { 50% { opacity: 0.45; } }
+button.mi[hidden] { display: none; }
 button#play.mi { font-size: 1.4em; }
 button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-content: center; border-color: #5a5148; }
 .hint-line { margin: 0.3em 0 0; font-size: 0.78em; letter-spacing: 0.08em; color: #b8c6d4; text-shadow: 0 1px 4px #000; }
