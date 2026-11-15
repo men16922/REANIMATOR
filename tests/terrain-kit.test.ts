@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildFacilityMap3D } from '../src/game3d/map3d.ts';
 import type { SectorId3D } from '../src/game3d/types3d.ts';
-import { KIT_IDS, TerrainKit, planKitUnits, type KitAsset, type KitId } from '../src/render3d/terrainKit.ts';
+import { KIT_IDS, TerrainKit, planKitUnits, repairKitNormals, sanitizeKitMaterial, type KitAsset, type KitId } from '../src/render3d/terrainKit.ts';
 
 const level = buildFacilityMap3D();
 const sectorAt = (x: number, y: number): SectorId3D => {
@@ -62,4 +62,26 @@ test('GLB load failure falls back: no throw, no kit meshes for that piece', asyn
   } finally {
     console.warn = warn;
   }
+});
+
+test('kit materials carry no normal map (degenerate slab UVs gave NaN that bloom spread over the airlock)', () => {
+  const mat = new THREE.MeshStandardMaterial({ normalMap: new THREE.Texture() });
+  const out = sanitizeKitMaterial(mat);
+  assert.equal(out, mat);
+  assert.equal(mat.normalMap, null);
+  assert.doesNotThrow(() => sanitizeKitMaterial(new THREE.MeshBasicMaterial()));
+});
+
+test('zero-length or non-finite kit normals are repaired (they were NaN in the lit shader and bloom spread them)', () => {
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0], 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 1, Number.NaN, 0, 0, 1, 0, 0], 3));
+  assert.equal(repairKitNormals(g), 2);
+  const n = g.getAttribute('normal');
+  for (let i = 0; i < n.count; i++) {
+    const l = Math.hypot(n.getX(i), n.getY(i), n.getZ(i));
+    assert.ok(Number.isFinite(l) && Math.abs(l - 1) < 1e-6, `normal ${i} is unit length`);
+  }
+  assert.equal(repairKitNormals(g), 0);
+  assert.equal(repairKitNormals(new THREE.BufferGeometry()), 0);
 });

@@ -229,8 +229,48 @@ export async function loadKitAsset(id: KitId, loader: GLTFLoader = new GLTFLoade
   const longest = Math.max(bb.max.x - bb.min.x, bb.max.y - bb.min.y, bb.max.z - bb.min.z) || 1;
   geometry.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
   geometry.scale(1 / longest, 1 / longest, 1 / longest);
-  const material = (Array.isArray(m.material) ? m.material[0] : m.material).clone();
+  const material = sanitizeKitMaterial((Array.isArray(m.material) ? m.material[0] : m.material).clone());
+  repairKitNormals(geometry);
   return { geometry, material };
+}
+
+/**
+ * Some Meshy GLBs carry a few zero-length normals (degenerate triangles). normalize(vec3(0)) is NaN in the lit fragment
+ * shader, the NaN lands in the half-float HDR target, and UnrealBloomPass blurs it over a large part of the frame (the
+ * airlock rendered black while those pieces were on screen). Zero or non-finite normals are replaced by +Y. Returns the
+ * number repaired. Exported for tests.
+ */
+export function repairKitNormals(geometry: THREE.BufferGeometry): number {
+  const n = geometry.getAttribute('normal');
+  if (!n) return 0;
+  let fixed = 0;
+  for (let i = 0; i < n.count; i++) {
+    const x = n.getX(i);
+    const y = n.getY(i);
+    const z = n.getZ(i);
+    const len = Math.hypot(x, y, z);
+    if (!Number.isFinite(len) || len < 1e-3) {
+      n.setXYZ(i, 0, 1, 0);
+      fixed++;
+    }
+  }
+  if (fixed > 0) n.needsUpdate = true;
+  return fixed;
+}
+
+/**
+ * Kit pieces are thin slabs whose side faces have degenerate UVs. three's derivative-based normal mapping
+ * (perturbNormal2Arb) divides by that near-zero UV area and yields NaN/Inf, and the bloom blur then smears the one bad
+ * pixel over the whole frame (the airlock rendered black with the wall-panel kit on screen). The kit is lit by the
+ * baked albedo and the scene lights only, so the normal map is dropped. Exported for tests.
+ */
+export function sanitizeKitMaterial<T extends THREE.Material>(mat: T): T {
+  const std = mat as unknown as THREE.MeshStandardMaterial;
+  if (std.normalMap) {
+    std.normalMap = null;
+    std.needsUpdate = true;
+  }
+  return mat;
 }
 
 export type KitAssetLoader = (id: KitId) => Promise<KitAsset>;
