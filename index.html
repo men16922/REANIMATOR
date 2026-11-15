@@ -257,18 +257,56 @@
           <div id="credits-lines" class="roll-lines"></div>
           <span class="scan-hint">Press any key to skip</span>
         </section>
-        <section id="lab" class="overlay panel" hidden>
-          <h2>Restoration Lab</h2>
-          <p class="keys">Same scenario, same start state, same inputs. Orange: values logged from the original DOS game. Cyan: this reimplementation. Compared field by field with zero tolerance.</p>
-          <div class="lab-row">
-            <label>Scenario <select id="lab-scenario"></select></label>
-            <label><input type="checkbox" id="lab-mutation" /> Demo mutation (moves the wall 3 px; not an original bug)</label>
-            <b id="lab-status"></b>
+        <section id="lab" class="overlay panel" hidden aria-label="Restoration Lab">
+          <header class="lab-head">
+            <h2>Restoration Lab — 1996 vs 2026</h2>
+            <b id="lab-status" role="status" aria-live="polite"></b>
+            <button id="lab-close">Back</button>
+          </header>
+          <p class="lab-sub">Same scenario, same start state, same inputs. Every tick, 11 fields, zero tolerance.</p>
+          <div class="lab-top">
+            <div id="lab-cards" class="lab-cards" role="group" aria-label="Scenarios"></div>
+            <label class="lab-mut" id="lab-mut-wrap"><input type="checkbox" id="lab-mutation" /><span><b>Demo mutation</b><small>moves the wall 3 px; not an original bug</small></span></label>
+            <label class="sr-only">Scenario <select id="lab-scenario"></select></label>
           </div>
-          <canvas id="lab-plot" width="640" height="260"></canvas>
-          <label>Tick <input type="range" id="lab-tick" min="0" max="0" value="0" /> <span id="lab-n"></span></label>
-          <table id="lab-table"></table>
-          <button id="lab-close">Back</button>
+          <div class="lab-main">
+            <div class="lab-left">
+              <div class="lab-split">
+                <figure class="lab-fig lab-orig"><figcaption><i></i>ORIGINAL <small>(ABUSE.EXE log)</small></figcaption><canvas id="lab-orig" width="320" height="200"></canvas></figure>
+                <figure class="lab-fig lab-new"><figcaption><i></i>REANIMATED <small>(motion.ts)</small></figcaption><canvas id="lab-new" width="320" height="200"></canvas></figure>
+              </div>
+              <figure class="lab-fig lab-over"><figcaption>OVERLAY <small>orange: logged · cyan: replayed</small><span id="lab-note"></span></figcaption><canvas id="lab-plot" width="800" height="130"></canvas></figure>
+              <div class="lab-transport">
+                <button id="lab-restart" title="Restart" aria-label="Restart">⟲</button>
+                <button id="lab-prev" title="Step back (Left)" aria-label="Step back">−1</button>
+                <button id="lab-play" title="Play / pause (Space)" aria-label="Play">▶</button>
+                <button id="lab-next" title="Step forward (Right)" aria-label="Step forward">+1</button>
+                <button id="lab-speed" title="Playback speed" aria-label="Speed">1×</button>
+                <input type="range" id="lab-tick" min="0" max="0" value="0" aria-label="Tick" />
+                <span id="lab-n"></span>
+                <button id="lab-jump" title="Jump to the first mismatching tick">First mismatch</button>
+                <label class="lab-classic"><input type="checkbox" id="lab-classic" /> Classic 320×200</label>
+              </div>
+              <div class="lab-heat">
+                <div id="lab-heat-labels" aria-hidden="true"></div>
+                <canvas id="lab-heat" width="800" height="110" aria-label="Match grid: every tick by every field"></canvas>
+                <span id="lab-heat-sum"></span>
+              </div>
+            </div>
+            <aside class="lab-right">
+              <table id="lab-table"></table>
+              <div class="lab-trust" id="lab-trust">
+                <h3>How this is verified</h3>
+                <ol>
+                  <li><b>Recorded.</b> The original DOS <i>Abuse</i> 1.05 executable ran each scripted input in an emulator while a harness logged 11 state fields every tick.</li>
+                  <li><b>Compared.</b> <code>motion.ts</code> starts from the first logged row only, replays the same inputs, and must match every field exactly (tolerance 0, fixed before the first run).</li>
+                  <li><b>Held out.</b> M05 was sealed. It is judged once per engine revision and never used for tuning.</li>
+                </ol>
+                <p class="lab-caveat"><b>15 Hz is a design value.</b> The original tick rate was not measured. Scope: movement physics only. Sprites here are new pixel art; no original art or data ships.</p>
+                <a href="https://github.com/men16922/REANIMATOR/blob/main/docs/reference/VERIFICATION_CONTRACT.md" target="_blank" rel="noopener">docs/reference/VERIFICATION_CONTRACT.md</a>
+              </div>
+            </aside>
+          </div>
         </section>
       </div>
     </main>
