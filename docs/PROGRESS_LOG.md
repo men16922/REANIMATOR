@@ -174,3 +174,9 @@
 - 병합 후 `make check` exit 0: reference-verify 3/3, reach3d 52 waypoints 3431 tick, build, dist-guard PASS(13 files, 14,403,582 B).
 - 브라우저 시각·청취 검증(몬스터 모션·지형·BGM/SFX 슬라이더)은 unverified. 오케스트레이터가 확인 예정.
 - worktree·브랜치는 정리하지 않았고 푸시도 하지 않았다.
+
+## WebGL "Vertex buffer is not big enough" 회귀 수정 (2026-11-15)
+- 원인: `door:lamps` InstancedMesh를 `doors.length * 7`로 할당했지만 문마다 8개(상하 emitter 2 + 양 jamb 램프 6)를 기록했다. `lamps.count = li`가 할당 수를 넘어 instanceMatrix/instanceColor 버퍼 초과 draw가 발생했다. 도입 커밋은 terrain 트랙 96b79b1(문 프레임 디테일)이다.
+- 수정: 문 장식 빌드를 `decor3d.ts`의 `buildDoorDressingMeshes`로 추출하고 `DOOR_LAMPS_PER_DOOR = 8`을 단일 출처로 사용한다.
+- 테스트: `tests/render-buffers.test.ts` 2건(문 장식, buildDecor3D 전체: attribute 길이·index 범위·instanceMatrix/instanceColor >= count). 상수를 7로 되돌리면 실패함을 확인했다.
+- `make check` exit 0: node tests 79/79, reach3d 52 waypoints, dist-guard PASS. 브라우저 콘솔 확인은 unverified.

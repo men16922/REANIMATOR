@@ -32,8 +32,7 @@ import {
   type EnemyRenderTelemetry,
 } from './enemyMotion.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { buildDecor3D, SECTOR_FOG, type Decor3D } from './decor3d.ts';
+import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 
 interface StaticActorHandle {
   root: THREE.Group;
@@ -868,87 +867,14 @@ export class Scene3DRenderer {
 
   /** Door lock lamps, emitter bars, sign plates and hazard stripes as shared (instanced / merged) meshes. */
   private buildDoorDressing(solids: readonly MapSolid3D[], tex: ReturnType<typeof getFacilityTextures3D>): void {
-    const doors = solids.filter((d) => d.kind === 'door' && d.doorId);
     this.doorLampIdx.clear();
-    if (doors.length === 0) return;
-    const hazardTex = tex.hazardMap.clone();
-    hazardTex.repeat.set(1, 1);
-    hazardTex.needsUpdate = true;
-    const hazGeos: THREE.BufferGeometry[] = [];
-    const addStripe = (x: number, y: number, z: number, w: number, h: number): void => {
-      const g = new THREE.PlaneGeometry(w, h);
-      const uv = g.attributes.uv as THREE.BufferAttribute;
-      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * Math.max(0.5, w / 0.8), uv.getY(i) * Math.max(0.5, h / 0.8));
-      g.translate(x, y, z);
-      hazGeos.push(g);
-    };
-    const lampGeo = new THREE.BoxGeometry(1, 1, 1);
-    const lampCount = doors.length * 7;
-    const lamps = new THREE.InstancedMesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), lampCount);
-    lamps.name = 'door:lamps';
-    const signs = new THREE.InstancedMesh(
-      new THREE.PlaneGeometry(1, 1),
-      new THREE.MeshBasicMaterial({ map: tex.signMap, color: 0xffffff }),
-      doors.length,
-    );
-    signs.name = 'door:signs';
-    const d = new THREE.Object3D();
-    const c = new THREE.Color();
-    let li = 0;
-    doors.forEach((s, di) => {
-      const sx = s.maxX - s.minX;
-      const sy = Math.max(0.08, (s.visualMaxY ?? s.maxY) - s.minY);
-      const cx = (s.minX + s.maxX) / 2;
-      const top = s.minY + sy;
-      const zf = s.maxZ + 0.2;
-      const lock = DOOR_COLORS[s.doorLock ?? 'escape'] ?? 0xff4526;
-      const idx: number[] = [];
-      const put = (x: number, y: number, z: number, w: number, h: number, dd: number): void => {
-        d.position.set(x, y, z);
-        d.rotation.set(0, 0, 0);
-        d.scale.set(w, h, dd);
-        d.updateMatrix();
-        lamps.setMatrixAt(li, d.matrix);
-        lamps.setColorAt(li, c.setHex(lock));
-        idx.push(li);
-        li++;
-      };
-      // Emitter bars at the top and bottom of the shield, three status lamps on each jamb.
-      put(cx, top - 0.06, zf - 0.1, sx + 0.1, 0.1, 0.06);
-      put(cx, s.minY + 0.06, zf - 0.1, sx + 0.1, 0.1, 0.06);
-      for (let k = 0; k < 2; k++) {
-        const jx = k === 0 ? s.minX - 0.2 : s.maxX + 0.2;
-        for (let m = 0; m < 3; m++) put(jx, top - 0.5 - m * 0.34, zf, 0.14, 0.14, 0.05);
-      }
-      // Sign plate above the lintel.
-      d.position.set(cx, top + 0.95, zf - 0.05);
-      d.rotation.set(0, 0, 0);
-      d.scale.set(Math.max(1.8, sx + 1.0), 0.5, 1);
-      d.updateMatrix();
-      signs.setMatrixAt(di, d.matrix);
-      signs.setColorAt(di, c.setHex(lock).multiplyScalar(0.9));
-      // Hazard stripes on the jambs and a header band.
-      const hw = 0.26;
-      addStripe(s.minX - 0.2, s.minY + sy / 2, zf - 0.04, hw, sy);
-      addStripe(s.maxX + 0.2, s.minY + sy / 2, zf - 0.04, hw, sy);
-      addStripe(cx, top + 0.25, zf - 0.04, sx + 0.8, 0.22);
-      this.doorLampIdx.set(s.doorId as string, { idx, color: lock, open: false });
-    });
-    lamps.count = li;
-    lamps.instanceMatrix.needsUpdate = true;
-    if (lamps.instanceColor) lamps.instanceColor.needsUpdate = true;
-    signs.instanceMatrix.needsUpdate = true;
-    if (signs.instanceColor) signs.instanceColor.needsUpdate = true;
-    this.scene.add(lamps);
-    this.scene.add(signs);
-    this.doorLamps = lamps;
-    const merged = mergeGeometries(hazGeos);
-    hazGeos.forEach((g) => g.dispose());
-    if (merged) {
-      const hz = new THREE.Mesh(merged, new THREE.MeshStandardMaterial({ map: hazardTex, color: 0xd0d0d0, roughness: 0.6, metalness: 0.3 }));
-      hz.name = 'door:hazard';
-      this.scene.add(hz);
-    }
+    const dress = buildDoorDressingMeshes(solids, tex, DOOR_COLORS);
+    if (!dress) return;
+    for (const [id, v] of dress.lampIdx) this.doorLampIdx.set(id, v);
+    this.scene.add(dress.lamps);
+    this.scene.add(dress.signs);
+    this.doorLamps = dress.lamps;
+    if (dress.hazard) this.scene.add(dress.hazard);
   }
 
   private buildTrim(): void {
