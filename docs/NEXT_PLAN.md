@@ -2,6 +2,16 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R14 병합 후
+
+- [x] charlight, terrain, transit 병합(충돌 없음), `make check` 통과(649/649). 봇 Normal 4978/HP 126, Story 4880/142, Hard 5319/104(min 100). Playwright로 5개 쇼케이스 장면 콘솔 오류 0, 스크린샷 `docs/evidence/r14/`.
+- [ ] **Meshy terrain upgrade**: Meshy was unreachable here (api.meshy.ai, no key), so terrain is procedural. Replace or augment with Meshy-generated terrain pieces when network and a key are available, then record them in `docs/reference/ASSET_REGISTER.md`.
+- [ ] G5 human playtest (unperformed). Judge three user notes by hand: room transition pace (42-tick walk-through, 150-tick entry grace, title card), terrain quality, and whether characters read as shapes and not only outlines.
+- [ ] Enemy running feel in human play is still unverified (handled in R13, untouched in R14).
+- [ ] `make smoke-local` on real Chrome (agent sandbox cannot launch Chrome), including showcase recapture.
+- [ ] `r14/*` branches and their worktrees are for the user to clean up.
+- [ ] 푸시 대기: 사용자가 직접 실행.
+
 ## R13 병합 후
 
 - [x] alive, combat, ux, reel 병합, 이동 모델 하나로 통합, 시뮬 문 앞 순간이동 수정, `make check` 통과(625/625). 봇 Normal 5208/HP 126, Story 5599/139, Hard 5094/114(min 100).

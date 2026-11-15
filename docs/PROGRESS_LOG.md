@@ -100,3 +100,14 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - Render: live Chrome sampling showed the display lagging running foes by up to 1.5 m and surging 0.25 to 0.3 m per frame while `stepGlide` caught up. `stepGlide` now decays a display offset, so the body keeps the sim speed. After: display max step equals the sim max step (0.177 m crawler, 0.174 m stalker), 0 frames over 0.2 m.
 - Re-pins: bot Normal 5208 ticks HP 126 (was 5123/118), Story 5599 HP 139, Hard 5094 HP 114 min 100. SHOWCASE_REEL last cut 5110 to 5160 (airlock). Judge Reel combat Counter frame 118 to 110 (crawler window now frames 101 to 116). Reel lab cut scales the lab to 0.86 so the caption ends below the match grid (screenshot `docs/evidence/r13_integration/reel_lab_caption.png`).
 - `make check` exit 0 (625/625, reach3d 52 waypoints 3432 ticks, dist-guard PASS). New test `tests/r13-smooth.test.ts`.
+
+## 2026-11-15 · R14 integration
+
+- Status: merged r14/charlight, r14/terrain, r14/transit with `--no-ff` (HEAD `f740169`), no conflicts, no push, sealed files untouched.
+- User feedback addressed: rooms crossed too fast (transit), coarse terrain (terrain), characters reading as outline only (charlight). Enemy running (a repeated note) was handled in R13 and not changed in R14.
+- Transit: 42-tick side-door walk-through with jump, dash and fire ignored, 150-tick entry grace for foes within 14 m (released on hit), 3 m doorway clearance, `FrameRectSmoother` edge-speed cap, shaft zoom easing, sector title card, reduce-motion cut.
+- Terrain: Meshy unreachable (api.meshy.ai, no key), so procedural `terrainMaps.ts` and `terrainDetail.ts` (about 9.8k triangles in 18 strips), `drawBudget` counts terrain strips.
+- Charlight: `charLight3d.ts` per-kind key, fill, crevice darkening, exposure and softer rim, GLSL injected in `applyEnemyRim3D` and `applyWardenLook3D`.
+- Verification: `make check` exit 0 (649/649, reach3d 52 waypoints 3432 ticks, dist-guard PASS 13 files 14,891,509 B). Bot unchanged by render-only branches: Normal 4978 ticks HP 126, Story 4880 HP 142, Hard 5319 HP 104 (min 100). SHOWCASE_REEL cuts 2150/4420/4920 unchanged.
+- Browser: Playwright on `http://localhost:5173`, 0 console errors or warnings, no page errors on five showcase scenes; screenshots in `docs/evidence/r14/`.
+- Caveats: no human playtest (G5 unperformed); terrain and charlight verified by tests, a no-error run and screenshots only; Meshy terrain upgrade stays in NEXT_PLAN.

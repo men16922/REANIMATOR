@@ -94,3 +94,10 @@ All are on `window` (declared in `src/ui/main.ts`). Every synchronous one cancel
 
 - Judge Reel (`Extras` > `Judge Reel`, `/?reel`), ambient background life per sector ([R13_ALIVE](R13_ALIVE.md)), Core Warden readability and per-weapon impacts ([R13_COMBAT](R13_COMBAT.md)), truthful debug layers, sector hints and a single Classic HUD ([R13_UX](R13_UX.md)).
 - Enemy running: one locomotion model, and the sim no longer teleports queued foes at closed doors. Floor crawlers and stalkers never move more than 0.2 m in one tick on the bot run (`node tools/game/enemyJitter.ts`, `tests/r13-smooth.test.ts`). Bot Normal 5208 ticks HP 126.
+
+## R14 additions
+
+- Room transitions slow down: a 42-tick door walk-through, a 150-tick entry grace for nearby foes, a sector title card, and gentler camera framing ([R14_TRANSIT](R14_TRANSIT.md)).
+- Terrain has procedural detail textures, normal maps and relief meshes (Meshy was unreachable, so none of it is Meshy output) ([R14_TERRAIN](R14_TERRAIN.md)).
+- Characters get per-kind key and fill light with a softer rim so they read as shapes ([R14_CHARLIGHT](R14_CHARLIGHT.md)).
+- Evidence: `docs/evidence/r14/` screenshots from a no-error Playwright run. No human playtest yet, so feel is unverified.
