@@ -7,6 +7,7 @@ import type { MapSolid3D } from '../game3d/map3d.ts';
 import type { Level3D, RoomDef3D, SectorId3D } from '../game3d/types3d.ts';
 import { mulberry32, type FacilityTextures3D } from './textures3d.ts';
 import { flickerLevel, isLampProp, lampMode, lampSeed, reactorPulse, type LampMode } from './mood3d.ts';
+import { minesWallGrid, vistaWindows, type VistaWindow } from './vistaScenes.ts';
 
 export { mulberry32 };
 
@@ -49,6 +50,8 @@ export const LANE_BACK_Z = -1.0;
 export const LANE_FRONT_Z = 1.2;
 export const BACK_WALL_Z = -3.15;
 export const MAX_PROPS_PER_ROOM = 260;
+/** Props at or behind this depth are dropped where they would cover a back-wall window. */
+export const WINDOW_CLEAR_Z = -2.6;
 
 const ACCENT: Record<SectorId3D, number> = {
   airlock: 0x2bb8c8,
@@ -109,8 +112,10 @@ class LayoutBuilder {
   readonly props: DecorProp[] = [];
   readonly cables: DecorCable[] = [];
   private readonly room: RoomDef3D;
+  private readonly windows: VistaWindow[];
   constructor(room: RoomDef3D) {
     this.room = room;
+    this.windows = vistaWindows(room);
   }
 
   /** Adds a prop whose base sits at yBase. Props that would leave the room rect are dropped. */
@@ -120,6 +125,12 @@ class LayoutBuilder {
     const b = propBounds(p);
     const r = this.room;
     if (b.minX < r.minX + 0.05 || b.maxX > r.maxX - 0.05 || b.minY < r.minY - 0.001 || b.maxY > r.maxY + 0.001) return;
+    // Back-wall structure must not cover a vista window (props nearer than WINDOW_CLEAR_Z stay as foreground layers).
+    if (z <= WINDOW_CLEAR_Z) {
+      for (const w of this.windows) {
+        if (b.maxX > w.minX - 0.3 && b.minX < w.maxX + 0.3 && b.maxY > w.minY - 0.3 && b.minY < w.maxY + 0.3) return;
+      }
+    }
     this.props.push(p);
   }
 }
@@ -352,6 +363,77 @@ function seededPoints(count: number, room: RoomDef3D, seed: number, color: numbe
   return pts;
 }
 
+/**
+ * Back wall as a grid with the vista windows cut out. Mines keeps its uniform displaced rock grid (the broken holes are
+ * snapped to it); other sectors use window edges as grid lines. Local coordinates, UVs match a full plane, vertex color is
+ * the lower ambient-occlusion gradient. `displace` is false for the flat multiply overlay.
+ */
+export function buildBackWallGeometry(room: RoomDef3D, windows: VistaWindow[], displace: boolean): THREE.BufferGeometry {
+  const w = room.maxX - room.minX;
+  const h = room.maxY - room.minY;
+  const mines = room.sector === 'mines';
+  let xs: number[];
+  let ys: number[];
+  if (mines) {
+    const g = minesWallGrid(room);
+    xs = Array.from({ length: g.segX + 1 }, (_, i) => room.minX + i * g.cellX);
+    ys = Array.from({ length: g.segY + 1 }, (_, i) => room.minY + i * g.cellY);
+  } else {
+    const ux = new Set<number>([room.minX, room.maxX]);
+    const uy = new Set<number>();
+    for (let i = 0; i <= 6; i++) uy.add(room.minY + (h * i) / 6);
+    for (const win of windows) {
+      ux.add(win.minX);
+      ux.add(win.maxX);
+      uy.add(win.minY);
+      uy.add(win.maxY);
+    }
+    xs = [...ux].sort((a, b) => a - b);
+    ys = [...uy].sort((a, b) => a - b);
+  }
+  const nx = xs.length;
+  const ny = ys.length;
+  const cx = (room.minX + room.maxX) / 2;
+  const cy = (room.minY + room.maxY) / 2;
+  const pos = new Float32Array(nx * ny * 3);
+  const uv = new Float32Array(nx * ny * 2);
+  const col = new Float32Array(nx * ny * 3);
+  for (let j = 0; j < ny; j++) {
+    for (let i = 0; i < nx; i++) {
+      const k = j * nx + i;
+      let z = 0;
+      if (mines && displace && i !== 0 && i !== nx - 1) z = mulberry32(hashString(room.id + 'wall') + i * 7919 + j * 104729)() * 0.45;
+      pos[k * 3] = xs[i] - cx;
+      pos[k * 3 + 1] = ys[j] - cy;
+      pos[k * 3 + 2] = z;
+      uv[k * 2] = (xs[i] - room.minX) / w;
+      uv[k * 2 + 1] = (ys[j] - room.minY) / h;
+      const v = (ys[j] - room.minY) / h;
+      col[k * 3] = col[k * 3 + 1] = col[k * 3 + 2] = 0.4 + 0.6 * Math.min(1, v * 2.2);
+    }
+  }
+  const idx: number[] = [];
+  for (let j = 0; j < ny - 1; j++) {
+    for (let i = 0; i < nx - 1; i++) {
+      const mx = (xs[i] + xs[i + 1]) / 2;
+      const my = (ys[j] + ys[j + 1]) / 2;
+      if (windows.some((win) => mx > win.minX && mx < win.maxX && my > win.minY && my < win.maxY)) continue;
+      const a = j * nx + i;
+      const b = a + 1;
+      const c = a + nx + 1;
+      const d = a + nx;
+      idx.push(a, b, c, a, c, d);
+    }
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
 export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTextures3D): Decor3D {
   const group = new THREE.Group();
   group.name = 'decor3d';
@@ -369,22 +451,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     const w = room.maxX - room.minX;
     const h = room.maxY - room.minY;
     const rt = roomTexture(tex, room.sector);
-    const segX = room.sector === 'mines' ? Math.max(2, Math.round(w / 1.2)) : 1;
-    const segY = room.sector === 'mines' ? Math.max(2, Math.round(h / 1.2)) : 6;
-    const geo = track(new THREE.PlaneGeometry(w, h, segX, segY));
-    const pos = geo.attributes.position as THREE.BufferAttribute;
-    const colors = new Float32Array(pos.count * 3);
-    const rnd = mulberry32(hashString(room.id + 'wall'));
-    for (let i = 0; i < pos.count; i++) {
-      const v = (pos.getY(i) + h / 2) / h;
-      const ao = 0.4 + 0.6 * Math.min(1, v * 2.2);
-      colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = ao;
-      if (room.sector === 'mines' && i % (segX + 1) !== 0 && i % (segX + 1) !== segX) {
-        pos.setZ(i, rnd() * 0.45);
-      }
-    }
-    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    if (room.sector === 'mines') geo.computeVertexNormals();
+    const geo = track(buildBackWallGeometry(room, vistaWindows(room), true));
     const map = track(rt.map.clone());
     map.repeat.set(Math.max(1, w / 4), Math.max(1, h / 4));
     map.needsUpdate = true;
@@ -399,7 +466,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     macro.repeat.set(Math.max(1, w / 18), Math.max(1, h / 12));
     macro.needsUpdate = true;
     const overlay = new THREE.Mesh(
-      track(new THREE.PlaneGeometry(w, h)),
+      track(buildBackWallGeometry(room, vistaWindows(room), false)),
       track(new THREE.MeshBasicMaterial({ map: macro, blending: THREE.MultiplyBlending, transparent: true, depthWrite: false, opacity: 0.7, premultipliedAlpha: true })),
     );
     overlay.position.set(wall.position.x, wall.position.y, BACK_WALL_Z + 0.02);
