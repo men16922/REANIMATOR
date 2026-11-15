@@ -2,6 +2,15 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## 사용자 신규 요청 (다음 작업)
+
+- [ ] **Metroid-style special abilities**: add more ability gates beyond Thruster Boots (e.g. Morph-ball-like slide pass, Speed-boost-like dash run, Missile-style locks), with pickups and gated routes in `map3d.ts` and tests. Needs a design pass first.
+- [ ] **Tutorial mode**: stop showing every skill and control on screen. Teach moves one at a time in an optional tutorial mode and keep the HUD minimal.
+- [ ] **Transient DATA LOG text**: log and hint text should appear briefly when something is selected or picked up, then fade, and must not block gameplay (no modal, no input capture).
+- [ ] **Retro UI**: restyle the HUD in a more retro look (pixel font, CRT-style frames).
+- [ ] **Intro review**: the user found the intro busy. The opening is an intentional alarm set piece (red vent burst, caption lines) but it has not been judged against the "too hectic" note. Reduce overlapping effects and re-check.
+- [ ] Bio-Labs draws 299 calls on fresh load (limit 300): trim kit instances or merge before adding more pieces.
+
 ## R15 이후
 
 - Meshy 터레인 킷 생성은 샌드박스 DNS 실패(`api.meshy.ai`)로 보류. 네트워크 가능한 환경에서 `docs/R15_MESHY_TERRAIN.md`의 킷 계획을 실행한다.

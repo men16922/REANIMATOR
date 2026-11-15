@@ -59,6 +59,10 @@
 
 - 생성 보류: `api.meshy.ai` DNS 해석 실패(HTTP 000). 터레인은 R14 절차 생성 유지. `.env`는 gitignore 처리. Kiro Meshy MCP는 샌드박스 EPERM으로 미추가. 상세 `docs/R15_MESHY_TERRAIN.md`.
 
+## R15 터레인 킷 (Meshy 11종, 로컬 커밋)
+
+- 11개 GLB 인제스트(`terrain/`), `terrainKit.ts` 인스턴싱과 6개 섹터 연결, 시각 전용. `make check` exit 0(654/654, dist-guard 24 files). 브라우저 6개 섹터 draw calls 148~299(<=300), 콘솔 오류 0, 스크린샷 `docs/evidence/r15_meshy_terrain/`. Bio-Labs 299로 여유 없음. 사람 플레이 unverified. 위 "R15 (Meshy 터레인)" 항목의 생성 보류 설명은 이전 시도 기록이다. 상세 `docs/R15_MESHY_TERRAIN.md`.
+
 ## 세션 마감 검증 (오케스트레이터 Playwright 관찰, 2026-11-15)
 
 - **R9**: `__reanimatorUiAudit()` 12개 시나리오 ok, Z 스캔 윤곽 표시, 보안 데크 Vault Nook 시크릿 발견, `8376998` 이후 카메라가 Nook 안까지 따라감, 콘솔 경고 0.

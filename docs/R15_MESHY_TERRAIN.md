@@ -80,3 +80,20 @@ Node Chrome could not launch in the sandbox (`kill EPERM`), so the page `compare
 ### Recommendation
 
 Use tier A (meshy-t2.5 smart topology, target 4000, WebP 512) for the remaining pieces: half the credits, the smallest files, and clean low-poly shapes that hold up at 13.5 m. Constrain prompts toward flat, shallow-depth pieces. Use 7.1 only for a few hero pieces if a gentler simplify (about 15 to 20k tris) is tested first. Not yet wired into the renderer.
+
+## Terrain kit in the game (FEAT-001 to FEAT-003)
+
+Eleven Meshy pieces (3288 to 4000 triangles, 154 to 230 KB each, WebP 512) were generated through the Meshy MCP server (`meshy-mcp-server`, workspace `.kiro/settings/mcp.json`) and ingested offline with `tools/meshy/terrain-kit.ts --ingest-raw` into `public/assets/models/terrain/`. `src/render3d/terrainKit.ts` instances them per sector (lazy load, R14 procedural terrain stays as fallback), `drawBudget` counts the kit. Visual only: collision, sim and the bot pins are unchanged.
+
+Browser check (Playwright MCP, dev server `http://localhost:5173`, `__reanimatorShowcase(name)`, 2026-11-15):
+
+| Sector | Scene | Draw calls (observed) | Console errors |
+|---|---|---|---|
+| Cryo Airlock | `escape` | 148 | 0 |
+| Central Transit Shaft | `classic` | 166 to 168 | 0 |
+| Sunken Mines | `mines` | 195 to 198 | 0 |
+| Bio-Labs | `biolabs` | 161 to 299 | 0 |
+| Upper Security Deck | `security` | 265 to 281 | 0 |
+| Core Vault | `boss` | 155 | 0 |
+
+All values are at or under the 300 limit; Bio-Labs reached 299 on a fresh page load, so it has almost no headroom. Draw calls vary between runs of the same scene (lazy loads). Console errors were read once after the mines and once after the security scenes (0 errors, 0 warnings each time). Screenshots: `docs/evidence/r15_meshy_terrain/{airlock,shaft,mines,biolabs,security,core}.png`. Looked at by eye: airlock, mines, security. Shaft, biolabs and core were captured but not inspected closely (unverified). No piece was moved or rescaled. Some captures right after switching scenes came out black (canvas not yet painted); they were retaken after a page reload. No human playtest.
