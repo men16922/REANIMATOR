@@ -133,7 +133,8 @@ export interface GaitSpec {
 }
 
 export const GAIT: Record<RigKind, GaitSpec> = {
-  stalker: { walkRef: 2.2, runRef: 5.5, walkDur: 1.033, runDur: 0.467, blendLo: 2.6, blendHi: 4.6 },
+  // R13: narrower walk -> run band, so a chase at 3-4 m/s is a real run instead of a 1.6x speed-walk mixed in
+  stalker: { walkRef: 2.2, runRef: 5.5, walkDur: 1.033, runDur: 0.467, blendLo: 2.0, blendHi: 3.6 },
   warden: { walkRef: 2.6, runRef: 6.0, walkDur: 1.033, runDur: 0.633, blendLo: 3.0, blendHi: 5.0 },
 };
 
@@ -143,10 +144,22 @@ export function runBlend(kind: RigKind, speed: number): number {
   return smooth01((speed - g.blendLo) / (g.blendHi - g.blendLo));
 }
 
+/** Longest stride stretch above the run reference speed (cadence then rises at most sqrt-slowly). */
+export const SPRINT_STRIDE_MAX = 1.25;
+
+/**
+ * Stride stretch above the run reference: sprinting animals lengthen their stride instead of spinning their legs.
+ * Without it a 9.6 m/s aggro chase played the run clip at 1.75x. The stretch is capped so foot slip stays small.
+ */
+export function sprintStretch(kind: RigKind, speed: number): number {
+  const ref = GAIT[kind].runRef;
+  return speed <= ref ? 1 : Math.min(SPRINT_STRIDE_MAX, Math.sqrt(speed / ref));
+}
+
 /** Metres travelled per gait cycle for the walk/run mix at this speed. */
 export function strideLength(kind: RigKind, speed: number): number {
   const g = GAIT[kind];
-  return lerp(g.walkRef * g.walkDur, g.runRef * g.runDur, runBlend(kind, speed));
+  return lerp(g.walkRef * g.walkDur, g.runRef * g.runDur, runBlend(kind, speed)) * sprintStretch(kind, speed);
 }
 
 /** Gait cycles per second so that foot travel equals ground travel (no sliding). */
@@ -154,11 +167,24 @@ export function gaitCycleRate(kind: RigKind, speed: number): number {
   return speed / strideLength(kind, speed);
 }
 
-/** Ground speed measured from displayed positions, lightly filtered. Teleports (|dx| > 4 m) are ignored. */
+/** Ceiling on the ground speed fed to the gait (m/s). Faster readings are collision or knockback snaps. */
+export const GROUND_SPEED_MAX = 14;
+/** Gait speed may rise at most this fast (m/s^2); the sim's chase acceleration is about 45. */
+export const GROUND_ACCEL_MAX = 120;
+/** ...and fall at most this fast (a hard stop decelerates at about 170). */
+export const GROUND_DECEL_MAX = 240;
+
+/**
+ * Ground speed measured from displayed positions, lightly filtered. Teleports (|dx| > 4 m) are ignored.
+ * R13: single-frame snaps (enemy separation pushes, step-ups, knockback) used to read as 30-47 m/s and spun the
+ * legs a quarter cycle in one frame. The reading is now capped and slew-limited, so only real locomotion drives it.
+ */
 export function stepGroundSpeed(prev: number, dx: number, dt: number): number {
   const h = clamp(dt, 1e-4, 0.25);
   if (Math.abs(dx) > 4) return prev;
-  return prev + (Math.abs(dx) / h - prev) * expK(140, h);
+  const inst = Math.min(GROUND_SPEED_MAX, Math.abs(dx) / h);
+  const target = clamp(inst, prev - GROUND_DECEL_MAX * h, prev + GROUND_ACCEL_MAX * h);
+  return Math.max(0, prev + (target - prev) * expK(140, h));
 }
 
 // ---------------------------------------------------------------------------------------------------------------
