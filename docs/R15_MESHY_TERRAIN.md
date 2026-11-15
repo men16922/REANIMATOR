@@ -51,3 +51,32 @@ Next after it finishes: review the GLBs, run `make check` (dist-guard), commit t
 ## Meshy MCP in Kiro (still manual)
 
 The sandbox also blocked creating `.kiro/settings/` in the workspace. Add the `meshy` block shown above to `~/.kiro/settings/mcp.json` yourself. `.kiro/settings/mcp.json` is gitignored in case you put it in the workspace.
+
+## Sample comparison (wall panel, one piece, two quality tiers)
+
+Date: 2026-11-15. Same prompt (modular sci-fi industrial wall panel, dark gunmetal, rust, hazard stripe), both refined with PBR textures. Raw files are in `assets/meshy-raw/terrain/` (gitignored). Optimized files are in `public/assets/models/terrain/samples/`. Numbers come from `node tools/meshy/terrain-samples.ts` (output `docs/evidence/r15_meshy_terrain/samples.json`). Same steps as `terrain-kit.ts` `optimizeOne` (weld, simplify error 0.5, WebP q82, center, longest side 1), with texture size and triangle target as parameters.
+
+| Model | Credits | Raw tris / size | Optimized tris / size | Textures | Notes at game distance |
+|---|---|---|---|---|---|
+| A: meshy-t2.5 smart topology 4000 | 5 + 10 = 15 | 3,864 / 5.36 MB (3x 2048 JPEG) | 3,864 / 210 KB (512) or 305 KB (1024) | base color, metal-rough, normal | Clean silhouette and bevels, texture reads well. The model came out as a thick equipment crate (0.95 x 0.70 x 0.53), not a flat wall panel. 512 vs 1024 is hard to tell apart at 13.5 m. |
+| B: meshy-7.1 standard, raw | 20 + 10 = 30 | 328,758 / 15.52 MB (3x 2048 JPEG) | not shipped (9.8 MB at 512, 9.9 MB at 1024) | same | Best look: flat panel (1.90 x 1.12 x 0.23), crisp rivets, vent, hazard stripe. Far too heavy for the 300-draw-call, many-instance budget. |
+| B simplified to ~4k | same | same | 4,502 / 304 KB (512) or 403 KB (1024) | same | Same-budget comparison. The simplifier (error 0.5, border unlocked) crumples the surface, and the normals turn noisy with cyan rim artifacts. Geometry detail was baked into the normal map and the low mesh does not match it. Worse than A at game distance. |
+
+Screenshots (Playwright MCP, dev page `compare.html`, game lighting: hemisphere + sun + cyan rim, ACES 1.4, fog):
+- `docs/evidence/r15_meshy_terrain/compare_close.png` (A 512, A 1024, B 4k 512, B 4k 1024, B raw)
+- `docs/evidence/r15_meshy_terrain/compare_game.png` (camera z 13.5, fov 38, each model scaled to 3 m wide)
+
+Node Chrome could not launch in the sandbox (`kill EPERM`), so the page `compare.html` at the repo root is rendered through the Playwright MCP browser on the dev server (`/compare.html?mode=close|game`). It is not part of the Vite build (only `index.html` is).
+
+### Projection for 10 more pieces
+
+| Tier | Credits (10 pieces) | Dist added | Risk |
+|---|---|---|---|
+| A: t2.5, 4000 tris, WebP 512 | 150 | about 2.1 MB (3.1 MB at 1024) | Prompt must say "flat, shallow depth" so shapes do not come out as crates. |
+| B: 7.1, simplified to ~4k | 300 | about 3.0 MB (4.0 MB at 1024) | Visibly crumpled at 4k; doubles the cost for a worse result. |
+| B: 7.1 at about 20k+ tris | 300 | not measured, expected several MB each | Needs a gentler simplify (lower error, locked borders) and a re-test. |
+| B raw | 300 | about 98 MB | Not viable. |
+
+### Recommendation
+
+Use tier A (meshy-t2.5 smart topology, target 4000, WebP 512) for the remaining pieces: half the credits, the smallest files, and clean low-poly shapes that hold up at 13.5 m. Constrain prompts toward flat, shallow-depth pieces. Use 7.1 only for a few hero pieces if a gentler simplify (about 15 to 20k tris) is tested first. Not yet wired into the renderer.

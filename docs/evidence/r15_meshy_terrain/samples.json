@@ -1,0 +1,112 @@
+{
+  "sample_a_t25_wall_panel.glb": {
+    "bytes": 5618680,
+    "vertices": 4304,
+    "triangles": 3864,
+    "textures": [
+      "jpeg 2048x2048",
+      "jpeg 2048x2048",
+      "jpeg 2048x2048"
+    ]
+  },
+  "a_t25": {
+    "bytes": 210172,
+    "vertices": 4304,
+    "triangles": 3864,
+    "textures": [
+      "webp 512x512",
+      "webp 512x512",
+      "webp 512x512"
+    ],
+    "extentsRaw": [
+      0.948,
+      0.697,
+      0.525
+    ]
+  },
+  "a_t25_1k": {
+    "bytes": 305264,
+    "vertices": 4304,
+    "triangles": 3864,
+    "textures": [
+      "webp 1024x1024",
+      "webp 1024x1024",
+      "webp 1024x1024"
+    ],
+    "extentsRaw": [
+      0.948,
+      0.697,
+      0.525
+    ]
+  },
+  "sample_b_meshy71_wall_panel.glb": {
+    "bytes": 16277868,
+    "vertices": 182661,
+    "triangles": 328758,
+    "textures": [
+      "jpeg 2048x2048",
+      "jpeg 2048x2048",
+      "jpeg 2048x2048"
+    ]
+  },
+  "b_m71": {
+    "bytes": 9844508,
+    "vertices": 182661,
+    "triangles": 328758,
+    "textures": [
+      "webp 512x512",
+      "webp 512x512",
+      "webp 512x512"
+    ],
+    "extentsRaw": [
+      1.903,
+      1.123,
+      0.232
+    ]
+  },
+  "b_m71_1k": {
+    "bytes": 9944068,
+    "vertices": 182661,
+    "triangles": 328758,
+    "textures": [
+      "webp 1024x1024",
+      "webp 1024x1024",
+      "webp 1024x1024"
+    ],
+    "extentsRaw": [
+      1.903,
+      1.123,
+      0.232
+    ]
+  },
+  "b_m71_4k": {
+    "bytes": 303756,
+    "vertices": 6953,
+    "triangles": 4502,
+    "textures": [
+      "webp 512x512",
+      "webp 512x512",
+      "webp 512x512"
+    ],
+    "extentsRaw": [
+      1.903,
+      1.123,
+      0.231
+    ]
+  },
+  "b_m71_4k_1k": {
+    "bytes": 403308,
+    "vertices": 6953,
+    "triangles": 4502,
+    "textures": [
+      "webp 1024x1024",
+      "webp 1024x1024",
+      "webp 1024x1024"
+    ],
+    "extentsRaw": [
+      1.903,
+      1.123,
+      0.231
+    ]
+  }
+}

@@ -1,0 +1,69 @@
+<!-- Dev-only page for the R15 wall-panel sample comparison: /compare.html?mode=close|game. Not part of the build (index.html only). -->
+<!doctype html><html><head><meta charset="utf-8"><title>R15 terrain sample compare (dev only)</title><style>body{margin:0;background:#090e14}canvas{display:block}</style>
+</head><body>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+const MODELS = [
+  { id: 'A t2.5 512', url: '/assets/models/terrain/samples/a_t25.glb' },
+  { id: 'A t2.5 1024', url: '/assets/models/terrain/samples/a_t25_1k.glb' },
+  { id: 'B 7.1 4.5k 512', url: '/assets/models/terrain/samples/b_m71_4k.glb' },
+  { id: 'B 7.1 4.5k 1024', url: '/assets/models/terrain/samples/b_m71_4k_1k.glb' },
+  { id: 'B 7.1 raw 329k', url: '/assets/meshy-raw/terrain/sample_b_meshy71_wall_panel.glb' },
+];
+const W = 1920, H = 900;
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setSize(W, H);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.4;
+document.body.append(renderer.domElement);
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x090e14);
+scene.fog = new THREE.FogExp2(0x090e14, 0.012);
+scene.add(new THREE.HemisphereLight(0x8bb6df, 0x242028, 1.35));
+const sun = new THREE.DirectionalLight(0xdcebff, 1.9); sun.position.set(6, 14, 16); scene.add(sun);
+const rim = new THREE.DirectionalLight(0x4fd8e8, 1.7); rim.position.set(-10, 8, -10); scene.add(rim);
+const loader = new GLTFLoader();
+const roots = [];
+for (const m of MODELS) {
+  const g = await loader.loadAsync(m.url);
+  const root = new THREE.Group(); root.add(g.scene);
+  const b = new THREE.Box3().setFromObject(g.scene);
+  const s = new THREE.Vector3(); b.getSize(s);
+  // raw model is not normalized: scale so the X extent is 3 m, sit on y=0, center x/z
+  const k = 3 / s.x;
+  g.scene.scale.setScalar(k);
+  const b2 = new THREE.Box3().setFromObject(g.scene);
+  g.scene.position.set(-(b2.min.x + b2.max.x) / 2, -b2.min.y, -(b2.min.z + b2.max.z) / 2);
+  root.userData = { w: 3, h: (b2.max.y - b2.min.y), d: (b2.max.z - b2.min.z) };
+  scene.add(root); roots.push(root);
+}
+function shot(layout) {
+  const cam = new THREE.PerspectiveCamera(38, W / H, 0.4, 120);
+  if (layout === 'game') {
+    roots.forEach((r, i) => { r.position.set((i - 2) * 3.6, 0, 0); r.visible = true; });
+    cam.position.set(0, 3.2, 13.5); cam.lookAt(0, 1.2, 0);
+    renderer.render(scene, cam);
+    return renderer.domElement.toDataURL('image/png');
+  }
+  // close: one model per call frame, tiled by rendering sequentially with scissor
+  renderer.setScissorTest(true);
+  const cw = W / roots.length;
+  roots.forEach((r, i) => {
+    roots.forEach((o) => (o.visible = o === r)); r.position.set(0, 0, 0);
+    const c = new THREE.PerspectiveCamera(38, cw / H, 0.1, 50);
+    c.position.set(0.6, r.userData.h * 0.7, 3.4); c.lookAt(0, r.userData.h * 0.5, 0);
+    renderer.setViewport(i * cw, 0, cw, H); renderer.setScissor(i * cw, 0, cw, H);
+    renderer.render(scene, c);
+  });
+  renderer.setScissorTest(false);
+  return renderer.domElement.toDataURL('image/png');
+}
+window.__out = { close: null, game: null };
+renderer.setClearColor(0x090e14);
+const mode = new URLSearchParams(location.search).get('mode') || 'game';
+renderer.setViewport(0, 0, W, H);
+shot(mode);
+window.__ready = true;
+</script></body></html>
