@@ -450,3 +450,7 @@ body.classic #screen {
 #ending.true h3 { color: var(--c-gold); text-shadow: 0 0 14px currentColor; }
 #ending p { margin: 0 0 0.5em; line-height: 1.55; font-size: 0.92em; color: #dbe6ee; }
 body.reduce-fx .scan-sweep, body.reduce-fx .scan-frame, body.reduce-fx .roll-lines { animation: none; }
+
+/* R10: Meltdown alarm vignette. The opacity variable is written each frame by the renderer from meltdownTicks (0 outside the escape). */
+body.meltdown-alert::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: var(--meltdown-vignette, 0); background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(220, 20, 24, 0.55) 100%); transition: none; }
+body.meltdown-calm::after { background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 60%, rgba(180, 30, 30, 0.35) 100%); }

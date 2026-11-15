@@ -8,6 +8,7 @@ import { chooseMuzzle } from './heroPose.ts';
 import type { EnemyKind3D, EnemyState3D, WorldState3D } from '../game3d/world3d.ts';
 import { PopupPool } from './popups3d.ts';
 import { orbitAngle, popupTier, projectileStyle, stepChroma } from './vfxStyle3d.ts';
+import { VENT_XS, debrisPeriodTicks, hatchBeat, meltdownIntensity, type ArenaSetPiece } from './setpieces3d.ts';
 import { GoreSim, goreScale, type GoreKind } from './gore3d.ts';
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
@@ -390,6 +391,8 @@ export class FxDirector {
   envPulse = 0;
   /** Boss phase last announced (colour of the core glow). */
   bossPhase = 1;
+  /** R10: eased arena set piece amounts, written by the scene each frame, read by the per-tick emitters. */
+  arenaSet: ArenaSetPiece = { crack: 0, steam: 0, tint: 0, debris: 0 };
   /** Intro roar beat: shockwave ring, shake and a burst at the awakened Warden. */
   bossRoar(x: number, y: number): void {
     const c = BOSS_PHASE_COLORS[0];
@@ -585,7 +588,13 @@ export class FxDirector {
             else if (ev.value === 1) { this.burst(px, py + 0.9, 1, 0.8, 0.25, 1, 12, 4); this.ring(px, py + 0.9, 0.45, 1, 0.8, 0.3); this.trauma.add(0.02); }
             else this.burst(px, py + 1.0, 0.4, 1, 0.8, 0.3, 8, 3);
             break;
-          case 'win': this.trauma.add(0.5); break;
+          case 'win': {
+            this.trauma.add(0.5);
+            const hb = hatchBeat(this.reduce);
+            this.slowmo.request(hb.scale, hb.seconds);
+            this.burst(px, py + 1.0, 0.7, 1, 0.8, 1, this.reduce ? 10 : 30, 7);
+            break;
+          }
           case 'hazard_crush': if (ev.value === 1) { this.trauma.add(0.35); this.dustAt(px, py + 0.1, 6, 4, 0); } break;
           case 'barrel_explode': this.trauma.add(0.25); break;
           case 'elevator_start': this.trauma.add(0.12); break;
@@ -985,6 +994,7 @@ export class FxDirector {
       this.prevRailF = f;
     }
     if (w.coreDestroyed && w.meltdownTicks > 0 && !this.reduce && this.trauma.value < 0.1) this.trauma.add(0.012);
+    this.setPieceTick(dt, w);
   }
 
   /**
@@ -1321,6 +1331,43 @@ export class FxDirector {
       const ang = this.rr(0, Math.PI * 2);
       const sp = this.rr(speed * 0.3, speed);
       this.add.emit(x, y, 0.5, Math.cos(ang) * sp, Math.sin(ang) * sp, 0, this.rr(0.15, 0.45), this.rr(0.1, 0.22), 0.02, r * 1.5, g * 1.5, b * 1.5, a, 9, 1.8, 4);
+    }
+  }
+
+  private spAcc = [0, 0, 0];
+
+  /** R10: arena and escape debris, emitted per display frame from rates derived from world state (display RNG only). */
+  private setPieceTick(dt: number, w: WorldState3D): void {
+    const px = w.player.body.x;
+    const py = w.player.body.y;
+    const mi = w.coreDestroyed ? meltdownIntensity(w.meltdownTicks) : 0;
+    const per = debrisPeriodTicks(mi, this.reduce);
+    if (per > 0) {
+      this.spAcc[0] += dt * (60 / per);
+      for (let n = 0; this.spAcc[0] >= 1 && n < 4; n++, this.spAcc[0]--) {
+        // collapsing ceiling chunks and hot streaks falling past the camera
+        const x = px + this.rr(-13, 13);
+        this.alpha.emit(x, py + this.rr(7, 10), 0.3, this.rr(-0.4, 0.4), -this.rr(2, 5), 0, this.rr(0.9, 1.4), this.rr(0.18, 0.4), this.rr(0.2, 0.45), 0.34, 0.3, 0.28, 0.75, 12, 0, 1);
+        if (mi > 0.4) this.add.emit(x, py + this.rr(6, 9), 0.35, 0, -this.rr(7, 11), 0, 0.5, 0.08, 0.05, 1.3, 0.45, 0.15, 0.7, 0, 0, 5);
+      }
+      this.spAcc[0] = Math.min(this.spAcc[0], 1);
+    }
+    const s = this.arenaSet;
+    if (s.steam > 0.05) {
+      this.spAcc[1] += dt * (this.reduce ? 4 : 10);
+      for (let n = 0; this.spAcc[1] >= 1 && n < 3; n++, this.spAcc[1]--) {
+        const vx = VENT_XS[Math.floor(this.rnd() * VENT_XS.length) % VENT_XS.length];
+        this.alpha.emit(vx + this.rr(-0.3, 0.3), 0.2, 0.5, this.rr(-0.3, 0.3), this.rr(2.2, 3.4), 0, this.rr(0.7, 1.1), 0.25, 0.9, 0.78, 0.78, 0.8, 0.28 * s.steam, -0.5, 1.2, 1);
+      }
+      this.spAcc[1] = Math.min(this.spAcc[1], 1);
+    }
+    if (s.debris > 0.05) {
+      this.spAcc[2] += dt * (this.reduce ? 1.5 : 5);
+      for (let n = 0; this.spAcc[2] >= 1 && n < 2; n++, this.spAcc[2]--) {
+        const x = 72.4 + this.rr(0, 23.5);
+        this.alpha.emit(x, 9, 0.35, this.rr(-0.3, 0.3), -this.rr(3, 6), 0, this.rr(0.8, 1.2), 0.2, 0.35, 0.3, 0.26, 0.24, 0.7 * s.debris, 12, 0, 1);
+      }
+      this.spAcc[2] = Math.min(this.spAcc[2], 1);
     }
   }
 

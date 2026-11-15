@@ -12,6 +12,8 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { BOSS_PHASE_COLORS, createPostParams, FxDirector, stepPostParams } from './fx3d.ts';
 import { BossTelegraph3D } from './bossTelegraph3d.ts';
+import { BossSetPieces3D } from './bossSetPieces3d.ts';
+import { meltdownIntensity, vignetteAlpha } from './setpieces3d.ts';
 import { BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
 import { PopupLayer } from './popups3d.ts';
 import { CLASSIC_GLOW_SPRITE_SCALE, ClassicPipeline, classicOrthoHalf, remapNdcToClassic, type ViewMode } from './classicView.ts';
@@ -308,6 +310,7 @@ export class Scene3DRenderer {
   private readonly reticleGroup = new THREE.Group();
 
   private readonly bossTele = new BossTelegraph3D();
+  private readonly bossSet = new BossSetPieces3D();
   private readonly popupLayer: PopupLayer;
   private readonly introOverlay = new BossIntroOverlay(() => this.renderer.domElement.parentElement);
   private introSkipPending = false;
@@ -566,6 +569,7 @@ export class Scene3DRenderer {
     this.scene.add(this.fxAlpha.mesh);
     this.scene.add(this.fxAdd.mesh);
     this.scene.add(this.bossTele.group);
+    this.scene.add(this.bossSet.group);
     this.popupLayer = new PopupLayer(this.fx.popups);
     this.scene.add(this.popupLayer.mesh);
     window.addEventListener('keydown', (ev) => {
@@ -1872,6 +1876,7 @@ export class Scene3DRenderer {
     if (typeof document !== 'undefined') {
       document.body.classList.toggle('meltdown-alert', inMeltdown);
       document.body.classList.toggle('meltdown-calm', this.reduceMotion);
+      document.body.style.setProperty('--meltdown-vignette', vignetteAlpha(inMeltdown ? meltdownIntensity(w.meltdownTicks) : 0, tSec, this.reduceMotion).toFixed(3));
     }
 
     // 4. Operative: side-view root facing, velocity-locked pose, two-handed rifle IK, laser sight, R3.3 headlamp
@@ -2199,6 +2204,15 @@ export class Scene3DRenderer {
     }
 
     this.bossTele.update(w, wardenE, wardenX, wardenY, px, py, tSec, this.reduceMotion, this.introAwake, introOn);
+    {
+      // R10 set pieces: fissures and vent glow, phase 3 hot light shift (all display-side, existing lights only)
+      const sp = this.bossSet.update(wardenE, dt, tSec, this.reduceMotion);
+      this.fx.arenaSet = sp;
+      if (sp.tint > 0.001) {
+        this.ambient.color.lerp(_PHASE_TMP.setRGB(1.0, 0.32, 0.18), sp.tint * 0.35);
+        this.ambient.intensity *= 1 + 0.12 * sp.tint;
+      }
+    }
 
     // 6. Bio-Barrels, Power Core, Exit Gate & Pickups
     for (const b of w.barrels) {
