@@ -1401,6 +1401,17 @@ interface SoakOptions {
   showcase?: boolean;
   /** Simulation ticks advanced after every state change. Default 60. */
   stepTicks?: number;
+  /** Record renderer.info.memory deltas (geometries, textures) per stage so the stage that grows can be named. */
+  trace?: boolean;
+}
+/** One stage of a soak iteration and how much it changed renderer.info.memory. Only the non-zero stages matter. */
+interface SoakTraceRow {
+  iter: number;
+  stage: string;
+  geometries: number;
+  textures: number;
+  dGeometries: number;
+  dTextures: number;
 }
 interface SoakSample {
   iter: number;
@@ -1426,6 +1437,10 @@ interface SoakReport {
   samples: SoakSample[];
   /** Metrics that kept rising after the warm-up iteration (a leak candidate). Empty means stable. */
   leaks: Array<{ metric: string; baseline: number; last: number }>;
+  /** Present with {trace:true}: every stage of every iteration with its geometry/texture delta. */
+  trace?: SoakTraceRow[];
+  /** Present with {trace:true}: per stage, the sum of deltas over iterations 1..n-1 (iteration 0 is warm-up). Non-zero = leak. */
+  traceSteady?: Array<{ stage: string; dGeometries: number; dTextures: number }>;
   /** Bounded pools: reported for inspection, never flagged. */
   pooled: string[];
   ok: boolean;
@@ -1481,29 +1496,49 @@ wAny.__reanimatorSoak = async (n = 3, opts = {}) => {
     steps++;
   };
   const samples: SoakSample[] = [];
+  const trace: SoakTraceRow[] = [];
+  const mem = (): { g: number; t: number } => {
+    const m = (buildSnapshot() as { perf?: { geometries: number; textures: number } }).perf;
+    return { g: m?.geometries ?? 0, t: m?.textures ?? 0 };
+  };
+  let prev = opts.trace ? mem() : { g: 0, t: 0 };
+  let iterNow = 0;
+  const mark = (stage: string): void => {
+    if (!opts.trace) return;
+    const cur = mem();
+    trace.push({ iter: iterNow, stage, geometries: cur.g, textures: cur.t, dGeometries: cur.g - prev.g, dTextures: cur.t - prev.t });
+    prev = cur;
+  };
   for (let iter = 0; iter < n; iter++) {
+    iterNow = iter;
     // A debug world builds its own Level3D object: forces the renderer to tear down and rebuild the static level.
     wAny.__reanimatorAdvance(idle);
     steps++;
+    mark('advance');
     for (const stop of DEMO_STOPS) {
       wAny.__reanimatorDemo(stop.id);
       step();
+      mark(`demo:${stop.id}`);
     }
     if (withShowcase) {
       for (const name of SHOWCASE_NAMES) {
         await wAny.__reanimatorShowcase(name);
         if (SHOWCASE_SCENES[name].kind === 'world') step();
+        mark(`showcase:${name}`);
       }
     }
     applyView('classic', false);
     step();
+    mark('classic-on');
     applyView('modern', false);
     step();
+    mark('classic-off');
     exitShowcase();
     start(false);
     enterManual();
     step();
     await settleFrames(2);
+    mark('restart');
     samples.push(soakSample(iter));
   }
   const base = samples[Math.min(1, samples.length - 1)];
@@ -1516,7 +1551,19 @@ wAny.__reanimatorSoak = async (n = 3, opts = {}) => {
       if (l > b) leaks.push({ metric: k, baseline: b, last: l });
     }
   }
-  return { iterations: n, samples, leaks, pooled: SOAK_POOLED.map(String), ok: leaks.length === 0, steps, ms: Math.round(performance.now() - t0) };
+  let traceSteady: SoakReport['traceSteady'];
+  if (opts.trace) {
+    const acc = new Map<string, { dGeometries: number; dTextures: number }>();
+    for (const r of trace) {
+      if (r.iter === 0) continue;
+      const a = acc.get(r.stage) ?? { dGeometries: 0, dTextures: 0 };
+      a.dGeometries += r.dGeometries;
+      a.dTextures += r.dTextures;
+      acc.set(r.stage, a);
+    }
+    traceSteady = [...acc].map(([stage, v]) => ({ stage, ...v })).filter((r) => r.dGeometries !== 0 || r.dTextures !== 0);
+  }
+  return { iterations: n, samples, leaks, ...(opts.trace ? { trace, traceSteady } : {}), pooled: SOAK_POOLED.map(String), ok: leaks.length === 0, steps, ms: Math.round(performance.now() - t0) };
 };
 
 /**

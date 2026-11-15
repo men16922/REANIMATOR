@@ -16,3 +16,11 @@
 ## Soak hook (browser, unverified)
 `await __reanimatorSoak(n = 3, { showcase = true, stepTicks = 60 })`. Per iteration: Advance (new Level3D), 11 demo checkpoints, 10 showcase scenes, Classic toggle, restart, each followed by 60 ticks; then one sample in the same end state.
 Expect `ok: true`, `leaks: []`. Stable metrics (geometries, textures, programs, sceneChildren, sceneObjects, audioTracked, audioLoops, frameErrors) are compared against iteration 1 (iteration 0 is warm-up). Pooled metrics (drawCalls, particles, smoke, gore, popups, audioActive, jsHeapMB) are reported only.
+
+## R8 leak fix (r8/leak)
+
+Cause: `rebuildActorInstances` freed only cloned materials. Each rebuilt actor leaked its `Skeleton.boneTexture` (DataTexture) and procedural geometry (hero gear, enemy pick proxy, fallback shapes): +10 geometries and +5 textures per soak iteration (airlock demo: hero rig, `demo:classic`/boss rigs).
+
+Fix: `src/render3d/disposeActor.ts` (`disposeActorTree`) and `disposeActor3D` in `riggedModels.ts` free materials, non-glTF geometry, skeletons and mixer bindings; glTF-shared geometry stays. Used for the hero, rigged and static enemies, barrels, core and exit models. Test: `tests/leak-actor.test.ts`.
+
+Trace: `__reanimatorSoak(n, {showcase:false, trace:true})` adds `trace` (every stage's geometry/texture count and delta) and `traceSteady` (per-stage sum of deltas over iterations 1..n-1; any non-zero row is a leak candidate). Expect `ok:true` with geometries/textures flat after iteration 1 (observed 112/72 for 10 iterations in a dev browser). With showcase scenes the counts jitter by a few geometries (lazy first-use uploads) without a trend.

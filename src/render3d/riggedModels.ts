@@ -10,6 +10,7 @@ import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { ActorAnimAction, PlayerPoseState3D } from '../game3d/types3d.ts';
 import { RECOIL_PROFILE, type HeroFrame } from './heroPose.ts';
+import { collectGeometries, disposeActorTree } from './disposeActor.ts';
 import { GAIT, type EnemyRigFrame, type RigChannels, type RigKind } from './enemyRig3d.ts';
 
 export { THREE };
@@ -125,6 +126,27 @@ export async function preloadAllModels3D(): Promise<{ ok: boolean; loaded: Model
     return { ok: loaded.length === keys.length, loaded };
   })();
   return loadPromise;
+}
+
+let sharedGeoms: Set<THREE.BufferGeometry> | null = null;
+let sharedGeomsFor = -1;
+
+/** True for geometry owned by the loaded glTF scenes (shared by every clone). */
+export function isSharedActorGeometry3D(g: THREE.BufferGeometry): boolean {
+  if (!sharedGeoms || sharedGeomsFor !== cache.size) {
+    sharedGeoms = new Set();
+    for (const gltf of cache.values()) collectGeometries(gltf.scene, sharedGeoms);
+    sharedGeomsFor = cache.size;
+  }
+  return sharedGeoms.has(g);
+}
+
+/**
+ * Frees what one actor clone owns: cloned materials, procedural geometry (hero gear, pick proxy, fallback shapes),
+ * skeleton bone textures and mixer bindings. glTF-shared geometry stays. Call after removing the root from the scene.
+ */
+export function disposeActor3D(root: THREE.Object3D, mixer?: THREE.AnimationMixer, mixerRoot?: THREE.Object3D): void {
+  disposeActorTree(root, { isSharedGeometry: isSharedActorGeometry3D, mixer, mixerRoot });
 }
 
 export function getLoadedModelNames3D(): ModelKey3D[] {
