@@ -48,6 +48,7 @@ import {
   type RiggedInstance,
   type WardenLookUniforms3D,
 } from './riggedModels.ts';
+import { CHAR_LIGHT } from './charLight3d.ts';
 import { WARDEN_RIM_HEX, WARDEN_RIM_STRENGTH, wardenLook } from './wardenLook3d.ts';
 import { WardenHalo3D } from './wardenLookGfx3d.ts';
 import { EnemyRigDriver, ProcSecondary, type EnemyRigFrame } from './enemyRig3d.ts';
@@ -1648,8 +1649,8 @@ export class Scene3DRenderer {
     // the darker R3 mood without adding lights.
     this.heroGear = this.operativeRig.riflePivot ? new HeroGear(this.operativeRig) : null;
     this.heroCtl.reset(1);
-    applyEnemyRim3D(this.operativeRig.materials, 0x8fdcff, 0.7, 0.1);
-    if (this.heroGear) applyEnemyRim3D(this.heroGear.materials, 0x8fdcff, 0.3, 0.04);
+    applyEnemyRim3D(this.operativeRig.materials, 0x8fdcff, CHAR_LIGHT.operative.rim, CHAR_LIGHT.operative.lift, 'operative');
+    if (this.heroGear) applyEnemyRim3D(this.heroGear.materials, 0x8fdcff, CHAR_LIGHT.heroGear.rim, CHAR_LIGHT.heroGear.lift, 'heroGear');
 
     // Enemies
     const enemySpecs = 'enemies' in w && w.enemies ? w.enemies : w.level.enemies;
@@ -1667,7 +1668,7 @@ export class Scene3DRenderer {
           this.wardenLooks.set(e.id, applyWardenLook3D(rig, WARDEN_RIM_HEX, WARDEN_RIM_STRENGTH));
         } else {
           tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, ENEMY_TINT_3D[e.kind]);
-          applyEnemyRim3D(rig.materials, ENEMY_RIM_3D[e.kind], 0.6, 0.18);
+          applyEnemyRim3D(rig.materials, ENEMY_RIM_3D[e.kind], CHAR_LIGHT.stalker.rim, CHAR_LIGHT.stalker.lift, 'stalker');
         }
         const bodyH = e.kind === 'warden' ? 3.15 : STALKER_HEIGHT_3D;
         const bodyW = e.kind === 'warden' ? 1.8 : 0.9;
@@ -1688,7 +1689,7 @@ export class Scene3DRenderer {
         st.root.position.set(e.x, e.y, e.z);
         st.root.rotation.order = 'YXZ';
         tuneEnemyMaterials3D(st.materials, st.baseEmissive, ENEMY_TINT_3D[e.kind]);
-        applyEnemyRim3D(st.materials, ENEMY_RIM_3D[e.kind], 0.55, 0.16);
+        applyEnemyRim3D(st.materials, ENEMY_RIM_3D[e.kind], CHAR_LIGHT.crawler.rim, CHAR_LIGHT.crawler.lift, 'crawler');
         const scuttle = e.kind === 'crawler' ? applyCrawlerScuttle3D(st.materials) : undefined;
         st.root.name = `enemy:${e.id}`;
         st.root.userData = { enemyId: e.id, kind: e.kind, state: 'dormant' };

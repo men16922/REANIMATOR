@@ -107,3 +107,4 @@
 - Frozen enemies: crawlers, droppers, climbers and spitters are single-mesh GLBs without bones, and their procedural gait moved only 0.05 m / 0.05 rad, which read as a frozen pose. Stalker and warden rigs were already animating (telemetry showed walk/run/attack weights). `proceduralEnemyPose` now drives a stride-locked scuttle (bob, roll, yaw swing, stretch) scaled by ground speed, plus stronger idle motion. Display only. Test: `tests/enemy-locomotion.test.ts`. Visual check in Chrome was limited to telemetry plus one screenshot, no before/after frame comparison (partly unverified).
 
 - R12 post-fix: airlock crate crawlers now drop down and engage an idle player; tutorial hold counts from e-airlock-1 wake-up. Bot Normal 5123 / HP 118. Browser check unverified.
+- R14 C (r14-charlight): character key/fill/AO/exposure term in character shaders, rims 0.25-0.35; make check exit 0, browser captures unverified. See docs/R14_CHARLIGHT.md.
