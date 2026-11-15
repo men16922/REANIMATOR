@@ -162,15 +162,14 @@ test('pause Escape: sub-panels step back one level, the root pause menu resumes'
   assert.ok(pauseAt > 0 && pauseAt < introAt, 'pause Escape is handled before the opening skip can swallow it');
 });
 
-test('UI chrome stays English in Korean; only story text is localized', () => {
+test('all UI text is English only, whatever the locale', () => {
   assert.equal(CHROME_LANG, 'en');
   for (const k of Object.keys(LORE_UI) as (keyof typeof LORE_UI)[]) {
-    if (k === 'langButton') continue;
-    assert.equal(chromeLabel(k, 'ko'), LORE_UI[k].en, k);
-    assert.doesNotMatch(chromeLabel(k, 'ko'), /[\uac00-\ud7a3]/, `${k} has no Hangul`);
+    assert.equal(chromeLabel(k), LORE_UI[k].en, k);
+    assert.doesNotMatch(chromeLabel(k), /[\uac00-\ud7a3]/, `${k} has no Hangul`);
   }
-  assert.equal(chromeLabel('logsButton', 'ko'), 'Logs', 'the pause archive button matches Resume / Restart / Controls');
-  assert.equal(chromeLabel('langButton', 'en'), '한국어', 'the toggle names the language it switches to');
+  assert.equal(chromeLabel('logsButton'), 'Logs', 'the pause archive button matches Resume / Restart / Controls');
+  assert.equal('langButton' in LORE_UI, false, 'no language toggle');
   const src = readFileSync('src/ui/main.ts', 'utf8');
   assert.doesNotMatch(src, /LORE_UI\.\w+\[/, 'main.ts reads chrome labels only through chromeLabel');
 });

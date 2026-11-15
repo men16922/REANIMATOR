@@ -43,7 +43,7 @@ import { parseGoreLevel, type GoreLevel } from '../render3d/gore3d.ts';
 import { loadProgress, menuKeyAction, PANEL_IDS, pauseEscapeAction, stepIndex, type TitlePanel } from './menu.ts';
 import { normalizePanelState, titleCovered, topLayer } from './panels.ts';
 import { archiveRows, canOpen, LOG_FREEZE_S, openReader, pressReader, tickReader, visibleBody, type ReaderState } from './logReader.ts';
-import { CREDITS_LINES, endingText, INTRO_LINES, LANG_STORE_KEY, LORE_LOGS, chromeLabel, loreLogById, otherLang, pickLang, SECTOR_SUB, type Lang } from './lore.ts';
+import { CREDITS_LINES, endingText, INTRO_LINES, LORE_LOGS, chromeLabel, loreLogById, SECTOR_SUB, type Lang } from './lore.ts';
 import { runUiAudit, type UiAuditReport } from './uiAudit.ts';
 import { getFailedModelNames3D, getLoadedModelNames3D } from '../render3d/riggedModels.ts';
 
@@ -219,8 +219,8 @@ let mapExpanded = false;
 let mapMarkers = true;
 /** Metroid-style item freeze: seconds the display clock stays stopped after an upgrade pickup */
 let itemFreeze = 0;
-/** Story language (EN default, KO from the browser language or the LOGS archive toggle) and the data log reader. */
-let lang: Lang = pickLang(store(LANG_STORE_KEY), typeof navigator !== 'undefined' ? navigator.language : 'en');
+/** Story language: the game is English only. */
+const lang: Lang = 'en';
 let reader: ReaderState | null = null;
 let pendingLog = '';
 let creditsTimer = 0;
@@ -485,7 +485,6 @@ function applyLang(): void {
   INTRO_LINES.forEach((l, i) => {
     $(`intro-l${i}`).textContent = l[lang];
   });
-  $('log-lang').textContent = chromeLabel('langButton', lang);
   $('logs-open').textContent = chromeLabel('logsButton', lang);
   $('logs-close').textContent = chromeLabel('back', lang);
   $('credits-roll-open').textContent = chromeLabel('creditsButton', lang);
@@ -1393,12 +1392,6 @@ $('logs-open').addEventListener('click', openArchive);
 $('logs-close').addEventListener('click', () => {
   $('log-archive').hidden = true;
   $('logs-open').focus();
-});
-$('log-lang').addEventListener('click', () => {
-  lang = otherLang(lang);
-  store(LANG_STORE_KEY, lang);
-  applyLang();
-  $('log-lang').focus({ preventScroll: true });
 });
 $('credits-roll-open').addEventListener('click', openCredits);
 $('log-reader').addEventListener('click', pressLayer);

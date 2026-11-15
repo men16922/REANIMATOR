@@ -231,7 +231,7 @@ test('log panels: ids exist, start hidden, sit on the stage, and use the sub pan
   assert.ok(z('#intro') > z('.scan-panel'), 'the intro still covers menus');
   const order = (id: string): number => html.indexOf(`id="${id}"`);
   assert.ok(order('log-reader') > order('log-archive'), 'reader follows the archive in DOM order so it wins the tie');
-  for (const id of ['logs-open', 'logs-close', 'log-lang', 'credits-roll-open', 'ending', 'lr-body', 'lr-title', 'lr-speaker', 'lr-stamp']) assert.ok(dom.has(id), `#${id}`);
+  for (const id of ['logs-open', 'logs-close', 'credits-roll-open', 'ending', 'lr-body', 'lr-title', 'lr-speaker', 'lr-stamp']) assert.ok(dom.has(id), `#${id}`);
   assert.equal(dom.get('logs-open')!.parent, 'pause', 'LOGS button lives in the pause menu');
   assert.equal(dom.get('log-archive')!.classes.includes('panel'), true, 'archive is opaque like the other panels');
 });

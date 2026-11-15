@@ -6,7 +6,7 @@
 
 Built for AWS Kiroween 2026 with [Kiro](#built-with-kiro). TypeScript, Three.js, no game engine, no original assets.
 
-[한국어 요약](#한국어-요약) · [Judges' guide (3-minute demo)](docs/JUDGES.md) · [How Kiro was used](docs/KIRO_USAGE.md)
+[Judges' guide (3-minute demo)](docs/JUDGES.md) · [How Kiro was used](docs/KIRO_USAGE.md)
 
 ## What is this
 
@@ -171,15 +171,3 @@ Kiro was the working environment for the whole project, not only for code genera
 
 - Restoration covers movement physics only. The 15 Hz tick is a design value.
 - The bot plays deterministically and says little about human difficulty. Human play observation is not done yet.
-
-## 한국어 요약
-
-REANIMATOR는 1996년 DOS 게임 *Abuse* 셰어웨어 1.05의 이동 물리를 원본 실행 로그와 틱 단위로 대조해 복원하고(S1·S2·S3와 봉인 holdout M05, 11개 필드 exact 일치), 그 위에 브라우저에서 돌아가는 3D 사이드뷰 메트로배니아를 새로 설계한 프로젝트다.
-
-- **정직한 경계**: 복원한 것은 이동 물리뿐이다. 15 Hz는 설계값이며 원본 틱은 측정하지 않았다. 3D 게임의 나머지(섹터, 적, 무기, 보스, 음향, 그래픽)는 신규 설계다. 원본 Abuse 에셋은 포함하지 않으며 `dist-guard`가 빌드 산출물을 검사한다.
-- **R6**: 무기 6종(화염방사기·로켓 발사기, 로켓 점프는 부츠 게이트를 우회하지 못함), Extras의 데모 투어 11곳과 1분 쇼케이스, 아이템 팡파르 5종.
-- **실행**: `npm install` 후 `npm run dev`. `V`로 1996풍 Classic View, `Tab` 맵, `E` 헤드램프, `Shift` 대시, 공중 `Shift+S` 스톰프. 타이틀의 Extras에서 Restoration Lab을 열 수 있다.
-- **R7**: 섹터별 원경, 룸 클램프 카메라 구도, UI 레이어 계약(EXTRAS·Lab 가림 버그 수정), 레벨 교체 누수 제거와 soak 하네스.
-- **R8**: Restoration Lab 재설계, 난이도 Story/Normal/Hard와 접근성 보조, 데이터 로그 서사와 엔딩 3단·크레딧, 액터 GPU 자원 누수 수정.
-- **검증**: `make check`(R11 기준 exit 0, 테스트 534/534, reference-verify 3/3, reach3d 52 waypoints), `make reference-holdout`, `make smoke-local`.
-- **Kiro 활용**: spec 5종, steering, hook, 병렬 worktree 서브에이전트 4라운드, Playwright 브라우저 검증. 상세는 [`docs/KIRO_USAGE.md`](docs/KIRO_USAGE.md), 심사위원용 3분 데모는 [`docs/JUDGES.md`](docs/JUDGES.md).

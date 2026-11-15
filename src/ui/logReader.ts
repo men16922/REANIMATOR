@@ -7,7 +7,7 @@ import { LORE_LOGS, type Lang, type LoreLog } from './lore.ts';
 export const ENCRYPTED_LABEL = '[ENCRYPTED]';
 /** Freeze (seconds) between the pickup and the reader opening. */
 export const LOG_FREEZE_S = 0.6;
-/** Typing speed, characters per second. English and Korean are both counted per character. */
+/** Typing speed, characters per second. Counted per character. */
 export const TYPE_CPS = 70;
 /** Seconds after opening in which key presses are ignored. */
 export const READER_GUARD_S = 0.35;
