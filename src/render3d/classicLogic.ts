@@ -11,6 +11,15 @@ export const CLASSIC_VIEW_HEIGHT_UNITS = 9.2;
 export const PALETTE_SIZE = 256;
 export const TRANSITION_SECONDS = 0.4;
 
+/**
+ * Classic: additive glow sprites and lamp shafts are scaled down by this factor. ACES plus the 1/2.2 gamma lifts a faint
+ * additive layer over a near-black room to ~0.4 sRGB, and the palette pass then snaps it to a flat grey dither patch
+ * (the large grey bowls and cones under ceiling lamps). Lamp shafts keep a faint banded trace; the soft glow sprites
+ * are hidden (scale 0) because at any visible strength they only produce grey dither haze.
+ */
+export const CLASSIC_ADDITIVE_SCALE = 0.15;
+export const CLASSIC_GLOW_SPRITE_SCALE = 0;
+
 /** Bayer 4x4 ordered-dither matrix (values 0..15). */
 export const BAYER4: readonly number[] = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
 

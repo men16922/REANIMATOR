@@ -13,8 +13,9 @@ import { BOSS_PHASE_COLORS, createPostParams, FxDirector, stepPostParams } from 
 import { BossTelegraph3D } from './bossTelegraph3d.ts';
 import { BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
 import { PopupLayer } from './popups3d.ts';
-import { ClassicPipeline, classicOrthoHalf, remapNdcToClassic, type ViewMode } from './classicView.ts';
-import { applyPostParams, createPostPass, ParticleLayer } from './fx3dGfx.ts';
+import { CLASSIC_GLOW_SPRITE_SCALE, ClassicPipeline, classicOrthoHalf, remapNdcToClassic, type ViewMode } from './classicView.ts';
+import { buildBootsItem, buildEnergyTankItem, buildSaveStation, createHoloMaterial, createShieldMaterial, type SaveStationProps } from './propsGfx.ts';
+import { applyPostParams, createFireballMaterial, createGroundWaveMaterial, createPostPass, createShockRingMaterial, ParticleLayer } from './fx3dGfx.ts';
 import type { SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
 import { getPlayerPose3D, skipBossIntro3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
@@ -223,6 +224,7 @@ function makeCrackedWallTextures(w: number, h: number): { color: THREE.CanvasTex
 
 const _MELT_BG = new THREE.Color(0x3a0508);
 const _MELT_RED = new THREE.Color(0xff2a2a);
+const _FLASH_TMP = new THREE.Color();
 const _PHASE_TMP = new THREE.Color();
 const BOSS_PHASE_HEX = [0x33ffe0, 0xff8c26, 0xff2418] as const;
 
@@ -322,6 +324,10 @@ export class Scene3DRenderer {
   private rooms: WorldState3D['level']['rooms'] = [];
   private readonly upgradeMeshes = new Map<string, THREE.Object3D>();
   private readonly savePads: THREE.Mesh[] = [];
+  private readonly saveMachines: SaveStationProps[] = [];
+  private readonly holoMats: THREE.ShaderMaterial[] = [];
+  private logHolo: THREE.ShaderMaterial | null = null;
+  private shieldMat: THREE.ShaderMaterial | null = null;
   private lastTick = -1;
   private airTime = 0;
   private prevPlayer: PosSnap = { x: 0, y: 0 };
@@ -353,7 +359,9 @@ export class Scene3DRenderer {
   private readonly dynGroup = new THREE.Group();
   private readonly projMeshes = new Map<number, THREE.Mesh>();
   private readonly ringMeshes = new Map<number, THREE.Mesh>();
-  private readonly explMeshes = new Map<number, THREE.Mesh>();
+  private readonly explMeshes = new Map<number, THREE.Group>();
+  private readonly blastSphere = new THREE.SphereGeometry(1, 24, 18);
+  private readonly blastPlane = new THREE.PlaneGeometry(1, 1);
   private readonly beamMeshes = new Map<number, THREE.Mesh>();
 
   private readonly camFocus = new THREE.Vector3(3.5, 1.2, 0);
@@ -656,9 +664,22 @@ export class Scene3DRenderer {
     return this.viewMode;
   }
 
+  /** Classic: scale additive decor glow sprites (see CLASSIC_GLOW_SPRITE_SCALE); Modern restores the built opacity. */
+  private applyClassicGlow(): void {
+    const glow = this.scene.getObjectByName('decor:glow-sprite') as THREE.Mesh | undefined;
+    const mat = glow?.material as THREE.MeshBasicMaterial | undefined;
+    if (!mat) return;
+    if (mat.userData.baseOpacity === undefined) mat.userData.baseOpacity = mat.opacity;
+    const k = this.viewMode === 'classic' ? CLASSIC_GLOW_SPRITE_SCALE : 1;
+    mat.opacity = (mat.userData.baseOpacity as number) * k;
+    if (glow) glow.visible = k > 0;
+  }
+
   /** Classic View: 320x200 palette-dithered render with an orthographic side camera. Bloom and the grade pass are bypassed. */
   public setViewMode(m: ViewMode): void {
     this.viewMode = m;
+    this.mood?.setClassic(m === 'classic');
+    this.applyClassicGlow();
     if (m === 'classic' && !this.classic) this.classic = new ClassicPipeline(this.renderer);
     if (m === 'modern') {
       this.camera.aspect = this.renderer.domElement.width / this.renderer.domElement.height;
@@ -753,6 +774,8 @@ export class Scene3DRenderer {
     this.mood = buildMood3D(this.scene, w.level);
     this.hazards3d?.dispose();
     this.hazards3d = buildHazards3D(this.scene, w.level);
+    this.mood.setClassic(this.viewMode === 'classic');
+    this.applyClassicGlow();
     for (const r of w.level.ramps) {
       const mat = new THREE.MeshStandardMaterial({
         map: tex.grateMap,
@@ -855,6 +878,11 @@ export class Scene3DRenderer {
       this.scene.add(padBase);
       this.addCullPoint(pad, st.x, st.y, 2);
       this.addCullPoint(padBase, st.x, st.y, 2);
+      const machine = buildSaveStation();
+      machine.group.position.set(st.x, st.y, 0.2);
+      this.scene.add(machine.group);
+      this.saveMachines.push(machine);
+      this.addCullPoint(machine.group, st.x, st.y + 0.6, 3);
       const beam = new THREE.Mesh(
         new THREE.CylinderGeometry(0.75, 0.75, 2.4, 20, 1, true),
         new THREE.MeshBasicMaterial({ color: 0x2bf0ff, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
@@ -867,31 +895,15 @@ export class Scene3DRenderer {
     // Upgrade pedestals: Thruster Boots (amber) and Energy Tanks (green)
     for (const up of w.level.upgrades) {
       const color = up.kind === 'thruster_boots' ? 0xffb02e : 0x3dff88;
+      // Procedural item silhouette on the pedestal (boots / energy tank), spinning and bobbing in render().
       const gem = new THREE.Group();
-      const core = new THREE.Mesh(
-        up.kind === 'thruster_boots' ? new THREE.ConeGeometry(0.22, 0.46, 6) : new THREE.BoxGeometry(0.3, 0.46, 0.3),
-        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, roughness: 0.35, metalness: 0.1 }),
+      gem.add(up.kind === 'thruster_boots' ? buildBootsItem(color) : buildEnergyTankItem(color));
+      const halo = new THREE.Mesh(
+        new THREE.CircleGeometry(0.6, 24),
+        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.045, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
       );
-      gem.add(core);
-      const cage = new THREE.Mesh(
-        up.kind === 'thruster_boots' ? new THREE.ConeGeometry(0.38, 0.78, 6) : new THREE.BoxGeometry(0.56, 0.78, 0.56),
-        new THREE.MeshStandardMaterial({
-          color: 0xbfd8e6,
-          emissive: color,
-          emissiveIntensity: 0.05,
-          roughness: 0.1,
-          metalness: 0.1,
-          transparent: true,
-          opacity: 0.12,
-          depthWrite: false,
-        }),
-      );
-      gem.add(cage);
-      const cageWire = new THREE.Mesh(
-        cage.geometry,
-        new THREE.MeshBasicMaterial({ color: 0x5a6b78, wireframe: true, transparent: true, opacity: 0.7 }),
-      );
-      gem.add(cageWire);
+      halo.position.z = -0.1;
+      gem.add(halo);
       gem.position.set(up.x, up.y + 0.95, 0.2);
       this.scene.add(gem);
       this.upgradeMeshes.set(up.id, gem);
@@ -1409,15 +1421,12 @@ export class Scene3DRenderer {
     this.coreModel = core.root;
     this.scene.add(this.coreModel);
 
-    this.coreShield = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(2.15, 1),
-      new THREE.MeshBasicMaterial({
-        color: 0x2bf0ff,
-        wireframe: true,
-        transparent: true,
-        opacity: 0.45,
-      }),
-    );
+    if (!this.shieldMat) {
+      this.shieldMat = createShieldMaterial(0x2bf0ff);
+      this.holoMats.push(this.shieldMat);
+    }
+    const shieldMat = this.shieldMat;
+    this.coreShield = new THREE.Mesh(new THREE.SphereGeometry(2.15, 36, 24), shieldMat);
     this.coreShield.position.set(w.level.corePos.x, 1.55, 0);
     this.scene.add(this.coreShield);
 
@@ -1467,10 +1476,11 @@ export class Scene3DRenderer {
       grp.add(core);
       if (kind === 'log') {
         // Hologram: counter-rotating wire frame inside a projection cone (children[2], [3]; animated in render()).
-        const wire = new THREE.Mesh(
-          new THREE.OctahedronGeometry(0.5, 0),
-          new THREE.MeshBasicMaterial({ color: 0xe2d0ff, wireframe: true, transparent: true, opacity: 0.7, depthWrite: false }),
-        );
+        if (!this.logHolo) {
+          this.logHolo = createHoloMaterial(0xc9a8ff);
+          this.holoMats.push(this.logHolo);
+        }
+        const wire = new THREE.Mesh(new THREE.OctahedronGeometry(0.5, 0), this.logHolo);
         wire.position.y = 0.65;
         const cone = new THREE.Mesh(
           new THREE.ConeGeometry(0.62, 1.2, 14, 1, true),
@@ -1577,6 +1587,14 @@ export class Scene3DRenderer {
     for (const pad of this.savePads) {
       (pad.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.45 + Math.sin(tSec * 2.4) * 0.15;
     }
+    for (const m of this.saveMachines) {
+      m.screen.emissiveIntensity = 0.75 + Math.sin(tSec * 3.1) * 0.2;
+      m.rings.forEach((r, i) => {
+        r.rotation.z = tSec * (i === 0 ? 1.4 : -1.9);
+        r.position.y = 0.6 + i * 0.55 + Math.sin(tSec * 2 + i) * 0.06;
+      });
+    }
+    for (const hm of this.holoMats) hm.uniforms.uT.value = tSec;
     for (const [id, gem] of this.upgradeMeshes) {
       gem.visible = !w.collectedUpgrades.has(id);
       gem.rotation.y = tSec * 2.0;
@@ -1661,7 +1679,15 @@ export class Scene3DRenderer {
       stepRiggedAnimation3D(rig, desiredAnim, dt, 1.08, 0, p.hp > 0, { ...pose, grounded: pose.grounded || !airborne });
       rig.root.updateMatrixWorld(true);
 
-      if (p.hurtFlashTicks > 0) flashRiggedMaterials3D(rig, 0xff2f2f, 0.75);
+      // Classic: the suit is lit to only a few percent in dark rooms, so any emissive tint (red hurt flash 0.35 after the
+      // clamp, even a 0.14 teal lift) outweighs the diffuse texture and the palette pass maps the whole body to one entry
+      // (the solid red silhouette while the world was paused mid-flash). Classic keeps emissive off and shows the hurt
+      // through the palette pass damage flash, plus a short visibility blink like a 90s sprite.
+      const cl = this.viewMode === 'classic';
+      // Blink on wall-clock time (15 Hz) so a paused world never freezes on a hidden frame.
+      rig.root.visible = !(cl && p.hurtFlashTicks > 0 && Math.floor(tSec * 15) % 2 === 1);
+      if (cl) flashRiggedMaterials3D(rig, 0x000000, 0);
+      else if (p.hurtFlashTicks > 0) flashRiggedMaterials3D(rig, 0xff2f2f, 0.75);
       else if (p.dashInvulnTicks > 0) flashRiggedMaterials3D(rig, 0x2bf0ff, 0.55);
       else flashRiggedMaterials3D(rig, 0x000000, 0);
 
@@ -1678,6 +1704,10 @@ export class Scene3DRenderer {
       this.reticleGroup.rotation.z = tSec * 3.2;
 
       this.fillLight.position.set(px, py + 1.8, 4.2);
+      // Classic: the palette pass crushes the dim suit to near-black grey; a stronger, cooler fill keeps the teal and grey
+      // armour panels on distinct palette ramps (same light, no extra PointLight).
+      this.fillLight.intensity = cl ? 26 : 11;
+      this.fillLight.color.setHex(cl ? 0x9fe8ff : 0xbfe6ff);
       this.muzzleLight.intensity = p.muzzleFlashTicks > 0 ? 14 : 0;
       this.muzzleLight.position.copy(muzzlePos);
 
@@ -2024,6 +2054,8 @@ export class Scene3DRenderer {
   }
 
   private syncDynamicFX(w: WorldState3D, _dt: number): void {
+    const tSec = performance.now() * 0.001;
+    const inMeltdown = w.coreDestroyed && w.meltdownTicks >= 0;
     // Projectiles
     const liveProj = new Set<number>();
     for (const pr of w.projectiles) {
@@ -2066,89 +2098,85 @@ export class Scene3DRenderer {
       let grp = this.ringMeshes.get(sw.id) as unknown as THREE.Group | undefined;
       if (!grp) {
         grp = new THREE.Group();
+        const tint = sw.phase === 2 ? 0xff2944 : 0xff7b26;
         for (let k = 0; k < 2; k++) {
-          grp.add(
-            new THREE.Mesh(
-              new THREE.BoxGeometry(0.5, 0.75, 4.6),
-              new THREE.MeshBasicMaterial({
-                color: sw.phase === 2 ? 0xff2944 : 0xff7b26,
-                transparent: true,
-                opacity: 0.85,
-                blending: THREE.AdditiveBlending,
-                depthWrite: false,
-              }),
-            ),
-          );
+          const wave = new THREE.Mesh(this.blastPlane, createGroundWaveMaterial(tint));
+          wave.scale.set(k === 0 ? 2.6 : -2.6, 1.5, 1);
+          wave.renderOrder = 8;
+          grp.add(wave);
         }
         this.dynGroup.add(grp);
         this.ringMeshes.set(sw.id, grp as unknown as THREE.Mesh);
       }
-      grp.children[0].position.set(sw.x + sw.radius, sw.y + 0.38, 0);
-      grp.children[1].position.set(sw.x - sw.radius, sw.y + 0.38, 0);
+      // Plane origin is its centre: shift by half the wave length so the leading edge sits on the hit radius.
+      grp.children[0].position.set(sw.x + sw.radius - 1.1, sw.y + 0.75, 0.2);
+      grp.children[1].position.set(sw.x - sw.radius + 1.1, sw.y + 0.75, 0.2);
+      for (const c of grp.children) ((c as THREE.Mesh).material as THREE.ShaderMaterial).uniforms.uT.value = tSec;
     }
     for (const [id, m] of this.ringMeshes) {
       if (!liveSw.has(id)) {
         this.dynGroup.remove(m);
         const grp = m as unknown as THREE.Group;
         for (const c of grp.children) {
-          const cm = c as THREE.Mesh;
-          cm.geometry.dispose();
-          (cm.material as THREE.Material).dispose();
+          ((c as THREE.Mesh).material as THREE.Material).dispose();
         }
         this.ringMeshes.delete(id);
       }
     }
 
-    // Explosions
+    // Explosions: noise fireball + shock ring (shaders in fx3dGfx). Smoke, sparks and debris come from FxDirector.onExplosion.
     const liveEx = new Set<number>();
+    let flashK = 0;
+    let flashX = 0;
+    let flashY = 0;
+    let flashColor = 0xffa040;
     for (const ex of w.explosions) {
       liveEx.add(ex.id);
-      let mesh = this.explMeshes.get(ex.id);
-      if (!mesh) {
-        mesh = new THREE.Mesh(
-          new THREE.IcosahedronGeometry(1, 1),
-          new THREE.MeshBasicMaterial({
-            color: ex.color,
-            wireframe: true,
-            transparent: true,
-            opacity: 0.78,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-          }),
-        );
-        const core = new THREE.Mesh(
-          new THREE.SphereGeometry(0.4, 14, 12),
-          new THREE.MeshBasicMaterial({
-            color: ex.color,
-            transparent: true,
-            opacity: 0.4,
-            blending: THREE.AdditiveBlending,
-            depthWrite: false,
-          }),
-        );
-        mesh.name = `explosion:${ex.id}`;
-        core.name = `explosion-core:${ex.id}`;
-        mesh.add(core);
-        this.dynGroup.add(mesh);
-        this.explMeshes.set(ex.id, mesh);
+      let grp = this.explMeshes.get(ex.id);
+      if (!grp) {
+        grp = new THREE.Group();
+        grp.name = `explosion:${ex.id}`;
+        const ball = new THREE.Mesh(this.blastSphere, createFireballMaterial(ex.color, (ex.id * 7.31) % 50));
+        ball.name = `explosion-fire:${ex.id}`;
+        ball.renderOrder = 8;
+        const ring = new THREE.Mesh(this.blastPlane, createShockRingMaterial(ex.color));
+        ring.name = `explosion-ring:${ex.id}`;
+        ring.renderOrder = 8;
+        grp.add(ball, ring);
+        this.dynGroup.add(grp);
+        this.explMeshes.set(ex.id, grp);
       }
       const p = 1 - ex.ticksLeft / ex.maxTicks;
-      mesh.position.set(ex.x, ex.y, 0.2);
-      mesh.rotation.y = p * 2.4;
-      mesh.scale.setScalar(0.35 + p * ex.maxRadius * 0.72);
-      const fade = Math.max(0.05, 0.85 * (1 - p));
-      (mesh.material as THREE.MeshBasicMaterial).opacity = fade;
-      if (mesh.children[0]) {
-        ((mesh.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = fade * 0.4;
+      grp.position.set(ex.x, ex.y, 0.3);
+      const ball = grp.children[0] as THREE.Mesh;
+      const ring = grp.children[1] as THREE.Mesh;
+      const grow = 1 - Math.pow(1 - Math.min(1, p * 2.4), 2);
+      ball.scale.setScalar(0.3 + grow * ex.maxRadius * 0.45);
+      (ball.material as THREE.ShaderMaterial).uniforms.uP.value = p;
+      ring.scale.setScalar(ex.maxRadius * 2.3);
+      (ring.material as THREE.ShaderMaterial).uniforms.uP.value = p;
+      const k = Math.max(0, 1 - p * 2.6) * Math.min(1, ex.maxRadius / 3);
+      if (k > flashK) {
+        flashK = k;
+        flashX = ex.x;
+        flashY = ex.y;
+        flashColor = ex.color;
       }
     }
     for (const [id, m] of this.explMeshes) {
       if (!liveEx.has(id)) {
         this.dynGroup.remove(m);
-        m.geometry.dispose();
-        (m.material as THREE.Material).dispose();
+        for (const c of m.children) ((c as THREE.Mesh).material as THREE.Material).dispose();
         this.explMeshes.delete(id);
       }
+    }
+    // Short light flash: reuse the alarm light (idle outside Meltdown), so no PointLight is added.
+    if (flashK > 0.01 && !inMeltdown) {
+      this.alarmLight.color.setHex(0xffb060).lerp(_FLASH_TMP.setHex(flashColor), 0.3);
+      this.alarmLight.position.set(flashX, flashY + 0.5, 3.2);
+      this.alarmLight.intensity = 46 * flashK;
+    } else if (!inMeltdown) {
+      this.alarmLight.color.setHex(0xff2936);
     }
 
     // Rail-Cannon Beams

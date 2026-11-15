@@ -2,10 +2,12 @@
 // Layout, colours and icons are an original design that uses the new Classic palette (see render3d/classicLogic.ts).
 
 import { buildPalette, RAMP_STEPS } from '../render3d/classicLogic.ts';
-import { drawPixelText, textWidth } from './pixelFont.ts';
+import { drawPixelText, hasGlyph, textWidth } from './pixelFont.ts';
 
 export const HUD_W = 320;
 export const HUD_H = 24;
+/** Characters that fit between x=232 and the right edge (6 px advance). */
+export const SECTOR_CHARS = 14;
 
 export interface ClassicHudState {
   hp: number;
@@ -42,6 +44,27 @@ export function ammoText(slot: number, ammo: number, unlocked: boolean): string 
 /** Upper-case, truncated to the strip width. */
 export function fitText(text: string, maxChars: number): string {
   return text.toUpperCase().slice(0, Math.max(0, maxChars));
+}
+
+/** Maps characters outside the font to a space (or a hyphen for dashes), collapses runs of spaces. */
+export function sanitizeHudText(text: string): string {
+  let out = '';
+  for (const ch of text.toUpperCase()) {
+    if (ch === '\u2013' || ch === '\u2014' || ch === '\u2011') out += '-';
+    else out += hasGlyph(ch) ? ch : ' ';
+  }
+  return out.replace(/ +/g, ' ').trim();
+}
+
+/** Sector label that always fits `maxChars`: full text, else the part after the separator, else truncated with a dot. */
+export function classicSectorLabel(raw: string, maxChars: number): string {
+  const full = sanitizeHudText(raw);
+  if (full.length <= maxChars) return full;
+  const cut = raw.split(/[\u00b7|:]/);
+  const tail = sanitizeHudText(cut[cut.length - 1]);
+  if (tail.length > 0 && tail.length <= maxChars) return tail;
+  const base = tail.length > 0 ? tail : full;
+  return maxChars > 1 ? `${base.slice(0, maxChars - 1).trimEnd()}.` : base.slice(0, maxChars);
 }
 
 export function hudKey(s: ClassicHudState): string {
@@ -112,7 +135,7 @@ export function drawClassicHud(ctx: CanvasRenderingContext2D, s: ClassicHudState
   // Kills and sector
   drawPixelText(ctx, 'KILLS', 232, 5, label);
   drawPixelText(ctx, String(s.kills), 232 + textWidth('KILLS ') + 1, 5, text);
-  drawPixelText(ctx, fitText(s.sector, 14), 232, 15, paletteHex(5, 11));
+  drawPixelText(ctx, classicSectorLabel(s.sector, SECTOR_CHARS), 232, 15, paletteHex(5, 11));
 }
 
 /** Owns the strip canvas, placed right after the DOM HUD and repaints only when the state changes. */
