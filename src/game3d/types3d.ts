@@ -62,6 +62,8 @@ export type SoundEventType3D =
   // Round 9: Melee Counter. parry value = enemy index; parry_whiff = pressed outside the window
   | 'parry'
   | 'parry_whiff'
+  // Round 10: Melee Counter landed on the Core Warden (value = phase)
+  | 'boss_counter'
   // Round 9: Scan Pulse started
   | 'scan';
 

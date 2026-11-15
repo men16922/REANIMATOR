@@ -596,6 +596,7 @@ export class FxDirector {
           case 'boss_summon': this.onBossSummon(w); break;
           case 'wall_jump': this.onWallJump(px, py, b.wallDir); break;
           case 'dash_cancel': this.onDashCancel(px, py + 0.9); break;
+          case 'boss_counter': this.onBossCounter(w); break;
           case 'parry': this.onParry(w, ev.value ?? 0, px, py); break;
           case 'combo': this.onCombo(px, py, ev.value ?? 2); break;
           case 'collect': this.onCollect(w, ev.value ?? 0, px, py); break;
@@ -743,6 +744,23 @@ export class FxDirector {
     this.rig.punch(1.6);
     this.hitstop.request(4, true);
     this.slowmo.request(this.reduce ? 0.6 : 0.3, this.reduce ? 0.3 : 0.55);
+  }
+
+  /** Melee Counter landed on the Warden: display-side cinematic (long slow-mo, big gold popup, ring burst, camera punch). */
+  private onBossCounter(w: WorldState3D): void {
+    const wd = this.wardenOf(w);
+    if (!wd) return;
+    const x = wd.x;
+    const y = wd.y + wd.height * 0.62;
+    this.ring(x, y, 2.4, 1.0, 0.9, 0.45);
+    this.ring(x, y, 1.3, 1.0, 0.7, 0.2);
+    this.burst(x, y, 1.0, 0.85, 0.3, 1, this.reduce ? 14 : 40, 11);
+    this.trauma.add(this.reduce ? 0.12 : 0.5);
+    this.chroma = Math.max(this.chroma, this.reduce ? 0.1 : 0.6);
+    this.rig.punch(this.reduce ? 1.0 : 1.8);
+    this.hitstop.request(this.reduce ? 2 : 7, true);
+    this.slowmo.request(this.reduce ? 0.65 : 0.22, this.reduce ? 0.2 : 0.75);
+    this.popups.spawn('COUNTER!', x, y + 2.4, { size: this.reduce ? 1.0 : 1.4, life: 1.2, r: 1.0, g: 0.85, b: 0.3, rise: 2.0, punch: 1.2 });
   }
 
   private onBossExposed(w: WorldState3D): void {
