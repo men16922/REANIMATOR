@@ -70,3 +70,8 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 
 ## R2 후속
 - 오케스트레이터 브라우저 검증: 타이틀 메뉴(Play/Continue/Settings/Extras), Extras 내 Watch intro, 로딩 바, 어트랙트 6컷, 보스 인트로·텔레그래프, 오디오 메뉴 사운드.
+
+## R3 통합 후 남은 일
+
+- [ ] 브라우저 확인: Classic View(V)에서 mood 조명·고어·hive·dropper 렌더, 설정 패널의 View/CRT/Gore/Reduce flashing/볼륨, 보스 어두운 금속 재질.
+- [ ] 푸시 승인.

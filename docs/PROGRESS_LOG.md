@@ -193,3 +193,11 @@
 - 어트랙트 boss 컷의 인트로 자동 스킵은 scene3dFull.ts(`attractT !== null`이면 `skipBossIntro3D`)에서 처리된다. 코드 확인만 했다.
 - `make check` exit 0: node tests 160/160, reference-verify 3/3 PASS, reach3d 52 waypoints 3431 tick, dist-guard PASS(13 files, 14,529,962 B, 218 대조). 봉인 파일 변경 없음.
 - 브라우저 시각·청취·메뉴 조작 검증은 오케스트레이터가 수행 예정(unverified). 푸시 안 함, worktree 보존.
+
+## R3 통합 (2026-11-15)
+- main에 `--no-ff`로 r3/foes → r3/fix → r3/mood → r3/classic 병합. foes·fix는 충돌 없음. 충돌은 두 곳이다.
+  - mood: `main.ts` import. fix의 `objectiveFor`와 mood의 `parseGoreLevel` 둘 다 유지했다.
+  - classic: `index.html` 설정 행과 `main.ts`의 `applyGore`/Classic View 블록. Gore 셀렉트와 View·CRT 버튼, Reduce flashing, 볼륨 3종을 모두 남겼고 `applyGore`를 닫은 뒤 Classic 블록을 이어 붙였다.
+- classic 경로는 씬을 직접 렌더하고 블룸·fx3dGfx 포스트만 우회하므로 mood 조명·고어, hive, dropper 메시는 씬 객체로 그대로 그려진다고 코드로 확인했다. 시각 확인은 unverified. `tuneWardenMaterials3D`는 재질만 바꾸고 mood의 rim 조명은 광원이라 충돌하지 않는다.
+- `make check` exit 0: tsc 통과, node tests 211/211, reference-verify 3/3 PASS, reach PASS, reach3d 52 waypoints 3431 ticks(foes placement OK), build, dist-guard PASS(13 files, 14,576,250 B, 218 대조). 봉인 파일 변경 없음.
+- 브라우저 시각 검증(Classic·mood·고어·hive·dropper, 설정 패널)은 오케스트레이터가 수행 예정(unverified). 푸시 안 함, worktree 보존.

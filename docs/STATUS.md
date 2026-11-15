@@ -9,6 +9,10 @@
 - 렌더러 `scene3dFull.ts`: 사이드뷰 원근 카메라, z=0 평면 마우스 레이캐스트, 틱 보간, 색상 잠금 실드, Save/Upgrade 비주얼, 보스 충격파 양방향 파동. `fallback2d.ts`: XY 투영 폴백. `main.ts`: A/D, W/Space, S(dropDown), Tab 미니맵, 디버그 훅 `__reanimator{,Advance,Step,RunBot}`.
 - 도달성 `tools/game/reach3d.ts`: 52 waypoint 3369 ticks, Shaft 4.4 m 게이트와 Bio-Labs→Security 4.4 m 게이트(부츠 없음=도달 불가, 있음=가능). 3431 ticks.
 
+## R3 통합 상태 (2026-11-15)
+
+- main에 r3/foes, fix, mood, classic 병합. `make check` exit 0: node tests 211/211, reference-verify 3/3, reach3d 52 waypoints 3431 ticks, dist-guard PASS(13 files 14,576,250 B). 브라우저 검증은 오케스트레이터 수행 예정(unverified).
+
 ## 검증 기준선 (이번 세션 관찰)
 
 - `make check` exit 0: `tsc`, `node --test tests/` 45/45(`game3d` 15), `reference-verify` 3/3, `reach`+`reach3d` PASS, build, dist-guard PASS(12 files 14,329,300 B / 218).
