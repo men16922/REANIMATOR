@@ -391,7 +391,50 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
   makeInstanced(pick(['cyl']).filter((p) => p.sx >= 1.0), new THREE.CylinderGeometry(0.5, 0.5, 1, 14), litMat(), true, cylScale);
   makeInstanced(pick(['cyl']).filter((p) => p.sx < 1.0), new THREE.CylinderGeometry(0.5, 0.5, 1, 10), litMat(), false, cylScale);
   makeInstanced(pick(['cone']), new THREE.ConeGeometry(0.5, 1, 7), litMat(), false, cylScale);
-  makeInstanced(pick(['glow']), new THREE.BoxGeometry(1, 1, 1), glowMat(), false, boxScale);
+  // Glow fixtures: dark housing, dimmed emissive core, and a soft additive sprite (shared texture, no lights).
+  const glowProps = pick(['glow']);
+  const housing = makeInstanced(
+    glowProps,
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x1c2229, roughness: 0.6, metalness: 0.6 }),
+    false,
+    (p) => [p.sx + 0.08, p.sy + 0.08, p.sz + 0.04],
+  );
+  if (housing) housing.name = 'decor:glow-housing';
+  const core = makeInstanced(glowProps, new THREE.BoxGeometry(1, 1, 1), glowMat(), false, (p) => [p.sx, p.sy, p.sz * 0.6 + 0.02]);
+  if (core) {
+    core.name = 'decor:glow';
+    for (let i = 0; i < glowProps.length; i++) {
+      core.getMatrixAt(i, dummy.matrix);
+      dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+      dummy.position.z += glowProps[i].sz * 0.2 + 0.03;
+      dummy.updateMatrix();
+      core.setMatrixAt(i, dummy.matrix);
+      core.setColorAt(i, col.setHex(glowProps[i].color).multiplyScalar(0.85));
+    }
+    core.instanceMatrix.needsUpdate = true;
+  }
+  const spriteTex = track(makeHaloTexture());
+  const spriteProps = glowProps.filter((p) => Math.max(p.sx, p.sy) <= 3.5);
+  const sprites = makeInstanced(
+    spriteProps,
+    new THREE.PlaneGeometry(1, 1),
+    new THREE.MeshBasicMaterial({ map: spriteTex, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, opacity: 0.22 }),
+    false,
+    (p) => [Math.max(p.sx, p.sy) * 2.4 + 0.4, Math.max(p.sx, p.sy) * 2.4 + 0.4, 1],
+  );
+  if (sprites) {
+    sprites.name = 'decor:glow-sprite';
+    sprites.receiveShadow = false;
+    for (let i = 0; i < spriteProps.length; i++) {
+      sprites.getMatrixAt(i, dummy.matrix);
+      dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+      dummy.position.z = spriteProps[i].z + 0.25;
+      dummy.updateMatrix();
+      sprites.setMatrixAt(i, dummy.matrix);
+    }
+    sprites.instanceMatrix.needsUpdate = true;
+  }
   const tankGlow = makeInstanced(pick(['glowCyl']), new THREE.CylinderGeometry(0.5, 0.5, 1, 14), glowMat(), false, cylScale);
   if (tankGlow) {
     const tm = tankGlow.material as THREE.MeshBasicMaterial;
@@ -518,8 +561,12 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     return { room, pts };
   });
 
+  let lastT = 0;
   return {
     update(tSec: number, playerX: number, playerY: number): void {
+      const dt = Math.min(0.1, Math.max(0, tSec - lastT));
+      lastT = tSec;
+      const k = dt * 60;
       const frame = Math.floor(tSec * 4);
       if (frame !== monFrame) {
         monFrame = frame;
@@ -540,8 +587,8 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
         const attr = a.pts.geometry.attributes.position as THREE.BufferAttribute;
         const arr = attr.array as Float32Array;
         for (let i = 0; i < attr.count; i++) {
-          arr[i * 3 + 1] += 0.0025 * (1 + (i % 3));
-          arr[i * 3] += Math.sin(tSec * 0.6 + i) * 0.0015;
+          arr[i * 3 + 1] += 0.0025 * (1 + (i % 3)) * k;
+          arr[i * 3] += Math.sin(tSec * 0.6 + i) * 0.0015 * k;
           if (arr[i * 3 + 1] > a.room.maxY - 0.3) arr[i * 3 + 1] = a.room.minY + 0.3;
         }
         attr.needsUpdate = true;

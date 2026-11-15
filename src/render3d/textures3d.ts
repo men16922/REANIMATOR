@@ -16,6 +16,7 @@ export interface FacilityTextures3D {
   panelMap: THREE.CanvasTexture;
   rustMetalMap: THREE.CanvasTexture;
   macroMap: THREE.CanvasTexture;
+  crateMap: THREE.CanvasTexture;
 }
 
 /** Deterministic PRNG (no Math.random) shared by textures and decor layout. */
@@ -288,7 +289,28 @@ export function getFacilityTextures3D(): FacilityTextures3D {
     blotches(ctx, w, h, 72, 14, '40,40,40', 0.4);
   });
 
+  const crateCanvas = makeCanvas(128, 128, (ctx, w, h) => {
+    ctx.fillStyle = '#6a7684';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#2c343e';
+    ctx.lineWidth = 8;
+    ctx.strokeRect(4, 4, w - 8, h - 8);
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(8, 8);
+    ctx.lineTo(w - 8, h - 8);
+    ctx.moveTo(w - 8, 8);
+    ctx.lineTo(8, h - 8);
+    ctx.stroke();
+    ctx.fillStyle = '#a8b4c0';
+    for (const [x, y] of [[14, 14], [w - 14, 14], [14, h - 14], [w - 14, h - 14]]) ctx.fillRect(x - 3, y - 3, 6, 6);
+    ctx.fillStyle = '#d6a21e';
+    ctx.fillRect(0, h / 2 - 5, w, 10);
+    speckle(ctx, w, h, 91, 120, '#8a96a4', '#3a424c');
+  });
+
   cached = {
+    crateMap: asTiledTexture(crateCanvas, 1, 1, true),
     rockMap: asTiledTexture(rockCanvas, 1, 1, true),
     rockBump: asTiledTexture(rockBumpCanvas, 1, 1, false),
     concreteMap: asTiledTexture(concreteCanvas, 1, 1, true),

@@ -90,6 +90,20 @@ const ENEMY_WINDUP_TOTAL_3D: Record<string, number> = { crawler: 14, stalker: 18
 const ENEMY_FLASH_HEX_3D = 0xff5a28;
 const TELEGRAPH_POOL_3D = 6;
 
+/** Soft radial-gradient texture for floor telegraph markers (no hard edges). */
+function makeSoftDecalTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)');
+  g.addColorStop(0.6, 'rgba(255,255,255,0.35)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+}
+
 function wrapAngle(d: number): number {
   while (d > Math.PI) d -= Math.PI * 2;
   while (d < -Math.PI) d += Math.PI * 2;
@@ -133,6 +147,7 @@ export class Scene3DRenderer {
   private wardenTelegraphRing: THREE.Mesh;
   private readonly enemyViz = new Map<string, EnemyViz>();
   private readonly lungeDecals: THREE.Mesh[] = [];
+  private trimMesh: THREE.InstancedMesh | null = null;
   private readonly muzzleGlows: THREE.Mesh[] = [];
   private readonly riggedEnemies = new Map<string, RiggedInstance>();
   private readonly staticEnemies = new Map<string, StaticActorHandle>();
@@ -277,21 +292,17 @@ export class Scene3DRenderer {
     this.scene.add(this.wardenTelegraphRing);
 
     // Pooled telegraph meshes (emissive-free MeshBasicMaterial, no lights)
-    const chevron = new THREE.Shape();
-    chevron.moveTo(0, -0.22);
-    chevron.lineTo(0.8, -0.22);
-    chevron.lineTo(1, 0);
-    chevron.lineTo(0.8, 0.22);
-    chevron.lineTo(0, 0.22);
-    chevron.lineTo(0.18, 0);
-    chevron.closePath();
-    const chevronGeo = new THREE.ShapeGeometry(chevron);
+    const decalGeo = new THREE.PlaneGeometry(1, 1);
+    decalGeo.rotateX(-Math.PI / 2);
+    const decalTex = makeSoftDecalTexture();
     const glowGeo = new THREE.SphereGeometry(1, 12, 8);
     for (let i = 0; i < TELEGRAPH_POOL_3D; i++) {
       const d = new THREE.Mesh(
-        chevronGeo,
-        new THREE.MeshBasicMaterial({ color: 0xff4a1f, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }),
+        decalGeo,
+        new THREE.MeshBasicMaterial({ map: decalTex, color: 0xff4a1f, transparent: true, opacity: 0.6, depthWrite: false, blending: THREE.AdditiveBlending }),
       );
+      d.name = 'telegraph:lunge';
+      d.renderOrder = 2;
       d.visible = false;
       this.scene.add(d);
       this.lungeDecals.push(d);
@@ -591,7 +602,7 @@ export class Scene3DRenderer {
     const visualMaxY = s.visualMaxY ?? s.maxY;
     const sy = Math.max(0.08, visualMaxY - s.minY);
     // Crates fill the whole collision lane; render them shallower so they never wall off the camera view.
-    const visMaxZ = s.kind === 'crate' ? Math.min(s.maxZ, 1.2) : s.maxZ;
+    const visMaxZ = s.kind === 'crate' ? Math.max(s.minZ + 0.4, Math.min(s.maxZ, -0.55)) : s.maxZ;
     const sz = visMaxZ - s.minZ;
     const cx = (s.minX + s.maxX) * 0.5;
     const cy = s.minY + sy * 0.5;
@@ -626,8 +637,8 @@ export class Scene3DRenderer {
       });
     } else if (s.kind === 'crate') {
       mat = new THREE.MeshStandardMaterial({
-        map: tex.wallMap,
-        color: s.color ?? 0x566474,
+        map: tex.crateMap,
+        color: 0xc8d2dc,
         roughness: 0.5,
         metalness: 0.55,
       });
@@ -702,11 +713,19 @@ export class Scene3DRenderer {
   private buildTrim(): void {
     const n = this.trimSpecs.length;
     if (n === 0) return;
+    if (this.trimMesh) {
+      this.scene.remove(this.trimMesh);
+      this.trimMesh.geometry.dispose();
+      (this.trimMesh.material as THREE.Material).dispose();
+      this.trimMesh.dispose();
+    }
     const im = new THREE.InstancedMesh(
       new THREE.BoxGeometry(1, 1, 1),
       new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.6 }),
       n,
     );
+    im.name = 'trim:instanced';
+    this.trimMesh = im;
     const d = new THREE.Object3D();
     const c = new THREE.Color();
     this.trimSpecs.forEach((t, i) => {
@@ -1140,9 +1159,10 @@ export class Scene3DRenderer {
         const d = this.lungeDecals[decalIdx++];
         const len = e.kind === 'crawler' ? 2.6 : 3.6;
         d.visible = true;
-        d.position.set(ex, ey + 0.2, 0.35);
-        d.scale.set(e.facing * len, 0.6, 1);
-        (d.material as THREE.MeshBasicMaterial).opacity = 0.25 + 0.5 * windFrac;
+        d.name = `telegraph:${e.kind}`;
+        d.position.set(ex + e.facing * len * 0.5, ey + 0.06, 0);
+        d.scale.set(len * (0.5 + 0.5 * windFrac), 1, 1.4);
+        (d.material as THREE.MeshBasicMaterial).opacity = 0.15 + 0.4 * windFrac;
       }
     }
     for (let i = decalIdx; i < this.lungeDecals.length; i++) this.lungeDecals[i].visible = false;
