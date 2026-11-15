@@ -25,6 +25,7 @@ import {
   type RiggedInstance,
 } from './riggedModels.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { buildDecor3D, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 
 interface StaticActorHandle {
@@ -65,6 +66,35 @@ const DOOR_COLORS: Record<string, number> = {
   red: 0xff2a3c,
   console: 0x2bf0ff,
   escape: 0xff4a2a,
+};
+
+/** Render-only material identity per sector (trim palette and texture choice). */
+interface SectorLook {
+  plates: number[];
+  lip: number;
+  flange: number;
+  rivet: number;
+  brace: number;
+  tint: number;
+}
+const SECTOR_LOOK: Record<SectorId3D, SectorLook> = {
+  airlock: { plates: [0x4a5a6a, 0x3c4a5a, 0x56687a], lip: 0x2bb8c8, flange: 0x2c343e, rivet: 0x8a9aac, brace: 0x46586a, tint: 1 },
+  shaft: { plates: [0x5a4c3e, 0x4a3e34, 0x6a5848], lip: 0xc98a2a, flange: 0x2e2822, rivet: 0x9a8a78, brace: 0x6a5848, tint: 1 },
+  mines: { plates: [0x4a4036, 0x3a3128, 0x5a4a3a], lip: 0x8a6a3a, flange: 0x4a3420, rivet: 0x7a6a58, brace: 0x6a4a2a, tint: 1 },
+  biolabs: { plates: [0x6a8a84, 0x587a74, 0x7a9a94], lip: 0x58e0a8, flange: 0x2a3a38, rivet: 0xa8c8c0, brace: 0x4a6a64, tint: 0.7 },
+  security: { plates: [0x424c5c, 0x363e4c, 0x4e5a6c], lip: 0xc03838, flange: 0x1a1f27, rivet: 0x7a8696, brace: 0x56626f, tint: 1 },
+  core: { plates: [0x4a2a24, 0x3a201a, 0x5a3228], lip: 0xd05a22, flange: 0x2a1a18, rivet: 0x8a5a48, brace: 0x9a3a1a, tint: 1 },
+};
+
+type TexKey = 'rockMap' | 'cleanTileMap' | 'panelMap' | 'concreteMap' | 'rustMetalMap';
+/** Texture identity per sector: wall map, ground-floor map (undefined keeps the deck plate), grate tint. */
+const SECTOR_SURFACE: Record<SectorId3D, { wall?: TexKey; floor?: TexKey; tint: number; grate: number }> = {
+  airlock: { tint: 0xffffff, grate: 0x99b0c7 },
+  shaft: { wall: 'rustMetalMap', tint: 0xe8d8c8, grate: 0xb0a090 },
+  mines: { wall: 'rockMap', floor: 'rockMap', tint: 0xffffff, grate: 0xa89478 },
+  biolabs: { wall: 'cleanTileMap', floor: 'cleanTileMap', tint: 0xb4b4b4, grate: 0xb0d4cc },
+  security: { wall: 'panelMap', floor: 'panelMap', tint: 0xffffff, grate: 0x9aa4b8 },
+  core: { wall: 'concreteMap', floor: 'concreteMap', tint: 0xe0b8a8, grate: 0xc09484 },
 };
 
 function turnToward(current: number, target: number, dt: number, rate = 16): number {
@@ -156,6 +186,9 @@ export class Scene3DRenderer {
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
   private readonly pickupHandles = new Map<string, THREE.Group>();
   private readonly doorMeshes = new Map<string, { mesh: THREE.Mesh; baseY: number; height: number }>();
+  private doorLamps: THREE.InstancedMesh | null = null;
+  private readonly doorLampIdx = new Map<string, { idx: number[]; color: number; open: boolean }>();
+  private rooms: WorldState3D['level']['rooms'] = [];
   private readonly upgradeMeshes = new Map<string, THREE.Object3D>();
   private readonly savePads: THREE.Mesh[] = [];
   private lastTick = -1;
@@ -172,7 +205,7 @@ export class Scene3DRenderer {
   private readonly presetSun = new THREE.Color(0xdcebff);
   private presetAmbI = 1.35;
   private presetSunI = 1.9;
-  private readonly trimSpecs: { x: number; y: number; z: number; sx: number; sy: number; sz: number; color: number }[] = [];
+  private readonly trimSpecs: { x: number; y: number; z: number; sx: number; sy: number; sz: number; color: number; rz?: number }[] = [];
 
   private coreModel: THREE.Group | null = null;
   private coreShield: THREE.Mesh | null = null;
@@ -463,9 +496,11 @@ export class Scene3DRenderer {
     const tex = getFacilityTextures3D();
 
     // Build static geometry: floors, walls, catwalks, ramps, pillars, acid pools
+    this.rooms = w.level.rooms;
     for (const s of w.level.solids) {
       this.addSolidMesh(s, tex);
     }
+    this.buildDoorDressing(w.level.solids, tex);
     this.buildTrim();
     this.decor?.dispose();
     this.decor = buildDecor3D(this.scene, w.level, tex);
@@ -633,32 +668,42 @@ export class Scene3DRenderer {
     const cy = s.minY + sy * 0.5;
     const cz = (s.minZ + visMaxZ) * 0.5;
 
+    const sector = this.sectorAt(cx, cy);
+    const surf = SECTOR_SURFACE[sector];
     let mat: THREE.MeshStandardMaterial;
     if (s.kind === 'catwalk' && s.minY >= 0.5) {
       const map = tex.grateMap.clone();
       map.repeat.set(Math.max(1, sx / 2), Math.max(1, sz / 2));
       map.needsUpdate = true;
-      mat = new THREE.MeshStandardMaterial({ map, color: 0x99b0c7, roughness: 0.42, metalness: 0.68 });
+      mat = new THREE.MeshStandardMaterial({ map, color: surf.grate, roughness: 0.42, metalness: 0.68 });
     } else if (s.kind === 'catwalk') {
-      const map = tex.deckMap.clone();
+      const base = surf.floor ? tex[surf.floor] : tex.deckMap;
+      const map = base.clone();
       map.repeat.set(Math.max(1, sx / 4), Math.max(1, sz / 4));
       map.needsUpdate = true;
-      const bump = tex.deckBump.clone();
-      bump.repeat.copy(map.repeat);
-      bump.needsUpdate = true;
-      mat = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 0.04, roughness: 0.55, metalness: 0.45 });
+      if (surf.floor) {
+        mat = new THREE.MeshStandardMaterial({ map, color: surf.tint, roughness: 0.6, metalness: 0.4 });
+      } else {
+        const bump = tex.deckBump.clone();
+        bump.repeat.copy(map.repeat);
+        bump.needsUpdate = true;
+        mat = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 0.04, roughness: 0.55, metalness: 0.45 });
+      }
     } else if (s.kind === 'door') {
       const lockColor = s.doorLock ? DOOR_COLORS[s.doorLock] : 0xff4526;
+      const map = tex.shieldMap.clone();
+      map.repeat.set(1, Math.max(1, Math.round(sy / Math.max(0.4, sx))));
+      map.needsUpdate = true;
       mat = new THREE.MeshStandardMaterial({
-        map: s.doorLock === 'yellow' ? tex.wallMap : tex.hazardMap,
-        color: s.doorLock === 'yellow' ? 0x6b5a2a : 0x23262e,
+        map,
+        color: 0x2c3038,
         emissive: lockColor,
-        emissiveMap: s.doorLock === 'yellow' ? tex.wallMap : tex.hazardMap,
-        emissiveIntensity: 0.6,
-        roughness: 0.35,
-        metalness: 0.72,
+        emissiveMap: map,
+        emissiveIntensity: 0.9,
+        roughness: 0.25,
+        metalness: 0.6,
         transparent: true,
-        opacity: 0.92,
+        opacity: 0.88,
       });
     } else if (s.kind === 'crate') {
       mat = new THREE.MeshStandardMaterial({
@@ -676,12 +721,12 @@ export class Scene3DRenderer {
         metalness: 0.65,
       });
     } else {
-      const map = tex.wallMap.clone();
+      const map = (surf.wall ? tex[surf.wall] : tex.wallMap).clone();
       map.repeat.set(Math.max(1, Math.max(sx, sz) / 4), Math.max(1, sy / 3));
       map.needsUpdate = true;
       mat = new THREE.MeshStandardMaterial({
         map,
-        color: s.color ?? 0x8d9dad,
+        color: new THREE.Color(s.color ?? 0x8d9dad).multiply(new THREE.Color(surf.tint)),
         roughness: 0.52,
         metalness: 0.58,
         transparent: Boolean(!s.visualMaxY && s.maxY > 2.5 && s.minZ > 0),
@@ -690,12 +735,12 @@ export class Scene3DRenderer {
     }
 
     // Break tiling: per-solid texture offset derived from the solid id.
-    if (mat.map && mat.map.image && mat.map !== tex.hazardMap) {
+    if (mat.map && mat.map.image && s.kind !== 'door') {
       let hsh = 2166136261;
       for (let i = 0; i < s.id.length; i++) hsh = Math.imul(hsh ^ s.id.charCodeAt(i), 16777619);
       mat.map.offset.set(((hsh >>> 0) % 997) / 997, ((hsh >>> 8) % 991) / 991);
     }
-    this.addSolidTrim(s, sx, sy, sz, cx, cy);
+    this.addSolidTrim(s, sx, sy, sz, cx, cy, sector);
 
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
     mesh.position.set(cx, cy, cz);
@@ -713,25 +758,170 @@ export class Scene3DRenderer {
     }
   }
 
-  /** Collects bevel lips, truss ribs, door frames and rivet rows as instanced trim boxes. */
-  private addSolidTrim(s: MapSolid3D, sx: number, sy: number, sz: number, cx: number, cy: number): void {
+  private sectorAt(x: number, y: number): SectorId3D {
+    for (const r of this.rooms) {
+      if (x >= r.minX && x <= r.maxX && y >= r.minY - 0.5 && y <= r.maxY + 0.5) return r.sector;
+    }
+    return 'shaft';
+  }
+
+  /** Collects bevel lips, trusses, side panels, door frames and rivet rows as instanced trim boxes. */
+  private addSolidTrim(s: MapSolid3D, sx: number, sy: number, _sz: number, cx: number, cy: number, sector: SectorId3D): void {
     const top = s.minY + sy;
     const front = s.maxZ;
-    const cap = 700;
-    const push = (x: number, y: number, z: number, w: number, h: number, d: number, color: number): void => {
-      if (this.trimSpecs.length < cap) this.trimSpecs.push({ x, y, z, sx: w, sy: h, sz: d, color });
+    const cap = 3200;
+    const look = SECTOR_LOOK[sector];
+    const push = (x: number, y: number, z: number, w: number, h: number, d: number, color: number, rz?: number): void => {
+      if (this.trimSpecs.length < cap) this.trimSpecs.push({ x, y, z, sx: w, sy: h, sz: d, color, rz });
     };
+    let hsh = 2166136261;
+    for (let i = 0; i < s.id.length; i++) hsh = Math.imul(hsh ^ s.id.charCodeAt(i), 16777619);
+    hsh >>>= 0;
     if (s.kind === 'catwalk' || s.kind === 'platform') {
-      push(cx, top + 0.02, front - 0.12, sx, 0.04, 0.24, 0x7a8a9c);
+      // Beveled edge: bright top lip plus a chamfer strip on the front face.
+      push(cx, top + 0.02, front - 0.12, sx, 0.04, 0.24, look.lip);
+      push(cx, top - 0.04, front + 0.01, sx, 0.05, 0.05, look.lip);
+      push(cx, s.minY + 0.03, front + 0.01, sx, 0.06, 0.06, look.flange);
+      // Side panels with per-sector variation and rivets.
+      let pi = 0;
+      for (let x = s.minX + 0.15; x < s.maxX - 0.3; x += 1.5) {
+        const pw = Math.min(1.4, s.maxX - 0.15 - x);
+        if (pw < 0.5) break;
+        const color = look.plates[(pi + hsh) % look.plates.length];
+        push(x + pw / 2, s.minY + sy * 0.5, front + 0.012, pw - 0.06, Math.max(0.06, sy * 0.58), 0.03, color);
+        push(x + 0.08, s.minY + sy * 0.5, front + 0.03, 0.05, 0.05, 0.03, look.rivet);
+        push(x + pw - 0.08, s.minY + sy * 0.5, front + 0.03, 0.05, 0.05, 0.03, look.rivet);
+        pi++;
+      }
+      push(s.minX + 0.06, cy, front + 0.02, 0.12, sy + 0.04, 0.1, look.flange);
+      push(s.maxX - 0.06, cy, front + 0.02, 0.12, sy + 0.04, 0.1, look.flange);
       if (s.minY >= 0.5) {
-        for (let x = s.minX + 0.5; x < s.maxX - 0.2; x += 2) push(x, s.minY - 0.17, (s.minZ + s.maxZ) * 0.5, 0.12, 0.34, sz * 0.9, 0x2c343e);
+        const th = 0.55;
+        const zt = front - 0.25;
+        const wood = sector === 'mines';
+        const memberColor = wood ? look.brace : look.flange;
+        const seg = wood ? 3 : 1.6;
+        push(cx, s.minY - th, zt, sx, 0.08, 0.1, memberColor);
+        let k = 0;
+        for (let x = s.minX + 0.3; x < s.maxX - 0.3; x += seg, k++) {
+          const w = Math.min(seg, s.maxX - 0.3 - x);
+          if (w < 0.6) break;
+          push(x, s.minY - th / 2, zt, wood ? 0.16 : 0.08, th, wood ? 0.16 : 0.1, memberColor);
+          const len = Math.hypot(w, th);
+          push(x + w / 2, s.minY - th / 2, zt, len, wood ? 0.1 : 0.06, 0.08, memberColor, (k % 2 === 0 ? 1 : -1) * Math.atan2(th, w));
+        }
+        if (sector === 'core') push(cx, s.minY - 0.2, front - 0.1, sx, 0.1, 0.1, look.brace);
+        if (sector === 'biolabs') {
+          // Glass-rail frame at the back of the deck (never in the character lane).
+          push(cx, top + 0.9, s.minZ + 0.1, sx, 0.05, 0.05, look.lip);
+          for (let x = s.minX + 0.3; x < s.maxX - 0.2; x += 2) push(x, top + 0.45, s.minZ + 0.1, 0.05, 0.9, 0.05, look.rivet);
+        }
       }
     } else if (s.kind === 'door') {
-      push(s.minX - 0.1, cy, front + 0.05, 0.22, sy + 0.2, 0.14, 0x3a4350);
-      push(s.maxX + 0.1, cy, front + 0.05, 0.22, sy + 0.2, 0.14, 0x3a4350);
-      push(cx, top + 0.1, front + 0.05, sx + 0.44, 0.2, 0.14, 0x8a6a1a);
-    } else if (s.kind === 'wall' && sx >= 4 && sy >= 3) {
-      for (let x = s.minX + 1; x < s.maxX - 0.5; x += 2) push(x, cy, front + 0.02, 0.1, 0.1, 0.06, 0x56626f);
+      const j = 0.4;
+      const zf = front + 0.08;
+      // Heavy frame: jambs, inner bevels, lintel and plinth.
+      push(s.minX - j / 2, cy, zf, j, sy + 0.5, 0.16, 0x3a4350);
+      push(s.maxX + j / 2, cy, zf, j, sy + 0.5, 0.16, 0x3a4350);
+      push(s.minX - 0.04, cy, zf + 0.06, 0.07, sy + 0.1, 0.06, 0x7a8898);
+      push(s.maxX + 0.04, cy, zf + 0.06, 0.07, sy + 0.1, 0.06, 0x7a8898);
+      push(cx, top + 0.25, zf, sx + 2 * j, 0.5, 0.16, 0x2c333d);
+      push(cx, top + 0.02, zf + 0.06, sx + 0.1, 0.06, 0.06, 0x7a8898);
+      push(cx, s.minY - 0.1, zf, sx + 2 * j, 0.2, 0.16, 0x2c333d);
+    } else if (s.kind === 'wall' && sx >= 3 && sy >= 0.8) {
+      // Floor slabs and walls: lit top lip, base plinth, panel seams and rivets.
+      push(cx, top - 0.02, front - 0.12, sx, 0.05, 0.24, look.lip);
+      if (sx >= 4 && sy >= 3) {
+        push(cx, s.minY + 0.2, front + 0.03, sx, 0.4, 0.08, look.flange);
+        if (sy <= 14) push(cx, top - 0.15, front + 0.03, sx, 0.3, 0.08, look.flange);
+        for (let x = s.minX + 1; x < s.maxX - 0.5; x += 2) push(x, cy, front + 0.02, 0.1, 0.1, 0.06, 0x56626f);
+        for (let x = s.minX + 2; x < s.maxX - 0.5; x += 4) push(x, cy, front + 0.015, 0.05, sy - 0.8, 0.04, look.plates[((x / 4) | 0) % look.plates.length]);
+      }
+    }
+  }
+
+  /** Door lock lamps, emitter bars, sign plates and hazard stripes as shared (instanced / merged) meshes. */
+  private buildDoorDressing(solids: readonly MapSolid3D[], tex: ReturnType<typeof getFacilityTextures3D>): void {
+    const doors = solids.filter((d) => d.kind === 'door' && d.doorId);
+    this.doorLampIdx.clear();
+    if (doors.length === 0) return;
+    const hazardTex = tex.hazardMap.clone();
+    hazardTex.repeat.set(1, 1);
+    hazardTex.needsUpdate = true;
+    const hazGeos: THREE.BufferGeometry[] = [];
+    const addStripe = (x: number, y: number, z: number, w: number, h: number): void => {
+      const g = new THREE.PlaneGeometry(w, h);
+      const uv = g.attributes.uv as THREE.BufferAttribute;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * Math.max(0.5, w / 0.8), uv.getY(i) * Math.max(0.5, h / 0.8));
+      g.translate(x, y, z);
+      hazGeos.push(g);
+    };
+    const lampGeo = new THREE.BoxGeometry(1, 1, 1);
+    const lampCount = doors.length * 7;
+    const lamps = new THREE.InstancedMesh(lampGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), lampCount);
+    lamps.name = 'door:lamps';
+    const signs = new THREE.InstancedMesh(
+      new THREE.PlaneGeometry(1, 1),
+      new THREE.MeshBasicMaterial({ map: tex.signMap, color: 0xffffff }),
+      doors.length,
+    );
+    signs.name = 'door:signs';
+    const d = new THREE.Object3D();
+    const c = new THREE.Color();
+    let li = 0;
+    doors.forEach((s, di) => {
+      const sx = s.maxX - s.minX;
+      const sy = Math.max(0.08, (s.visualMaxY ?? s.maxY) - s.minY);
+      const cx = (s.minX + s.maxX) / 2;
+      const top = s.minY + sy;
+      const zf = s.maxZ + 0.2;
+      const lock = DOOR_COLORS[s.doorLock ?? 'escape'] ?? 0xff4526;
+      const idx: number[] = [];
+      const put = (x: number, y: number, z: number, w: number, h: number, dd: number): void => {
+        d.position.set(x, y, z);
+        d.rotation.set(0, 0, 0);
+        d.scale.set(w, h, dd);
+        d.updateMatrix();
+        lamps.setMatrixAt(li, d.matrix);
+        lamps.setColorAt(li, c.setHex(lock));
+        idx.push(li);
+        li++;
+      };
+      // Emitter bars at the top and bottom of the shield, three status lamps on each jamb.
+      put(cx, top - 0.06, zf - 0.1, sx + 0.1, 0.1, 0.06);
+      put(cx, s.minY + 0.06, zf - 0.1, sx + 0.1, 0.1, 0.06);
+      for (let k = 0; k < 2; k++) {
+        const jx = k === 0 ? s.minX - 0.2 : s.maxX + 0.2;
+        for (let m = 0; m < 3; m++) put(jx, top - 0.5 - m * 0.34, zf, 0.14, 0.14, 0.05);
+      }
+      // Sign plate above the lintel.
+      d.position.set(cx, top + 0.95, zf - 0.05);
+      d.rotation.set(0, 0, 0);
+      d.scale.set(Math.max(1.8, sx + 1.0), 0.5, 1);
+      d.updateMatrix();
+      signs.setMatrixAt(di, d.matrix);
+      signs.setColorAt(di, c.setHex(lock).multiplyScalar(0.9));
+      // Hazard stripes on the jambs and a header band.
+      const hw = 0.26;
+      addStripe(s.minX - 0.2, s.minY + sy / 2, zf - 0.04, hw, sy);
+      addStripe(s.maxX + 0.2, s.minY + sy / 2, zf - 0.04, hw, sy);
+      addStripe(cx, top + 0.25, zf - 0.04, sx + 0.8, 0.22);
+      this.doorLampIdx.set(s.doorId as string, { idx, color: lock, open: false });
+    });
+    lamps.count = li;
+    lamps.instanceMatrix.needsUpdate = true;
+    if (lamps.instanceColor) lamps.instanceColor.needsUpdate = true;
+    signs.instanceMatrix.needsUpdate = true;
+    if (signs.instanceColor) signs.instanceColor.needsUpdate = true;
+    this.scene.add(lamps);
+    this.scene.add(signs);
+    this.doorLamps = lamps;
+    const merged = mergeGeometries(hazGeos);
+    hazGeos.forEach((g) => g.dispose());
+    if (merged) {
+      const hz = new THREE.Mesh(merged, new THREE.MeshStandardMaterial({ map: hazardTex, color: 0xd0d0d0, roughness: 0.6, metalness: 0.3 }));
+      hz.name = 'door:hazard';
+      this.scene.add(hz);
     }
   }
 
@@ -755,6 +945,7 @@ export class Scene3DRenderer {
     const c = new THREE.Color();
     this.trimSpecs.forEach((t, i) => {
       d.position.set(t.x, t.y, t.z);
+      d.rotation.set(0, 0, t.rz ?? 0);
       d.scale.set(t.sx, t.sy, t.sz);
       d.updateMatrix();
       im.setMatrixAt(i, d.matrix);
@@ -949,6 +1140,17 @@ export class Scene3DRenderer {
       const mat = entry.mesh.material as THREE.MeshStandardMaterial;
       mat.emissiveIntensity = open ? 0.15 : 0.5 + Math.sin(tSec * 3 + entry.baseY) * 0.15;
       entry.mesh.visible = !open || Math.abs(entry.mesh.position.y - targetY) > 0.05;
+      if (mat.map) {
+        mat.map.offset.y = (tSec * 0.18) % 1;
+        mat.map.offset.x = Math.sin(tSec * 0.7 + entry.baseY) * 0.03;
+      }
+      const lamp = this.doorLampIdx.get(id);
+      if (lamp && this.doorLamps && lamp.open !== open) {
+        lamp.open = open;
+        const dim = new THREE.Color(open ? 0x1f5a2a : lamp.color);
+        for (const i of lamp.idx) this.doorLamps.setColorAt(i, dim);
+        if (this.doorLamps.instanceColor) this.doorLamps.instanceColor.needsUpdate = true;
+      }
     }
 
     // 2. Acid UV scroll, Console and Save pulses, upgrades

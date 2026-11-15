@@ -8,7 +8,7 @@ import { mulberry32, type FacilityTextures3D } from './textures3d.ts';
 
 export { mulberry32 };
 
-export type DecorKind = 'box' | 'cyl' | 'cone' | 'glow' | 'glowCyl' | 'pulse' | 'halo' | 'monitor';
+export type DecorKind = 'box' | 'cyl' | 'cone' | 'glow' | 'glowCyl' | 'pulse' | 'halo' | 'monitor' | 'fg';
 
 export interface DecorProp {
   kind: DecorKind;
@@ -23,6 +23,8 @@ export interface DecorProp {
   color: number;
   /** 'x' lays a cylinder along the x axis, 'flip' points a cone downward. */
   rot?: 'x' | 'flip';
+  /** Z-axis rotation in radians for boxes (diagonal braces). */
+  rz?: number;
 }
 
 export interface DecorCable {
@@ -55,6 +57,16 @@ const ACCENT: Record<SectorId3D, number> = {
   core: 0xd05a22,
 };
 
+/** Back-panel colors per sector: [panel A, panel B, frame]. */
+const PANEL_COLORS: Record<SectorId3D, [number, number, number]> = {
+  airlock: [0x34465a, 0x2a3a4c, 0x46586a],
+  shaft: [0x4a4038, 0x3a322c, 0x5e5246],
+  mines: [0x3a3128, 0x2e271f, 0x6a4a2a],
+  biolabs: [0x3c5a54, 0x2e4844, 0x5a7a72],
+  security: [0x2c3442, 0x232a36, 0x6a2a2e],
+  core: [0x4a2a24, 0x382018, 0x7a3a22],
+};
+
 export const SECTOR_FOG: Record<SectorId3D, number> = {
   airlock: 0.011,
   shaft: 0.013,
@@ -80,6 +92,14 @@ export function propBounds(p: DecorProp): { minX: number; maxX: number; minY: nu
       hy = p.sx / 2;
     }
   }
+  if (p.rz) {
+    const c = Math.abs(Math.cos(p.rz));
+    const sn = Math.abs(Math.sin(p.rz));
+    const nx = hx * c + hy * sn;
+    const ny = hx * sn + hy * c;
+    hx = nx;
+    hy = ny;
+  }
   return { minX: p.x - hx, maxX: p.x + hx, minY: p.y - hy, maxY: p.y + hy };
 }
 
@@ -92,9 +112,9 @@ class LayoutBuilder {
   }
 
   /** Adds a prop whose base sits at yBase. Props that would leave the room rect are dropped. */
-  add(kind: DecorKind, x: number, yBase: number, z: number, sx: number, sy: number, sz: number, color: number, rot?: 'x' | 'flip'): void {
+  add(kind: DecorKind, x: number, yBase: number, z: number, sx: number, sy: number, sz: number, color: number, rot?: 'x' | 'flip', rz?: number): void {
     if (this.props.length >= MAX_PROPS_PER_ROOM) return;
-    const p: DecorProp = { kind, x, y: yBase + sy / 2, z, sx, sy, sz, color, rot };
+    const p: DecorProp = { kind, x, y: yBase + sy / 2, z, sx, sy, sz, color, rot, rz };
     const b = propBounds(p);
     const r = this.room;
     if (b.minX < r.minX + 0.05 || b.maxX > r.maxX - 0.05 || b.minY < r.minY - 0.001 || b.maxY > r.maxY + 0.001) return;
@@ -137,6 +157,38 @@ export function layoutRoomDecor(room: RoomDef3D): DecorLayout {
     const x1 = Math.min(room.maxX - 1, x0 + 5 + rnd() * 7);
     L.cables.push({ x0, x1, y: room.maxY - 0.9 - rnd() * 0.5, z: -2.55 - rnd() * 0.3, sag: 0.5 + rnd() * 0.6 });
   }
+
+  // Depth layers. Back: recessed wall panels. Mid: braced gantry frames. Front: dark ceiling silhouettes (never in the lane).
+  const panelCol = PANEL_COLORS[room.sector];
+  const panelH = Math.min(h * 0.45, 4.2);
+  let pi = 0;
+  for (let x = room.minX + 2; x < room.maxX - 3.5; x += 3.7) {
+    const alt = pi++ % 2 === 0;
+    L.add('box', x + 1.6, room.minY + 1.4 + (alt ? 0 : 0.5), -3.04, 3.2, panelH, 0.1, alt ? panelCol[0] : panelCol[1]);
+    L.add('box', x + 1.6, room.minY + 1.4 + (alt ? 0 : 0.5) + panelH, -3.0, 3.3, 0.08, 0.18, panelCol[2]);
+  }
+  if (room.sector !== 'mines') {
+    const gh = Math.min(h - 3, 6);
+    for (let x = room.minX + 5; x < room.maxX - 5; x += 11) {
+      const braceCol = panelCol[2];
+      L.add('box', x, room.minY, -1.8, 0.22, gh, 0.22, braceCol);
+      L.add('box', x + 3, room.minY, -1.8, 0.22, gh, 0.22, braceCol);
+      L.add('box', x + 1.5, room.minY + gh - 0.11, -1.8, 3.3, 0.22, 0.22, braceCol);
+      const len = Math.hypot(2.9, gh - 0.5);
+      const ang = Math.atan2(gh - 0.5, 2.9);
+      L.add('box', x + 1.5, room.minY + gh / 2 - 0.05, -1.85, len, 0.1, 0.1, braceCol, undefined, ang);
+      L.add('box', x + 1.5, room.minY + gh / 2 - 0.05, -1.85, len, 0.1, 0.1, braceCol, undefined, -ang);
+    }
+  } else {
+    for (let x = room.minX + 4; x < room.maxX - 3; x += 6.5) {
+      L.add('cone', x + rnd() * 1.5, room.minY, -1.9, 1.0 + rnd() * 0.8, 1.2 + rnd() * 1.6, 1.0, 0x3a342d);
+    }
+  }
+  for (let x = room.minX + 3; x < room.maxX - 2.5; x += 9) {
+    L.add('fg', x, room.maxY - 0.5, 2.5, 0.4, 0.5, 0.4, 0x090b0e);
+    L.add('fg', x + 4.5, room.maxY - 0.7, 2.5, 0.12, 0.7, 0.12, 0x090b0e);
+  }
+  L.add('fg', cx, room.maxY - 0.36, 2.5, w - 0.6, 0.2, 0.3, 0x0a0c10);
 
   switch (room.sector) {
     case 'airlock': {
@@ -368,7 +420,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     im.userData.propKinds = [...new Set(props.map((q) => q.kind))];
     props.forEach((p, i) => {
       dummy.position.set(p.x, p.y, p.z);
-      dummy.rotation.set(p.rot === 'flip' ? Math.PI : 0, 0, p.rot === 'x' ? Math.PI / 2 : 0);
+      dummy.rotation.set(p.rot === 'flip' ? Math.PI : 0, 0, p.rot === 'x' ? Math.PI / 2 : (p.rz ?? 0));
       const s = scaleFor(p);
       dummy.scale.set(s[0], s[1], s[2]);
       dummy.updateMatrix();
@@ -388,31 +440,70 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
   const glowMat = () => new THREE.MeshBasicMaterial({ color: 0xffffff });
 
   makeInstanced(pick(['box']), new THREE.BoxGeometry(1, 1, 1), litMat(), false, boxScale);
+  // Foreground silhouettes: dark, slightly translucent, only near the ceiling so the character lane stays clear.
+  makeInstanced(
+    pick(['fg']),
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, metalness: 0.1, transparent: true, opacity: 0.88, depthWrite: false }),
+    false,
+    boxScale,
+  );
   makeInstanced(pick(['cyl']).filter((p) => p.sx >= 1.0), new THREE.CylinderGeometry(0.5, 0.5, 1, 14), litMat(), true, cylScale);
   makeInstanced(pick(['cyl']).filter((p) => p.sx < 1.0), new THREE.CylinderGeometry(0.5, 0.5, 1, 10), litMat(), false, cylScale);
   makeInstanced(pick(['cone']), new THREE.ConeGeometry(0.5, 1, 7), litMat(), false, cylScale);
-  // Glow fixtures: dark housing, dimmed emissive core, and a soft additive sprite (shared texture, no lights).
+  // Glow fixtures: beveled bezel, vented dark housing, slatted emissive lamp face and a soft additive sprite (no lights).
   const glowProps = pick(['glow']);
+  const bezel = makeInstanced(
+    glowProps,
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5, metalness: 0.7 }),
+    false,
+    (p) => [p.sx + 0.3, p.sy + 0.3, 0.05],
+  );
+  if (bezel) {
+    bezel.name = 'decor:glow-bezel';
+    for (let i = 0; i < glowProps.length; i++) {
+      bezel.getMatrixAt(i, dummy.matrix);
+      dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
+      dummy.position.z = glowProps[i].z - glowProps[i].sz * 0.5 + 0.02;
+      dummy.updateMatrix();
+      bezel.setMatrixAt(i, dummy.matrix);
+      bezel.setColorAt(i, col.setHex(0x5c6878));
+    }
+    bezel.instanceMatrix.needsUpdate = true;
+    if (bezel.instanceColor) bezel.instanceColor.needsUpdate = true;
+  }
   const housing = makeInstanced(
     glowProps,
     new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshStandardMaterial({ color: 0x1c2229, roughness: 0.6, metalness: 0.6 }),
+    new THREE.MeshStandardMaterial({ map: tex.grilleMap, color: 0xffffff, roughness: 0.55, metalness: 0.6 }),
     false,
-    (p) => [p.sx + 0.08, p.sy + 0.08, p.sz + 0.04],
+    (p) => [p.sx + 0.16, p.sy + 0.16, p.sz + 0.1],
   );
-  if (housing) housing.name = 'decor:glow-housing';
-  const core = makeInstanced(glowProps, new THREE.BoxGeometry(1, 1, 1), glowMat(), false, (p) => [p.sx, p.sy, p.sz * 0.6 + 0.02]);
+  if (housing) {
+    housing.name = 'decor:glow-housing';
+    for (let i = 0; i < glowProps.length; i++) housing.setColorAt(i, col.setHex(0xb4c0cc));
+    if (housing.instanceColor) housing.instanceColor.needsUpdate = true;
+  }
+  const core = makeInstanced(
+    glowProps,
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial({ map: tex.lampMap, color: 0xffffff }),
+    false,
+    (p) => [p.sx, p.sy, p.sz * 0.6 + 0.02],
+  );
   if (core) {
     core.name = 'decor:glow';
     for (let i = 0; i < glowProps.length; i++) {
       core.getMatrixAt(i, dummy.matrix);
       dummy.matrix.decompose(dummy.position, dummy.quaternion, dummy.scale);
-      dummy.position.z += glowProps[i].sz * 0.2 + 0.03;
+      dummy.position.z += glowProps[i].sz * 0.2 + 0.08;
       dummy.updateMatrix();
       core.setMatrixAt(i, dummy.matrix);
-      core.setColorAt(i, col.setHex(glowProps[i].color).multiplyScalar(0.85));
+      core.setColorAt(i, col.setHex(glowProps[i].color).multiplyScalar(0.9));
     }
     core.instanceMatrix.needsUpdate = true;
+    if (core.instanceColor) core.instanceColor.needsUpdate = true;
   }
   const spriteTex = track(makeHaloTexture());
   const spriteProps = glowProps.filter((p) => Math.max(p.sx, p.sy) <= 3.5);
