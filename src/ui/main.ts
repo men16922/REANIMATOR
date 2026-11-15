@@ -35,7 +35,7 @@ import { buildRunStats, formatClock, Onboarding, retryTip, type Hint } from './f
 import { initLab } from './labView.ts';
 import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
-import { objectiveFor } from './objective.ts';
+import { meltdownPillVisible, objectiveFor } from './objective.ts';
 import { parseGoreLevel, type GoreLevel } from '../render3d/gore3d.ts';
 import { loadProgress, menuKeyAction, PANEL_IDS, stepIndex, type TitlePanel } from './menu.ts';
 import { normalizePanelState, titleCovered, topLayer } from './panels.ts';
@@ -782,7 +782,7 @@ function hud(): void {
   ui.objective.textContent = obj.text;
   ui.objective.style.color = obj.color;
 
-  if (world.meltdownTicks >= 0) {
+  if (meltdownPillVisible(world)) {
     ui.meltdown.hidden = false;
     ui.meltdownTime.textContent = `${(world.meltdownTicks / SIM_HZ_3D).toFixed(1)}s`;
   } else {

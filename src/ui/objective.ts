@@ -27,3 +27,8 @@ export function objectiveFor(w: ObjectiveWorld): Objective {
   if (!w.consoleUnlocked) return OBJECTIVES.console;
   return w.currentRoom === 'core' ? OBJECTIVES.warden : OBJECTIVES.vault;
 }
+
+/** The red MELTDOWN pill only shows while the countdown is live; after extraction (won) it must give way to the win line. */
+export function meltdownPillVisible(w: Pick<WorldState3D, 'status' | 'phase' | 'meltdownTicks'>): boolean {
+  return w.meltdownTicks >= 0 && w.status !== 'won' && w.phase !== 'won';
+}
