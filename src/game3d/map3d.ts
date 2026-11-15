@@ -13,6 +13,7 @@
 import type {
   AcidPool3D,
   BarrelSpawn3D,
+  CachePickup3D,
   Collider3D,
   DataLog3D,
   CollapseSpawn3D,
@@ -267,7 +268,15 @@ export function buildFacilityMap3D(): Level3D {
     platform('sec-grate', 62, 68, 8.8),
     box('sec-floor-east', 68, 70.4, 8.4, 8.8, 'catwalk', { color: 0x1d252d }),
     box('sec-ceiling', 42, 70.8, 13.8, 14.8),
-    box('sec-wall-east', 69.6, 70.8, 8.4, 14.8),
+    // Fake wall (round 9, Abuse-style hidden passage): the east wall looks solid but gives way when leaned on. Behind it is the Vault Nook.
+    box('sec-wall-east-low', 69.6, 70.8, 8.4, 10.8),
+    box('sec-wall-east-top', 69.6, 70.8, 13.8, 14.8),
+    box('sec-fake-wall', 69.6, 70.8, 10.8, 13.8, 'wall', { breakId: 'break_lean_security', breakBy: 'lean', dynamic: true, color: 0x2f3a48, emissive: 0x2a5a66 }),
+    // One-way shelf in front of the sill: 2.0 m above the deck, a full jump (apex 2.29 m) from a running start
+    platform('sec-nook-step', 67.8, 69.6, 10.8, { color: 0x3a434e }),
+    box('nook-lip', 69.6, 70.0, 9.6, 10.8, 'wall', { color: 0x2a3542 }),
+    box('nook-ceiling', 70.8, 78.8, 13.8, 14.8),
+    box('nook-wall-back', 78.0, 78.8, 10.8, 14.8, 'wall', { color: 0x2a3542 }),
     box('sec-console', 54.0, 55.0, 8.8, 10.1, 'console', {
       minZ: -0.6, maxZ: 0.6, color: 0x1f3644, emissive: 0x2bf0ff,
     }),
@@ -463,6 +472,13 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'collapse-airlock-bridge', sector: 'airlock', segmentIds: ['bridge-seg-3', 'bridge-seg-2', 'bridge-seg-1', 'bridge-seg-0'], triggerX: 24.2, triggerMinY: 4.4, graceTicks: 20, intervalTicks: 18, crumbleTicks: 14 },
   ];
 
+  // Loot in the Vault Nook (ammo is split across weapons by AMMO_PICKUP_SHARE_3D, so these are generous)
+  const caches: CachePickup3D[] = [
+    { id: 'cache-nook-ammo-a', kind: 'ammo', value: 60, x: 73.0, y: 10.8 },
+    { id: 'cache-nook-ammo-b', kind: 'ammo', value: 60, x: 75.4, y: 10.8 },
+    { id: 'cache-nook-med', kind: 'med', value: 80, x: 76.8, y: 10.8 },
+  ];
+
   const dataLogs: DataLog3D[] = [
     { id: 'log_airlock', sector: 'airlock', title: 'Cryo Log 01: Alcove Manifest', x: -5, y: 0, z: 0 },
     { id: 'log_shaft', sector: 'shaft', title: 'Shaft Log 02: Roof Cache', x: 18, y: 10.2, z: 0 },
@@ -496,11 +512,13 @@ export function buildFacilityMap3D(): Level3D {
     collapses,
     mapStations,
     tunnels,
+    caches,
     dataLogs,
     secrets: [
       { id: 'secret_alcove', sector: 'airlock', name: 'Cryo Alcove', doorId: 'door_secret_alcove' },
       { id: 'secret_cache', sector: 'shaft', name: 'Roof Cache', doorId: 'door_secret_cache' },
       { id: 'secret_mines_pocket', sector: 'mines', name: 'Rail Plate Pocket', doorId: 'break_plate_mines' },
+      { id: 'secret_vault_nook', sector: 'security', name: 'Vault Nook', doorId: 'break_lean_security' },
       { id: 'secret_core_cache', sector: 'core', name: 'Core Cache', doorId: 'break_stomp_core' },
     ],
   };

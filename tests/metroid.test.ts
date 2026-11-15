@@ -243,10 +243,10 @@ test('breakables: Rail plates break only to the Rail-Cannon, the shot ends on th
 
 test('breakables: the shortcut plate opens a Bio-Labs <-> Shaft passage and every break check passes', () => {
   const level = buildFacilityMap3D();
-  assert.equal(level.solids.filter((s) => s.breakId).length, 3);
+  assert.equal(level.solids.filter((s) => s.breakId).length, 4);
   assert.deepEqual(checkBreakables(level), []);
   const ids = buildBreakChecks().map((c) => c.breakId).sort();
-  assert.deepEqual(ids, ['break_plate_mines', 'break_plate_shaft', 'break_stomp_core']);
+  assert.deepEqual(ids, ['break_lean_security', 'break_plate_mines', 'break_plate_shaft', 'break_stomp_core']);
   // Cracks are markers: every breakable is dynamic so the renderer draws it separately, with an emissive seam colour
   for (const s of level.solids.filter((x) => x.breakId)) {
     assert.equal(s.dynamic, true);
@@ -293,7 +293,7 @@ test('map terminal: onboarding shows a hint near an unused terminal, and the sli
 test("minimap markers: '?' for every untaken item, log, weapon and unfound secret, and they disappear when found", () => {
   const w = newWorld3D();
   const all = collectMinimapMarkers(w);
-  assert.equal(all.filter((m) => m.kind === 'secret').length, 4);
+  assert.equal(all.filter((m) => m.kind === 'secret').length, 5);
   assert.equal(all.filter((m) => m.kind === 'item').length, 7 + 6 + 5, 'upgrades + logs + weapon pedestals');
   w.collectedUpgrades.add('thruster_boots');
   w.collectibles[0].taken = true;
@@ -314,7 +314,7 @@ test('rewards: Energy Tank 3, two ammo expansions and the module raise completio
   assert.equal(w.level.upgrades.filter((u) => u.kind === 'energy_tank').length, 3);
   assert.equal(w.level.upgrades.filter((u) => u.kind === 'ammo_expansion').length, 2);
   stepN(w, 1);
-  assert.equal(w.completion.total, 6 + 4 + 7 + 5);
+  assert.equal(w.completion.total, 6 + 5 + 7 + 5);
   // Take every collectible by standing on it
   for (const u of w.level.upgrades) {
     place(w, u.x, u.y);

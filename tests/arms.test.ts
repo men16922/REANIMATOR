@@ -83,7 +83,7 @@ test('arms: six weapon slots, two new pedestals, completion total rises by two',
   assert.equal(COMPLETION_WEAPON_PEDESTALS, 5);
   const w = newWorld3D();
   assert.equal(w.completion.weaponsTotal, 5);
-  assert.equal(w.completion.total, 6 + 4 + 7 + 5);
+  assert.equal(w.completion.total, 6 + 5 + 7 + 5);
   assert.deepEqual(Object.keys(w.player.unlocked), ['1', '2', '3', '4', '5', '6']);
   assert.equal(WEAPON_META[5].name, 'FLAMER');
   assert.equal(WEAPON_META[6].name, 'ROCKET');

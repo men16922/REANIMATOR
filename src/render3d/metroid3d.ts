@@ -200,7 +200,9 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
     .filter((s) => s.breakId)
     .map((s) => {
       const plate = s.breakBy === 'rail';
-      const tx = crackTexture(plate ? '#ff8a2a' : '#ffc03a', plate);
+      const fake = s.breakBy === 'lean';
+      // A fake wall must pass as plain wall: no crack texture, only a faint teal seam shimmer for the attentive.
+      const tx = fake ? null : crackTexture(plate ? '#ff8a2a' : '#ffc03a', plate);
       if (tx) {
         tx.wrapS = THREE.RepeatWrapping;
         tx.wrapT = THREE.RepeatWrapping;
@@ -210,10 +212,10 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
       const mat = track(
         new THREE.MeshStandardMaterial({
           map: tx ?? undefined,
-          color: 0xffffff,
+          color: fake ? (s.color ?? 0x2f3a48) : 0xffffff,
           emissive: s.emissive ?? 0xff7a2a,
           emissiveMap: tx ?? undefined,
-          emissiveIntensity: 0.55,
+          emissiveIntensity: fake ? 0.12 : 0.55,
           roughness: 0.6,
           metalness: plate ? 0.7 : 0.35,
           transparent: true,
@@ -304,7 +306,7 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
         b.mesh.visible = b.fade > 0.03;
         b.mat.opacity = b.fade;
         // Seams breathe so the marked block reads as breakable without a light
-        b.mat.emissiveIntensity = broken ? 1.6 : reduceMotion ? 0.55 : 0.45 + 0.2 * Math.sin(tSec * 2.4 + b.s.minX);
+        b.mat.emissiveIntensity = broken ? 1.6 : b.s.breakBy === 'lean' ? (reduceMotion ? 0.12 : 0.1 + 0.07 * Math.sin(tSec * 1.3)) : reduceMotion ? 0.55 : 0.45 + 0.2 * Math.sin(tSec * 2.4 + b.s.minX);
         if (broken) b.mesh.position.y -= dt * 2.5 * (1 - b.fade);
         else b.mesh.position.y = (b.s.minY + b.s.maxY) / 2;
       }

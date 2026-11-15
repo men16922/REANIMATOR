@@ -77,6 +77,9 @@ export const SOUND_BANK = {
   'world.upgrade': r(7, 0.5, o(98, 0.32, 'sawtooth', 0.1, 55), o(1568, 0.3, 'sine', 0.09, undefined, 0.02), o(2093, 0.22, 'sine', 0.05, undefined, 0.05), n(0.12, 0.08, 4000, 'highpass', 1500)),
   'world.unlock': r(5, 0.15, o(440, 0.11, 'sine', 0.14), o(660, 0.16, 'sine', 0.14, undefined, 0.08)),
   'world.pickup': r(4, 0.08, o(523, 0.1, 'sine', 0.15), o(784, 0.14, 'sine', 0.15, undefined, 0.07)),
+  // Round 9: chunky pickups. Ammo is a metal clack plus a bolt-slide ratchet, medical is a warm two-note chime with a low thump.
+  'world.pickup_ammo': r(4, 0.06, o(190, 0.07, 'square', 0.12, 90), n(0.04, 0.1, 3200, 'bandpass', 1400, 0, 3), o(1250, 0.05, 'square', 0.06, undefined, 0.07), o(900, 0.06, 'square', 0.06, undefined, 0.11), o(70, 0.12, 'triangle', 0.14, 45, 0.02)),
+  'world.pickup_med': r(4, 0.08, o(392, 0.12, 'sine', 0.14), o(587, 0.18, 'sine', 0.14, undefined, 0.07), o(1175, 0.2, 'sine', 0.05, undefined, 0.1), o(85, 0.14, 'triangle', 0.12, 50)),
   'world.light_on': r(2, 0.05, o(1400, 0.03, 'square', 0.05)),
   'world.light_off': r(2, 0.05, o(700, 0.03, 'square', 0.05)),
   'world.alarm': r(3, 0.12, o(440, 0.15, 'sawtooth', 0.06, 330)),

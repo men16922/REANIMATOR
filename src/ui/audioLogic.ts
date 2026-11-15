@@ -120,6 +120,7 @@ export function cueForEvent(ev: { type: SoundEventType3D; value?: number }, boss
   else if (ev.type === 'combo') pitch = comboPitch(ev.value ?? 2);
   else if (ev.type === 'boss_phase') pitch = ev.value === 3 ? 0.84 : ev.value === 2 ? 0.92 : 1;
   else if (ev.type === 'stomp') gain = 0.9;
+  else if (ev.type === 'pickup') id = ev.value === 1 ? 'world.pickup_ammo' : ev.value === 0 ? 'world.pickup_med' : 'world.pickup';
   else if (ev.type === 'explosion' && ev.value === 1) id = 'weapon.rocket_explode';
   else if (ev.type === 'hazard_vent' && ev.value === 0) id = 'hazard.vent_warn';
   else if (ev.type === 'hazard_crush' && ev.value === 0) id = 'hazard.crush_warn';
@@ -127,7 +128,7 @@ export function cueForEvent(ev: { type: SoundEventType3D; value?: number }, boss
   else if (ev.type === 'slide') {
     pitch = 0.85;
     gain = 0.9;
-  } else if (ev.type === 'block_break') pitch = ev.value === 1 ? 1.25 : 0.85;
+  } else if (ev.type === 'block_break') pitch = ev.value === 1 ? 1.25 : ev.value === 2 ? 0.7 : 0.85;
   else if (ev.type === 'seal_warn') {
     // Each bulkhead sirens a little higher than the last: the route is closing in. The final hatch (4) is the highest.
     pitch = 1 + 0.06 * (ev.value ?? 0);
