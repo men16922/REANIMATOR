@@ -4,7 +4,9 @@
 
 ## R4 병합 후 (오케스트레이터)
 
-- [ ] 트랙 A(시각), B(환경 위험), C(플레이어), D(`r4/docs`)를 main에 병합하고 `make check` 재실행. 결과를 STATUS 기준선에 갱신.
+- [x] 트랙 A·B·C·D 병합, `make check` 통과(STATUS 기준선).
+- [ ] 브라우저 확인: hazards3d(크러셔 등 MeshStandardMaterial)가 Classic View(`V`)에서 팔레트·디더와 어울리는지, 영웅 포즈·무기 모델, 폭발·보스 셰이더, 콘솔 오류 0.
+- [ ] 적 애니메이션 리깅 개선(사용자 요청, R4 범위 밖). Abuse 느낌 강화 후속. Metroid 보강안 구현은 [R4_METROID_GAPS](plans/R4_METROID_GAPS.md).
 - [ ] 쇼케이스 PNG 7장을 `docs/evidence/showcase/`에 저장: `title.png`, `classic.png`, `combat.png`, `boss.png`, `mines.png`, `biolabs.png`, `lab.png`. README 갤러리가 이 경로를 참조한다.
 - [ ] Credits 패널 브라우저 확인: Title > Extras > Credits, `Esc`와 Back이 Extras로 돌아오는지, 키보드 포커스.
 

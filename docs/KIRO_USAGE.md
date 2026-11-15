@@ -92,7 +92,7 @@ agy가 오케스트레이션하고 kiro-cli가 문서·spec 작업을 맡았다.
 | R1 | r1/gameplay, perf, juice, title | `c8beede`..`da59783` | 보스 3페이즈·벽점프·스톰프·레일 차지·콤보·수집품·시크릿 / 정적 배칭·컬링 / 히트스톱·셰이크·카메라 rig / 타이틀·어트랙트·온보딩 |
 | R2 | r2/fix, boss, audio, brand | `fa5c847`..`8fa362d` | 버그 수정 / 보스 시네마틱·텔레그래프·데미지 숫자 / 절차 음악·리버브·사이드체인 / SVG 로고·플레이트 메뉴·로딩 화면 |
 | R3 | r3/foes, fix, mood, classic | `0caca1d`..`bbdbbb8` | dropper/climber/hive/떼 / 버그 수정 / Abuse풍 조명·고어·연기 / Classic View |
-| R4 | A 시각 폴리시, B 환경 위험, C 플레이어 캐릭터, D 제출 패키지(`r4/docs`) | 이 문서 작성 시점 병합 전 | D는 README, JUDGES, 이 문서, Credits 패널 |
+| R4 | A 시각 폴리시, B 환경 위험, C 플레이어 캐릭터, D 제출 패키지(`r4/docs`) | `53ba898`..`297b9e6` | A 폭발·보스·코어·홀로그램 셰이더와 Classic 정리 / B 위험 장치 6종·기믹 3종 / C 영웅 리그·무기 모델 / D README, JUDGES, 이 문서, Credits 패널 |
 
 ### 발견하고 고친 버그 예
 
@@ -107,7 +107,7 @@ agy가 오케스트레이션하고 kiro-cli가 문서·spec 작업을 맡았다.
 
 - 서브에이전트가 사용자의 "원본 게임 느낌을 더 살려라" 요청을 받았을 때 병합 작업 범위 밖이라 코드를 바꾸지 않았고, 후속 라운드 항목으로 [NEXT_PLAN](NEXT_PLAN.md)에 남겼다.
 - 푸시는 하지 않았다. Chrome 샌드박스 제한으로 `make smoke-local` 최신 기준은 unverified. 브라우저 확인은 오케스트레이터의 Playwright 관찰이다.
-- R4 A·B·C 결과는 이 시점에 병합 전이므로 여기에 적지 않았다.
+- R4 병합 중 충돌은 `scene3dFull.ts` 한 곳(mood 빌드 옆의 hazards3d 빌드와 Classic 글로우 호출)이었고 양쪽을 모두 유지했다. 병합 후 `make check`는 244/244 테스트로 통과했다.
 
 ### R4-D 작업 (이 에이전트)
 

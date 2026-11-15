@@ -1,6 +1,6 @@
 # 현재 상태
 
-최종 갱신: 2026-11-15 · R3 통합 완료(main `c84649e`), R4 병렬 진행 중. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-15 · R4 병합 완료(A·B·C·D, `--no-ff`). 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## 구현 상태
 
@@ -9,13 +9,15 @@
 - **R1** 손맛(히트스톱, 트라우마 셰이크, 카메라 rig), 타이틀·어트랙트, 성능 배칭, 게임플레이 깊이(벽점프, 스톰프, 레일 차지, 콤보, 수집품, 시크릿). [R1_GAMEPLAY](R1_GAMEPLAY.md)
 - **R2** 버그 수정, SVG 브랜드 로고·플레이트 메뉴, 보스 시네마틱·텔레그래프·데미지 숫자, 절차 음악·리버브. [R2_BOSS](R2_BOSS.md), [R2_AUDIO](R2_AUDIO.md)
 - **R3** 버그 수정, Classic View(`V`, 320x200 팔레트 디더·CRT·직교 카메라·픽셀 HUD), Abuse풍 조명·고어·연기, dropper/climber/hive/떼. [R3_CLASSIC](R3_CLASSIC.md), [R3_FOES](R3_FOES.md)
-- **R4-D(이 브랜치)**: README 개편, [JUDGES](JUDGES.md), KIRO_USAGE 갱신, 인게임 Credits 패널(Extras), package.json 설명·키워드.
+- **R4-A 시각 폴리시** (`r4/polish`): 픽셀 폰트 글리프·HUD 라벨 축약, Classic 램프 샤프트·글로우 축소, 노이즈 화구+충격파 폭발, 보스 슬램 파동·코어 보호막·로그 홀로그램 셰이더, 세이브 스테이션·업그레이드 모델. [R4_METROID_GAPS](plans/R4_METROID_GAPS.md)(Metroid 보강안, 구현은 문서만)
+- **R4-B 환경 위험** (`r4/hazards`): 크러셔, 증기, 레이저, 코어 증기, 낙석, 배럴 체인, 화물 리프트+매복, 바이오 스위치·갠트리, 에어록 브리지 붕괴. 봇·내비·`reach3d` 위험 검사 포함. [R4_HAZARDS](R4_HAZARDS.md)
+- **R4-C 플레이어** (`r4/hero`): operative 다리 본·반동·무기 스왑·벽 손·착지 포즈, 무기 모델 4종, 헤드램프 렌즈, 백팩 HP 표시등, `__reanimator().player` 텔레메트리.
+- **R4-D 제출 패키지**: README 개편, [JUDGES](JUDGES.md), KIRO_USAGE 갱신, Credits 패널(Extras), package.json 설명·키워드.
 
-## 검증 기준선 (main `c84649e`, 오케스트레이터 관찰)
+## 검증 기준선 (R4 병합 후, 통합 에이전트 관찰)
 
-- `make check` exit 0: node 테스트 211/211, `reference-verify` 3/3, `reach3d` 52 waypoints, dist-guard PASS(13 files).
-- 봇 won 4901 ticks, HP 126/160, 처치 50. 섹터 drawCalls 159~275(Modern), Classic 123. 브라우저 콘솔 경고 0.
-- 이 브랜치: 위 수치는 R4 변경 후 재측정 대상(NEXT_PLAN 참조). 재측정 전에는 unverified.
+- `make check` exit 0: tsc 통과, node 테스트 244/244, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks, vite build, dist-guard PASS(13 files, 14,619,332 B, 218 대조).
+- 봇(hazards 브랜치 측정): won 5362 ticks, HP 112. 병합 후 봇·브라우저 수치(drawCalls, 콘솔)는 unverified.
 
 ## 진입점
 
