@@ -211,6 +211,7 @@ const mouse = { ndcX: 0.28, ndcY: 0.08, normX: 0.64, normY: 0.46, leftDown: fals
 let lightQueued = false;
 let dashQueued = false;
 let interactQueued = false;
+let counterQueued = false;
 let weaponQueue: WeaponSlot3D | 0 = 0;
 
 function cycleWeapon(dir: 1 | -1): void {
@@ -239,6 +240,8 @@ function buildInput(): InputState3D {
   interactQueued = false;
   const weaponSlot = weaponQueue;
   weaponQueue = 0;
+  const counter = counterQueued;
+  counterQueued = false;
 
   let aim = currentAim3D();
   if (assist.aim) aim = assistAim(world, aim.x, aim.y);
@@ -252,6 +255,7 @@ function buildInput(): InputState3D {
     dropDown: keys.has('KeyS') || keys.has('ArrowDown'),
     toggleLight,
     weaponSlot,
+    counter,
     aimX: aim.x,
     aimY: aim.y,
   };
@@ -267,6 +271,7 @@ function releaseInput(): void {
   lightQueued = false;
   dashQueued = false;
   interactQueued = false;
+  counterQueued = false;
   weaponQueue = 0;
 }
 
@@ -1155,6 +1160,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyE' && !e.repeat) lightQueued = true;
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) dashQueued = true;
   if (e.code === 'KeyF' && !e.repeat) interactQueued = true;
+  if ((e.code === 'KeyX' || e.code === 'KeyC') && !e.repeat) counterQueued = true;
   if (e.code === 'Digit1' && !e.repeat) weaponQueue = 1;
   if (e.code === 'Digit2' && !e.repeat) weaponQueue = 2;
   if (e.code === 'Digit3' && !e.repeat) weaponQueue = 3;

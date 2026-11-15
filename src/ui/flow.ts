@@ -121,13 +121,14 @@ export class Onboarding {
     this.done = new Set(done);
   }
 
-  observe(inp: Pick<InputState3D, 'moveX' | 'jump' | 'fire' | 'dash' | 'toggleLight' | 'weaponSlot'>): void {
+  observe(inp: Pick<InputState3D, 'moveX' | 'jump' | 'fire' | 'dash' | 'toggleLight' | 'weaponSlot'> & { counter?: boolean }): void {
     if (inp.moveX !== 0) this.usage.moved = true;
     if (inp.jump) this.usage.jumped = true;
     if (inp.fire) this.usage.fired = true;
     if (inp.dash) this.usage.dashed = true;
     if (inp.toggleLight) this.usage.light = true;
     if (inp.weaponSlot) this.usage.weapon = true;
+    if (inp.counter) this.done.add('counter');
   }
 
   /** Returns the hint to show, or null. Marks hints done when the player performs the action. */
@@ -178,6 +179,14 @@ export class Onboarding {
       else {
         for (const tn of w.level.tunnels) {
           if (Math.hypot(tn.approach.x - p.x, tn.approach.y - p.y) < NEAR_SAVE) return { id: 'slide', keys: ['S', 'SHIFT'], text: `${tn.label}: hold S and press Shift on the ground to slide under` };
+        }
+      }
+    }
+
+    if (!this.done.has('counter')) {
+      for (const e of w.enemies) {
+        if (e.alive && e.state === 'windup' && e.kind !== 'warden' && Math.abs(e.x - p.x) < 6 && Math.abs(e.y - p.y) < 2.5) {
+          return { id: 'counter', keys: ['X'], text: 'FOE FLASHING: press X to COUNTER' };
         }
       }
     }

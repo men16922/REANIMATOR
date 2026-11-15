@@ -46,6 +46,8 @@ export interface InputState3D {
   /** World-space aim point on the z = 0 plane */
   aimX: number;
   aimY: number;
+  /** Melee Counter (parry). Opt-in: omitted or false means the sim is identical to a build without it. Edge-triggered. */
+  counter?: boolean;
 }
 
 export interface PlayerAbilities3D {
@@ -82,6 +84,10 @@ export interface PlayerState3D {
   hurtFlashTicks: number;
   acidCooldown: number;
   kills: number;
+  /** Melee Counter: whiff lockout ticks left, previous-tick button (edge detect) and stance ticks left (display only) */
+  counterCooldown: number;
+  counterPrev: boolean;
+  counterStance: number;
 }
 
 export interface EnemyState3D {
@@ -118,6 +124,8 @@ export interface EnemyState3D {
   /** Summoned Warden minion slot (dead until summoned; hidden by the renderer while dead) */
   minion: boolean;
   windupTicks: number;
+  /** True while a crawler/stalker lunge windup is inside its last PARRY_WINDOW_TICKS ticks (the Melee Counter window). Renderer flashes it. */
+  parryOpen: boolean;
   attackAnimTicks: number;
   staggerTicks: number;
   hitFlashTicks: number;
@@ -637,6 +645,15 @@ export const STOMP_RADIUS = 3.0;
 export const STOMP_DAMAGE = 60;
 export const COMPLETION_WEAPON_PEDESTALS = 5;
 
+/** Melee Counter (parry). The window is the last N ticks of a crawler/stalker windup; a press outside it whiffs. */
+export const PARRY_WINDOW_TICKS = 8;
+export const PARRY_REACH = 3.6;
+export const PARRY_WHIFF_COOLDOWN = 30;
+export const PARRY_STANCE_TICKS = 12;
+export const PARRY_STAGGER_TICKS = 50;
+export const PARRY_DAMAGE = 45;
+export const PARRY_INVULN_TICKS = 24;
+
 /** Warden pattern cycle per phase (deterministic, no RNG). */
 export const WARDEN_CYCLE_3D: Record<1 | 2 | 3, readonly BossPattern3D[]> = {
   1: ['slam', 'volley', 'slam', 'volley'],
@@ -665,6 +682,7 @@ export function emptyInput3D(): InputState3D {
     weaponSlot: 0,
     aimX: 12,
     aimY: 1.05,
+    counter: false,
   };
 }
 
@@ -751,6 +769,7 @@ function buildEnemy3D(sp: EnemySpawn3D, hiveId = '', hpMul = 1): EnemyState3D {
     minion,
     attackCooldown: sp.kind === 'warden' ? 45 : 30,
     windupTicks: 0,
+    parryOpen: false,
     attackAnimTicks: 0,
     staggerTicks: 0,
     hitFlashTicks: 0,
@@ -857,6 +876,9 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
       hurtFlashTicks: 0,
       acidCooldown: 0,
       kills: 0,
+      counterCooldown: 0,
+      counterPrev: false,
+      counterStance: 0,
     },
     currentRoom: 'airlock',
     visitedRooms: ['airlock'],
@@ -1853,6 +1875,7 @@ function stepEnemies3D(w: WorldState3D): void {
   const pb = w.player.body;
 
   for (const e of w.enemies) {
+    e.parryOpen = false;
     if (e.hitFlashTicks > 0) e.hitFlashTicks--;
     const angleErr = surfaceTargetAngle(e) - e.surfaceAngle;
     e.surfaceAngle += Math.max(-0.3, Math.min(0.3, angleErr));
@@ -2148,6 +2171,7 @@ function stepEnemies3D(w: WorldState3D): void {
           e.anim = 'idle';
           e.stateTicks--;
           if (e.windupTicks > 0) e.windupTicks--;
+          if (lunger && e.windupTicks > 0 && e.windupTicks <= PARRY_WINDOW_TICKS) e.parryOpen = true;
           if (e.stateTicks <= 0) {
             e.windupTicks = 0;
             if (lunger) {
@@ -2326,6 +2350,53 @@ function stepEnemies3D(w: WorldState3D): void {
     e.yaw = e.facing * (Math.PI / 2);
     e.speedNow = Math.abs(e.vx);
     if (isWarden && e.windupTicks === 0 && e.attackAnimTicks === 0) e.anim = Math.abs(e.vx) > 0.5 ? 'walk' : 'idle';
+  }
+}
+
+/**
+ * Melee Counter: on the press edge, the nearest crawler/stalker whose lunge windup is inside its parry window is staggered,
+ * takes bonus damage and always drops a pickup. A press with nothing in the window whiffs and locks the button briefly.
+ */
+function stepCounter3D(w: WorldState3D, pressed: boolean): void {
+  const p = w.player;
+  if (p.counterCooldown > 0) p.counterCooldown--;
+  if (p.counterStance > 0) p.counterStance--;
+  const edge = pressed && !p.counterPrev;
+  p.counterPrev = pressed;
+  if (!edge || p.counterCooldown > 0) return;
+  p.counterStance = PARRY_STANCE_TICKS;
+  let best: EnemyState3D | null = null;
+  let bestD = Infinity;
+  for (const e of w.enemies) {
+    if (!e.alive || !e.active || !e.parryOpen) continue;
+    const d = Math.abs(e.x - p.body.x);
+    if (d > PARRY_REACH || Math.abs(e.y - p.body.y) > 1.8 || d >= bestD) continue;
+    best = e;
+    bestD = d;
+  }
+  if (!best) {
+    p.counterCooldown = PARRY_WHIFF_COOLDOWN;
+    w.events.push({ type: 'parry_whiff' });
+    return;
+  }
+  const e = best;
+  const dir: 1 | -1 = e.x >= p.body.x ? 1 : -1;
+  e.parryOpen = false;
+  e.windupTicks = 0;
+  e.staggerTicks = PARRY_STAGGER_TICKS;
+  e.state = 'stagger';
+  e.stateTicks = PARRY_STAGGER_TICKS;
+  e.vx = 0;
+  p.facing = dir;
+  p.hurtInvulnTicks = Math.max(p.hurtInvulnTicks, PARRY_INVULN_TICKS);
+  p.body.dashCooldown = 0;
+  w.shakeTicks = Math.max(w.shakeTicks, 8);
+  w.shakeStrength = Math.max(w.shakeStrength, 0.22);
+  w.events.push({ type: 'parry', value: w.enemies.indexOf(e) });
+  damageEnemy(w, e, PARRY_DAMAGE, dir * 4);
+  if (w.meltdownTicks < 0) {
+    const ammo = p.hp >= p.maxHp;
+    w.pickups.push({ id: `drop-${w.nextId++}`, kind: ammo ? 'ammo' : 'med', value: ammo ? 8 : 12, x: e.x, y: e.y, z: 0, taken: false });
   }
 }
 
@@ -2977,6 +3048,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
     }
   }
 
+  stepCounter3D(w, input.counter === true);
   stepSwitches3D(w, input.interact);
   stepProjectiles3D(w);
   stepBurn3D(w);

@@ -592,6 +592,7 @@ export class FxDirector {
           case 'boss_summon': this.onBossSummon(w); break;
           case 'wall_jump': this.onWallJump(px, py, b.wallDir); break;
           case 'dash_cancel': this.onDashCancel(px, py + 0.9); break;
+          case 'parry': this.onParry(w, ev.value ?? 0, px, py); break;
           case 'combo': this.onCombo(px, py, ev.value ?? 2); break;
           case 'collect': this.onCollect(w, ev.value ?? 0, px, py); break;
           case 'secret': this.onSecret(w); break;
@@ -801,6 +802,22 @@ export class FxDirector {
     this.trauma.add(0.55);
     this.chroma = Math.max(this.chroma, 0.35);
     this.hitstop.request(2, true);
+  }
+
+  /** Melee Counter landed: white-gold spark ring on the foe, brief hit-stop, then a short slow-mo (display clock only). */
+  private onParry(w: WorldState3D, idx: number, px: number, py: number): void {
+    const e = w.enemies[idx];
+    const x = e ? e.x : px;
+    const y = (e ? e.y : py) + (e ? e.height * 0.5 : 0.9);
+    this.ring(x, y, 1.4, 1.0, 0.95, 0.7);
+    this.ring(x, y, 0.8, 1.0, 0.7, 0.25);
+    this.burst(x, y, 1.0, 0.9, 0.5, 1, this.reduce ? 10 : 26, 9);
+    this.trauma.add(this.reduce ? 0.1 : 0.32);
+    this.chroma = Math.max(this.chroma, this.reduce ? 0.1 : 0.4);
+    this.rig.punch(1.2);
+    this.hitstop.request(this.reduce ? 2 : 5, true);
+    this.slowmo.request(this.reduce ? 0.7 : 0.35, this.reduce ? 0.15 : 0.4);
+    this.popups.spawn('COUNTER', x, y + 1.2, { size: 0.8, life: 0.9, r: 1.0, g: 0.9, b: 0.5, rise: 2.4, punch: 0.9 });
   }
 
   private onCombo(x: number, y: number, chain: number): void {

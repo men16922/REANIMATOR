@@ -4,7 +4,7 @@
 // 60 -> display-rate interpolation, and the R3.3 visual-only headlamp.
 
 import * as THREE from 'three';
-import { DEATH_POP_CAP, HIT_FLASH_HEX, deathPopAmount, hitFlashAmount, playerHurtFlashAmount } from './vfxStyle3d.ts';
+import { DEATH_POP_CAP, HIT_FLASH_HEX, PARRY_FLASH_CAP, deathPopAmount, hitFlashAmount, parryFlashAmount, playerHurtFlashAmount } from './vfxStyle3d.ts';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -2021,9 +2021,11 @@ export class Scene3DRenderer {
       const striking = e.alive && !winding && (e.state === 'attack' || e.attackAnimTicks > 0);
       const windFrac = winding ? 1 - e.windupTicks / windTotal : 0;
       const popAmt = !e.alive && e.kind !== 'warden' ? deathPopAmount(e.deathTicks, this.reduceMotion) : 0;
-      const flashAmt = popAmt > 0 ? popAmt : hitFlashAmount(e.hitFlashTicks, this.reduceMotion);
-      const flashHex = popAmt > 0 ? 0xffffff : HIT_FLASH_HEX;
-      const flashCap = popAmt > 0 ? DEATH_POP_CAP : undefined;
+      const parryAmt = e.alive ? parryFlashAmount(e.parryOpen, w.tick, this.reduceMotion) : 0;
+      const hitAmt = popAmt > 0 ? popAmt : hitFlashAmount(e.hitFlashTicks, this.reduceMotion);
+      const flashAmt = Math.max(hitAmt, parryAmt);
+      const flashHex = popAmt > 0 || parryAmt > hitAmt ? 0xffffff : HIT_FLASH_HEX;
+      const flashCap = popAmt > 0 ? DEATH_POP_CAP : parryAmt > hitAmt ? PARRY_FLASH_CAP : undefined;
 
       const rig = this.riggedEnemies.get(e.id);
       if (rig) {

@@ -1238,3 +1238,93 @@ test('Core Warden intro: starts once on core entry, freezes input and boss, is d
   const s = run(20);
   assert.ok(s.ticks < 30, 'skip ends the intro quickly');
 });
+
+// ---------------------------------------------------------------------------------------------------------
+// Melee Counter (parry)
+// ---------------------------------------------------------------------------------------------------------
+import {
+  PARRY_REACH,
+  PARRY_STAGGER_TICKS,
+  PARRY_WHIFF_COOLDOWN,
+  PARRY_WINDOW_TICKS,
+} from '../src/game3d/world3d.ts';
+
+function parryWorld(): { w: WorldState3D; e: WorldState3D['enemies'][number] } {
+  const w = newWorld3D();
+  const e = w.enemies.find((en) => en.kind === 'crawler' && en.surface === 'floor')!;
+  w.player.body = spawnBody3D(e.x - 2, e.y, 0);
+  w.currentRoom = e.zone;
+  e.active = true;
+  e.state = 'windup';
+  e.stateTicks = 14;
+  e.windupTicks = 14;
+  e.attackCooldown = 0;
+  e.facing = -1;
+  return { w, e };
+}
+
+test('parry window opens only for the last PARRY_WINDOW_TICKS of a lunge windup', () => {
+  const { w, e } = parryWorld();
+  const opened: boolean[] = [];
+  for (let i = 0; i < 14; i++) {
+    stepWorld3D(w, emptyInput3D());
+    opened.push(e.parryOpen);
+  }
+  assert.equal(opened.filter(Boolean).length, PARRY_WINDOW_TICKS);
+  assert.equal(opened[0], false);
+  assert.equal(opened[opened.length - 2], true);
+  assert.equal(opened[opened.length - 1], false, 'attack state closes the window');
+});
+
+test('counter inside the window staggers, damages, drops and emits parry', () => {
+  const { w, e } = parryWorld();
+  for (let i = 0; i < 8; i++) stepWorld3D(w, emptyInput3D());
+  assert.equal(e.parryOpen, true);
+  w.player.body = spawnBody3D(e.x - 2, e.y, 0); // the airlock floor carries the player, so pin the distance for the press
+  const hp0 = e.hp;
+  const drops0 = w.pickups.length;
+  stepWorld3D(w, { ...emptyInput3D(), counter: true });
+  assert.ok(w.events.some((ev) => ev.type === 'parry'));
+  assert.ok(e.hp < hp0 || !e.alive);
+  assert.equal(w.pickups.length > drops0, true);
+  if (e.alive) {
+    assert.equal(e.state, 'stagger');
+    assert.ok(e.staggerTicks > PARRY_STAGGER_TICKS - 3);
+  }
+  assert.ok(w.player.hurtInvulnTicks > 0);
+});
+
+test('counter outside the window whiffs and locks the button', () => {
+  const { w, e } = parryWorld();
+  stepWorld3D(w, { ...emptyInput3D(), counter: true });
+  assert.equal(e.state, 'windup');
+  assert.ok(w.events.some((ev) => ev.type === 'parry_whiff'));
+  assert.equal(w.player.counterCooldown, PARRY_WHIFF_COOLDOWN);
+  // inside the lockout a fresh press does nothing even when the window is open
+  stepWorld3D(w, emptyInput3D());
+  for (let i = 0; i < 6; i++) stepWorld3D(w, emptyInput3D());
+  assert.equal(e.parryOpen, true);
+  w.player.body = spawnBody3D(e.x - 2, e.y, 0);
+  stepWorld3D(w, { ...emptyInput3D(), counter: true });
+  assert.equal(w.events.some((ev) => ev.type === 'parry'), false);
+});
+
+test('counter needs a fresh press and the foe within reach', () => {
+  const { w, e } = parryWorld();
+  w.player.body = spawnBody3D(e.x - (PARRY_REACH + 2), e.y, 0);
+  for (let i = 0; i < 8; i++) stepWorld3D(w, emptyInput3D());
+  stepWorld3D(w, { ...emptyInput3D(), counter: true });
+  assert.ok(w.events.some((ev) => ev.type === 'parry_whiff'));
+});
+
+test('no counter input leaves the sim tick-identical', () => {
+  const a = newWorld3D();
+  const b = newWorld3D();
+  for (let i = 0; i < 600; i++) {
+    stepWorld3D(a, emptyInput3D());
+    stepWorld3D(b, { ...emptyInput3D(), counter: false });
+  }
+  assert.equal(JSON.stringify(a.enemies.map((e) => [e.x, e.y, e.state, e.hp])), JSON.stringify(b.enemies.map((e) => [e.x, e.y, e.state, e.hp])));
+  assert.equal(a.player.hp, b.player.hp);
+  assert.equal(a.pickups.length, b.pickups.length);
+});

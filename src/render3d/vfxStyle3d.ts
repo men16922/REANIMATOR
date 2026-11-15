@@ -146,3 +146,12 @@ export function stackedPopupY(
   }
   return out;
 }
+
+/** Melee Counter telegraph: a hot white blink on the foe for the parry window. Reads the sim flag and tick only. */
+export const PARRY_FLASH_HEX = 0xffffff;
+export const PARRY_FLASH_CAP = 0.6;
+export function parryFlashAmount(open: boolean, tick: number, reduce: boolean): number {
+  if (!open) return 0;
+  if (reduce) return 0.25;
+  return (tick >> 1) % 2 === 0 ? 0.6 : 0.22;
+}
