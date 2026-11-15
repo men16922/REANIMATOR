@@ -12,6 +12,7 @@ import type { SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
 import { getPlayerPose3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
 import {
+  applyEnemyRim3D,
   flashMaterials3D,
   flashRiggedMaterials3D,
   getFailedModelNames3D,
@@ -24,6 +25,12 @@ import {
   tuneEnemyMaterials3D,
   type RiggedInstance,
 } from './riggedModels.ts';
+import {
+  gaitStep,
+  proceduralEnemyPose,
+  stepEnemyYaw,
+  type EnemyRenderTelemetry,
+} from './enemyMotion.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
 import { buildDecor3D, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 
@@ -83,11 +90,18 @@ interface EnemyViz {
   shot: number;
   prevWindup: number;
   phase: number;
+  gait: number;
+  land: number;
+  stagger: number;
+  prevVy: number;
 }
 
 const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
 const ENEMY_WINDUP_TOTAL_3D: Record<string, number> = { crawler: 14, stalker: 18, spitter: 12, warden: 36 };
+const ENEMY_RIM_3D: Record<string, number> = { stalker: 0x9dffb4, crawler: 0xffb090, spitter: 0xd0b0ff, warden: 0xffa070 };
 const ENEMY_FLASH_HEX_3D = 0xff5a28;
+/** Slightly taller than the operative (1.82 m) so the stalker reads as a threat against the backdrop. */
+const STALKER_HEIGHT_3D = 2.0;
 const TELEGRAPH_POOL_3D = 6;
 
 /** Soft radial-gradient texture for floor telegraph markers (no hard edges). */
@@ -151,7 +165,7 @@ export class Scene3DRenderer {
   private readonly muzzleGlows: THREE.Mesh[] = [];
   private readonly riggedEnemies = new Map<string, RiggedInstance>();
   private readonly pickProxyMaterial = new THREE.MeshBasicMaterial({ visible: false });
-  private readonly enemyRenderInfo = new Map<string, { yaw: number; x: number; y: number; z: number }>();
+  private readonly enemyRenderInfo = new Map<string, { yaw: number; x: number; y: number; z: number; clip?: string; timeScale?: number }>();
   private readonly staticEnemies = new Map<string, StaticActorHandle>();
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
   private readonly pickupHandles = new Map<string, THREE.Group>();
@@ -354,7 +368,7 @@ export class Scene3DRenderer {
     const enemyStates: Record<string, string> = {};
     for (const [id, st] of this.lastEnemyStates) enemyStates[id] = st;
     const r3 = (n: number): number => Math.round(n * 1000) / 1000;
-    const enemyRender: Record<string, { yaw: number; clip: string; timeScale: number; x: number; y: number; z: number }> = {};
+    const enemyRender: Record<string, EnemyRenderTelemetry> = {};
     for (const [id, rig] of this.riggedEnemies) {
       const info = this.enemyRenderInfo.get(id);
       if (!info) continue;
@@ -362,6 +376,18 @@ export class Scene3DRenderer {
         yaw: r3(info.yaw),
         clip: rig.currentAnim,
         timeScale: r3(rig.actions[rig.currentAnim]?.timeScale ?? 0),
+        x: r3(info.x),
+        y: r3(info.y),
+        z: r3(info.z),
+      };
+    }
+    for (const id of this.staticEnemies.keys()) {
+      const info = this.enemyRenderInfo.get(id);
+      if (!info) continue;
+      enemyRender[id] = {
+        yaw: r3(info.yaw),
+        clip: info.clip ?? 'idle',
+        timeScale: r3(info.timeScale ?? 0),
         x: r3(info.x),
         y: r3(info.y),
         z: r3(info.z),
@@ -808,13 +834,14 @@ export class Scene3DRenderer {
       if (e.kind === 'warden' || e.kind === 'stalker') {
         const rig = instantiateRiggedModel3D(
           e.kind === 'warden' ? 'warden' : 'bio-stalker',
-          e.kind === 'warden' ? 3.15 : 1.78,
+          e.kind === 'warden' ? 3.15 : STALKER_HEIGHT_3D,
           false,
         );
         rig.root.position.set(e.x, e.y, e.z);
         rig.root.rotation.order = 'YXZ';
         tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, ENEMY_TINT_3D[e.kind]);
-        const bodyH = e.kind === 'warden' ? 3.15 : 1.78;
+        applyEnemyRim3D(rig.materials, ENEMY_RIM_3D[e.kind], e.kind === 'warden' ? 0.4 : 0.6, e.kind === 'warden' ? 0.08 : 0.18);
+        const bodyH = e.kind === 'warden' ? 3.15 : STALKER_HEIGHT_3D;
         const bodyW = e.kind === 'warden' ? 1.8 : 0.9;
         // Invisible pick proxy: skinned meshes can miss raycasts, the box keeps enemies pickable
         const proxy = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyW), this.pickProxyMaterial);
@@ -828,11 +855,12 @@ export class Scene3DRenderer {
         this.riggedEnemies.set(e.id, rig);
       } else {
         const key = e.kind === 'spitter' ? 'spitter' : 'crawler';
-        const h = e.kind === 'spitter' ? 1.5 : 0.85;
+        const h = e.kind === 'spitter' ? 1.5 : 0.95;
         const st = instantiateStaticModel3D(key, h, true);
         st.root.position.set(e.x, e.y, e.z);
         st.root.rotation.order = 'YXZ';
         tuneEnemyMaterials3D(st.materials, st.baseEmissive, ENEMY_TINT_3D[e.kind]);
+        applyEnemyRim3D(st.materials, ENEMY_RIM_3D[e.kind], 0.55, 0.16);
         st.root.name = `enemy:${e.id}`;
         st.root.userData = { enemyId: e.id, kind: e.kind, state: 'dormant' };
         this.scene.add(st.root);
@@ -1078,12 +1106,12 @@ export class Scene3DRenderer {
 
       let v = this.enemyViz.get(e.id);
       if (!v) {
-        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28 };
+        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0 };
         this.enemyViz.set(e.id, v);
       }
       // Smooth turn (rate ~7) with a lean into the turn
       const yawDiff = wrapAngle(e.yaw - v.yaw);
-      v.yaw = turnToward(v.yaw, e.yaw, dt, 7);
+      v.yaw = stepEnemyYaw(v.yaw, e.yaw, dt, 7);
       const leanTarget = Math.max(-0.12, Math.min(0.12, yawDiff * 0.1));
       v.lean += (leanTarget - v.lean) * Math.min(1, dt * 10);
       if (e.hitFlashTicks > v.prevHit) v.recoil = 1;
@@ -1092,6 +1120,10 @@ export class Scene3DRenderer {
       if (v.prevWindup > 0 && e.windupTicks === 0 && e.alive) v.shot = 1;
       v.prevWindup = e.windupTicks;
       v.shot = Math.max(0, v.shot - dt * 5);
+      v.stagger += ((e.alive && (e.state === 'stagger' || e.staggerTicks > 0) ? 1 : 0) - v.stagger) * Math.min(1, dt * 12);
+      if (Math.abs(v.prevVy) > 2 && Math.abs(e.vy) < 0.3) v.land = 1;
+      v.prevVy = e.vy;
+      v.land = Math.max(0, v.land - dt * 7);
 
       const speed = Math.abs(e.vx);
       const windTotal = e.kind === 'warden' && e.phase === 2 ? 28 : ENEMY_WINDUP_TOTAL_3D[e.kind];
@@ -1105,9 +1137,22 @@ export class Scene3DRenderer {
       if (rig) {
         rig.root.userData.state = e.alive ? e.state : 'dead';
         this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0 });
-        rig.root.position.set(ex, ey, 0);
-        rig.root.rotation.set(-v.recoil * 0.12, v.yaw, v.lean);
-        rig.root.scale.setScalar(1 + v.recoil * 0.05);
+        // Alert: tense forward lean instead of a frozen strike pose. Hit/stagger: tip back against the facing.
+        const alertPitch = alerting ? 0.09 * Math.min(1, e.stateTicks / 6) : 0;
+        let deathScale = 1;
+        let deathSink = 0;
+        if (!e.alive) {
+          // The death clip falls; after it settles the body sinks and shrinks away instead of popping out
+          const k = Math.max(0, Math.min(1, (e.deathTicks - 150) / 90));
+          deathScale = 1 - k;
+          deathSink = k * 0.25;
+          rig.root.visible = e.deathTicks < 240;
+        } else {
+          rig.root.visible = true;
+        }
+        rig.root.position.set(ex, ey - deathSink, 0);
+        rig.root.rotation.set(alertPitch - v.recoil * 0.22 - v.stagger * 0.18, v.yaw, v.lean);
+        rig.root.scale.setScalar(Math.max(0.001, (1 + v.recoil * 0.05) * deathScale));
         let desired: 'idle' | 'walk' | 'run' | 'attack' | 'death' = 'idle';
         let mode: 'hold' | 'play' = 'play';
         let frac = 0;
@@ -1116,10 +1161,6 @@ export class Scene3DRenderer {
           desired = 'attack';
           mode = 'hold';
           frac = windFrac;
-        } else if (alerting) {
-          desired = 'attack';
-          mode = 'hold';
-          frac = 1 - e.stateTicks / 20;
         } else if (striking) desired = 'attack';
         else if (e.state !== 'stagger' && speed > 0.4) desired = e.kind !== 'warden' && speed > 4.2 ? 'run' : 'walk';
         stepRiggedEnemyAnimation3D(
@@ -1143,49 +1184,32 @@ export class Scene3DRenderer {
       if (st) {
         const r = st.root;
         r.userData.state = e.alive ? e.state : 'dead';
-        let sx = 1;
-        let sy = 1;
-        let sz = 1;
-        let pitch = 0;
-        let roll = v.lean;
-        let lift = 0;
-        if (!e.alive) {
-          const deathT = Math.min(1, e.deathTicks / 24);
-          roll = (Math.PI * 0.48) * (1 - Math.pow(1 - deathT, 3));
-          sy = 1 - 0.1 * deathT;
-          r.visible = e.deathTicks < 240;
-        } else if (e.kind === 'crawler') {
-          const run = Math.min(1, speed / 6);
-          lift = Math.abs(Math.sin(tSec * 22 + v.phase)) * 0.05 * run;
-          pitch = 0.18 * run;
-          roll += Math.sin(tSec * 11 + v.phase) * 0.04 * run;
-          if (winding) {
-            sy = 1 - 0.28 * windFrac;
-            sx = 1 + 0.15 * windFrac;
-            sz = sx;
-            pitch = 0.25 * windFrac;
-          } else if (striking) {
-            sz = 1.3;
-            sy = 0.88;
-            sx = 0.92;
-            pitch = 0.3;
-          }
-        } else {
-          lift = 0.05 + Math.sin(tSec * 2.2 + v.phase) * 0.12;
-          roll += Math.sin(tSec * 1.7 + v.phase) * 0.05;
-          if (winding) {
-            const k = 1 + 0.22 * windFrac;
-            sx = k;
-            sz = k;
-            sy = 1 + 0.12 * windFrac;
-            pitch = -0.15 * windFrac;
-          }
-          sz *= 1 - 0.15 * v.shot;
-          pitch += 0.2 * v.shot;
-        }
-        const pulse = 1 + v.recoil * 0.06;
+        const proc = proceduralEnemyPose({
+          kind: e.kind === 'spitter' ? 'spitter' : 'crawler',
+          alive: e.alive,
+          speed,
+          vy: e.vy,
+          winding,
+          windFrac,
+          striking,
+          shot: v.shot,
+          land: v.land,
+          stagger: v.stagger,
+          recoil: v.recoil,
+          lean: v.lean,
+          deathTicks: e.deathTicks,
+          tSec,
+          gait: v.gait,
+          phase: v.phase,
+          alerting,
+        });
+        if (e.alive) v.gait += dt * gaitStep(e.kind === 'spitter' ? 'spitter' : 'crawler', speed);
+        const { lift, pitch, roll, sx, sy, sz } = proc;
+        r.visible = proc.visible;
+        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: proc.clip, timeScale: proc.timeScale });
+        const pulse = e.alive ? 1 + v.recoil * 0.06 : 1;
         r.position.set(ex, ey + lift, 0);
-        r.rotation.set(pitch - v.recoil * 0.18, v.yaw, roll);
+        r.rotation.set(pitch, v.yaw, roll);
         r.scale.set(sx * pulse, sy * pulse, sz * pulse);
         flashMaterials3D(st.materials, st.baseEmissive, ENEMY_FLASH_HEX_3D, flashAmt);
         if (e.alive && e.kind === 'spitter' && winding && glowIdx < this.muzzleGlows.length) {

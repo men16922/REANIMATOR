@@ -554,6 +554,32 @@ export function tuneEnemyMaterials3D(
   }
 }
 
+/**
+ * Render-only readability pass for dark enemies: a fresnel rim plus a small albedo self-lift injected into the
+ * standard shader. No lights are added. Works for skinned and static meshes (shader chunks are shared).
+ */
+export function applyEnemyRim3D(materials: THREE.MeshStandardMaterial[], rimHex: number, rim = 0.55, lift = 0.16): void {
+  const rimColor = new THREE.Color(rimHex);
+  for (const m of materials) {
+    const uniforms = { uEnemyRim: { value: rimColor.clone().multiplyScalar(rim) }, uEnemyLift: { value: lift } };
+    m.userData.enemyRim = uniforms;
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.uEnemyRim = uniforms.uEnemyRim;
+      shader.uniforms.uEnemyLift = uniforms.uEnemyLift;
+      shader.fragmentShader = shader.fragmentShader
+        .replace('void main() {', 'uniform vec3 uEnemyRim;\nuniform float uEnemyLift;\nvoid main() {')
+        .replace(
+          '#include <opaque_fragment>',
+          `float enemyRimF = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.2);
+  outgoingLight += uEnemyRim * enemyRimF + diffuseColor.rgb * uEnemyLift;
+  #include <opaque_fragment>`,
+        );
+    };
+    m.customProgramCacheKey = () => 'enemy-rim-v1';
+    m.needsUpdate = true;
+  }
+}
+
 export interface EnemyAnimInput {
   desired: 'idle' | 'walk' | 'run' | 'attack' | 'death';
   /** Actual horizontal speed in m/s (drives locomotion timeScale so feet do not skate) */
