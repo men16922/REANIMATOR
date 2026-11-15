@@ -69,6 +69,7 @@ import { hunterHud } from '../game3d/hunter3d.ts';
 import { buildAmmoItem, buildMetroid3D, buildSlideItem, type Metroid3D } from './metroid3d.ts';
 import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 import { buildVista3D, type Vista3D } from './vista3d.ts';
+import { buildAmbient3D, type Ambient3D } from './ambient3d.ts';
 import type { OpeningView } from '../ui/opening.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
@@ -390,6 +391,7 @@ export class Scene3DRenderer {
   private readonly cullEntries: CullEntry[] = [];
   private decor: Decor3D | null = null;
   private vista: Vista3D | null = null;
+  private ambientLife: Ambient3D | null = null;
   private hazards3d: Hazards3D | null = null;
   private metroid3d: Metroid3D | null = null;
   /** Round 10: the Reclaimer hunter and its zone gates (built lazily once the rig model is available). */
@@ -689,6 +691,7 @@ export class Scene3DRenderer {
       triangles: this.renderer.info.render.triangles,
       perf: this.getPerfTelemetry(),
       vista: this.vista ? this.vista.telemetry() : { sector: null, visible: false, drawCalls: 0 },
+      ambient: this.ambientLife ? this.ambientLife.telemetry() : { sector: null, visible: false, drawCalls: 0, events: 0, points: 0 },
       fx: this.fx.telemetry(),
       player: this.heroFrame && this.heroGear
         ? {
@@ -790,6 +793,7 @@ export class Scene3DRenderer {
     this.viewMode = m;
     this.mood?.setClassic(m === 'classic');
     this.vista?.setClassic(m === 'classic');
+    this.ambientLife?.setClassic(m === 'classic');
     this.hazards3d?.setClassic(m === 'classic');
     this.metroid3d?.setClassic(m === 'classic');
     this.applyClassicGlow();
@@ -888,6 +892,9 @@ export class Scene3DRenderer {
     this.vista?.dispose();
     this.vista = buildVista3D(this.scene, w.level);
     this.vista.setClassic(this.viewMode === 'classic');
+    this.ambientLife?.dispose();
+    this.ambientLife = buildAmbient3D(this.scene, w.level);
+    this.ambientLife.setClassic(this.viewMode === 'classic');
     this.mood?.dispose();
     this.mood = buildMood3D(this.scene, w.level);
     this.hazards3d?.dispose();
@@ -1066,6 +1073,8 @@ export class Scene3DRenderer {
     this.decor?.dispose();
     this.decor = null;
     this.vista?.dispose();
+    this.ambientLife?.dispose();
+    this.ambientLife = null;
     this.vista = null;
     this.frameRect.reset();
     this.mood?.dispose();
@@ -1349,6 +1358,7 @@ export class Scene3DRenderer {
     for (const c of this.cullEntries) c.obj.visible = c.maxX >= vx0 && c.minX <= vx1 && c.maxY >= vy0 && c.minY <= vy1;
     this.decor?.setView(vx0, vx1, vy0, vy1);
     this.vista?.setView(vx0, vx1, vy0, vy1);
+    this.ambientLife?.setView(vx0, vx1, vy0, vy1);
     const out = (o: THREE.Object3D): boolean => {
       const p = o.position;
       return p.x < vx0 - 3 || p.x > vx1 + 3 || p.y < vy0 - 3 || p.y > vy1 + 3;
@@ -1908,6 +1918,7 @@ export class Scene3DRenderer {
     this.decor?.setMeltdown(inMeltdown, tSec, this.reduceMotion);
     this.decor?.update(tSec, w.player.body.x, w.player.body.y, this.reduceMotion);
     this.vista?.update(tSec, { playerX: w.player.body.x, playerY: w.player.body.y, reduce: this.reduceMotion, meltdown: inMeltdown });
+    this.ambientLife?.update(tSec, { playerX: w.player.body.x, playerY: w.player.body.y, reduce: this.reduceMotion, meltdown: inMeltdown });
     this.mood?.update(tSec, this.reduceMotion);
     this.hazards3d?.update(w, tSec, dt, this.fx.smoke, this.reduceMotion);
     this.metroid3d?.update(w, tSec, dt, this.reduceMotion);
