@@ -44,7 +44,7 @@ import { meltdownPillVisible, objectiveFor } from './objective.ts';
 import { parseGoreLevel, type GoreLevel } from '../render3d/gore3d.ts';
 import { loadProgress, menuKeyAction, PANEL_IDS, pauseEscapeAction, stepIndex, type TitlePanel } from './menu.ts';
 import { normalizePanelState, titleCovered, topLayer } from './panels.ts';
-import { archiveRows, canOpen, LOG_FREEZE_S, openReader, pressReader, tickReader, visibleBody, type ReaderState } from './logReader.ts';
+import { archiveRows, canOpen, openReader, openToast, pressReader, tickReader, tickToast, toastOpacity, visibleBody, type LogToast, type ReaderState } from './logReader.ts';
 import { CREDITS_LINES, endingText, INTRO_LINES, LORE_LOGS, chromeLabel, loreLogById, SECTOR_SUB, type Lang } from './lore.ts';
 import { runUiAudit, type UiAuditReport } from './uiAudit.ts';
 import { resultCheckpointLine, resumeButtonLabel } from './resultCopy.ts';
@@ -226,7 +226,9 @@ let itemFreeze = 0;
 /** Story language: the game is English only. */
 const lang: Lang = 'en';
 let reader: ReaderState | null = null;
-let pendingLog = '';
+let logToast: LogToast | null = null;
+let objText = '';
+let objShownAt = 0;
 let creditsTimer = 0;
 let bot: Bot3D | null = null;
 const audioDirector = new AudioDirector();
@@ -318,7 +320,8 @@ function show(m: Mode): void {
   ui.revived.hidden = true;
   ui.controlsPanel.hidden = true;
   closeLogReader(false);
-  pendingLog = '';
+  logToast = null;
+  renderToast();
   $('log-archive').hidden = true;
   closeCredits(false);
   $('lab').hidden = true;
@@ -519,6 +522,19 @@ function openLogReader(id: string, from: 'pickup' | 'archive'): void {
   $('log-reader').hidden = false;
   playSound('ui.banner');
   renderReader();
+}
+
+function renderToast(): void {
+  const el = $('log-toast');
+  if (!logToast) {
+    el.hidden = true;
+    return;
+  }
+  el.hidden = false;
+  $('lt-eyebrow').textContent = chromeLabel('dataLog', lang);
+  $('lt-title').textContent = logToast.title;
+  $('lt-body').textContent = logToast.excerpt;
+  el.style.opacity = toastOpacity(logToast).toFixed(3);
 }
 
 function renderReader(): void {
@@ -772,10 +788,10 @@ function observeWorld(): void {
       const lg = logsNow[logsNow.length - 1];
       const entry = loreLogById(lg.id);
       showPickupBanner({ title: `DATA LOG ${logsNow.length}/${world.collectibles.length}`, desc: entry ? entry.title[lang] : lg.title }, playFanfare('crawl_slide') /* reuse the synth sweep fanfare: no dedicated log recipe */);
+      // Transient toast only: no freeze, no modal, no input capture. The full text is in the pause LOGS archive.
       if (entry) {
-        // Short freeze first, then the reader opens (see frameBody).
-        pendingLog = lg.id;
-        itemFreeze = LOG_FREEZE_S;
+        logToast = openToast(entry, lang);
+        renderToast();
       }
     }
     seen.logs = logsNow.length;
@@ -882,6 +898,13 @@ function hud(): void {
   const obj = objectiveFor(world);
   ui.objective.textContent = obj.text;
   ui.objective.style.color = obj.color;
+  // Objective text is shown briefly when it changes, then fades so it never clutters the view.
+  const nowMs = performance.now();
+  if (obj.text !== objText) {
+    objText = obj.text;
+    objShownAt = nowMs;
+  }
+  ui.objective.classList.toggle('idle', nowMs - objShownAt > 6000);
 
   if (meltdownPillVisible(world)) {
     ui.meltdown.hidden = false;
@@ -1060,6 +1083,10 @@ function frameBody(t: number): void {
     reader = tickReader(reader, dt);
     renderReader();
   }
+  if (logToast) {
+    logToast = tickToast(logToast, dt);
+    renderToast();
+  }
   if (introActive) tickOpening(openingFrozen ? 0 : dt);
   if (mode === 'playing' && !manualHold && !reader && !introActive) {
     // Hit-stop and kill slow-motion only retime the display clock. Every simulation tick still runs, in order.
@@ -1067,10 +1094,6 @@ function frameBody(t: number): void {
     if (itemFreeze > 0) {
       itemFreeze = Math.max(0, itemFreeze - dt);
       frozen = true;
-      if (itemFreeze === 0 && pendingLog) {
-        openLogReader(pendingLog, 'pickup');
-        pendingLog = '';
-      }
     }
     const clock = fx ? fx.slowmo.step(dt) : 1;
     if (!frozen) acc += dt * clock * displayClock(assist.slow);
@@ -1648,7 +1671,7 @@ const wAny = window as unknown as {
   __reanimatorDemo: (id: string) => ReturnType<typeof buildSnapshot>;
   __reanimatorSoak: (n?: number, opts?: SoakOptions) => Promise<SoakReport>;
   __reanimatorUiAudit: () => Promise<UiAuditReport | (ReturnType<typeof buildSnapshot> & { superseded: true })>;
-  __reanimatorShowLog: (id: string, view?: 'reader' | 'archive' | 'credits' | 'ending') => ReturnType<typeof buildSnapshot>;
+  __reanimatorShowLog: (id: string, view?: 'reader' | 'archive' | 'credits' | 'ending' | 'toast') => ReturnType<typeof buildSnapshot>;
 };
 
 /**
@@ -1782,6 +1805,13 @@ wAny.__reanimatorShowLog = (id, view = 'reader') => {
     enterManual();
     show('paused');
     openArchive();
+  } else if (view === 'toast') {
+    // R16: the transient pickup toast over the live game (no freeze, no modal).
+    const e = loreLogById(id);
+    if (e) {
+      logToast = openToast(e, lang);
+      renderToast();
+    }
   } else if (view === 'credits' || view === 'ending') {
     debugShowResult('won');
     if (view === 'credits') openCredits();

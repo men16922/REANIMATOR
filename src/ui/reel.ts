@@ -101,7 +101,7 @@ const DEFS: Omit<ReelCut, 'start'>[] = [
   },
   {
     id: 'wake', duration: 10, target: 'world', sector: 'airlock', flashy: true,
-    plan: { scene: 'opening-alarm', setup: {}, inputs: [], openingAt: 5.6 },
+    plan: { scene: 'opening-alarm', setup: {}, inputs: [], openingAt: 7.0 },
     caption: 'Cryo wake, vent burst',
     sub: 'The opening set piece plays on the real airlock world.',
     view: 'modern',

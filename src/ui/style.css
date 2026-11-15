@@ -367,7 +367,7 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 @keyframes line-in { 0% { opacity: 0; filter: blur(8px); letter-spacing: 0.4em; } 18% { opacity: 1; filter: none; letter-spacing: 0.22em; } 80% { opacity: 1; } 100% { opacity: 0; } }
 /* R10 opening: frost on the pod glass, sweeping alarm, burst flash and a status readout; all driven by --op-* from ui/opening.ts */
 #intro .op-frost { position: absolute; inset: 0; opacity: var(--op-frost, 1); background: radial-gradient(ellipse at 50% 52%, rgba(190, 230, 255, 0) calc((1 - var(--op-frost, 1)) * 72%), rgba(190, 230, 255, 0.5) 100%), repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px 9px); backdrop-filter: blur(calc(var(--op-frost, 1) * 7px)); }
-#intro .op-alarm { position: absolute; inset: 0; opacity: var(--op-alarm, 0); background: linear-gradient(90deg, transparent calc(var(--op-sweep, 50%) - 28%), rgba(255, 40, 30, 0.34) var(--op-sweep, 50%), transparent calc(var(--op-sweep, 50%) + 28%)), radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(120, 0, 0, 0.45) 100%); mix-blend-mode: screen; }
+#intro .op-alarm { position: absolute; inset: 0; opacity: var(--op-alarm, 0); background: linear-gradient(90deg, transparent calc(var(--op-sweep, 50%) - 28%), rgba(255, 40, 30, 0.2) var(--op-sweep, 50%), transparent calc(var(--op-sweep, 50%) + 28%)), radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(120, 0, 0, 0.3) 100%); mix-blend-mode: screen; }
 #intro .op-flash { position: absolute; inset: 0; opacity: var(--op-flash, 0); background: radial-gradient(circle at 75% 35%, rgba(255, 240, 210, 0.95), rgba(255, 120, 40, 0.35) 45%, transparent 75%); }
 #op-status { position: absolute; left: 1.6em; bottom: 1.4em; margin: 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.78em; letter-spacing: 0.18em; color: #7ae8ff; text-shadow: 0 0 8px rgba(75, 232, 255, 0.6); }
 #op-status::before { content: '> '; opacity: 0.6; }
@@ -524,3 +524,23 @@ body.reduce-fx .scan-sweep, body.reduce-fx .scan-frame, body.reduce-fx .roll-lin
 /* R10: Meltdown alarm vignette. The opacity variable is written each frame by the renderer from meltdownTicks (0 outside the escape). */
 body.meltdown-alert::after { content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: var(--meltdown-vignette, 0); background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 52%, rgba(220, 20, 24, 0.55) 100%); transition: none; }
 body.meltdown-calm::after { background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0) 60%, rgba(180, 30, 30, 0.35) 100%); }
+
+/* ---- R16: transient DATA LOG toast. Never blocks play: pointer-events none, no focus, fades by itself (ui/logReader.ts). ---- */
+.log-toast { position: absolute; left: 1.2em; bottom: 8.5em; max-width: 26em; z-index: var(--z-caption); pointer-events: none; display: flex; flex-direction: column; gap: 0.25em; padding: 0.6em 0.9em; background: rgba(4, 10, 14, 0.82); border: 2px solid var(--c-cyan); box-shadow: 3px 3px 0 #000; font-size: 0.86em; line-height: 1.4; }
+.log-toast[hidden] { display: none; }
+.log-toast .lt-eyebrow { color: var(--c-gold); letter-spacing: 0.18em; font-size: 0.8em; }
+.log-toast b { color: #fff; letter-spacing: 0.06em; }
+.log-toast #lt-body { color: var(--c-dim); }
+#objective { transition: opacity 0.8s linear; }
+#objective.idle { opacity: 0; }
+
+/* ---- R16: retro skin. Pixel-style type, hard 2px frames, flat palette, chunky bars, CRT scanlines (CSS only, no WebGL cost). ---- */
+:root { --font-ui: "Press Start 2P", "Silkscreen", ui-monospace, "SF Mono", Menlo, Consolas, monospace; --font-mono: "Press Start 2P", "Silkscreen", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+body:not(.classic) #hud, body:not(.classic) .overlay, body:not(.classic) .panel, body:not(.classic) #coach, body:not(.classic) #pickup-banner, body:not(.classic) #sector-card { font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.06em; text-rendering: optimizeSpeed; -webkit-font-smoothing: none; font-smooth: never; }
+body:not(.classic) .pill, body:not(.classic) #minimap-wrap, body:not(.classic) #warden-hud, body:not(.classic) .stats span, body:not(.classic) .settings, body:not(.classic) #coach, body:not(.classic) #pickup-banner, body:not(.classic) .panel, body:not(.classic) .scan-frame, body:not(.classic) button { border-radius: 0; border-width: 2px; box-shadow: 2px 2px 0 #000; }
+body:not(.classic) #hud { text-shadow: 1px 1px 0 #000; }
+body:not(.classic) .bar { position: relative; border-radius: 0; border: 2px solid var(--c-line); }
+body:not(.classic) .bar::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: repeating-linear-gradient(90deg, transparent 0 0.45em, rgba(0, 0, 0, 0.8) 0.45em calc(0.45em + 2px)); }
+#stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 50; opacity: 0.16; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0, rgba(0, 0, 0, 0.55) 1px, transparent 1px, transparent 3px), radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.5) 100%); }
+body.reduce-fx #stage::after { opacity: 0.08; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0, rgba(0, 0, 0, 0.55) 1px, transparent 1px, transparent 3px); }
+@media (prefers-reduced-motion: reduce) { #stage::after { opacity: 0.08; } .log-toast { transition: none; } }

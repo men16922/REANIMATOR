@@ -15,16 +15,16 @@ export const OPENING_VENT = { x: 12, y: 3.1 } as const;
 export const OPENING_BEATS = {
   lampOn: 2.2,
   lampSteady: 3.7,
-  alarmOn: 4.2,
-  rattle: 7.2,
-  burst: 8.4,
-  prompt: 9.0,
-  handoff: 9.8,
+  alarmOn: 5.4,
+  rattle: 9.0,
+  burst: 10.4,
+  prompt: 11.0,
+  handoff: 12.9,
 } as const;
 /** R11 beats: the operative rises from a kneel (display pose only), a title card holds, letterbox bars retract into the handoff. */
 export const OPENING_WAKE = { start: 2.0, standBy: 5.0, standByReduced: 3.2 } as const;
 export const OPENING_TITLE = { in: 3.9, out: 7.4, text: 'CRYO AIRLOCK \u2014 03:12 AFTER BREACH' } as const;
-export const OPENING_BARS = { retractFrom: 8.9 } as const;
+export const OPENING_BARS = { retractFrom: 11.2 } as const;
 export const OPENING_SECONDS = OPENING_BEATS.handoff;
 
 export interface OpeningState {
@@ -92,12 +92,16 @@ function lampAt(t: number, reduce: boolean): number {
 
 const STATUS: ReadonlyArray<readonly [number, string]> = [
   [0.4, 'CRYO POD 09 // SEAL RELEASE'],
-  [2.0, 'CORE TEMP 31C // MOTOR RESPONSE 12%'],
-  [3.7, 'HEADLAMP ONLINE'],
-  [4.2, 'ALERT // CONTAINMENT BREACH, BAY 1'],
-  [7.2, 'VENT 4 // PRESSURE FAULT'],
-  [8.4, 'CONTACT // HOSTILE AT VENT 4'],
+  [2.9, 'CORE TEMP 31C // MOTOR RESPONSE 12%'],
+  [5.4, 'ALERT // CONTAINMENT BREACH, BAY 1'],
+  [7.9, 'VENT 4 // PRESSURE FAULT'],
+  [10.4, 'CONTACT // HOSTILE AT VENT 4'],
 ];
+/** Every status caption holds at least this long (seconds) before the next one replaces it. */
+export const CAPTION_MIN_HOLD_S = 2.5;
+/** The red alarm never covers the view: this caps its strength (a single slow pulse, never full-screen). */
+export const ALARM_MAX = 0.5;
+export const CAPTIONS: ReadonlyArray<readonly [number, string]> = STATUS;
 
 function statusAt(t: number): string {
   let out = '';
@@ -109,9 +113,10 @@ function statusAt(t: number): string {
 export function openingState(t: number, reduce = false): OpeningState {
   const B = OPENING_BEATS;
   const time = Math.max(0, t);
-  const alarmIn = smooth((time - B.alarmOn) / 0.6);
+  const alarmIn = smooth((time - B.alarmOn) / 1.4);
   const alarmOut = 1 - smooth((time - B.burst - 0.4) / 1.4);
-  const alarm = alarmIn * alarmOut * (reduce ? 0.5 : 1);
+  const pulse = reduce ? 1 : 0.8 + 0.2 * Math.sin((time - B.alarmOn) * 1.3);
+  const alarm = alarmIn * alarmOut * pulse * (reduce ? ALARM_MAX * 0.5 : ALARM_MAX);
   const rattleAmp = smooth((time - B.rattle) / (B.burst - B.rattle)) * (time < B.burst ? 1 : 0);
   const sinceBurst = time - B.burst;
   return {
@@ -120,9 +125,9 @@ export function openingState(t: number, reduce = false): OpeningState {
     frost: 1 - smooth((time - 0.8) / 3.2),
     lamp: lampAt(time, reduce),
     alarm,
-    sweep: reduce ? 0 : (time - B.alarmOn) * 2.6,
-    rattle: reduce ? 0 : rattleAmp,
-    burstFlash: reduce || sinceBurst < 0 ? 0 : Math.max(0, 1 - sinceBurst / 0.32),
+    sweep: reduce ? 0 : (time - B.alarmOn) * 1.1,
+    rattle: reduce ? 0 : rattleAmp * 0.5,
+    burstFlash: reduce || sinceBurst < 0 ? 0 : 0.45 * Math.max(0, 1 - sinceBurst / 0.6),
     dolly: 0.55 + 0.45 * smooth((time - 1.4) / 4.2),
     lift: -1.0 * (1 - smooth((time - 1.2) / 3.6)),
     enemyHidden: time < B.burst,

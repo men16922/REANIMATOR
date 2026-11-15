@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 // Lore data, reader state machine and ending branches (R8 lore track). Pure, no DOM.
 
 import test from 'node:test';
@@ -7,7 +8,7 @@ import { SECTOR_SUBTITLE } from '../src/ui/flow.ts';
 import {
   ENDING_VARIANT, CREDITS_LINES, INTRO_LINES, LOG_WORDS_MAX, LOG_WORDS_MIN, LORE_LOGS, SECTOR_SUB, countWords, endingText, endingTier, loreLogById, pickLang,
 } from '../src/ui/lore.ts';
-import { ENCRYPTED_LABEL, LOG_FREEZE_S, READER_GUARD_S, TYPE_CPS, archiveRows, canOpen, openReader, pressReader, tickReader, visibleBody } from '../src/ui/logReader.ts';
+import { ENCRYPTED_LABEL, READER_GUARD_S, TOAST_FADE_S, TOAST_HOLD_S, TOAST_TOTAL_S, TOAST_EXCERPT_CHARS, openToast, tickToast, toastOpacity, toastExcerpt, TYPE_CPS, archiveRows, canOpen, openReader, pressReader, tickReader, visibleBody } from '../src/ui/logReader.ts';
 
 const level = newWorld3D().level;
 
@@ -101,7 +102,7 @@ test('reader state machine: types out, ignores keys during the guard, first key 
   const closed = pressReader(full);
   assert.equal(tickReader(closed, 1), closed);
   assert.equal(pressReader(closed), closed);
-  assert.ok(READER_GUARD_S < 0.5 && LOG_FREEZE_S > 0 && LOG_FREEZE_S < 1);
+  assert.ok(READER_GUARD_S < 0.5);
 });
 
 test('reader uses the chosen language and the archive keeps order', () => {
@@ -123,4 +124,24 @@ test('archive: found logs show their title, missing ones are [ENCRYPTED] and can
   assert.equal(canOpen(new Set(['log_mines']), 'log_mines'), true);
   assert.equal(canOpen(new Set(['log_mines']), 'log_core'), false);
   assert.equal(canOpen(new Set(['nope']), 'nope'), false);
+});
+
+test('R16: data log toast is transient: short excerpt, holds 3-4 s, fades by itself, never needs input', () => {
+  const t0 = openToast(LORE_LOGS[0], 'en');
+  assert.ok(t0.excerpt.length > 0 && t0.excerpt.length <= TOAST_EXCERPT_CHARS + 3);
+  assert.ok(TOAST_TOTAL_S >= 3 && TOAST_TOTAL_S <= 4.5);
+  assert.equal(toastOpacity({ ...t0, elapsed: TOAST_HOLD_S - 0.1 }), 1);
+  assert.ok(toastOpacity({ ...t0, elapsed: TOAST_HOLD_S + TOAST_FADE_S / 2 }) < 0.6);
+  let t = tickToast(t0, 0.016);
+  assert.ok(t);
+  for (let i = 0; i < 600 && t; i++) t = tickToast(t, 1 / 60);
+  assert.equal(t, null);
+  assert.equal(tickToast(null, 1), null);
+  assert.ok(toastExcerpt('word '.repeat(80)).endsWith('...'));
+});
+
+test('R16: pickup path never freezes the sim or opens the modal reader', () => {
+  const src = readFileSync(new URL('../src/ui/main.ts', import.meta.url), 'utf8');
+  assert.ok(!/LOG_FREEZE_S|pendingLog/.test(src));
+  assert.ok(!/openLogReader\(lg\.id|openLogReader\(pendingLog/.test(src));
 });

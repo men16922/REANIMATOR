@@ -2075,7 +2075,7 @@ export class Scene3DRenderer {
       // Opening alarm: the existing alarm light orbits the bay (no new light); reduce mode keeps it steady.
       const a = this.opening.alarm;
       const sw = this.opening.sweep;
-      this.alarmLight.intensity = (10 + 8 * (this.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(tSec * 7))) * a;
+      this.alarmLight.intensity = (10 + 8 * (this.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(tSec * 2.2))) * a;
       this.alarmLight.position.set(w.player.body.x + Math.cos(sw) * 9, w.player.body.y + 3.4 + Math.sin(sw * 0.5) * 1.2, 3.5 + Math.sin(sw) * 2.5);
       this.ambient.color.copy(this.presetSky).lerp(_MELT_RED, 0.3 * a);
     } else {

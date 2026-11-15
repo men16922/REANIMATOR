@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { newWorld3D, stepWorld3D, emptyInput3D } from '../src/game3d/world3d.ts';
-import { OPENING_BARS, OPENING_TITLE, OPENING_WAKE, OPENING_BEATS, OPENING_ENEMY_ID, OPENING_SECONDS, OPENING_VENT, OpeningClock, openingState, openingView } from '../src/ui/opening.ts';
+import { ALARM_MAX, CAPTIONS, CAPTION_MIN_HOLD_S, OPENING_BARS, OPENING_TITLE, OPENING_WAKE, OPENING_BEATS, OPENING_ENEMY_ID, OPENING_SECONDS, OPENING_VENT, OpeningClock, openingState, openingView } from '../src/ui/opening.ts';
 import { SHOWCASE_SCENES } from '../src/ui/demo.ts';
 
-test('timeline: beats are ordered and the whole piece stays under 11 s', () => {
+test('timeline: beats are ordered and the whole piece stays under 13 s', () => {
   const B = OPENING_BEATS;
   const order = [B.lampOn, B.lampSteady, B.alarmOn, B.rattle, B.burst, B.prompt, B.handoff];
   for (let i = 1; i < order.length; i++) assert.ok(order[i] > order[i - 1], `beat ${i}`);
-  assert.ok(OPENING_SECONDS < 11);
+  assert.ok(OPENING_SECONDS < 13);
 });
 
 test('timeline: wakes in the dark, frost clears, lamp ends steady, alarm fades after the burst', () => {
@@ -20,7 +20,7 @@ test('timeline: wakes in the dark, frost clears, lamp ends steady, alarm fades a
   assert.ok(openingState(5).frost < 0.01);
   assert.ok(openingState(OPENING_BEATS.lampSteady + 0.6).lamp >= 0.99);
   const mid = openingState(OPENING_BEATS.alarmOn + 1.5);
-  assert.ok(mid.alarm > 0.9);
+  assert.ok(mid.alarm > 0.2 && mid.alarm <= 0.5 + 1e-9, 'alarm is visible but capped');
   assert.ok(openingState(OPENING_BEATS.burst + 2).alarm < 0.05);
   assert.ok(openingState(OPENING_SECONDS).dark < 0.01);
 });
@@ -47,7 +47,7 @@ test('timeline: the headlamp stutters in the default mode and ramps once with Re
     assert.equal(s.rattle, 0);
     assert.equal(s.burstFlash, 0);
     assert.equal(s.sweep, 0);
-    assert.ok(s.alarm <= 0.5 + 1e-9);
+    assert.ok(s.alarm <= 0.25 + 1e-9);
   }
   assert.equal(rflips, 1);
 });
@@ -64,7 +64,7 @@ test('the opening hides exactly one existing airlock crawler until the vent burs
 test('clock: the burst edge fires once, never when skipped before it, and skip finishes the piece', () => {
   const c = new OpeningClock();
   let fired = 0;
-  for (let i = 0; i < 700; i++) {
+  for (let i = 0; i < 900; i++) {
     c.advance(1 / 60);
     if (c.takeBurst()) fired++;
   }
@@ -143,4 +143,18 @@ test('R11: the wake pose is display-only (scene reads OpeningView, sim hash unch
   assert.ok(scene.includes('this.opening.wake'));
   const op = readFileSync(new URL('../src/ui/opening.ts', import.meta.url), 'utf8');
   assert.equal(/Math\.random|game3d\/world3d/.test(op.replace(/\/\/.*$/gm, '')), false);
+});
+
+test('R16: captions are paced one at a time, each held at least 2.5 s, and the red alarm never covers the view', () => {
+  for (let i = 0; i < CAPTIONS.length; i++) {
+    const next = i + 1 < CAPTIONS.length ? CAPTIONS[i + 1][0] : OPENING_SECONDS;
+    assert.ok(next - CAPTIONS[i][0] >= CAPTION_MIN_HOLD_S - 1e-9, `caption ${i} hold`);
+  }
+  let peak = 0;
+  for (let t = 0; t <= OPENING_SECONDS; t += 1 / 30) {
+    const s = openingState(t);
+    peak = Math.max(peak, s.alarm);
+    assert.ok(s.burstFlash <= 0.5, 'burst flash is dim');
+  }
+  assert.ok(peak <= ALARM_MAX + 1e-9);
 });
