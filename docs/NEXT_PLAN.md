@@ -2,6 +2,13 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R8 병합 후
+
+- [x] leak → assist → lore → lab 병합, `make check` 통과(427/427).
+- [ ] 브라우저 확인: 새 Lab(카드, 재생, 첫 불일치, 히트맵, Demo mutation), 설정 난이도·보조 패널과 일시정지 패널, 사망 원인 표시, 로그 리더·아카이브, 엔딩 3단과 크레딧 롤, `await __reanimatorSoak(3, {trace:true})`, `__reanimatorUiAudit()`, 콘솔 오류 0.
+- [ ] `lab.png` 재촬영(새 Lab UI)과 `make smoke-local`. 봇 완주 재측정.
+- [ ] 난이도 Story가 처음 플레이하는 심사위원에게 맞는지 G5 관찰.
+
 ## R7 병합 후
 
 - [x] soak → ui → cam → vista 병합, `make check` 통과(STATUS 기준선).

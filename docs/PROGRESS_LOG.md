@@ -36,3 +36,10 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - 충돌: `main.ts`(ui 병합, 선언부와 훅부에서 soak와 ui 양쪽 유지), `scene3dFull.ts`(cam 병합, 카메라 블록에서 `frameMs.fx` 계측과 cam의 구도 계산 유지). vista는 자동 병합.
 - 통합 보강 `f146b2d`: `teardownLevel()`에 `vista.dispose()`와 `frameRect.reset()` 추가. vista는 `ensureWorldBuilt`에서 재빌드 전 해제하고 있었으나 teardown 경로에는 없었다.
 - 봉인 파일 무변경. `make check` exit 0(테스트 380/380, reach3d 52 waypoints, dist-guard 13 files 14,721,553 B). 브라우저 검증은 하지 않았다(unverified).
+
+## 2026-11-15 — R8 통합 (r8/leak, assist, lore, lab)
+
+- Status: main에 `--no-ff` 4회 병합(leak → assist → lore → lab), 푸시 없음. 브랜치 커밋 leak `4da9b61`, assist `06163b2`, lore `c1ab067`, lab `697c3ea`.
+- 충돌: lore와 lab 병합 시 `index.html`, `main.ts`, (lore) `style.css`. 양쪽 유지로 해결. `SECTOR_SUBTITLE` 미사용 import 제거.
+- M05: 원래 Lab이 이미 holdout 로그를 표시했고 R8도 동일한 읽기 전용 경로라 정책 충돌 없음.
+- 봉인 파일 무변경. `make check` exit 0(테스트 427/427, reach3d 52 waypoints, dist-guard 13 files 14,775,872 B). 브라우저 검증은 하지 않았다(unverified).
