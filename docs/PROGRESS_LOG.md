@@ -29,3 +29,10 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - Status: 로컬 브랜치 `r4/docs`, 푸시 없음.
 - Changed: `README.md` 전면 개편(영문, 한국어 요약), `docs/JUDGES.md` 신설, `docs/KIRO_USAGE.md`에 R1~R4 병렬 라운드 추가, `index.html`·`src/ui/{main,menu,style}.ts|css` Credits 패널(Extras), `package.json` description·keywords·license, 하네스 문서 정리(PROGRESS_LOG, NEXT_PLAN 전문은 `docs/archive/`로 이동, STATUS 이전판 복사).
 - 봉인 파일 무변경. `make check` exit 0(r4/docs worktree 관찰, dist-guard PASS 13 files 14,577,537 B). 문서 링크 검사: showcase PNG 7장을 제외하고 깨진 링크 0.
+
+## 2026-11-15 — R7 통합 (r7/soak, ui, cam, vista)
+
+- Status: main에 `--no-ff` 4회 병합(순서 soak → ui → cam → vista), 푸시 없음. 브랜치 커밋 soak `489064a`, ui `6f55435`, cam `a1995f7`, vista `1446079`.
+- 충돌: `main.ts`(ui 병합, 선언부와 훅부에서 soak와 ui 양쪽 유지), `scene3dFull.ts`(cam 병합, 카메라 블록에서 `frameMs.fx` 계측과 cam의 구도 계산 유지). vista는 자동 병합.
+- 통합 보강 `f146b2d`: `teardownLevel()`에 `vista.dispose()`와 `frameRect.reset()` 추가. vista는 `ensureWorldBuilt`에서 재빌드 전 해제하고 있었으나 teardown 경로에는 없었다.
+- 봉인 파일 무변경. `make check` exit 0(테스트 380/380, reach3d 52 waypoints, dist-guard 13 files 14,721,553 B). 브라우저 검증은 하지 않았다(unverified).

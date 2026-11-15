@@ -142,3 +142,18 @@ R5와 같은 방식(worktree `/private/tmp/r6-{arms,fix,sound,demo}`, 로컬 커
 
 - 병합 충돌은 `audioLogic.ts`와 `main.ts`에서 났고 양쪽 의도를 유지해 해결했다(PROGRESS_LOG 참조). 사운드 트랙이 미리 만들어 둔 무기용 레시피를 arms 이벤트에 연결한 것이 통합 단계의 실질 작업이었다.
 - `make check` exit 0, 테스트 344/344. 브라우저 확인과 청취 검증은 하지 않았다(unverified).
+
+## 2026-11-15 — R7 병렬 라운드 (오케스트레이터 + worktree 서브에이전트)
+
+worktree `/private/tmp/r7-{ui,cam,soak,vista}`에서 4트랙을 돌리고, 통합 에이전트가 `--no-ff`로 병합했다(순서 soak → ui → cam → vista). 이 절은 통합 에이전트가 본 사실만 적는다.
+
+| 트랙(브랜치) | 커밋 | 내용 |
+|---|---|---|
+| r7/ui | `6f55435` | z-index 스케일, 패널 스택 계약, UI 감사 |
+| r7/cam | `a1995f7` | 룸 클램프·구도·동적 줌 카메라 |
+| r7/soak | `489064a` | 레벨 teardown, 프레임 가드, soak 하네스 |
+| r7/vista | `1446079` | 섹터별 원경 |
+
+- **발견·수정한 UI 버그**: Extras 하위 목록이 보이지 않았다. 원인은 `.menu-list`에 걸린 진입 애니메이션이 하위 패널에서 끝나지 않아 항목이 투명하게 남은 것이다. `#lab`과 `#revived`는 배경이 투명해 타이틀 로고와 메뉴가 비쳤고 z 순서도 타이틀 아래였다. 브랜치는 z-index 토큰, 애니메이션 제거, 불투명 배경, `topLayer` 판정, `__reanimatorUiAudit`(각 컨트롤 중심점의 `elementFromPoint`가 자기 자신인지 검사)로 고쳤다. 이 버그는 단위 테스트가 아니라 브라우저에서 화면을 보고 발견했다.
+- **통합 단계 작업**: 충돌 2곳(`main.ts`, `scene3dFull.ts`)을 양쪽 유지로 해결하고, soak의 `teardownLevel()`이 vista 해제와 카메라 `FrameRectSmoother` 초기화를 빠뜨린 것을 코드 확인으로 찾아 보강했다(`f146b2d`). `make check` 380/380.
+- 브라우저 검증과 soak 실행은 이 통합 단계에서 하지 않았다(unverified).

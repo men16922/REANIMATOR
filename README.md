@@ -76,6 +76,10 @@ Walls slow your fall when you press into them in the air, and wall jump needs th
 - **Abuse-style enemies.** Ceiling droppers, wall and ceiling climbers, hive spawners, swarm flanking. See [`docs/R3_FOES.md`](docs/R3_FOES.md).
 - **Classic View.** Press `V` for a 320x200, 256-colour dithered, orthographic look with an optional CRT filter and a pixel HUD. The palette, font, and icons are original work. No Abuse data was read or copied. See [`docs/R3_CLASSIC.md`](docs/R3_CLASSIC.md).
 - **Six weapons (R6).** The Flamer (slot 5, cone, sets enemies burning) and the Rocket launcher (slot 6, accelerating, area blast, a capped rocket jump that cannot bypass the Thruster Boots gates) sit on pedestals in the Mines and the Security Deck. See [`docs/R6_ARMS.md`](docs/R6_ARMS.md).
+- **Sector vistas (R7).** Each sector has openings in the back wall with its own distant scene: a cryo hall, a vertical shaft, a drill machine and cave, giant specimen tanks, a skyline with searchlights, and the reactor core. About four extra draw calls per sector. See [`docs/plans/R7_SOAK.md`](docs/plans/R7_SOAK.md) for the stability pass.
+- **Camera framing (R7).** The camera clamps to the current room, keeps the player near 42% of screen height, applies per-sector hints, and zooms 0.92 to 1.28 with nearby threats. It widens for the boss fight.
+- **UI layers (R7).** A z-index scale and a panel stack contract keep Extras, Lab and Revived above the title. `await __reanimatorUiAudit()` checks every panel's controls with `elementFromPoint`.
+- **Stability (R7).** Level swaps free static meshes and textures, the frame loop is guarded, WebGL context loss is handled, and `await __reanimatorSoak(3, { showcase: false })` reports leaking counters.
 - **Demo tour and showcase (R6).** `Extras` has a Demo tour of 11 fixed checkpoints and a one-minute captioned Showcase reel, both on the real game loop. See [`docs/JUDGES.md`](docs/JUDGES.md).
 - **Item fanfares and sound pass (R6).** Five pickup fanfares, dedicated recipes for hazards, hives and the new weapons, proximity loops near live hazards, and an escape music that speeds up as the hatches close. See [`docs/R6_SOUND.md`](docs/R6_SOUND.md).
 - **Enemy rigs (R5).** Stride-locked gaits, pose channels, boss attack patterns, secondary motion, distance LOD. See [`docs/R5_RIG.md`](docs/R5_RIG.md).
@@ -132,9 +136,9 @@ make smoke-local                 # build, then headless Chrome smoke test (tools
 node tools/game/playthrough.ts   # deterministic bot plays the whole game to the escape
 ```
 
-Observed on `main` after the R6 merges (`8d38018`):
+Observed on `main` after the R7 merges (`f146b2d`):
 
-- `make check` exit 0, 344 of 344 node tests, `reference-verify` 3 of 3 scenarios, `reach3d` 52 waypoints (3,432 ticks), `dist-guard` PASS on 13 files (14,684,946 B).
+- `make check` exit 0, 380 of 380 node tests, `reference-verify` 3 of 3 scenarios, `reach3d` 52 waypoints (3,432 ticks), `dist-guard` PASS on 13 files (14,721,553 B). The bot run and draw-call figures below predate R7 and are not re-measured.
 - Bot run: won in 4,901 ticks with 126 of 160 HP and 50 kills.
 - Draw calls per sector: 159 to 275 in Modern, 123 in Classic. Zero browser console warnings.
 
@@ -171,5 +175,6 @@ REANIMATOR는 1996년 DOS 게임 *Abuse* 셰어웨어 1.05의 이동 물리를 �
 - **정직한 경계**: 복원한 것은 이동 물리뿐이다. 15 Hz는 설계값이며 원본 틱은 측정하지 않았다. 3D 게임의 나머지(섹터, 적, 무기, 보스, 음향, 그래픽)는 신규 설계다. 원본 Abuse 에셋은 포함하지 않으며 `dist-guard`가 빌드 산출물을 검사한다.
 - **R6**: 무기 6종(화염방사기·로켓 발사기, 로켓 점프는 부츠 게이트를 우회하지 못함), Extras의 데모 투어 11곳과 1분 쇼케이스, 아이템 팡파르 5종.
 - **실행**: `npm install` 후 `npm run dev`. `V`로 1996풍 Classic View, `Tab` 맵, `E` 헤드램프, `Shift` 대시, 공중 `Shift+S` 스톰프. 타이틀의 Extras에서 Restoration Lab을 열 수 있다.
-- **검증**: `make check`(R6 병합 `8d38018` 기준 exit 0, 테스트 344/344, reference-verify 3/3, reach3d 52 waypoints), `make reference-holdout`, `make smoke-local`.
+- **R7**: 섹터별 원경, 룸 클램프 카메라 구도, UI 레이어 계약(EXTRAS·Lab 가림 버그 수정), 레벨 교체 누수 제거와 soak 하네스.
+- **검증**: `make check`(R7 병합 `f146b2d` 기준 exit 0, 테스트 380/380, reference-verify 3/3, reach3d 52 waypoints), `make reference-holdout`, `make smoke-local`.
 - **Kiro 활용**: spec 5종, steering, hook, 병렬 worktree 서브에이전트 4라운드, Playwright 브라우저 검증. 상세는 [`docs/KIRO_USAGE.md`](docs/KIRO_USAGE.md), 심사위원용 3분 데모는 [`docs/JUDGES.md`](docs/JUDGES.md).

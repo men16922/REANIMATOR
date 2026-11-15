@@ -2,6 +2,13 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R7 병합 후
+
+- [x] soak → ui → cam → vista 병합, `make check` 통과(STATUS 기준선).
+- [ ] 브라우저 확인: `await __reanimatorUiAudit()` ok, `await __reanimatorSoak(3, {showcase:false})` leaks 빈 배열, 6섹터 원경 육안, 카메라 구도(룸 경계, 보스 프레이밍), 콘솔 오류 0(unverified).
+- [ ] `lab.png` 재촬영(R7-UI 수정 후)과 `make smoke-local`.
+- [ ] 봇 완주 재측정(원경·카메라 변경 후).
+
 ## R6 병합 후
 
 - [x] arms → fix → sound → demo 병합, `make check` 통과(STATUS 기준선).

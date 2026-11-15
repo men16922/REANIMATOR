@@ -1,6 +1,6 @@
 # 현재 상태
 
-최종 갱신: 2026-11-15 · R6 병합 완료(arms·fix·sound·demo, `--no-ff`, HEAD 병합 `8d38018`). 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-15 · R7 병합 완료(soak·ui·cam·vista, `--no-ff`, HEAD `f146b2d`). 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## 구현 상태
 
@@ -24,7 +24,18 @@
 - **R6-Sound** (`r6/sound`): R3~R5 이벤트 전용 레시피, 팡파르 5종, 근접 루프, 탈출 음악. 병합 시 arms 이벤트(flamer·rocket·burn·rocket_jump)와 로켓 폭발(`explosion` value 1)을 전용 레시피에 연결, `PENDING_EVENT_SOUND` 제거. [R6_SOUND](R6_SOUND.md)
 - **R6-Demo** (`r6/demo`): `src/ui/demo.ts` 데모 투어 11곳, 쇼케이스 릴, `__reanimatorShowcase`·`__reanimatorDemo`. 늦은 체크포인트(보안 데크 이후, 보스)는 무기 6종 지급. [JUDGES](JUDGES.md)
 
-## 검증 기준선 (R6 병합 후, 통합 에이전트 관찰)
+- **R7-UI** (`r7/ui`): z-index 토큰 스케일, `.menu-list` 애니메이션 제거(EXTRAS 목록이 보이지 않던 원인), `#lab`·`#revived` 불투명 배경, `src/ui/panels.ts`(topLayer, titleCovered), `window.__reanimatorUiAudit()`.
+- **R7-Cam** (`r7/cam`): `src/render3d/cameraFrame.ts`(룸 클램프, 수직 구도 42%, FrameRectSmoother, 섹터 힌트, 동적 줌 0.92~1.28), 기본 거리 15.5 → 13.5, 보스 프레이밍 연동, 공중 데드존 1.7, `__reanimator().camera`.
+- **R7-Soak** (`r7/soak`): `teardownLevel()`, frame try/catch 가드, webglcontextlost/restored, `window.__reanimatorSoak(n, {showcase})`, perf/fx 텔레메트리, audio `trackedVoices`. [R7_SOAK](plans/R7_SOAK.md)
+- **R7-Vista** (`r7/vista`): 뒷벽 개구부와 섹터별 원경(`vistaGeo.ts`, `vistaScenes.ts`, `vista3d.ts`), 섹터당 draw call +4, `__reanimator().vista`.
+- 병합 충돌 2곳: `main.ts`(soak·ui 선언과 훅 양쪽 유지), `scene3dFull.ts`(cam: soak의 `frameMs.fx` 계측과 cam의 구도 계산 양쪽 유지, 기존 하드코딩 앵커 제거). vista는 자동 병합. 통합 단계에서 `teardownLevel()`에 `vista.dispose()`와 `frameRect.reset()`을 추가했다(레벨 교체 시 원경 누수와 카메라 사각형 잔존 방지).
+
+## 검증 기준선 (R7 병합 후, 통합 에이전트 관찰)
+
+- `make check` exit 0: tsc 통과, node 테스트 380/380, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks, vite build, dist-guard PASS(13 files, 14,721,553 B, 218 대조). 봉인 파일 무변경.
+- 브라우저 확인(soak 실행, UI 감사, 원경·카메라 육안), 봇 완주 재측정은 unverified. `lab.png`는 버그 화면이라 R7-UI 수정 후 재촬영 예정.
+
+## 이전 기준선 (R6 병합 후)
 
 - `make check` exit 0: tsc 통과, node 테스트 344/344, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks(로켓 점프 우회 검사 포함), vite build, dist-guard PASS(13 files, 14,684,946 B, 218 대조).
 - 충돌: `audioLogic.ts`·`main.ts`(sound 병합), `main.ts`(demo 병합). arms는 자동 병합, fix는 자동 병합. 브라우저 검증과 봇 완주 재측정은 unverified.
@@ -49,4 +60,4 @@
 - 사람 플레이(G5) 미실시. 봇은 HP를 거의 잃지 않아 난이도 근거가 못 된다(무모한 입력 `make difficulty`는 정체).
 - `make smoke-local`은 이전 샌드박스에서 Chrome abort(134). 최신 기준 smoke는 unverified. 브라우저 확인은 오케스트레이터의 Playwright 관찰에 의존.
 - 15 Hz는 설계값이며 원본 틱은 미측정. `.kiro/settings/mcp.json` REA MCP 쓰기 차단 잔여.
-- 쇼케이스 PNG 5장(title, classic, mines, biolabs, boss)은 저장됨. biolabs·boss는 재촬영 예정. combat·lab은 미저장.
+- 쇼케이스 PNG: title, classic, mines, biolabs, boss, combat 저장. `lab.png`는 R7 수정 전 버그 화면이라 재촬영 필요(커밋 제외).

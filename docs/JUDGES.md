@@ -41,7 +41,7 @@ make reference-holdout   # 4/4 including sealed M05
 make smoke-local         # needs Chrome; headless browser smoke test
 ```
 
-Observed on `main` after the R6 merges (`8d38018`): `make check` exit 0, 344 of 344 node tests, `reference-verify` 3 of 3, `reach3d` 52 waypoints (3,432 ticks), `dist-guard` PASS on 13 files. A bot run after the R6 merge has not been re-measured (unverified); the last measured run won in 5,362 ticks. `make reference-holdout` was last observed 4 of 4 on an earlier engine revision and the sealed engine files have not changed since.
+Observed on `main` after the R7 merges (`f146b2d`): `make check` exit 0, 380 of 380 node tests, `reference-verify` 3 of 3, `reach3d` 52 waypoints (3,432 ticks), `dist-guard` PASS on 13 files (14,721,553 B). A bot run after the R7 merge has not been re-measured (unverified); the last measured run won in 5,362 ticks. `make reference-holdout` was last observed 4 of 4 on an earlier engine revision and the sealed engine files have not changed since.
 
 Not verified: human play-through difficulty, and `make smoke-local` on the newest build (earlier runs aborted in a sandboxed Chrome).
 
