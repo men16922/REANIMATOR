@@ -1,7 +1,7 @@
 // Difficulty probe: a reckless, non-adaptive policy (constant eastward run, periodic jump, always fire at a point
 // ahead, never seeks cover, never opens doors on purpose) plays the world and reports HP lost, deaths and ticks.
-// Deterministic: no randomness, fixed tick budget. Usage: node tools/game/difficulty.ts [ticks]
-import { emptyInput3D, newWorld3D, respawnPlayer3D, stepWorld3D, type InputState3D, type WorldState3D } from '../../src/game3d/world3d.ts';
+// Deterministic: no randomness, fixed tick budget. Usage: node tools/game/difficulty.ts [ticks] [story|normal|hard]
+import { DIFFICULTIES_3D, emptyInput3D, newWorld3D, respawnPlayer3D, stepWorld3D, type Difficulty3D, type InputState3D, type WorldState3D } from '../../src/game3d/world3d.ts';
 
 export interface DifficultyReport {
   ticks: number;
@@ -23,8 +23,8 @@ export function recklessInput(w: Readonly<WorldState3D>): InputState3D {
   return i;
 }
 
-export function runReckless(maxTicks = 3600): DifficultyReport {
-  let w = newWorld3D();
+export function runReckless(maxTicks = 3600, difficulty: Difficulty3D = 'normal'): DifficultyReport {
+  let w = newWorld3D({ difficulty });
   let hpLost = 0;
   let deaths = 0;
   let t = 0;
@@ -42,5 +42,6 @@ export function runReckless(maxTicks = 3600): DifficultyReport {
 
 if (import.meta.main) {
   const n = Number(process.argv[2] ?? 3600);
-  console.log(JSON.stringify(runReckless(n)));
+  const only = process.argv[3] as Difficulty3D | undefined;
+  for (const d of only ? [only] : DIFFICULTIES_3D) console.log(JSON.stringify({ difficulty: d, ...runReckless(n, d) }));
 }

@@ -2,7 +2,7 @@
 // This world is completely separate from the player's world and from any human input.
 
 import { createBot3D, type Bot3D } from '../game3d/bot3d.ts';
-import { newWorld3D, stepWorld3D, type WorldState3D } from '../game3d/world3d.ts';
+import { newWorld3D, stepWorld3D, type NewWorldOptions3D, type WorldState3D } from '../game3d/world3d.ts';
 import type { Level3D } from '../game3d/types3d.ts';
 import { SHOWCASE_CUT_SECONDS, SHOWCASE_REEL, showcaseCutAt, type ShowCut } from './demo.ts';
 
@@ -13,8 +13,8 @@ let sharedLevel: Level3D | null = null;
  * so sharing it avoids rebuilding (and stacking) the sector meshes on every restart or demo loop.
  * The simulation never mutates the level; all mutable state lives in the WorldState3D.
  */
-export function freshWorld(): WorldState3D {
-  const w = newWorld3D();
+export function freshWorld(options: NewWorldOptions3D = {}): WorldState3D {
+  const w = newWorld3D(options);
   if (sharedLevel) w.level = sharedLevel;
   else sharedLevel = w.level;
   return w;

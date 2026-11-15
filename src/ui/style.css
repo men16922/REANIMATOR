@@ -323,3 +323,9 @@ body.classic #screen {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%23101010' d='M6 0h4v6h6v4h-6v6H6v-6H0V6h6z'/%3E%3Cpath fill='%23f0c040' d='M7 1h2v5H7zM7 10h2v5H7zM1 7h5v2H1zM10 7h5v2h-5z'/%3E%3Cpath fill='%23ff5030' d='M7 7h2v2H7z'/%3E%3C/svg%3E") 8 8, crosshair;
   image-rendering: pixelated;
 }
+
+/* R8 assist: difficulty note, compact settings form, death cause line */
+#settings-panel .form { gap: 0.5em; }
+#settings-panel .form .note { margin: 0; max-width: 28em; font-size: 0.78em; letter-spacing: 0.06em; color: #b9a58b; text-transform: none; }
+#settings-panel .form .settings-h { margin-top: 0.3em; }
+.result .cause, #result .cause { margin: 0.2em 0; font-size: 1.05em; letter-spacing: 0.14em; text-transform: uppercase; color: #ff7a4a; text-shadow: 0 0 12px rgba(255, 90, 40, 0.4); }
