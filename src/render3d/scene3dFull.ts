@@ -287,6 +287,7 @@ export class Scene3DRenderer {
   private readonly enemyRenderInfo = new Map<string, { yaw: number; x: number; y: number; z: number; clip?: string; timeScale?: number }>();
   private readonly staticEnemies = new Map<string, StaticActorHandle>();
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
+  private readonly hiveHandles = new Map<string, { root: THREE.Group; core: THREE.Mesh; mat: THREE.MeshStandardMaterial }>();
   private readonly pickupHandles = new Map<string, THREE.Group>();
   private readonly doorMeshes = new Map<string, { mesh: THREE.Mesh; baseY: number; height: number }>();
   private doorLamps: THREE.InstancedMesh | null = null;
@@ -1202,6 +1203,8 @@ export class Scene3DRenderer {
     this.enemyRenderInfo.clear();
     for (const b of this.barrelHandles.values()) this.scene.remove(b.root);
     this.barrelHandles.clear();
+    for (const h of this.hiveHandles.values()) this.scene.remove(h.root);
+    this.hiveHandles.clear();
     if (this.coreModel) {
       this.scene.remove(this.coreModel);
       this.coreModel = null;
@@ -1272,6 +1275,29 @@ export class Scene3DRenderer {
       br.root.position.set(b.x, b.y, b.z);
       this.scene.add(br.root);
       this.barrelHandles.set(b.id, { ...br, baseScale: 1.28 });
+    }
+
+    // Hive nests: lumpy organic mound with glowing brood sacs (primitive meshes, no new assets)
+    for (const h of 'hives' in w && w.hives ? w.hives : []) {
+      const g = new THREE.Group();
+      g.name = `hive:${h.id}`;
+      const mat = new THREE.MeshStandardMaterial({ color: 0x3a2a22, roughness: 0.9, emissive: 0x1a3a10, emissiveIntensity: 0.6 });
+      const mound = new THREE.Mesh(new THREE.IcosahedronGeometry(1.0, 1), mat);
+      mound.scale.set(1.15, 0.85, 0.95);
+      mound.position.y = 0.75;
+      g.add(mound);
+      const sacMat = new THREE.MeshStandardMaterial({ color: 0x9cff3a, emissive: 0x6cff20, emissiveIntensity: 1.4, roughness: 0.4, transparent: true, opacity: 0.9 });
+      for (let i = 0; i < 5; i++) {
+        const sac = new THREE.Mesh(new THREE.SphereGeometry(0.22 + (i % 3) * 0.05, 10, 8), sacMat);
+        sac.position.set(-0.7 + i * 0.35, 0.55 + ((i * 37) % 5) * 0.14, 0.55);
+        g.add(sac);
+      }
+      const spire = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.1, 7), mat);
+      spire.position.set(0.1, 1.45, 0);
+      g.add(spire);
+      g.position.set(h.x, h.y, 0);
+      this.scene.add(g);
+      this.hiveHandles.set(h.id, { root: g, core: mound, mat: sacMat });
     }
 
     // Power Core & Forcefield Shield
@@ -1681,8 +1707,16 @@ export class Scene3DRenderer {
         r.visible = proc.visible;
         this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: proc.clip, timeScale: proc.timeScale });
         const pulse = e.alive ? 1 + v.recoil * 0.06 : 1;
-        r.position.set(ex, ey + lift, 0);
-        r.rotation.set(pitch, v.yaw, roll);
+        // Wall/ceiling crawling: rotate the body about the world Z axis around its box centre (sim exposes surfaceAngle)
+        const sa = e.surfaceAngle;
+        if (Math.abs(sa) > 1e-3) {
+          const hh = e.height;
+          r.position.set(ex + Math.sin(sa) * hh * 0.5, ey + hh * 0.5 - Math.cos(sa) * hh * 0.5 + lift, 0);
+          r.rotation.set(pitch - (Math.sin(v.yaw) >= 0 ? 1 : -1) * sa, v.yaw, roll);
+        } else {
+          r.position.set(ex, ey + lift, 0);
+          r.rotation.set(pitch, v.yaw, roll);
+        }
         r.scale.set(sx * pulse, sy * pulse, sz * pulse);
         flashMaterials3D(st.materials, st.baseEmissive, ENEMY_FLASH_HEX_3D, flashAmt);
         if (e.alive && e.kind === 'spitter' && winding && glowIdx < this.muzzleGlows.length) {
@@ -1693,7 +1727,7 @@ export class Scene3DRenderer {
         }
       }
 
-      if (e.alive && winding && (e.kind === 'crawler' || e.kind === 'stalker') && decalIdx < this.lungeDecals.length) {
+      if (e.alive && winding && e.surface === 'floor' && (e.kind === 'crawler' || e.kind === 'stalker') && decalIdx < this.lungeDecals.length) {
         const d = this.lungeDecals[decalIdx++];
         const len = e.kind === 'crawler' ? 2.6 : 3.6;
         d.visible = true;
@@ -1728,6 +1762,17 @@ export class Scene3DRenderer {
         for (let i = 0; i < h.materials.length; i++) {
           h.materials[i].emissive.copy(h.baseEmissive[i]).lerp(new THREE.Color(0xff7722), flash);
         }
+      }
+    }
+
+    for (const h of w.hives) {
+      const hh = this.hiveHandles.get(h.id);
+      if (!hh) continue;
+      hh.root.visible = h.alive;
+      if (h.alive) {
+        const pulse = 1 + (this.reduceMotion ? 0 : 0.03 * Math.sin(tSec * 3 + h.x)) + h.spawnFlashTicks * 0.012;
+        hh.root.scale.set(pulse, pulse, pulse);
+        hh.mat.emissiveIntensity = 1.2 + h.spawnFlashTicks * 0.1 + (h.hitFlashTicks > 0 ? 1.4 : 0);
       }
     }
 

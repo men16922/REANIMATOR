@@ -24,6 +24,8 @@ export interface Bot3D {
 const door = (id: string) => (w: WorldState3D) => w.openDoors.has(id);
 const has = (slot: WeaponSlot3D) => (w: WorldState3D) => w.player.unlocked[slot];
 const upgrade = (id: string) => (w: WorldState3D) => w.collectedUpgrades.has(id);
+/** Nest cleared: the bot holds its firing position until the spawner is destroyed. */
+const hiveDown = (id: string) => (w: WorldState3D) => !w.hives.find((h) => h.id === id)?.alive;
 
 function buildSteps(w: WorldState3D): BotStep[] {
   const L = w.level;
@@ -46,6 +48,7 @@ function buildSteps(w: WorldState3D): BotStep[] {
     { label: 'scattergun', x: sc.x, y: sc.y, tolX: 0.9, tolY: 0.4, done: has(2) },
     { label: 'green door', x: 31, y: -11, fire: { weapon: 2, aimX: 24, aimY: -9.4 }, done: door('door_shaft_mines') },
     { label: 'mines', x: 20, y: -11 },
+    { label: 'hive mines', x: 22.5, y: -11, tolX: 0.8, done: hiveDown('hive-mines-1') },
     { label: 'save mines', x: sv('save_mines').x, y: -11, tolX: 1.0, done: (s) => s.lastSaveId === 'save_mines' },
     { label: 'mines edge', x: 16.9, y: -11, tolX: 0.3 },
     { label: 'stone', x: 13, y: -9.6, leap: true },
@@ -64,10 +67,12 @@ function buildSteps(w: WorldState3D): BotStep[] {
     { label: 'grate back', x: 33, y: 0 },
     { label: 'yellow door', x: 36, y: 0, fire: { weapon: 3, aimX: 42, aimY: 1.9 }, done: door('door_shaft_biolabs') },
     { label: 'bio-labs', x: 46, y: 0 },
+    { label: 'hive bio west', x: 43.5, y: 0, tolX: 0.8, done: hiveDown('hive-bio-1') },
     { label: 'plat 1', x: 50, y: 2.2 },
     { label: 'tank bio', x: 55, y: 4.5, tolX: 0.9, tolY: 0.4, leap: true, done: upgrade('etank_biolabs') },
     { label: 'bio grate', x: 65, y: 4.4, leap: true },
     { label: 'security grate', x: 65, y: 8.8 },
+    { label: 'hive security', x: 65.5, y: 8.8, tolX: 0.8, done: hiveDown('hive-sec-1') },
     { label: 'console', x: 55.8, y: 8.8, tolX: 0.4, done: (s) => s.consoleUnlocked },
     { label: 'past console', x: 52, y: 8.8, leap: true },
     { label: 'save security', x: sv('save_security').x, y: 8.8, tolX: 1.0, done: (s) => s.lastSaveId === 'save_security' },
@@ -75,6 +80,7 @@ function buildSteps(w: WorldState3D): BotStep[] {
     { label: 'bio grate back', x: 65, y: 4.4 },
     { label: 'rail', x: rl.x, y: rl.y, tolX: 0.9, tolY: 0.4, done: has(4) },
     { label: 'bio floor', x: 62, y: 0 },
+    { label: 'hive bio east', x: 60.5, y: 0, tolX: 0.8, done: hiveDown('hive-bio-2') },
     { label: 'red door', x: 61, y: 0, fire: { weapon: 4, aimX: 70, aimY: 2.0 }, done: door('door_boss') },
     { label: 'core arena', x: 73, y: 0, tolX: 0.8 },
     { label: 'warden', x: 73, y: 0, mode: 'boss', done: (s) => !s.enemies.some((e) => e.kind === 'warden' && e.alive) },
@@ -113,6 +119,19 @@ function pickThreat(w: WorldState3D): Threat | null {
     if (wall < dist - e.radius - 0.55) continue;
     const score = dist - (e.kind === 'warden' ? 5 : 0);
     if (!best || score < best.score) best = { x: e.x, y: ty, dist, boss: e.kind === 'warden', score };
+  }
+  // Nests rank behind live enemies, so the bot clears the brood first and then burns the spawner
+  for (const h of w.hives) {
+    if (!h.alive) continue;
+    const ty = h.y + h.height * 0.5;
+    const dist = Math.hypot(h.x - ox, ty - oy);
+    if (dist > 15) continue;
+    const dx = (h.x - ox) / (dist || 1);
+    const dy = (ty - oy) / (dist || 1);
+    const wall = castRaySolidDistance3D(w, ox, oy, 0, dx, dy, 0, dist);
+    if (wall < dist - h.radius - 0.4) continue;
+    const score = dist + 6;
+    if (!best || score < best.score) best = { x: h.x, y: ty, dist, boss: false, score };
   }
   return best;
 }
