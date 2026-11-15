@@ -519,3 +519,118 @@ test('Reckless-input difficulty probe measures HP loss deterministically', () =>
   assert.ok(a.hpLost > 0, 'reckless play must lose HP');
   assert.equal(a.ticks, 1800);
 });
+
+// ---- Monster AI (FEAT-002) ----
+import {
+  ENEMY_ACCEL_3D,
+  ENEMY_BRAKE_MUL_3D,
+  type EnemyState3D,
+} from '../src/game3d/world3d.ts';
+
+function soloEnemy(kind: EnemyState3D['kind']): { w: WorldState3D; e: EnemyState3D } {
+  const w = newWorld3D();
+  const e = w.enemies.find((x) => x.kind === kind)!;
+  w.enemies = [e];
+  w.currentRoom = e.zone;
+  return { w, e };
+}
+
+function placePlayer(w: WorldState3D, x: number, y: number): void {
+  w.player.body.x = x;
+  w.player.body.y = y;
+  w.player.body.vx = 0;
+  w.player.body.vy = 0;
+}
+
+test('monster AI: facing does not flip in one tick when the player crosses over', () => {
+  const { w, e } = soloEnemy('crawler');
+  placePlayer(w, e.x - 5, e.y);
+  for (let i = 0; i < 40; i++) {
+    w.player.hp = 100;
+    stepWorld3D(w, emptyInput3D());
+  }
+  const before = e.facing;
+  placePlayer(w, e.x + 3, e.y);
+  w.player.hp = 100;
+  stepWorld3D(w, emptyInput3D());
+  assert.equal(e.facing, before, 'facing must not flip on the crossing tick');
+  let flipTick = -1;
+  for (let i = 1; i <= 30 && flipTick < 0; i++) {
+    placePlayer(w, e.x + 3, e.y);
+    w.player.hp = 100;
+    stepWorld3D(w, emptyInput3D());
+    if (e.facing !== before) flipTick = i;
+  }
+  assert.ok(flipTick >= 5 || e.state === 'windup' || e.state === 'attack', `flip delayed (tick ${flipTick})`);
+});
+
+test('monster AI: crawler windup is observable and damage only lands during the lunge', () => {
+  const { w, e } = soloEnemy('crawler');
+  const px = e.x + 2.2;
+  placePlayer(w, px, e.y);
+  let windup = 0;
+  let damagedIn: string | null = null;
+  w.player.hp = 100;
+  for (let i = 0; i < 200 && !damagedIn; i++) {
+    placePlayer(w, px, e.y);
+    const hp0 = w.player.hp;
+    const stBefore = e.state;
+    stepWorld3D(w, emptyInput3D());
+    if (e.state === 'windup') windup++;
+    if (w.player.hp < hp0) damagedIn = stBefore === 'windup' ? 'attack' : stBefore;
+  }
+  assert.ok(windup >= 10, `windup ticks ${windup}`);
+  assert.ok(damagedIn === 'attack', `damage state ${damagedIn}`);
+});
+
+test('monster AI: enemy returns toward homeX after the player leaves', () => {
+  const { w, e } = soloEnemy('stalker');
+  e.active = true;
+  e.state = 'chase';
+  e.facing = 1;
+  const home = e.homeX;
+  e.x = home + 3.5;
+  placePlayer(w, home + 60, e.y); // far away: beyond 26 m
+  w.currentRoom = e.zone === 'core' ? 'airlock' : 'core';
+  const d0 = Math.abs(e.x - home);
+  let maxDist = 0;
+  for (let i = 0; i < 700; i++) {
+    w.player.hp = 100;
+    w.player.body.x = home + 60;
+    stepWorld3D(w, emptyInput3D());
+    maxDist = Math.max(maxDist, Math.abs(e.x - home));
+  }
+    assert.ok(Math.abs(e.x - home) <= 4.6, `stays within patrol range (${Math.abs(e.x - home)}, start ${d0})`);
+});
+
+test('monster AI: vx per-tick change is bounded by the accel limit', () => {
+  const { w, e } = soloEnemy('stalker');
+  const px = e.x + 9;
+  placePlayer(w, px, e.y);
+  let prev = e.vx;
+  let prevState = e.state;
+  let checked = 0;
+  for (let i = 0; i < 240; i++) {
+    placePlayer(w, px, e.y);
+    w.player.hp = 100;
+    stepWorld3D(w, emptyInput3D());
+    const steady = e.state === prevState && (e.state === 'chase' || e.state === 'patrol') && e.hitFlashTicks === 0;
+    if (steady) {
+      checked++;
+      assert.ok(Math.abs(e.vx - prev) <= ENEMY_ACCEL_3D.stalker * ENEMY_BRAKE_MUL_3D + 1e-9, `dvx ${e.vx - prev}`);
+    }
+    prev = e.vx;
+    prevState = e.state;
+  }
+  assert.ok(checked > 20);
+});
+
+test('monster AI: two identical runs produce identical enemy states', () => {
+  const run = (): string => {
+    const w = newWorld3D();
+    const bot = createBot3D(w);
+    for (let i = 0; i < 1500; i++) stepWorld3D(w, bot.next(w));
+    return JSON.stringify(w.enemies);
+  };
+  assert.equal(run(), run());
+});

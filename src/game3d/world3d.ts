@@ -90,7 +90,28 @@ export interface EnemyState3D {
   hitFlashTicks: number;
   deathTicks: number;
   anim: ActorAnimAction;
+  homeX: number;
+  state: EnemyAIState3D;
+  stateTicks: number;
+  facing: 1 | -1;
+  turnTicks: number;
+  speedNow: number;
+  lungeTicks: number;
+  stuckTicks: number;
+  lostTicks: number;
 }
+
+export type EnemyAIState3D =
+  | 'dormant' | 'patrol' | 'alert' | 'chase' | 'windup' | 'attack' | 'recover' | 'stagger' | 'dead';
+
+export const ENEMY_TURN_DELAY_3D = 8;
+export const ENEMY_ALERT_TICKS_3D = 20;
+export const ENEMY_LOSE_TICKS_3D = 240;
+export const ENEMY_PATROL_RANGE_3D = 4;
+export const ENEMY_LUNGE_TICKS_3D = { crawler: 16, stalker: 18 };
+/** Max |dvx| per tick when speeding up; braking may use ENEMY_BRAKE_MUL_3D times this. */
+export const ENEMY_ACCEL_3D: Record<EnemyKind3D, number> = { crawler: 0.9, stalker: 0.75, spitter: 0.4, warden: 0.25 };
+export const ENEMY_BRAKE_MUL_3D = 1.6;
 
 export interface Projectile3D {
   id: number;
@@ -278,6 +299,15 @@ export function newWorld3D(): WorldState3D {
       hitFlashTicks: 0,
       deathTicks: 0,
       anim: 'idle',
+      homeX: sp.x,
+      state: 'dormant',
+      stateTicks: 0,
+      facing: -1,
+      turnTicks: 0,
+      speedNow: 0,
+      lungeTicks: 0,
+      stuckTicks: 0,
+      lostTicks: 0,
     };
   });
 
@@ -481,8 +511,10 @@ function damageEnemy(w: WorldState3D, e: EnemyState3D, dmg: number, knockX = 0, 
   if (!e.alive) return;
   e.hp -= dmg;
   e.hitFlashTicks = 8;
-  if (e.kind !== 'warden') e.vx += knockX;
-  else if (stagger > 0) e.staggerTicks = Math.max(e.staggerTicks, stagger);
+  if (e.kind !== 'warden') {
+    e.vx += knockX;
+    if (stagger > 0) e.staggerTicks = Math.max(e.staggerTicks, Math.min(stagger, 20));
+  } else if (stagger > 0) e.staggerTicks = Math.max(e.staggerTicks, stagger);
 
   if (e.kind === 'warden' && e.phase === 1 && e.hp > 0 && e.hp <= e.maxHp * 0.5) {
     e.phase = 2;
@@ -814,6 +846,66 @@ function stepProjectiles3D(w: WorldState3D): void {
   w.projectiles = kept;
 }
 
+/** Deterministic string+counter hash (no Math.random in the sim). */
+function enemyHash3D(id: string, n: number): number {
+  let h = 2166136261;
+  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+  h = Math.imul(h ^ (n | 0), 2654435761);
+  h ^= h >>> 15;
+  return h >>> 0;
+}
+
+function setEnemyState(e: EnemyState3D, s: EnemyAIState3D, ticks: number): void {
+  e.state = s;
+  e.stateTicks = ticks;
+}
+
+/** Facing flips only after the player stays >0.6 m on the other side for TURN_DELAY ticks. */
+function updateFacing(e: EnemyState3D, dirX: 1 | -1, dist: number): void {
+  if (dirX === e.facing || dist < 0.6) {
+    e.turnTicks = 0;
+    return;
+  }
+  e.turnTicks++;
+  if (e.turnTicks >= ENEMY_TURN_DELAY_3D) {
+    e.facing = dirX;
+    e.turnTicks = 0;
+  }
+}
+
+function approachVx(e: EnemyState3D, want: number): void {
+  const a = ENEMY_ACCEL_3D[e.kind];
+  const braking = Math.abs(want) < Math.abs(e.vx) || want * e.vx < 0;
+  const lim = braking ? a * ENEMY_BRAKE_MUL_3D : a;
+  e.vx += Math.max(-lim, Math.min(lim, want - e.vx));
+  if (Math.abs(e.vx) < 0.05 && want === 0) e.vx = 0;
+}
+
+function spitterShotClear(w: WorldState3D, e: EnemyState3D): boolean {
+  const pb = w.player.body;
+  const dx = pb.x - e.x;
+  const ty = pb.y + 0.95;
+  const sy = e.y + 1.15;
+  const len = Math.hypot(dx, ty - sy) || 1;
+  return castRaySolidDistance3D(w, e.x, sy, 0, dx / len, (ty - sy) / len, 0, len) >= len - 0.9;
+}
+
+function spitterFire(w: WorldState3D, e: EnemyState3D): void {
+  const pb = w.player.body;
+  const dx = pb.x - e.x;
+  const ty = pb.y + 0.95;
+  const sy = e.y + 1.15;
+  const len = Math.hypot(dx, ty - sy) || 1;
+  w.projectiles.push({
+    id: w.nextId++, kind: 'enemy_acid', fromPlayer: false,
+    x: e.x + (dx / len) * 0.6, y: sy + ((ty - sy) / len) * 0.6, z: 0,
+    vx: (dx / len) * 12.5, vy: ((ty - sy) / len) * 12.5, vz: 0,
+    damage: 12, radius: 0.24, lifeTicks: 110, bounces: 0,
+  });
+  e.attackCooldown = 96;
+  e.attackAnimTicks = 20;
+}
+
 function stepEnemies3D(w: WorldState3D): void {
   const dt = ABILITY_3D.dt;
   const col = buildCollider3D(w.level, w.openDoors);
@@ -824,35 +916,53 @@ function stepEnemies3D(w: WorldState3D): void {
     if (!e.alive) {
       e.deathTicks++;
       e.anim = 'death';
+      e.state = 'dead';
       continue;
     }
 
     const dx = pb.x - e.x;
     const dist = Math.abs(dx) || 1e-4;
-    const dirX = dx >= 0 ? 1 : -1;
+    const dirX: 1 | -1 = dx >= 0 ? 1 : -1;
     const dy = pb.y - e.y;
+    const stats = ENEMY_STATS[e.kind];
+    const isWarden = e.kind === 'warden';
 
     if (!e.active) {
-      if (e.zone === w.currentRoom || e.hitFlashTicks > 0 || (e.zone === 'core' && w.coreDestroyed)) e.active = true;
-      else {
+      if (e.zone === w.currentRoom || e.hitFlashTicks > 0 || (e.zone === 'core' && w.coreDestroyed)) {
+        e.active = true;
+        e.facing = dirX;
+        e.turnTicks = 0;
+        if (isWarden) setEnemyState(e, 'chase', 0);
+        else setEnemyState(e, 'alert', ENEMY_ALERT_TICKS_3D);
+      } else {
         e.anim = 'idle';
+        e.state = 'dormant';
+        e.yaw = e.facing * (Math.PI / 2);
         continue;
       }
     }
 
-    if (e.staggerTicks > 0) {
-      e.staggerTicks--;
-      e.anim = 'idle';
-      continue;
-    }
     if (e.attackCooldown > 0) e.attackCooldown--;
     if (e.attackAnimTicks > 0) e.attackAnimTicks--;
 
-    const stats = ENEMY_STATS[e.kind];
-    e.yaw = dirX > 0 ? Math.PI / 2 : -Math.PI / 2;
     let wantVx = 0;
+    let direct = false; // lunge: velocity set by the state, not by accel
+    let patrolling = false;
+    let moving = true; // whether this tick tries to translate (for stuck detection)
 
-    if (e.kind === 'warden') {
+    if (e.staggerTicks > 0) {
+      e.staggerTicks--;
+      e.windupTicks = 0;
+      e.lungeTicks = 0;
+      e.state = 'stagger';
+      e.stateTicks = e.staggerTicks;
+      e.anim = 'idle';
+      moving = false;
+      if (e.staggerTicks === 0) setEnemyState(e, 'chase', 0);
+    } else if (isWarden) {
+      e.state = e.windupTicks > 0 ? 'windup' : 'chase';
+      if (e.windupTicks === 0) updateFacing(e, dirX, dist);
+      const turning = e.turnTicks > 0;
       if (e.windupTicks > 0) {
         e.windupTicks--;
         e.anim = 'attack';
@@ -867,10 +977,12 @@ function stepEnemies3D(w: WorldState3D): void {
           w.events.push({ type: 'slam' });
           e.attackCooldown = e.phase === 2 ? 78 : 112;
         }
-      } else if (e.attackCooldown === 0 && dist < 22) {
+      } else if (e.attackCooldown === 0 && dist < 22 && !turning) {
         if (w.tick % 2 === 0 || dist < 7.0) {
           e.windupTicks = e.phase === 2 ? 28 : 36;
           e.attackAnimTicks = 42;
+          e.facing = dirX;
+          e.turnTicks = 0;
         } else {
           const ey = e.y + 1.5;
           const base = Math.atan2(pb.y + 0.9 - ey, dx);
@@ -887,8 +999,8 @@ function stepEnemies3D(w: WorldState3D): void {
           e.attackCooldown = e.phase === 2 ? 64 : 88;
         }
       } else if (dist > 2.2) {
-        wantVx = dirX * stats.speed * (e.phase === 2 ? 1.32 : 1.0);
-        e.anim = 'walk';
+        wantVx = turning ? 0 : e.facing * stats.speed * (e.phase === 2 ? 1.32 : 1.0);
+        e.anim = 'idle';
       } else {
         e.anim = e.attackAnimTicks > 0 ? 'attack' : 'idle';
         if (e.attackCooldown <= 30 && Math.abs(dy) < 1.8) {
@@ -897,52 +1009,181 @@ function stepEnemies3D(w: WorldState3D): void {
           e.attackCooldown = 68;
         }
       }
-    } else if (e.kind === 'spitter') {
-      const want = dist > 12.5 ? 1 : dist < 5.5 ? -0.75 : 0;
-      wantVx = dirX * stats.speed * want;
-      if (e.attackCooldown === 0 && dist < 19 && Math.abs(dy) < 9) {
-        const ty = pb.y + 0.95;
-        const sy = e.y + 1.15;
-        const len = Math.hypot(dx, ty - sy) || 1;
-        const clear = castRaySolidDistance3D(w, e.x, sy, 0, dx / len, (ty - sy) / len, 0, len);
-        if (clear >= len - 0.9) {
-          w.projectiles.push({
-            id: w.nextId++, kind: 'enemy_acid', fromPlayer: false,
-            x: e.x + (dx / len) * 0.6, y: sy + ((ty - sy) / len) * 0.6, z: 0,
-            vx: (dx / len) * 12.5, vy: ((ty - sy) / len) * 12.5, vz: 0,
-            damage: 12, radius: 0.24, lifeTicks: 110, bounces: 0,
-          });
-          e.attackCooldown = 96;
-          e.attackAnimTicks = 20;
+      if (e.windupTicks === 0 && wantVx === 0 && e.attackAnimTicks === 0) e.anim = 'idle';
+    } else {
+      // ---- crawler / stalker / spitter ----
+      const lostNow = dist > 26 || e.zone !== w.currentRoom;
+      if (e.state === 'chase' || e.state === 'recover') {
+        e.lostTicks = lostNow ? e.lostTicks + 1 : 0;
+        if (e.lostTicks > ENEMY_LOSE_TICKS_3D && e.state === 'chase') {
+          setEnemyState(e, 'patrol', 0);
+          e.lostTicks = 0;
+          e.turnTicks = 0;
+          e.facing = e.x > e.homeX ? -1 : 1;
         }
       }
-      e.anim = e.attackAnimTicks > 0 ? 'attack' : Math.abs(want) > 0.1 ? 'walk' : 'idle';
-    } else {
-      const rage = e.kind === 'stalker' && dist < 7.5 ? 1.38 : 1.0;
-      wantVx = dist > 0.95 ? dirX * stats.speed * rage : 0;
-      if (dist <= e.radius + ABILITY_3D.radius + 0.75 && Math.abs(dy) < 1.55 && e.attackCooldown === 0) {
-        damagePlayer(w, e.kind === 'stalker' ? 14 : 9, dirX * 5);
-        e.attackCooldown = e.kind === 'stalker' ? 42 : 34;
-        e.attackAnimTicks = 24;
+      const lunger = e.kind !== 'spitter';
+
+      switch (e.state) {
+        case 'patrol': {
+          patrolling = true;
+          e.anim = 'idle';
+          if ((e.zone === w.currentRoom && dist < 18 && Math.abs(dy) < 6) || e.hitFlashTicks > 0) {
+            e.facing = dirX;
+            e.turnTicks = 0;
+            setEnemyState(e, 'alert', ENEMY_ALERT_TICKS_3D);
+            patrolling = false;
+            moving = false;
+            break;
+          }
+          if (e.stateTicks > 0) {
+            e.stateTicks--;
+            moving = false;
+          } else if ((e.x - e.homeX) * e.facing >= ENEMY_PATROL_RANGE_3D || e.stuckTicks > 6) {
+            e.stateTicks = 40 + (enemyHash3D(e.id, w.tick) % 51);
+            e.facing = e.facing === 1 ? -1 : 1;
+            e.stuckTicks = 0;
+            moving = false;
+          } else {
+            wantVx = e.facing * stats.speed * 0.4;
+          }
+          break;
+        }
+        case 'alert': {
+          moving = false;
+          e.anim = 'attack';
+          e.stateTicks--;
+          if (e.stateTicks <= 0) {
+            setEnemyState(e, 'chase', 0);
+            e.lostTicks = 0;
+          }
+          break;
+        }
+        case 'windup': {
+          moving = false;
+          e.anim = 'idle';
+          e.stateTicks--;
+          if (e.windupTicks > 0) e.windupTicks--;
+          if (e.stateTicks <= 0) {
+            e.windupTicks = 0;
+            if (lunger) {
+              const crawler = e.kind === 'crawler';
+              setEnemyState(e, 'attack', crawler ? ENEMY_LUNGE_TICKS_3D.crawler : ENEMY_LUNGE_TICKS_3D.stalker);
+              e.lungeTicks = e.stateTicks;
+              e.vx = e.facing * (crawler ? 9 : 10.5);
+              e.vy = crawler ? 3.2 : 4.0;
+              e.attackAnimTicks = e.lungeTicks;
+            } else {
+              if (spitterShotClear(w, e)) spitterFire(w, e);
+              setEnemyState(e, 'recover', 30);
+            }
+          }
+          break;
+        }
+        case 'attack': {
+          direct = true;
+          e.anim = 'attack';
+          e.lungeTicks--;
+          e.stateTicks = e.lungeTicks;
+          e.vx = e.facing * (e.kind === 'crawler' ? 9 : 10.5);
+          if (Math.abs(pb.x - e.x) <= e.radius + ABILITY_3D.radius + 0.6 && Math.abs(dy) < 1.55) {
+            damagePlayer(w, e.kind === 'stalker' ? 14 : 9, e.facing * 5);
+            e.lungeTicks = 0;
+          }
+          if (e.lungeTicks <= 0) {
+            direct = false;
+            setEnemyState(e, 'recover', e.kind === 'stalker' ? 30 : 40);
+          }
+          break;
+        }
+        case 'recover': {
+          moving = false;
+          e.anim = e.attackAnimTicks > 0 ? 'attack' : 'idle';
+          e.stateTicks--;
+          if (e.stateTicks <= 0) setEnemyState(e, 'chase', 0);
+          break;
+        }
+        default: {
+          // chase
+          e.state = 'chase';
+          updateFacing(e, dirX, dist);
+          const turning = e.turnTicks > 0;
+          if (lunger) {
+            const reach = e.kind === 'crawler' ? 2.4 : 3.5;
+            if (dist <= reach && Math.abs(dy) < 2.2 && e.attackCooldown === 0 && !turning) {
+              e.facing = dirX;
+              e.turnTicks = 0;
+              const wt = e.kind === 'crawler' ? 14 : 18;
+              setEnemyState(e, 'windup', wt);
+              e.windupTicks = wt;
+              moving = false;
+              e.anim = 'idle';
+              break;
+            }
+            const rage = e.kind === 'stalker' && dist < 7.5 ? 1.38 : 1.0;
+            if (turning) wantVx = 0;
+            else if (dist > 0.95) wantVx = e.facing * stats.speed * rage;
+            if (
+              e.kind === 'stalker' && e.hitFlashTicks > 0 && dist < 4 &&
+              enemyHash3D(e.id, w.tick >> 4) % 3 === 0
+            ) {
+              wantVx = -dirX * stats.speed * 0.7; // strafe back when shot at close range
+            }
+          } else {
+            if (e.attackCooldown === 0 && dist < 19 && Math.abs(dy) < 9 && !turning && spitterShotClear(w, e)) {
+              e.facing = dirX;
+              e.turnTicks = 0;
+              setEnemyState(e, 'windup', 12);
+              e.windupTicks = 12;
+              moving = false;
+              e.anim = 'idle';
+              break;
+            }
+            const want = dist > 12.5 ? 1 : dist < 5.5 ? -0.75 : 0;
+            wantVx = turning ? 0 : e.facing * stats.speed * want;
+          }
+          break;
+        }
       }
-      if (e.attackAnimTicks > 0) e.anim = 'attack';
-      else if (Math.abs(wantVx) > 4.2) e.anim = 'run';
-      else if (Math.abs(wantVx) > 0.6) e.anim = 'walk';
-      else e.anim = 'idle';
+      if (e.state === 'chase') {
+        if (e.attackAnimTicks > 0) e.anim = 'attack';
+        else if (Math.abs(e.vx) > 4.2) e.anim = 'run';
+        else if (Math.abs(e.vx) > 0.6) e.anim = 'walk';
+        else e.anim = 'idle';
+      } else if (patrolling && Math.abs(e.vx) > 0.4) {
+        e.anim = 'walk';
+      }
     }
 
     // Never walk off a ledge deeper than a short hop
-    if (wantVx !== 0) {
-      const ahead = e.x + Math.sign(wantVx) * (e.radius + 0.5);
+    let blocked = false;
+    const guardDir = direct ? Math.sign(e.vx) : Math.sign(wantVx);
+    if (guardDir !== 0) {
+      const ahead = e.x + guardDir * (e.radius + 0.5);
       const fyAhead = floorHeightAt3D(ahead, 0, e.y, 0.1, col);
-      if (!(fyAhead > -Infinity) || e.y - fyAhead > 1.3) wantVx = 0;
+      if (!(fyAhead > -Infinity) || e.y - fyAhead > 1.3) {
+        blocked = true;
+        if (direct) {
+          e.vx = 0;
+          e.lungeTicks = 0;
+          setEnemyState(e, 'recover', e.kind === 'stalker' ? 30 : 40);
+        } else wantVx = 0;
+      }
     }
-    e.vx = e.vx * 0.72 + wantVx * 0.28;
-    if (Math.abs(e.vx) < 0.05) e.vx = 0;
+    if (!direct) approachVx(e, wantVx);
 
+    const prevX = e.x;
     const pushed = resolveHorizontal3D(e.x + e.vx * dt, e.y, 0, e.radius, e.height, col);
     e.x = pushed.x;
     e.z = 0;
+    if (!isWarden && moving && Math.abs(wantVx) > 0.5 && (blocked || Math.abs(e.x - prevX) < 0.002)) e.stuckTicks++;
+    else if (Math.abs(e.x - prevX) > 0.01) e.stuckTicks = 0;
+    if (!isWarden && e.state === 'chase' && e.stuckTicks > 20) {
+      setEnemyState(e, 'recover', 30); // blocked by wall/ledge: stand and idle instead of jittering
+      e.stuckTicks = 0;
+      e.vx = 0;
+    }
+
     const fy = floorHeightAt3D(e.x, 0, e.y, e.radius, col);
     e.vy = Math.max(-16, e.vy - 24 * dt);
     const ny = e.y + e.vy * dt;
@@ -952,6 +1193,9 @@ function stepEnemies3D(w: WorldState3D): void {
     } else {
       e.y = ny;
     }
+    e.yaw = e.facing * (Math.PI / 2);
+    e.speedNow = Math.abs(e.vx);
+    if (isWarden && e.windupTicks === 0 && e.attackAnimTicks === 0) e.anim = Math.abs(e.vx) > 0.5 ? 'walk' : 'idle';
   }
 }
 
