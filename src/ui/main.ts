@@ -45,6 +45,8 @@ import { normalizePanelState, titleCovered, topLayer } from './panels.ts';
 import { archiveRows, canOpen, LOG_FREEZE_S, openReader, pressReader, tickReader, visibleBody, type ReaderState } from './logReader.ts';
 import { CREDITS_LINES, endingText, INTRO_LINES, LORE_LOGS, chromeLabel, loreLogById, SECTOR_SUB, type Lang } from './lore.ts';
 import { runUiAudit, type UiAuditReport } from './uiAudit.ts';
+import { canResume as canResumeRule, resultCheckpointLine } from './resultCopy.ts';
+import { readLayers } from './debugLayers.ts';
 import { getFailedModelNames3D, getLoadedModelNames3D } from '../render3d/riggedModels.ts';
 
 const SIM_HZ_3D = 60;
@@ -372,9 +374,14 @@ function hideTransient(): void {
   coachId = '';
 }
 
+/** Debug bookkeeping: epoch cancels stale async hooks, worldSerial counts every replacement of `world`. */
+let debugEpoch = 0;
+let worldSerial = 0;
+
 function start(forceIntro = false, stop: DemoStop | null = null): void {
   manualHold = false;
   world = freshWorld({ difficulty, assist });
+  worldSerial++;
   demoStop = stop;
   if (stop) applyDebugSetup(world, stop.setup);
   audioDirector.reset();
@@ -970,7 +977,7 @@ function showResult(): void {
   const st = buildRunStats(world, deaths, SIM_HZ_3D);
   const canResume = !won && canResumeNow();
   ui.resultTitle.textContent = won ? 'Escaped with the core' : 'Signal lost';
-  const cp = won ? '' : canResume ? 'Press C or Enter to resume at the last Save station.' : 'No Save station reached yet. Play again restarts the run.';
+  const cp = resultCheckpointLine({ won, lastSaveId: world.lastSaveId, nearRespawn: world.diff.nearRespawn });
   const cause = world.deathCause;
   const causeEl = $('result-cause');
   causeEl.hidden = won || !cause;
@@ -1131,7 +1138,7 @@ function restartCurrent(): void {
 
 /** Story respawns near where you fell, so a defeat is always resumable. Other difficulties need a Save station. */
 function canResumeNow(): boolean {
-  return !!world.lastSaveId || world.diff.nearRespawn;
+  return canResumeRule({ lastSaveId: world.lastSaveId, nearRespawn: world.diff.nearRespawn });
 }
 
 function resumeAtSave(): boolean {
@@ -1521,6 +1528,8 @@ function buildSnapshot() {
     startY: world.level.spawn.y,
     rendererMode,
     viewMode,
+    layers: readLayers({ mode, titleHidden: !!ui.title.hidden, loadingHidden: !!$('loading').hidden, introHidden: !!ui.intro.hidden }),
+    worldSerial,
     crt: crtOn,
     frame: framePerfOn ? { ...framePerf } : null,
     ...tel,
@@ -1529,26 +1538,42 @@ function buildSnapshot() {
 
 export type { DebugSetup3D };
 
+type DebugRunSnapshot = ReturnType<typeof buildSnapshot> & {
+  debug: { world: 'fresh' | 'continued'; worldSerial: number; ticksRun: number; stoppedOn: 'inputs' | 'status'; layers: ReturnType<typeof readLayers> };
+};
+
+function debugRun(kind: 'fresh' | 'continued', ticksRun: number, requested: number): DebugRunSnapshot {
+  const snap = buildSnapshot();
+  return { ...snap, debug: { world: kind, worldSerial, ticksRun, stoppedOn: ticksRun < requested ? 'status' : 'inputs', layers: snap.layers } };
+}
+
 // Read-only test & showcase inspection hooks
 const wAny = window as unknown as {
   __reanimator: () => ReturnType<typeof buildSnapshot>;
-  __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D) => ReturnType<typeof buildSnapshot>;
-  __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => ReturnType<typeof buildSnapshot>;
+  __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D, opts?: { continue?: boolean }) => DebugRunSnapshot;
+  __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => DebugRunSnapshot;
   __reanimatorRunBot: (maxTicks: number, untilStep?: string, showResultOnEnd?: boolean) => ReturnType<typeof buildSnapshot>;
   __reanimatorSetView: (m: ViewMode) => ReturnType<typeof buildSnapshot>;
   __reanimatorAudio: typeof getAudioDebug;
   __reanimatorShowResult: (kind: 'won' | 'lost') => ReturnType<typeof buildSnapshot>;
   __reanimatorShowBanner: (kind: 'sector' | 'weapon' | 'boots' | 'etank' | 'coach') => ReturnType<typeof buildSnapshot>;
   __reanimatorPick: (px: number, py: number, includePoints?: boolean) => Array<Record<string, unknown>>;
-  __reanimatorShowcase: (name: string) => Promise<ReturnType<typeof buildSnapshot>>;
+  __reanimatorShowcase: (name: string) => Promise<ReturnType<typeof buildSnapshot> & { superseded?: true }>;
   __reanimatorDemo: (id: string) => ReturnType<typeof buildSnapshot>;
   __reanimatorSoak: (n?: number, opts?: SoakOptions) => Promise<SoakReport>;
-  __reanimatorUiAudit: () => Promise<UiAuditReport>;
+  __reanimatorUiAudit: () => Promise<UiAuditReport | (ReturnType<typeof buildSnapshot> & { superseded: true })>;
   __reanimatorShowLog: (id: string, view?: 'reader' | 'archive' | 'credits' | 'ending') => ReturnType<typeof buildSnapshot>;
 };
 
+/**
+ * Single teardown for every debug entry that enters play: end a held showcase and the opening, drop the loading logo
+ * screen unconditionally (it reads as the title), clear the attract camera, then show 'playing'.
+ */
 function enterManual(): void {
-  // Leave attract mode first: a stale attract camera makes the next render skip the Warden intro (debug entry points).
+  exitShowcase();
+  hideIntro();
+  dismissLoading();
+  // A stale attract camera makes the next render skip the Warden intro (debug entry points).
   scene3d?.setAttractCamera(null);
   manualHold = true;
   acc = 0;
@@ -1565,40 +1590,54 @@ wAny.__reanimatorSetView = (m) => {
   applyView(m === 'classic' ? 'classic' : 'modern');
   return buildSnapshot();
 };
-/** Fresh world, optional setup, then run the given input frames. */
-wAny.__reanimatorAdvance = (inputs, setup) => {
+/**
+ * Fresh world (default) or the current one (`opts.continue`), optional setup, then run the given input frames.
+ * Returns the snapshot plus `debug` (world fresh/continued, worldSerial, ticksRun, stoppedOn, layers).
+ */
+wAny.__reanimatorAdvance = (inputs, setup, opts) => {
+  debugEpoch++;
+  const cont = opts?.continue === true;
   // A held showcase (frozen opening overlay, letterbox) or a running opening must not stay over the debug world.
   exitShowcase();
   if (setup?.skipIntro || openingFrozen || introActive) hideIntro();
-  if (scene3d?.getTelemetry().modelsLoaded) dismissLoading();
-  world = newWorld3D();
-  bot = null;
+  dismissLoading();
+  if (!cont) {
+    world = newWorld3D();
+    worldSerial++;
+    bot = null;
+    scene3d?.fx.reset();
+  }
   if (setup) applyDebugSetup(world, setup);
-  scene3d?.fx.reset();
   enterManual();
+  let ran = 0;
   for (const inp of inputs) {
     world = stepWorld3D(world, { ...emptyInput3D(), aimX: world.player.body.x + world.player.facing * 8, aimY: world.player.body.y + 1.12, ...inp });
+    ran++;
     if (world.status !== 'playing') break;
   }
   scene3d?.fx.observe(world, true);
   renderWorld();
   hud();
-  return buildSnapshot();
+  return debugRun(cont ? 'continued' : 'fresh', ran, inputs.length);
 };
 /** Continue the current world with more input frames (no reset). */
 wAny.__reanimatorStep = (inputs, alpha = 1) => {
+  debugEpoch++;
   enterManual();
+  let ran = 0;
   for (const inp of inputs) {
     world = stepWorld3D(world, { ...emptyInput3D(), aimX: world.player.body.x + world.player.facing * 8, aimY: world.player.body.y + 1.12, ...inp });
+    ran++;
     scene3d?.fx.observe(world);
     if (world.status !== 'playing') break;
   }
   renderWorld(alpha);
   hud();
-  return buildSnapshot();
+  return debugRun('continued', ran, inputs.length);
 };
 /** Let the deterministic bot play the current world forward (optionally until a named step is reached). */
 wAny.__reanimatorRunBot = (maxTicks, untilStep, showResultOnEnd = false) => {
+  debugEpoch++;
   enterManual();
   if (!bot) bot = createBot3D(world);
   for (let i = 0; i < maxTicks && world.status === 'playing'; i++) {
@@ -1616,17 +1655,22 @@ wAny.__reanimatorRunBot = (maxTicks, untilStep, showResultOnEnd = false) => {
  * Debug only: force the result screen. 'won' / 'lost' mark the current world finished (status only, nothing else
  * is changed) and run the same showResult() path as real play.
  */
-wAny.__reanimatorShowResult = (kind) => {
+function debugShowResult(kind: 'won' | 'lost'): void {
   enterManual();
   world.status = kind;
   if (kind === 'won') world.phase = 'won';
   hud();
   showResult();
+}
+wAny.__reanimatorShowResult = (kind) => {
+  debugEpoch++;
+  debugShowResult(kind);
   return buildSnapshot();
 };
 
 /** Debug only: pop a HUD banner or card deterministically ('sector', 'weapon', 'boots', 'etank', 'coach'). */
 wAny.__reanimatorShowBanner = (kind) => {
+  debugEpoch++;
   enterManual();
   hud();
   if (kind === 'sector') showSectorCard();
@@ -1647,12 +1691,13 @@ wAny.__reanimatorShowBanner = (kind) => {
  * text fully typed. view 'archive' opens the pause LOGS list (ids ignored), 'credits' rolls the credits, 'ending' shows a won result.
  */
 wAny.__reanimatorShowLog = (id, view = 'reader') => {
+  debugEpoch++;
   if (view === 'archive') {
     enterManual();
     show('paused');
     openArchive();
   } else if (view === 'credits' || view === 'ending') {
-    wAny.__reanimatorShowResult('won');
+    debugShowResult('won');
     if (view === 'credits') openCredits();
   } else {
     enterManual();
@@ -1688,8 +1733,13 @@ function settleFrames(n: number): Promise<void> {
 wAny.__reanimatorShowcase = async (name) => {
   const sc = SHOWCASE_SCENES[name];
   if (!sc) throw new Error(`unknown showcase scene "${name}"; known: ${SHOWCASE_NAMES.join(', ')}`);
+  const epoch = ++debugEpoch;
+  const superseded = (): ReturnType<typeof buildSnapshot> & { superseded: true } => ({ ...buildSnapshot(), superseded: true });
   // Models stream in after first paint; give them a bounded wait so captures never show placeholder meshes.
-  for (let i = 0; i < 100 && scene3d && !scene3d.getTelemetry().modelsLoaded; i++) await settleFrames(3);
+  for (let i = 0; i < 100 && scene3d && !scene3d.getTelemetry().modelsLoaded; i++) {
+    await settleFrames(3);
+    if (epoch !== debugEpoch) return superseded();
+  }
   // The loading screen fades out on its own timer after the models land; a capture right after the first call
   // must not show the logo screen (it reads as "the title is still up").
   dismissLoading();
@@ -1700,6 +1750,7 @@ wAny.__reanimatorShowcase = async (name) => {
   if (sc.kind === 'world') {
     applyView(sc.view ?? 'modern', false);
     world = freshWorld();
+    worldSerial++;
     bot = null;
     applyDebugSetup(world, sc.setup ?? {});
     enterManual();
@@ -1738,6 +1789,7 @@ wAny.__reanimatorShowcase = async (name) => {
     }
   }
   await settleFrames(sc.settleFrames);
+  if (epoch !== debugEpoch) return superseded();
   return buildSnapshot();
 };
 
@@ -1745,6 +1797,7 @@ wAny.__reanimatorShowcase = async (name) => {
 wAny.__reanimatorDemo = (id) => {
   const stop = DEMO_STOPS.find((d) => d.id === id);
   if (!stop) throw new Error(`unknown demo stop "${id}"; known: ${DEMO_STOPS.map((d) => d.id).join(', ')}`);
+  debugEpoch++;
   exitShowcase();
   start(false, stop);
   return buildSnapshot();
@@ -1927,31 +1980,43 @@ wAny.__reanimatorSoak = async (n = 3, opts = {}) => {
  * Resets to a fresh title screen afterwards (the current run is discarded). Returns { ok, scenarios[] }.
  */
 wAny.__reanimatorUiAudit = async () => {
+  const epoch = ++debugEpoch;
+  const stale = (): boolean => epoch !== debugEpoch;
+  const superseded = (): ReturnType<typeof buildSnapshot> & { superseded: true } => ({ ...buildSnapshot(), superseded: true });
   // An opening or showcase in progress covers the title and menus; end it and let the UI settle so the audit measures the real UI.
   exitShowcase();
   hideIntro();
   document.body.classList.add('opening-snap');
   show('title');
   await settleFrames(6);
+  if (stale()) {
+    document.body.classList.remove('opening-snap');
+    return superseded();
+  }
   // The title menu fades in on wall time (2.9 s delay) whenever it is shown again; hold it opaque while measuring.
   const menu = $('title-menu');
   menu.style.animation = 'none';
   return runUiAudit({
     toTitle: () => {
+      if (stale()) return;
       exitShowcase();
       hideIntro();
       show('title');
     },
-    toPaused: () => show('paused'),
+    toPaused: () => {
+      if (!stale()) show('paused');
+    },
     toResult: () => {
-      wAny.__reanimatorShowResult('lost');
+      if (!stale()) debugShowResult('lost');
     },
     frames: settleFrames,
   }).then((r) => {
-    world = freshWorld();
-    show('title');
     menu.style.animation = '';
     document.body.classList.remove('opening-snap');
+    if (stale()) return superseded();
+    world = freshWorld();
+    worldSerial++;
+    show('title');
     return r;
   });
 };
