@@ -1215,6 +1215,9 @@ function registerKill(w: WorldState3D, e: { kind: EnemyKind3D }, bonus = 0): voi
   if (c.count >= 2) w.events.push({ type: 'combo', value: c.count });
 }
 
+/** Fastest knockback launch speed (m/s): 0.2 m per tick at 60 Hz. */
+const ENEMY_KNOCK_VX_MAX = 12;
+
 function damageEnemy(
   w: WorldState3D,
   e: EnemyState3D,
@@ -1230,7 +1233,8 @@ function damageEnemy(
   e.hp -= dmg;
   e.hitFlashTicks = 8;
   if (e.kind !== 'warden') {
-    e.vx += knockX;
+    // R13: a hit launches the foe at no more than ENEMY_KNOCK_VX_MAX, so a counter never snaps it 0.4 m in one tick
+    e.vx = Math.max(-ENEMY_KNOCK_VX_MAX, Math.min(ENEMY_KNOCK_VX_MAX, e.vx + knockX));
     if (stagger > 0) e.staggerTicks = Math.max(e.staggerTicks, Math.min(stagger, 20));
   }
 
@@ -2435,6 +2439,19 @@ function stepEnemies3D(w: WorldState3D): void {
             else if (e.attackCooldown > 0 && dist < 2.2 && dy > -0.7) wantVx = -e.facing * spd * 0.55; // back off while the lunge recharges
             else if (dist > 0.95) wantVx = e.facing * spd * rage;
             if (separation !== 0 && !turning) wantVx += Math.max(-3, Math.min(3, separation));
+            // R13 queue: a stalled foe straight ahead (closed door, wall, attacker) means wait behind it. Braking here keeps
+            // the queue still instead of a chase-push versus separation-slide shuffle every few ticks.
+            if (wantVx !== 0 && !crossing) {
+              const dir = Math.sign(wantVx);
+              for (const o of w.enemies) {
+                if (o === e || !o.alive || !o.active || o.surface !== 'floor' || (o.kind !== 'crawler' && o.kind !== 'stalker')) continue;
+                const ahead = (o.x - e.x) * dir;
+                if (ahead > 0 && ahead < ENEMY_GAP_3D + 0.15 && Math.abs(o.y - e.y) < 1.0 && o.speedNow < 0.4) {
+                  wantVx = 0;
+                  break;
+                }
+              }
+            }
             if (
               e.kind === 'stalker' && e.hitFlashTicks > 0 && dist < 4 &&
               enemyHash3D(e.id, w.tick >> 4) % 3 === 0
@@ -2522,6 +2539,20 @@ function stepEnemies3D(w: WorldState3D): void {
 }
 
 const ENEMY_GAP_3D = 0.85;
+/** Most a queueing foe is moved per tick by separation (m): a 4.2 m/s slide, so a queue never shows as a teleport. */
+const ENEMY_SEP_SLIDE = 0.07;
+/** Largest per-tick displacement separation may produce together with the foe's own velocity (m). */
+const ENEMY_STEP_MAX = 0.19;
+
+function slideToward(e: EnemyState3D, target: number): number {
+  // Proportional (35% of the overlap per tick, at most ENEMY_SEP_SLIDE): the push fades as the gap closes, so it never
+  // fights the chase velocity with a constant-size nudge. Added to the foe's own motion it never exceeds
+  // ENEMY_STEP_MAX in one tick.
+  const d = target - e.x;
+  const own = Math.sign(e.vx) === Math.sign(d) ? Math.abs(e.vx) / 60 : 0;
+  const cap = Math.max(0, Math.min(ENEMY_SEP_SLIDE, ENEMY_STEP_MAX - own));
+  return e.x + Math.sign(d) * Math.min(cap, Math.abs(d) * 0.35 + 0.004);
+}
 
 /** Deterministic queueing: two grounded foes never share a spot. The one further from the player yields. */
 function separateEnemies3D(w: WorldState3D, col: ReturnType<typeof buildCollider3D>): void {
@@ -2544,11 +2575,11 @@ function separateEnemies3D(w: WorldState3D, col: ReturnType<typeof buildCollider
       const stay = mover === a ? b : a;
       const side = Math.abs(d) > 1e-6 ? Math.sign(mover.x - stay.x) : px < stay.x ? 1 : -1;
       const r = resolveHorizontal3D(stay.x + side * ENEMY_GAP_3D, mover.y, 0, mover.radius, mover.height, col);
-      if (Math.abs(r.x - stay.x) >= ENEMY_GAP_3D * 0.5) mover.x = r.x;
+      if (Math.abs(r.x - stay.x) >= ENEMY_GAP_3D * 0.5) mover.x = slideToward(mover, r.x);
       else {
         // Wall behind the mover: the one nearer the player gives way instead
         const r2 = resolveHorizontal3D(mover.x - side * ENEMY_GAP_3D, stay.y, 0, stay.radius, stay.height, col);
-        if (Math.abs(r2.x - mover.x) >= ENEMY_GAP_3D * 0.5) stay.x = r2.x;
+        if (Math.abs(r2.x - mover.x) >= ENEMY_GAP_3D * 0.5) stay.x = slideToward(stay, r2.x);
       }
     }
   }

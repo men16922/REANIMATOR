@@ -2143,9 +2143,9 @@ export class Scene3DRenderer {
         v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0, flinch: { amp: 0, kb: 0 }, turnErr: 0, snap: 0, snapTick: -1, dispX: exRaw, gliding: false };
         this.enemyViz.set(e.id, v);
       }
-      // R13: queueing or wall ejection can pop a runner 0.7 m in one tick, repeatedly. After such a pop the display x
-      // low-passes (~0.1 s) toward the sim x for 0.5 s, so the body glides through the sawtooth instead of teleporting.
-      // Knockback and lunges (stagger/attack) stay crisp.
+      // R13 safety net: the sim no longer pops floor foes (separation slides at most 0.07 m/tick, knockback launch is
+      // capped, tests/r13-smooth.test.ts), so this only fires on an unexpected 0.4-2 m one-tick jump. Then the display x
+      // low-passes (~0.1 s) toward the sim x for 0.5 s. Knockback and lunges (stagger/attack) stay crisp.
       if (v.snapTick !== w.tick) {
         v.snapTick = w.tick;
         const jump = ce.x - pe.x;

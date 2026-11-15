@@ -54,14 +54,14 @@ const BOSS: DebugSetup3D = { ...KIT_LATE, x: 80, y: 0, console: true, openDoors:
  */
 /**
  * Combat script from (53, 0): Scan Pulse on tick 0, then stand until the first Crawler opens its parry window
- * (ticks 115-122 on this world), press Counter on tick 118, then Pulse, Scattergun and Grenade (tests/r13-reel.test.ts checks 'parry').
+ * (ticks 101-116 on this world since the R13 queue fix), press Counter on tick 110, then Pulse, Scattergun and Grenade (tests/r13-reel.test.ts checks 'parry').
  */
 const COMBAT_AIM: Frame = { aimX: 62, aimY: 1.1 };
 const COMBAT_INPUTS: Frame[] = [
   { ...COMBAT_AIM, scan: true },
-  ...rep(117, { ...COMBAT_AIM }),
+  ...rep(109, { ...COMBAT_AIM }),
   { ...COMBAT_AIM, counter: true },
-  ...rep(11, { ...COMBAT_AIM }),
+  ...rep(19, { ...COMBAT_AIM }),
   { ...COMBAT_AIM, weaponSlot: 1, fire: true },
   ...rep(59, { ...COMBAT_AIM, fire: true }),
   { ...COMBAT_AIM, weaponSlot: 2, fire: true },

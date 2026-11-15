@@ -56,8 +56,10 @@ test('Normal is the identity preset and keeps the pinned bot result', () => {
   // R12 robust bot (dodges hostile shots on the dash i-frames, counters open windows): 5708 / HP 126.
   // R12 enemy locomotion was 5522 / 95; R10 was 5533; 5362 before the Reclaimer
   // R12 fix (foes drop from crates, hold counts from wake-up): 5123 / HP 118. Before: 5444 / 140.
-  assert.equal(w.tick, 5123);
-  assert.equal(w.player.hp, 118);
+  // R13 integration (separation slides at most 0.07 m/tick, knockback launch capped at 12 m/s, foes wait behind a
+  // stalled foe instead of shoving it): 5208 / HP 126. Before: 5123 / 118 with 45 enemy pops over 0.2 m.
+  assert.equal(w.tick, 5208);
+  assert.equal(w.player.hp, 126);
   assert.equal(deaths, 0);
   const d = newWorld3D();
   assert.equal(d.difficulty, 'normal');
