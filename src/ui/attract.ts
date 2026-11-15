@@ -58,8 +58,8 @@ export function attractShot(segTime: number, segSeconds = REEL_SEGMENT_SECONDS):
   const wide = u < 0.5;
   const k = wide ? u / 0.5 : (u - 0.5) / 0.5;
   return wide
-    ? { dolly: 19 - 1.5 * k, sway: -2 + 2 * k, lift: 2.4, lookDown: 0.6 }
-    : { dolly: 11 - 1.2 * k, sway: 1.2 - 1.0 * k, lift: 0.9, lookDown: 0.3 };
+    ? { dolly: 17 - 1.3 * k, sway: -1.6 + 1.6 * k, lift: 2.0, lookDown: 0.5 }
+    : { dolly: 10 - 1.1 * k, sway: 1.0 - 0.9 * k, lift: 0.8, lookDown: 0.3 };
 }
 
 /** 0 = clear, 1 = black. Fades out before a cut and in after it. */

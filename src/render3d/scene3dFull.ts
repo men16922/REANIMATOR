@@ -51,6 +51,7 @@ import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
 import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
 import { reactorPulse } from './mood3d.ts';
 import { bossCameraBlend, bossFramingWanted } from './bossCamera.ts';
+import { CAM_BASE_DIST, clampFocusToRect, dynamicZoomTarget, frameHalfExtents, FrameRectSmoother, sectorCameraHint, stepZoom, verticalFocusOffset } from './cameraFrame.ts';
 import { applyFrontLift } from './frontLift.ts';
 import { mergeStaticChildren } from './meshMerge.ts';
 import { buildHazards3D, type Hazards3D } from './hazards3d.ts';
@@ -317,6 +318,12 @@ export class Scene3DRenderer {
   private introAwake = 0;
   /** Smoothed 0..1 weight that pulls the camera toward the Core Warden so the boss stays on screen. */
   private bossFrameK = 0;
+  private readonly frameRect = new FrameRectSmoother();
+  private camZoomK = 1;
+  private readonly camProbe = new THREE.Vector3();
+  private camRoomClamp = false;
+  private camPlayerScreenY = 0.5;
+  private camHalfH = 4.6;
   private introLast: IntroState = introState(0);
   private secretDoorIds = new Set<string>();
 
@@ -644,6 +651,7 @@ export class Scene3DRenderer {
         roared: this.introLast.roared,
       },
       bossFrame: { k: r3(this.bossFrameK), camZ: r3(this.camera.position.z), focusX: r3(this.camFocus.x) },
+      camera: { x: r3(this.camera.position.x), y: r3(this.camera.position.y), z: r3(this.camera.position.z), fov: r3(this.camera.fov), roomClamp: this.camRoomClamp, zoomK: r3(this.camZoomK), playerScreenY: r3(this.camPlayerScreenY) },
     };
   }
 
@@ -2133,14 +2141,17 @@ export class Scene3DRenderer {
     // 8. Side-view camera: smoothed look-ahead (aim + velocity), dead zone, per-room vertical clamp, trauma shake
     this.fx.reduce = this.reduceMotion;
     this.fx.update(dt * this.fxTimeScale, w);
-    let anchorY = py + 1.45;
-    if (room) {
-      const halfH = 5.2;
-      anchorY = Math.max(room.minY + halfH * 0.55, Math.min(Math.max(room.minY + halfH * 0.55, room.maxY - halfH * 0.45), anchorY));
-    }
+    // Vertical composition: the player sits at ~42% from the bottom (sector hint may lower it); room clamp comes after boss framing.
+    const hint = sectorCameraHint(w.currentRoom);
+    const anchorY = py + 0.9 + verticalFocusOffset(this.camHalfH, hint.screenY);
     this.fx.rig.update(dt, px, anchorY, p.body.vx, p.aimX - px, p.aimY - py, p.body.grounded);
     this.camFocus.set(this.fx.rig.fx, this.fx.rig.fy, 0);
-    let camDistZ = 15.5;
+    {
+      const dists: number[] = [];
+      for (const e of w.enemies) if (e.alive && e.kind !== 'warden') dists.push(Math.hypot(e.x - px, e.y - py));
+      this.camZoomK = stepZoom(this.camZoomK, this.attractT !== null ? 1 : dynamicZoomTarget({ distances: dists }), dt);
+    }
+    let camDistZ = CAM_BASE_DIST * this.camZoomK * hint.distMul;
     {
       // Boss fight framing: blend toward the player+boss midpoint and zoom out (display only; Classic reuses camDistZ for its ortho zoom).
       const introBusy = this.attractT !== null || w.bossIntroTicks > 0 || this.introPan > 0.002 || this.introZoom > 0.002;
@@ -2149,7 +2160,7 @@ export class Scene3DRenderer {
       this.bossFrameK += ((want ? 1 : 0) - this.bossFrameK) * Math.min(1, dt * (want ? 2.2 : 3.2));
       if (this.bossFrameK < 0.002) this.bossFrameK = 0;
       if (this.bossFrameK > 0 && wardenE) {
-        const bc = bossCameraBlend({ px: this.camFocus.x, py: this.camFocus.y, bx: wardenX, by: bcy, k: this.bossFrameK, fovDeg: this.baseFov, aspect: this.camera.aspect });
+        const bc = bossCameraBlend({ px: this.camFocus.x, py: this.camFocus.y, bx: wardenX, by: bcy, k: this.bossFrameK, fovDeg: this.baseFov, aspect: this.camera.aspect, baseDist: camDistZ });
         this.camFocus.set(bc.fx, bc.fy, 0);
         camDistZ = bc.dist;
       }
@@ -2161,6 +2172,18 @@ export class Scene3DRenderer {
       this.camFocus.x += (bx - this.camFocus.x) * this.introPan;
       this.camFocus.y += (by - this.camFocus.y) * this.introPan;
       camDistZ -= 5.5 * this.introZoom;
+    }
+    {
+      // Room clamp: keep the frustum inside the (smoothed) room rectangle; narrow rooms are centered. Skipped for the intro pan.
+      if (room) {
+        const rect = this.frameRect.update(dt, { minX: room.minX, maxX: room.maxX, minY: room.minY, maxY: room.maxY }, px, py);
+        const ext = frameHalfExtents(camDistZ, this.baseFov, this.camera.aspect);
+        this.camHalfH = ext.halfH;
+        const introActive = this.introPan > 0.002;
+        const c = clampFocusToRect(this.camFocus.x, this.camFocus.y, ext.halfW, ext.halfH, rect);
+        this.camRoomClamp = !introActive && (c.clampedX || c.clampedY);
+        if (!introActive) this.camFocus.set(c.x, c.y, 0);
+      }
     }
     if (this.attractT !== null) {
       // Reel shot (see ui/attract.ts): wide establishing view, then a low push-in on the action.
@@ -2177,6 +2200,11 @@ export class Scene3DRenderer {
     if (Math.abs(this.camera.fov - fov) > 0.01) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
+    }
+    {
+      this.camera.updateMatrixWorld();
+      const v = this.camProbe.set(px, py + 0.9, 0).project(this.camera);
+      this.camPlayerScreenY = (v.y + 1) / 2;
     }
     this.fxAdd.sync();
     this.fxAlpha.sync();
