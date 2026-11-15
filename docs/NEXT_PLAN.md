@@ -2,6 +2,11 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R10 병합 후
+
+- [x] classic → opening → boss → hunter 병합, `make check` 통과(519/519). 충돌: `tests/audio.test.ts`(사운드 59), `scene3dFull.ts`(vignette와 hunter-alarm 둘 다 유지).
+- [ ] 브라우저 확인(unverified): 오프닝 스킵·재진입, Classic 토글 전환, Warden 카운터 창과 hatch 슬로모, 헌터 pill의 Classic 모습, 쇼케이스 재촬영, `make smoke-local`.
+
 ## R10 Hunter 후
 
 - [x] Reclaimer 구역, 봇 카운터·구역 이탈 경로, 테스트 33개, `make check` 통과(493/493). 상세와 unverified 목록은 [R10_HUNTER](R10_HUNTER.md).

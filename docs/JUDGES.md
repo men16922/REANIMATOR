@@ -53,3 +53,7 @@ Not verified: human play-through difficulty, and `make smoke-local` on the newes
 
 - Melee Counter (`X`/`C`) and Scan Pulse (`Z`) borrow Metroid Dread ideas. Security Deck hides a lean-to-open fake wall (Abuse style) with a Vault Nook reward, counted in completion (23 items). Pickups are chunky and magnetised. Details: [R9_PARRY](R9_PARRY.md), [R9_ABUSE](R9_ABUSE.md). Browser behaviour unverified in this round.
 
+
+## R10 additions
+
+- A 9.8 s cinematic opening, Classic View CRT transition, a Metroid Dread style Warden counter with escape set pieces, and a Bio-Labs Hunter zone with stealth (sneak with Ctrl/Alt). Details: [R10_OPENING](R10_OPENING.md), [R10_CLASSIC](R10_CLASSIC.md), [R10_BOSS](R10_BOSS.md), [R10_HUNTER](R10_HUNTER.md). Browser behaviour unverified.
