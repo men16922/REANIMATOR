@@ -18,7 +18,8 @@ import {
 } from '../game3d/world3d.ts';
 import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2d.ts';
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
-import { ambient, bgm, playSoundEvent3D, setVolume, sfx } from './audio.ts';
+import { getAudioDebug, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
+import { AudioDirector, snapshotPre } from './audioDirector.ts';
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
 import { renderMinimap } from './minimap.ts';
 
@@ -77,6 +78,7 @@ let flash = 0;
 let manualHold = false;
 let mapExpanded = false;
 let bot: Bot3D | null = null;
+const audioDirector = new AudioDirector();
 
 const keys = new Set<string>();
 const mouse = { ndcX: 0.28, ndcY: 0.08, normX: 0.64, normY: 0.46, leftDown: false, rightDown: false };
@@ -145,14 +147,14 @@ function show(m: Mode): void {
   ui.hud.hidden = m === 'title';
   ui.revived.hidden = true;
   $('lab').hidden = true;
-  ambient(m === 'playing', world.meltdownTicks >= 0);
-  bgm(m === 'playing', world.meltdownTicks >= 0);
+  audioDirector.syncBeds(world, m === 'playing');
   if (m === 'playing') canvas.focus();
 }
 
 function start(): void {
   manualHold = false;
   world = newWorld3D();
+  audioDirector.reset();
   bot = null;
   acc = 0;
   flash = 0;
@@ -258,12 +260,9 @@ function renderWorld(alpha = 1): void {
   }
 }
 
-function handlePostStepAudio(beforeHp: number, beforeLightOn: boolean, beforeMeltdown: number): void {
-  if (world.player.hp < beforeHp) flash = 1;
-  if (world.light.on !== beforeLightOn) (world.light.on ? sfx.lightOn : sfx.lightOff)();
-  if (beforeMeltdown < 0 && world.meltdownTicks >= 0) ambient(true, true);
-  if (world.meltdownTicks > 0 && world.tick % 45 === 0) sfx.alarm();
-  for (const ev of world.events) playSoundEvent3D(ev);
+function handlePostStepAudio(pre: ReturnType<typeof snapshotPre>): void {
+  if (world.player.hp < pre.hp) flash = 1;
+  audioDirector.afterStep(world, pre);
 }
 
 function frame(t: number): void {
@@ -274,11 +273,9 @@ function frame(t: number): void {
     const stepDt = 1 / SIM_HZ_3D;
     let steps = 0;
     while (acc >= stepDt && steps < 4) {
-      const beforeHp = world.player.hp;
-      const beforeLightOn = world.light.on;
-      const beforeMeltdown = world.meltdownTicks;
+      const pre = snapshotPre(world);
       world = stepWorld3D(world, buildInput());
-      handlePostStepAudio(beforeHp, beforeLightOn, beforeMeltdown);
+      handlePostStepAudio(pre);
       acc -= stepDt;
       steps++;
       if (world.status !== 'playing') {
@@ -304,6 +301,7 @@ function frame(t: number): void {
 function resumeAtSave(): boolean {
   if (mode !== 'result' || world.status !== 'lost' || !world.lastSaveId) return false;
   respawnPlayer3D(world);
+  audioDirector.reset();
   releaseInput();
   show('playing');
   return true;
@@ -395,6 +393,8 @@ for (const id of ['volume', 'volume-p']) {
     for (const other of ['volume', 'volume-p']) $<HTMLInputElement>(other).value = el.value;
   });
 }
+$<HTMLInputElement>('volume-bgm').addEventListener('input', (e) => setBgmVolume(Number((e.target as HTMLInputElement).value) / 100));
+$<HTMLInputElement>('volume-sfx').addEventListener('input', (e) => setSfxVolume(Number((e.target as HTMLInputElement).value) / 100));
 $('restart').addEventListener('click', start);
 $('resume-save').addEventListener('click', () => { resumeAtSave(); });
 $('restart-p').addEventListener('click', start);
@@ -551,6 +551,7 @@ const wAny = window as unknown as {
   __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D) => ReturnType<typeof buildSnapshot>;
   __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => ReturnType<typeof buildSnapshot>;
   __reanimatorRunBot: (maxTicks: number, untilStep?: string) => ReturnType<typeof buildSnapshot>;
+  __reanimatorAudio: typeof getAudioDebug;
   __reanimatorPick: (px: number, py: number, includePoints?: boolean) => Array<Record<string, unknown>>;
 };
 
@@ -563,6 +564,8 @@ function enterManual(): void {
 }
 
 wAny.__reanimator = buildSnapshot;
+/** Debug: audio graph state, current theme, voice counters and the last 48 sound ids (see docs). */
+wAny.__reanimatorAudio = getAudioDebug;
 /** Fresh world, optional setup, then run the given input frames. */
 wAny.__reanimatorAdvance = (inputs, setup) => {
   world = newWorld3D();
