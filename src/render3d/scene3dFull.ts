@@ -11,7 +11,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { BOSS_PHASE_COLORS, createPostParams, FxDirector, stepPostParams } from './fx3d.ts';
 import { BossTelegraph3D } from './bossTelegraph3d.ts';
-import { BossIntroOverlay, introState, type IntroState } from './cinematic3d.ts';
+import { BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
 import { PopupLayer } from './popups3d.ts';
 import { applyPostParams, createPostPass, ParticleLayer } from './fx3dGfx.ts';
 import type { SectorId3D } from '../game3d/types3d.ts';
@@ -29,6 +29,8 @@ import {
   stepRiggedAnimation3D,
   stepRiggedEnemyAnimation3D,
   tuneEnemyMaterials3D,
+  tuneWardenMaterials3D,
+  WARDEN_FLASH_SCALE_3D,
   type RiggedInstance,
 } from './riggedModels.ts';
 import {
@@ -269,6 +271,9 @@ export class Scene3DRenderer {
   private readonly popupLayer: PopupLayer;
   private readonly introOverlay = new BossIntroOverlay(() => this.renderer.domElement.parentElement);
   private introSkipPending = false;
+  /** Display-side intro countdown (see nextIntroDisplayTicks): keeps the cinematic playing while the world is frozen. */
+  private introDisplayTicks = 0;
+  private introSimTicks = 0;
   private introRoared = false;
   private introPan = 0;
   private introZoom = 0;
@@ -1239,8 +1244,13 @@ export class Scene3DRenderer {
         );
         rig.root.position.set(e.x, e.y, e.z);
         rig.root.rotation.order = 'YXZ';
-        tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, ENEMY_TINT_3D[e.kind]);
-        applyEnemyRim3D(rig.materials, ENEMY_RIM_3D[e.kind], e.kind === 'warden' ? 0.4 : 0.6, e.kind === 'warden' ? 0.08 : 0.18);
+        if (e.kind === 'warden') {
+          tuneWardenMaterials3D(rig.materials, rig.baseEmissive);
+          applyEnemyRim3D(rig.materials, ENEMY_RIM_3D[e.kind], 0.14, 0.0);
+        } else {
+          tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, ENEMY_TINT_3D[e.kind]);
+          applyEnemyRim3D(rig.materials, ENEMY_RIM_3D[e.kind], 0.6, 0.18);
+        }
         const bodyH = e.kind === 'warden' ? 3.15 : STALKER_HEIGHT_3D;
         const bodyW = e.kind === 'warden' ? 1.8 : 0.9;
         // Invisible pick proxy: skinned meshes can miss raycasts, the box keeps enemies pickable
@@ -1418,7 +1428,9 @@ export class Scene3DRenderer {
     if (introActive && (this.attractT !== null || this.introSkipPending)) skipBossIntro3D(w);
     this.introSkipPending = false;
     const introOn = introActive && this.attractT === null;
-    const intro = introOn ? introState(w.bossIntroTicks) : introState(0);
+    this.introDisplayTicks = nextIntroDisplayTicks(this.introDisplayTicks, this.introSimTicks, w.bossIntroTicks, dt);
+    this.introSimTicks = w.bossIntroTicks;
+    const intro = introOn ? introState(this.introDisplayTicks) : introState(0);
     {
       const ik = Math.min(1, dt * (introOn ? 10 : 7));
       this.introPan += (intro.pan - this.introPan) * ik;
@@ -1666,13 +1678,13 @@ export class Scene3DRenderer {
         if (flashAmt > 0) {
           flashRiggedMaterials3D(rig, ENEMY_FLASH_HEX_3D, flashAmt);
         } else if (e.kind === 'warden' && e.alive && !e.active && this.introAwake > 0.01) {
-          flashRiggedMaterials3D(rig, BOSS_PHASE_HEX[0], 0.05 + 0.4 * this.introAwake);
+          flashRiggedMaterials3D(rig, BOSS_PHASE_HEX[0], WARDEN_FLASH_SCALE_3D * (0.05 + 0.4 * this.introAwake));
         } else if (e.kind === 'warden' && e.alive && e.exposedTicks > 0) {
-          flashRiggedMaterials3D(rig, 0xffd24a, this.reduceMotion ? 0.4 : 0.4 + 0.16 * Math.sin(tSec * 16));
+          flashRiggedMaterials3D(rig, 0xffd24a, WARDEN_FLASH_SCALE_3D * (this.reduceMotion ? 0.4 : 0.4 + 0.16 * Math.sin(tSec * 16)));
         } else if (e.kind === 'warden' && winding) {
-          flashRiggedMaterials3D(rig, e.bossPattern === 'summon' ? 0xa060ff : 0xff451f, 0.12 + 0.2 * windFrac);
+          flashRiggedMaterials3D(rig, e.bossPattern === 'summon' ? 0xa060ff : 0xff451f, WARDEN_FLASH_SCALE_3D * (0.12 + 0.2 * windFrac));
         } else if (e.kind === 'warden' && e.alive) {
-          flashRiggedMaterials3D(rig, BOSS_PHASE_HEX[Math.min(3, e.phase) - 1], e.phase >= 2 ? 0.12 : 0.06);
+          flashRiggedMaterials3D(rig, BOSS_PHASE_HEX[Math.min(3, e.phase) - 1], WARDEN_FLASH_SCALE_3D * (e.phase >= 2 ? 0.12 : 0.06));
         } else {
           flashRiggedMaterials3D(rig, 0x000000, 0);
         }

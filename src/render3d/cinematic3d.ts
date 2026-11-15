@@ -42,6 +42,17 @@ export function introState(ticksLeft: number, total: number = BOSS_INTRO_TICKS):
   return { pan, zoom, awake, bars, title, roared: u >= INTRO_ROAR_AT };
 }
 
+/**
+ * Display clock for the intro. While the simulation ticks, the display follows it exactly. When the world is frozen
+ * (manual/debug mode, pause-like holds) `sim` stops changing, so the display counts down on real time instead and
+ * the cinematic still plays. Never drops below 1 while the intro is active and never reads 0 until the sim says so.
+ */
+export function nextIntroDisplayTicks(prevDisplay: number, prevSim: number, sim: number, dtSec: number, hz = 60): number {
+  if (sim <= 0) return 0;
+  if (sim !== prevSim || prevDisplay <= 0) return sim;
+  return Math.max(1, prevDisplay - dtSec * hz);
+}
+
 const STYLE = `
 .boss-intro{position:absolute;inset:0;pointer-events:none;z-index:40;overflow:hidden;font-family:"Arial Black",Impact,sans-serif}
 .boss-intro .bar{position:absolute;left:0;right:0;height:11%;background:#000;transition:none}

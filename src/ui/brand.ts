@@ -52,7 +52,9 @@ const WM_Y = 150;
 function layer(cls: string, fill: string, dy = 0, extra = ''): string {
   const xs = glyphOffsets();
   const body = GLYPHS.map(
-    (g, i) => `<path class="lt" style="--i:${i}" transform="translate(${xs[i]} ${WM_Y + dy})" fill-rule="evenodd" d="${g.d}"/>`,
+    // The placement lives on a wrapper <g>: a CSS transform on .lt (assemble animation) replaces a transform
+    // attribute on the same element, which dropped every glyph at the SVG origin (top-left artifact, no wordmark).
+    (g, i) => `<g transform="translate(${xs[i]} ${WM_Y + dy})"><path class="lt" style="--i:${i}" fill-rule="evenodd" d="${g.d}"/></g>`,
   ).join('');
   return `<g class="${cls}" fill="${fill}"${extra}>${body}</g>`;
 }
