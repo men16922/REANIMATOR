@@ -54,6 +54,12 @@ export const EVENT_SOUND: Record<SoundEventType3D, string> = {
   elevator_start: 'world.door_blast',
   elevator_stop: 'world.pickup',
   collapse: 'player.stomp',
+  // Round 5 Metroid systems (borrowed recipes; cueForEvent retunes them)
+  slide: 'player.dash',
+  block_break: 'world.door_blast',
+  map_reveal: 'world.unlock',
+  seal_warn: 'stinger.meltdown',
+  seal_close: 'world.door_blast',
 };
 
 export function soundIdForEvent(type: SoundEventType3D): string {
@@ -108,6 +114,18 @@ export function cueForEvent(ev: { type: SoundEventType3D; value?: number }, boss
     gain = 0.45;
     pitch = ev.type === 'hazard_vent' ? 1.5 : 1.2;
   } else if (ev.type === 'collapse' && ev.value === 1) gain = 1.1;
+  else if (ev.type === 'slide') {
+    pitch = 0.7;
+    gain = 0.8;
+  } else if (ev.type === 'block_break') pitch = ev.value === 1 ? 1.25 : 0.8;
+  else if (ev.type === 'map_reveal') pitch = 1.3;
+  else if (ev.type === 'seal_warn') {
+    pitch = 1 + 0.08 * (ev.value ?? 0);
+    gain = ev.value === 4 ? 1 : 0.7;
+  } else if (ev.type === 'seal_close') {
+    pitch = 0.6;
+    gain = 1.15;
+  }
   return { id, pitch, gain };
 }
 

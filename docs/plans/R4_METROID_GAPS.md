@@ -14,3 +14,7 @@ Rule: Abuse (1996) is the reference for movement physics and the 90s look. Where
 | No emergency run | Meltdown escape timer after the core falls | Done |
 
 Rules for adding any of these: keep Abuse-style 2D readability (side view, one z=0 combat lane), keep movement in `src/engine/motion3d.ts`, never touch sealed restoration files.
+
+## R5 status
+
+Implemented in `docs/R5_METROID.md`: dash-slide (Crawl Slide, two tunnels), shootable and stompable blocks, map terminals with `?` markers, backtracking rewards, escape hatch beats. Still proposed: parry, scan.

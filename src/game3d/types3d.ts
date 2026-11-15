@@ -47,7 +47,13 @@ export type SoundEventType3D =
   | 'switch_on'
   | 'elevator_start'
   | 'elevator_stop'
-  | 'collapse';
+  | 'collapse'
+  // Round 5 Metroid systems. block_break value 0 = stomp floor, 1 = rail plate. seal_warn value 0..3 = sector bulkhead, 4 = final hatch
+  | 'slide'
+  | 'block_break'
+  | 'map_reveal'
+  | 'seal_warn'
+  | 'seal_close';
 
 export interface SoundEvent3D {
   type: SoundEventType3D;
@@ -57,7 +63,7 @@ export interface SoundEvent3D {
 export type BoxKind3D = 'wall' | 'crate' | 'catwalk' | 'platform' | 'console' | 'door';
 export type DoorLockKind3D = 'blue' | 'green' | 'yellow' | 'red' | 'console' | 'escape';
 export type SectorId3D = 'airlock' | 'shaft' | 'mines' | 'biolabs' | 'security' | 'core';
-export type UpgradePickupKind3D = 'thruster_boots' | 'energy_tank';
+export type UpgradePickupKind3D = 'thruster_boots' | 'energy_tank' | 'crawl_slide' | 'ammo_expansion';
 
 export interface RoomDef3D {
   id: string;
@@ -116,6 +122,11 @@ export interface MapSolid3D {
   collapseId?: string;
   /** Round 4: solid only exists once `openDoors` holds this id (bridge lowered by a switch) */
   bridgeId?: string;
+  /** Round 5: breakable block. The solid vanishes once `openDoors` holds `breakId`. `breakBy` names the only thing that breaks it. */
+  breakId?: string;
+  breakBy?: 'stomp' | 'rail';
+  /** Round 5: solid only exists while `openDoors` holds this id (escape hatch shutter, derived from the meltdown clock) */
+  sealId?: string;
   /** Round 4: moved or toggled at runtime, so the renderer draws it from hazards3d instead of the static batches */
   dynamic?: boolean;
 }
@@ -303,6 +314,34 @@ export interface CollapseSpawn3D {
   crumbleTicks: number;
 }
 
+/** Terminal that reveals its whole sector on the minimap (F). */
+export interface MapStation3D {
+  id: string;
+  sector: SectorId3D;
+  x: number;
+  y: number;
+  z: number;
+  radius: number;
+}
+
+/** Low crawl tunnel only the Crawl Slide can enter. `purpose` says what it opens up. */
+export interface CrawlTunnel3D {
+  id: string;
+  sector: SectorId3D;
+  purpose: 'reward' | 'shortcut';
+  /** Floor height inside the tunnel and the clear height (below the standing body, above the slide body) */
+  floorY: number;
+  clearance: number;
+  /** Mouth plane x (the wall the tunnel pierces) and the x span of the low section */
+  mouthX: number;
+  minX: number;
+  maxX: number;
+  /** Where a player stands to start the slide, and the far side they must reach */
+  approach: { x: number; y: number };
+  exit: { x: number; y: number };
+  label: string;
+}
+
 export interface Level3D {
   bounds: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number };
   spawn: { x: number; y: number; z: number };
@@ -327,6 +366,8 @@ export interface Level3D {
   switches: SwitchSpawn3D[];
   elevators: ElevatorSpawn3D[];
   collapses: CollapseSpawn3D[];
+  mapStations: MapStation3D[];
+  tunnels: CrawlTunnel3D[];
 }
 
 export interface PlayerPoseState3D {

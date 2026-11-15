@@ -38,6 +38,7 @@ export function renderFallback2D3D(canvas: HTMLCanvasElement, w: WorldState3D): 
   for (const s of w.level.solids) {
     if (s.doorId && w.openDoors.has(s.doorId)) continue;
     if ((s.collapseId && w.openDoors.has(s.collapseId)) || (s.bridgeId && !w.openDoors.has(s.bridgeId))) continue;
+    if ((s.breakId && w.openDoors.has(s.breakId)) || (s.sealId && !w.openDoors.has(s.sealId))) continue;
     if (s.kind === 'door' && s.doorLock) ctx.fillStyle = LOCK_COLORS[s.doorLock];
     else if (s.kind === 'platform') ctx.fillStyle = '#4f6a82';
     else if (s.kind === 'catwalk') ctx.fillStyle = '#2a3542';
@@ -55,7 +56,7 @@ export function renderFallback2D3D(canvas: HTMLCanvasElement, w: WorldState3D): 
   }
   for (const up of w.level.upgrades) {
     if (w.collectedUpgrades.has(up.id)) continue;
-    ctx.fillStyle = up.kind === 'thruster_boots' ? '#ffb02e' : '#3dff88';
+    ctx.fillStyle = up.kind === 'thruster_boots' ? '#ffb02e' : up.kind === 'crawl_slide' ? '#2bf0ff' : up.kind === 'ammo_expansion' ? '#ff8a2a' : '#3dff88';
     ctx.fillRect(X(up.x) - 8, Y(up.y) - 28, 16, 20);
   }
   for (const pk of w.pickups) {

@@ -39,6 +39,13 @@ export interface Body3D {
   dashCanceled: boolean;
   stompStarted: boolean;
   stompLanded: boolean;
+  /** Crawl Slide: low body (0.9 m) while true. Stays true inside a low tunnel until there is headroom to stand. */
+  sliding: boolean;
+  /** Ticks of fast slide left; afterwards a low body crawls at `crawlSpeed` */
+  slideTicks: number;
+  slideDir: number;
+  /** One-tick flag read by the world to raise the `slide` event */
+  slideStarted: boolean;
 }
 
 export interface MoveInput3D {
@@ -53,6 +60,8 @@ export interface MoveInput3D {
   dropDown?: boolean;
   maxJumps?: number;
   lockZ?: boolean;
+  /** Crawl Slide ability owned. Ground dash held with `dropDown` then starts a slide. */
+  crawlSlide?: boolean;
 }
 
 /** Kinematic constants scaled from Abuse's LISP ABILITY ratio and tuned for Metroidvania side-view play. */
@@ -84,6 +93,12 @@ export const ABILITY_3D = {
   /** Down-dash stomp dive */
   stompSpeed: -27,
   stompCooldownTicks: 40,
+  /** Crawl Slide (needs the module): body height while low, slide speed, fast-slide ticks, tunnel crawl speed, re-slide delay */
+  slideHeight: 0.9,
+  slideSpeed: 11.5,
+  slideTicks: 24,
+  crawlSpeed: 4.6,
+  slideCooldownTicks: 20,
 } as const;
 
 export function spawnBody3D(x: number, y: number, z: number): Body3D {
@@ -114,7 +129,27 @@ export function spawnBody3D(x: number, y: number, z: number): Body3D {
     dashCanceled: false,
     stompStarted: false,
     stompLanded: false,
+    sliding: false,
+    slideTicks: 0,
+    slideDir: 1,
+    slideStarted: false,
   };
+}
+
+/**
+ * True when a standing body (1.82 m) fits at (x, y, z). Only solids whose underside sits above the low body count, so a wall beside
+ * the body never blocks standing. One-way platforms are ignored like everywhere else.
+ */
+export function hasHeadroom3D(x: number, y: number, z: number, col: Collider3D): boolean {
+  const r = ABILITY_3D.radius;
+  const low = y + ABILITY_3D.slideHeight - 0.05;
+  const top = y + ABILITY_3D.height - 0.1;
+  for (const s of col.solids) {
+    if (col.isSolidActive && !col.isSolidActive(s)) continue;
+    if (s.kind === 'platform') continue;
+    if (x + r - 0.02 > s.minX && x - r + 0.02 < s.maxX && z + r > s.minZ && z - r < s.maxZ && s.minY >= low && s.minY < top) return false;
+  }
+  return true;
 }
 
 /** Returns exact surface elevation under (x, z) reachable from current feet Y, or -Infinity if none. */
@@ -253,6 +288,7 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
   b.dashCanceled = false;
   b.stompStarted = false;
   b.stompLanded = false;
+  b.slideStarted = false;
 
   const jumpPressed = input.jump && !prev.prevJumpHeld;
   b.prevJumpHeld = input.jump;
@@ -266,9 +302,20 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
     b.coyoteTicks--;
   }
 
+  // Crawl Slide: stand up when the fast phase is over (or on a jump) and the head fits; falling off a ledge also stands
+  if (b.sliding) {
+    const wantStand = b.slideTicks === 0 || jumpPressed || !b.grounded || !input.crawlSlide;
+    if (wantStand && hasHeadroom3D(b.x, b.y, b.z, col)) {
+      b.sliding = false;
+      b.slideTicks = 0;
+    }
+  }
+  const slideStart =
+    !!input.crawlSlide && input.dash && !!input.dropDown && b.grounded && !b.sliding && b.dashTicks === 0 && b.dashCooldown === 0 && !b.stomping;
+
   // One-way platform drop-through when grounded directly on a platform
   let droppedThroughThisTick = false;
-  if (b.grounded && input.dropDown) {
+  if (b.grounded && input.dropDown && !slideStart && !b.sliding) {
     const solidFloor = floorHeightAt3D(b.x, b.z, b.y, ABILITY_3D.radius, col, true);
     const anyFloor = floorHeightAt3D(b.x, b.z, b.y, ABILITY_3D.radius, col, false);
     if (solidFloor < anyFloor - 0.05) {
@@ -300,6 +347,15 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
     }
   }
 
+  if (slideStart) {
+    b.sliding = true;
+    b.slideStarted = true;
+    b.slideTicks = ABILITY_3D.slideTicks;
+    b.slideDir = mx !== 0 ? Math.sign(mx) : input.aimDirX < 0 ? -1 : input.aimDirX > 0 ? 1 : Math.sin(b.yaw) >= 0 ? 1 : -1;
+    b.dashCooldown = ABILITY_3D.slideCooldownTicks;
+    b.yaw = b.slideDir > 0 ? Math.PI / 2 : -Math.PI / 2;
+  }
+
   // Down-dash stomp: airborne dash while holding down dives straight to the floor
   const wantStomp =
     input.dash && !!input.dropDown && !b.grounded && b.dashTicks === 0 && b.dashCooldown === 0 && !b.stomping && b.y > -24;
@@ -313,7 +369,7 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
   }
 
   // Trigger tactical Jet-Dash
-  if (!wantStomp && !b.stomping && input.dash && b.dashTicks === 0 && b.dashCooldown === 0) {
+  if (!wantStomp && !b.stomping && !slideStart && !b.sliding && input.dash && b.dashTicks === 0 && b.dashCooldown === 0) {
     let dx = mx;
     let dz = mz;
     if (moveMag < 0.05) {
@@ -353,6 +409,16 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
     b.vz = lockZ ? 0 : b.dashDirZ * ABILITY_3D.dashSpeed;
     b.vy = Math.max(0, b.vy * 0.2);
     b.state = 5;
+  } else if (b.sliding) {
+    // Fast slide first, then a crawl at the player's input while the tunnel keeps the body low
+    if (b.slideTicks > 0) {
+      b.slideTicks--;
+      b.vx = b.slideDir * ABILITY_3D.slideSpeed;
+    } else {
+      b.vx = mx * ABILITY_3D.crawlSpeed;
+      if (mx !== 0) b.slideDir = Math.sign(mx);
+    }
+    b.vz = 0;
   } else {
     // Horizontal acceleration / high-traction Abuse stop
     if (moveMag > 0.05 && b.wallJumpLock === 0) {
@@ -437,7 +503,8 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
   // Horizontal integration + smooth wall/pillar slide
   const wantX = b.x + b.vx * dt;
   const wantZ = lockZ ? 0 : b.z + b.vz * dt;
-  const res = resolveHorizontal3D(wantX, b.y, wantZ, ABILITY_3D.radius, ABILITY_3D.height, col);
+  const bodyH = b.sliding ? ABILITY_3D.slideHeight : ABILITY_3D.height;
+  const res = resolveHorizontal3D(wantX, b.y, wantZ, ABILITY_3D.radius, bodyH, col);
   const actualVx = (res.x - b.x) / dt;
   const actualVz = (res.z - b.z) / dt;
   b.x = res.x;
@@ -487,11 +554,11 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
           b.x - ABILITY_3D.radius < s.maxX &&
           b.z + ABILITY_3D.radius > s.minZ &&
           b.z - ABILITY_3D.radius < s.maxZ &&
-          b.y + ABILITY_3D.height > s.minY &&
-          prev.y + ABILITY_3D.height <= s.minY + 0.15 &&
+          b.y + bodyH > s.minY &&
+          prev.y + bodyH <= s.minY + 0.15 &&
           b.vy > 0
         ) {
-          b.y = s.minY - ABILITY_3D.height;
+          b.y = s.minY - bodyH;
           b.vy = 0;
         }
       }
@@ -504,7 +571,7 @@ export function stepBody3D(prev: Readonly<Body3D>, input: MoveInput3D, col: Coll
     const pref = mx !== 0 ? Math.sign(mx) : 0;
     const order = pref === -1 ? [-1, 1] : [1, -1];
     for (const dir of order) {
-      if (resolveHorizontal3D(b.x + dir * 0.08, b.y, b.z, ABILITY_3D.radius, ABILITY_3D.height, col).hitWall) {
+      if (resolveHorizontal3D(b.x + dir * 0.08, b.y, b.z, ABILITY_3D.radius, bodyH, col).hitWall) {
         b.wallDir = dir;
         break;
       }
