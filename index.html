@@ -21,6 +21,8 @@
             <span class="pill">DASH <span class="bar bar-sm"><i id="dash-bar"></i></span></span>
             <span class="pill">LIGHT [E] <span class="bar bar-sm"><i id="battery"></i></span></span>
             <span class="pill kills-pill">KILLS <b id="kills">0</b></span>
+            <span class="pill combo-pill" id="combo-pill" hidden>COMBO <b id="combo-count">0</b></span>
+            <span class="pill rail-pill" id="rail-pill" hidden>RAIL CHARGE <span class="bar bar-sm"><i id="rail-bar"></i></span></span>
             <span class="pill upgrade-pill" id="boots-pill" hidden>THRUSTER 2X</span>
             <span class="pill etank-pill" id="etank-pill">E-TANK <b id="etank-count">0/2</b></span>
             <span class="hud-break" aria-hidden="true"></span>
@@ -42,6 +44,7 @@
           <div id="warden-hud" hidden>
             <span>CORE WARDEN</span>
             <span id="warden-phase" class="phase-tag">PHASE I</span>
+            <span id="warden-exposed" class="phase-tag" hidden>EXPOSED</span>
             <span class="boss-bar"><i id="warden-hp"></i></span>
           </div>
         </div>

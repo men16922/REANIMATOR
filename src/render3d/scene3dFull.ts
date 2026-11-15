@@ -1213,12 +1213,12 @@ export class Scene3DRenderer {
     this.scene.add(this.exitPortalRing);
   }
 
-  private getOrCreatePickupGroup(id: string, kind: 'med' | 'ammo' | 'weapon', weapon?: WeaponSlot3D): THREE.Group {
+  private getOrCreatePickupGroup(id: string, kind: 'med' | 'ammo' | 'weapon' | 'log', weapon?: WeaponSlot3D): THREE.Group {
     const existing = this.pickupHandles.get(id);
     if (existing) return existing;
     const grp = new THREE.Group();
     const color =
-      kind === 'med' ? 0x3dff88 : kind === 'ammo' ? 0xf5b942 : weapon === 4 ? 0xd946ef : weapon === 3 ? 0xff7b2f : 0x2bf0ff;
+      kind === 'log' ? 0xc9a8ff : kind === 'med' ? 0x3dff88 : kind === 'ammo' ? 0xf5b942 : weapon === 4 ? 0xd946ef : weapon === 3 ? 0xff7b2f : 0x2bf0ff;
 
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.45, 0.6, 20),
@@ -1604,6 +1604,24 @@ export class Scene3DRenderer {
       if (g.children[1]) {
         g.children[1].rotation.y = tSec * 2.1;
         g.children[1].position.y = (pk.kind === 'weapon' ? 0.95 : 0.65) + Math.sin(tSec * 3.4) * 0.12;
+      }
+    }
+
+    // Data logs reuse the pickup visual path (violet octahedron).
+    for (let i = 0; i < w.collectibles.length; i++) {
+      const lg = w.collectibles[i];
+      const id = `datalog:${i}`;
+      if (lg.taken) {
+        const g = this.pickupHandles.get(id);
+        if (g) g.visible = false;
+        continue;
+      }
+      const g = this.getOrCreatePickupGroup(id, 'log');
+      g.visible = true;
+      g.position.set(lg.x, lg.y, 0.2);
+      if (g.children[1]) {
+        g.children[1].rotation.y = tSec * 2.1;
+        g.children[1].position.y = 0.65 + Math.sin(tSec * 3.4 + i) * 0.12;
       }
     }
 

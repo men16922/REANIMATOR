@@ -38,6 +38,9 @@ test('buildRunStats converts ticks to seconds and ranks the run', () => {
   w.status = 'won';
   for (const s of [2, 3, 4] as const) w.player.unlocked[s] = true;
   for (const u of w.level.upgrades) w.collectedUpgrades.add(u.id);
+  for (const l of w.collectibles) l.taken = true;
+  for (const pk of w.pickups) pk.taken = true;
+  w.secretsFound.push(...w.level.secrets.map((x) => x.id));
   const st = buildRunStats(w, 0);
   assert.equal(st.seconds, 90);
   assert.equal(st.rank, 'S');

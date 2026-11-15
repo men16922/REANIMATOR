@@ -2,7 +2,7 @@
 // retry tips, and the onboarding hint state machine. Kept DOM-free so tests/ui.test.ts can cover it.
 
 import type { DoorLockKind3D, SectorId3D } from '../game3d/types3d.ts';
-import type { InputState3D, WorldState3D } from '../game3d/world3d.ts';
+import { getRunSummary3D, updateCompletion3D, type InputState3D, type WorldState3D } from '../game3d/world3d.ts';
 
 export type Rank = 'S' | 'A' | 'B' | 'C';
 
@@ -35,15 +35,17 @@ export function rankFor(won: boolean, seconds: number, deaths: number, collectio
   return 'C';
 }
 
-export function buildRunStats(w: WorldState3D, deaths: number, simHz = 60): RunStats {
-  const seconds = w.tick / simHz;
-  const collectionPct = collectionPercent(w);
+/** Result-screen stats come straight from the simulation (getRunSummary3D) so UI and sim never disagree. */
+export function buildRunStats(w: WorldState3D, _deaths = 0, simHz = 60): RunStats {
+  updateCompletion3D(w);
+  const sm = getRunSummary3D(w);
   return {
-    seconds,
-    kills: w.player.kills,
-    deaths,
-    collectionPct,
-    rank: rankFor(w.status === 'won', seconds, deaths, collectionPct),
+    seconds: w.tick / simHz,
+    kills: sm.kills,
+    // A lost run is shown before respawnPlayer3D increments run.deaths, so count the current defeat.
+    deaths: sm.deaths + (w.status === 'lost' ? 1 : 0),
+    collectionPct: sm.completionPercent,
+    rank: sm.rank,
   };
 }
 
@@ -137,6 +139,8 @@ export class Onboarding {
     const p = w.player.body;
     for (const s of w.level.solids) {
       if (!s.doorId || !s.doorLock) continue;
+      // Secret-room walls stay unannounced: discovering them is the point.
+      if (w.level.secrets.some((sr) => sr.doorId === s.doorId)) continue;
       const rule = DOOR_RULE[s.doorLock];
       if (!rule) continue;
       if (this.done.has(rule.id)) continue;

@@ -10,6 +10,7 @@ import {
   emptyInput3D,
   getPlayerPose3D,
   newWorld3D,
+  RAIL_CHARGE_TICKS,
   respawnPlayer3D,
   stepWorld3D,
   WEAPON_META,
@@ -110,7 +111,7 @@ const onboarding = new Onboarding(((): string[] => {
 })());
 let onboardingSaved = onboarding.done.size;
 /** Per-world observation for sector cards, pickup banners and weapon-switch animation. */
-const seen = { world: null as WorldState3D | null, room: '' as string, collected: 0, unlocked: '', weapon: 0 as number };
+const seen = { world: null as WorldState3D | null, room: '' as string, logs: 0, secrets: 0, collected: 0, unlocked: '', weapon: 0 as number };
 let acc = 0;
 let last = 0;
 let flash = 0;
@@ -304,6 +305,8 @@ function observeWorld(): void {
     seen.world = world;
     seen.room = '';
     seen.collected = world.collectedUpgrades.size;
+    seen.logs = world.collectibles.filter((l) => l.taken).length;
+    seen.secrets = world.secretsFound.length;
     seen.unlocked = unlocked;
     seen.weapon = p.weapon;
   }
@@ -319,6 +322,21 @@ function observeWorld(): void {
       if (kind && UPGRADE_BANNER[kind]) showPickupBanner(UPGRADE_BANNER[kind]);
     }
     seen.collected = world.collectedUpgrades.size;
+  }
+  const logsNow = world.collectibles.filter((l) => l.taken);
+  if (logsNow.length !== seen.logs) {
+    if (logsNow.length > seen.logs) {
+      const lg = logsNow[logsNow.length - 1];
+      showPickupBanner({ title: `DATA LOG ${logsNow.length}/${world.collectibles.length}`, desc: lg.title });
+    }
+    seen.logs = logsNow.length;
+  }
+  if (world.secretsFound.length !== seen.secrets) {
+    if (world.secretsFound.length > seen.secrets) {
+      const sr = world.level.secrets.find((x) => x.id === world.secretsFound[world.secretsFound.length - 1]);
+      showPickupBanner({ title: 'SECRET FOUND', desc: sr ? sr.name : 'Hidden room' });
+    }
+    seen.secrets = world.secretsFound.length;
   }
   if (unlocked !== seen.unlocked) {
     for (const s of [2, 3, 4] as const) {
@@ -435,6 +453,12 @@ function hud(): void {
   const zm = zoneMeta();
   ui.sector.textContent = zm.name;
   ui.sectorHint.textContent = world.hintTicks > 0 ? world.hint : zm.hint;
+  const cb = world.combo;
+  $('combo-pill').hidden = cb.count < 2;
+  if (cb.count >= 2) $('combo-count').textContent = `x${cb.count}`;
+  const railOn = p.weapon === 4 && p.railCharge > 0;
+  $('rail-pill').hidden = !railOn;
+  if (railOn) $('rail-bar').style.width = `${Math.min(100, (p.railCharge / RAIL_CHARGE_TICKS) * 100)}%`;
   ui.bootsPill.hidden = !p.abilities.thrusterBoots;
   ui.etankCount.textContent = `${p.energyTanks}/${world.level.upgrades.filter((u) => u.kind === 'energy_tank').length}`;
   drawMinimap();
@@ -444,6 +468,7 @@ function hud(): void {
   ui.wardenHud.hidden = !showBoss;
   if (showBoss && warden) {
     ui.wardenHp.style.width = `${Math.max(0, Math.min(100, (warden.hp / warden.maxHp) * 100))}%`;
+    $('warden-exposed').hidden = warden.exposedTicks <= 0;
     ui.wardenPhase.textContent = warden.phase === 3 ? 'PHASE III' : warden.phase === 2 ? 'PHASE II' : 'PHASE I';
   }
 
