@@ -2,7 +2,8 @@
 // touches w.light for gameplay (R3.3). All decisions are pure functions from audioLogic.ts.
 import { ABILITY_3D } from '../engine/motion3d.ts';
 import type { EnemyAIState3D, WorldState3D } from '../game3d/world3d.ts';
-import { ambient, bgm, play, playSoundEvent3D, sfx, type SoundId } from './audio.ts';
+import { RAIL_CHARGE_TICKS } from '../game3d/world3d.ts';
+import { ambient, bgm, musicIntensity, play, playCue, railCharge, setPaused, sfx, type SoundId } from './audio.ts';
 import { enemyCue, footstepPeriodTicks, heartbeatPeriodTicks, isHardLanding, selectTheme, spatialFor, surfaceFor, type ThemeId } from './audioLogic.ts';
 
 export interface PreStep {
@@ -28,6 +29,7 @@ export class AudioDirector {
   private heartTicks = 0;
   private theme: ThemeId | null = null;
   private ambKey = '';
+  private mode = '';
 
   /** Forget tracked state (new run, respawn, world replaced). */
   reset(): void {
@@ -36,15 +38,31 @@ export class AudioDirector {
     this.heartTicks = 0;
     this.theme = null;
     this.ambKey = '';
+    this.mode = '';
+    railCharge(0);
   }
 
   /** Starts or retunes music and ambient for the current world. Cheap; call after each step and on mode changes. */
-  syncBeds(w: WorldState3D, playing: boolean): void {
+  syncBeds(w: WorldState3D, playing: boolean, mode: 'title' | 'playing' | 'paused' | 'result' = 'playing'): void {
+    if (this.mode !== mode) {
+      if (mode === 'paused') play('ui.pause');
+      else if (this.mode === 'paused' && mode === 'playing') play('ui.resume');
+      this.mode = mode;
+      setPaused(mode === 'paused');
+    }
+    if (!playing) railCharge(0);
+    if (mode === 'paused') return; // music keeps running behind the pause lowpass
     if (!playing) {
-      bgm(false);
+      // Title screen and winning result have their own themes; losing is silent apart from the stinger
+      const idle: ThemeId | null = mode === 'title' ? 'title' : mode === 'result' && w.status === 'won' ? 'victory' : null;
       ambient(false);
-      this.theme = null;
       this.ambKey = '';
+      if (idle) {
+        if (idle !== this.theme) { this.theme = idle; bgm(true, idle); }
+      } else {
+        bgm(false);
+        this.theme = null;
+      }
       return;
     }
     const theme = currentTheme(w);
@@ -66,7 +84,10 @@ export class AudioDirector {
 
     if (w.light.on !== pre.lightOn) (w.light.on ? sfx.lightOn : sfx.lightOff)();
     if (w.meltdownTicks > 0 && w.tick % 45 === 0) sfx.alarm();
-    for (const ev of w.events) playSoundEvent3D(ev);
+    const warden = w.enemies.find((e) => e.kind === 'warden' && e.alive);
+    for (const ev of w.events) playCue(ev, {}, warden ? warden.bossPattern : 'none');
+    if (warden && this.theme === 'boss') musicIntensity(warden.phase);
+    railCharge(p.weapon === 4 ? p.railCharge / RAIL_CHARGE_TICKS : 0);
 
     // Footsteps (surface follows the sector) and landings
     const surface = surfaceFor(w.currentRoom);
@@ -97,7 +118,8 @@ export class AudioDirector {
       const prev = this.enemies.get(e.id);
       const cue = enemyCue(e.kind, prev?.state, e.state, prev?.alive ?? e.alive, e.alive);
       const sp = spatialFor(e.x, e.y, lx, ly);
-      if (cue) play(cue as SoundId, sp);
+      if (cue === 'enemy.warden.windup') { /* replaced by the per-pattern boss telegraph */ }
+      else if (cue) play(cue as SoundId, sp);
       else if (prev && e.alive && e.hp < prev.hp) play('weapon.hit', sp);
       this.enemies.set(e.id, { state: e.state, alive: e.alive, hp: e.hp });
     }
