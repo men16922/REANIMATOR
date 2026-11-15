@@ -23,6 +23,8 @@ export interface AmbientUpdate {
   playerY: number;
   reduce: boolean;
   meltdown: boolean;
+  /** Drawing-buffer height in px; point sizes scale with it (default 900). */
+  viewH?: number;
 }
 
 export interface Ambient3D {
@@ -206,6 +208,12 @@ void main() {
 /** Pixels per metre at 1 m distance for the point-size attenuation (900 px tall view, 38 deg fov). */
 const POINT_PX = 1300;
 
+/** Point-size scale for a drawing buffer of viewH px tall (1300 at the 900 px reference). */
+export function pointPxFor(viewH: number | undefined): number {
+  const h = viewH && Number.isFinite(viewH) && viewH > 0 ? viewH : 900;
+  return (POINT_PX * h) / 900;
+}
+
 interface SectorAmbient {
   data: AmbientData;
   group: THREE.Group;
@@ -228,6 +236,7 @@ export function buildAmbient3D(scene: THREE.Scene, level: Level3D): Ambient3D {
   };
   const uClock = { value: 0 };
   const uReduce = { value: 0 };
+  const uPx = { value: POINT_PX };
   const uClassic = { value: 0 };
 
   const sectors: SectorAmbient[] = [];
@@ -272,7 +281,7 @@ export function buildAmbient3D(scene: THREE.Scene, level: Level3D): Ambient3D {
       new THREE.ShaderMaterial({
         vertexShader: PT_VERT,
         fragmentShader: PT_FRAG,
-        uniforms: { ...common, uPx: { value: POINT_PX } },
+        uniforms: { ...common, uPx },
         vertexColors: true,
         transparent: true,
         blending: THREE.AdditiveBlending,
@@ -293,6 +302,7 @@ export function buildAmbient3D(scene: THREE.Scene, level: Level3D): Ambient3D {
       const dt = Math.min(0.1, Math.max(0, tSec - lastT));
       lastT = tSec;
       uReduce.value = u.reduce ? 1 : 0;
+      uPx.value = pointPxFor(u.viewH);
       meltLevel += ((u.meltdown ? 1 : 0) - meltLevel) * Math.min(1, dt * 1.2);
       uClock.value += dt * (u.reduce ? 0.4 : 1) * (1 + meltLevel * 0.8);
       activeSector = null;

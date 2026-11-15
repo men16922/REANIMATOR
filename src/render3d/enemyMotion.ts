@@ -102,6 +102,13 @@ export function gaitStep(kind: 'crawler' | 'spitter', speed: number): number {
   return Math.min(2 * Math.PI * 6.5, (2 * Math.PI * Math.max(0, speed)) / CRAWLER_STRIDE);
 }
 
+/** Speed along the surface the enemy actually travels on: floor uses the sim's achieved speed, walls and ceilings use |v|. */
+export function enemyTravelSpeed(e: { surface: string; dropping?: boolean; state: string; speedNow: number; vx: number; vy: number }): number {
+  if (e.surface === 'floor' && !e.dropping && e.state !== 'attack') return e.speedNow;
+  if (e.surface !== 'floor' && !e.dropping) return Math.hypot(e.vx, e.vy);
+  return Math.abs(e.vx);
+}
+
 // ---- R12 pure motion helpers (display only) ----
 
 /** Hit reaction: amp is the flinch weight (1 on a hit, decays to 0), kb the knockback offset in metres (signed x). */

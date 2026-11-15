@@ -38,3 +38,9 @@ Crawlers accelerate and brake through those speeds on every chase, so the bob, r
 **Test.** `tests/enemy-motion.test.ts` "R13: crawler scuttle stride is constant": failed before (stride spread 0.33..0.95 m), passes after.
 
 **Verification.** `make check` result is recorded in the commit report. Visual check: unverified (headless Chrome aborts, no screenshots in `docs/evidence/r13_alive/`).
+
+## Review fixes (round 2)
+
+- Wall and ceiling crawlers: the gait phase now advances from `enemyTravelSpeed` (hypot of vx, vy off the floor). Before, a wall crawler read |vx| ~ 0, so the stride-locked gait froze while the pose still entered the surface wave.
+- Ambient point size: `uPx` follows the drawing-buffer height (`pointPxFor`, 1300 at 900 px) instead of a fixed 900 px assumption.
+- GLSL compile on a real GPU remains unverified here (needs the browser smoke).

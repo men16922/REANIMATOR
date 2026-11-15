@@ -47,6 +47,7 @@ import {
 import { EnemyRigDriver, ProcSecondary, type EnemyRigFrame } from './enemyRig3d.ts';
 import {
   gaitStep,
+  enemyTravelSpeed,
   proceduralEnemyPose,
   flinchStep,
   flinchPose,
@@ -1918,7 +1919,7 @@ export class Scene3DRenderer {
     this.decor?.setMeltdown(inMeltdown, tSec, this.reduceMotion);
     this.decor?.update(tSec, w.player.body.x, w.player.body.y, this.reduceMotion);
     this.vista?.update(tSec, { playerX: w.player.body.x, playerY: w.player.body.y, reduce: this.reduceMotion, meltdown: inMeltdown });
-    this.ambientLife?.update(tSec, { playerX: w.player.body.x, playerY: w.player.body.y, reduce: this.reduceMotion, meltdown: inMeltdown });
+    this.ambientLife?.update(tSec, { playerX: w.player.body.x, playerY: w.player.body.y, reduce: this.reduceMotion, meltdown: inMeltdown, viewH: this.renderer.domElement.height });
     this.mood?.update(tSec, this.reduceMotion);
     this.hazards3d?.update(w, tSec, dt, this.fx.smoke, this.reduceMotion);
     this.metroid3d?.update(w, tSec, dt, this.reduceMotion);
@@ -2143,7 +2144,7 @@ export class Scene3DRenderer {
       v.land = Math.max(0, v.land - dt * 7);
 
       // Ground speed the sim actually achieved (pressing into a wall reads 0), latched so the clip never flickers
-      const rawSpeed = e.surface === 'floor' && !e.dropping && e.state !== 'attack' ? e.speedNow : Math.abs(e.vx);
+      const rawSpeed = enemyTravelSpeed(e);
       v.walking = v.walking ? rawSpeed > 0.25 : rawSpeed > 0.6;
       const speed = v.walking ? Math.max(rawSpeed, 0.45) : 0;
       const windTotal = e.kind === 'warden' && e.phase >= 2 ? 28 : ENEMY_WINDUP_TOTAL_3D[e.kind];
