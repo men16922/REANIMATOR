@@ -10,6 +10,7 @@ Every stop below is in `Extras` > `Demo tour`. Each one drops you into the norma
 |---|---|---|
 | 0:00 | Open Settings and pick difficulty **Story** (recommended for a short look; Normal is the tuned default), then return to the title. Wait on the title screen about 10 s. | The title plays an attract reel of a bot playing the real game, not a pre-rendered video. Procedural music is already running (no audio files in the repo). |
 | 0:15 | `Extras` > `Watch showcase`. Let it run, or press any key to leave. | One minute of captioned cuts by the same deterministic bot: "1996 physics, frame-exact", sector tour, weapon locks, Classic View, Core Warden, Meltdown. |
+| 0:15 | `Extras` > `Judge Reel` (or open `/?reel`, or `__reanimatorReel()`). About 90 seconds, press any key or Esc to leave. | Lab PASS then mutation FAIL, 1996/2026 Classic View toggle with CRT collapse, opening wake, Counter and Scan, Reclaimer, Warden counter and phase III, Meltdown, end card. See [R13_REEL](R13_REEL.md). |
 | 0:25 | `Extras` > `Restoration Lab`. | The core claim. Pick a scenario card (S1, S2, S3, M05). The ORIGINAL canvas replays the numeric log captured from the 1996 game; the REANIMATED canvas replays our `motion.ts` from the same input. Press play or drag the tick slider. The heatmap shows 11 fields by every tick, all green. Tick "Demo mutation": a wall moves 3 px and "First mismatch" jumps to the broken tick. It is a demo, not an original bug. The side panel explains how it is verified. |
 | 1:00 | `Demo tour` > `Airlock start`. Run right with `D`, aim with the mouse, fire with left click, `Shift` dashes. | 60 Hz deterministic sim, hit-stop and screen shake on kills, combo kills refund the dash. Only movement physics is restored; everything else is new design. |
 | 1:15 | `Demo tour` > `Mines: crusher and hive`. | Telegraphed crusher, vents, acid, a hive that spawns larvae. Hazards warn before they hurt. |
@@ -77,6 +78,7 @@ All are on `window` (declared in `src/ui/main.ts`). Every synchronous one cancel
 - `__reanimatorShowResult('won' | 'lost')`: open the result screen.
 - `__reanimatorShowBanner(kind)`: show a sector, weapon, boots, etank or coach banner.
 - `__reanimatorPick(px, py, includePoints?)`: list scene objects under a pixel.
+- `__reanimatorReel()`: starts the Judge Reel (same as `Extras` > `Judge Reel` and `?reel`).
 - `__reanimatorShowcase(name)`: async README scene; resolves with `superseded: true` if a later debug call took over.
 - `__reanimatorDemo(id)`: jump to a demo tour checkpoint.
 - `__reanimatorSoak(n?, opts?)`: async soak run over demos and showcases.

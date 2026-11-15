@@ -4,7 +4,7 @@
 
 import type { SectorId3D } from '../game3d/types3d.ts';
 import type { InputState3D } from '../game3d/world3d.ts';
-import { SHOWCASE_SCENES, type DebugSetup3D } from './demo.ts';
+import type { DebugSetup3D } from './demo.ts';
 
 type Frame = Partial<InputState3D>;
 const rep = (n: number, f: Frame): Frame[] => Array.from({ length: n }, () => ({ ...f }));
@@ -15,7 +15,7 @@ export interface ReelWorldPlan {
   /** Name of a SHOWCASE_SCENES entry to reuse, when the cut is exactly that scene. */
   scene?: string;
   setup: DebugSetup3D;
-  /** Scripted input frames stepped from the fresh world (cut start). The last frame repeats as idle afterwards. */
+  /** Scripted input frames stepped from the fresh world (cut start). After the last frame the operative idles (empty input, aim ahead). */
   inputs: Frame[];
   /** Freeze the opening set piece at this display time instead of stepping (opening cut only). */
   openingAt?: number;
@@ -41,11 +41,48 @@ export interface ReelCut {
   beats?: { at: number; view?: 'modern' | 'classic'; labMode?: 'pass' | 'mutation'; crt?: boolean }[];
 }
 
-const KIT: DebugSetup3D = { boots: true, tanks: 2, weapons: [1, 2, 3, 4] };
+// hp 999: the reel is a showpiece, so no cut may end in a death screen (HUD is hidden, sim rules untouched).
+const KIT: DebugSetup3D = { boots: true, tanks: 2, weapons: [1, 2, 3, 4], hp: 999 };
 const KIT_LATE: DebugSetup3D = { ...KIT, weapons: [1, 2, 3, 4, 5, 6] };
 const BOSS: DebugSetup3D = { ...KIT_LATE, x: 80, y: 0, console: true, openDoors: ['door_boss'], hp: 999, skipIntro: true };
 
-const combatScene = SHOWCASE_SCENES.combat;
+
+/**
+ * Warden script (phase II start): a short opening burst, then a Counter press at tick 72, inside the last 10 ticks of the
+ * first charge windup (verified by tests/r13-reel.test.ts). The exposed window takes the 3x counter multiplier, and
+ * sustained fire carries the Warden into phase III around tick 145.
+ */
+/**
+ * Combat script from (53, 0): Scan Pulse on tick 0, then stand until the first Crawler opens its parry window
+ * (ticks 115-122 on this world), press Counter on tick 118, then Pulse, Scattergun and Grenade (tests/r13-reel.test.ts checks 'parry').
+ */
+const COMBAT_AIM: Frame = { aimX: 62, aimY: 1.1 };
+const COMBAT_INPUTS: Frame[] = [
+  { ...COMBAT_AIM, scan: true },
+  ...rep(117, { ...COMBAT_AIM }),
+  { ...COMBAT_AIM, counter: true },
+  ...rep(11, { ...COMBAT_AIM }),
+  { ...COMBAT_AIM, weaponSlot: 1, fire: true },
+  ...rep(59, { ...COMBAT_AIM, fire: true }),
+  { ...COMBAT_AIM, weaponSlot: 2, fire: true },
+  ...rep(59, { ...COMBAT_AIM, fire: true }),
+  { ...COMBAT_AIM, weaponSlot: 3, fire: true },
+  ...rep(59, { ...COMBAT_AIM, fire: true }),
+  { ...COMBAT_AIM },
+];
+
+/** Reclaimer script from the zone's west gate: run in noisily, press Counter inside the grab windup (tick 68 on this world). */
+const HUNTER_INPUTS: Frame[] = [...rep(60, { moveX: 1 }), ...rep(8, {}), { counter: true }, {}];
+
+const WARDEN_AIM: Frame = { aimX: 83, aimY: 2.4 };
+const WARDEN_INPUTS: Frame[] = [
+  ...rep(20, { ...WARDEN_AIM, fire: true }),
+  ...rep(52, { ...WARDEN_AIM }),
+  { ...WARDEN_AIM, counter: true },
+  { ...WARDEN_AIM },
+  ...rep(420, { ...WARDEN_AIM, fire: true }),
+  { ...WARDEN_AIM },
+];
 
 const DEFS: Omit<ReelCut, 'start'>[] = [
   {
@@ -73,12 +110,8 @@ const DEFS: Omit<ReelCut, 'start'>[] = [
     id: 'combat', duration: 14, target: 'world', sector: 'biolabs', flashy: false,
     plan: {
       scene: 'combat',
-      setup: { ...KIT, x: 53, y: 0, openDoors: ['door_airlock_shaft'], aimX: 62, aimY: 1.1 },
-      inputs: [
-        { counter: true },
-        { scan: true },
-        ...(combatScene.inputs ?? []),
-      ],
+      setup: { ...KIT, tanks: 4, x: 53, y: 0, openDoors: ['door_airlock_shaft'], aimX: 62, aimY: 1.1 },
+      inputs: COMBAT_INPUTS,
     },
     caption: 'Parry, scan, then weapons',
     sub: 'Melee Counter staggers lunging foes. Scan Pulse reveals. Four weapons, each with a job.',
@@ -86,16 +119,16 @@ const DEFS: Omit<ReelCut, 'start'>[] = [
   },
   {
     id: 'hunter', duration: 12, target: 'world', sector: 'biolabs', flashy: false,
-    plan: { setup: { ...KIT, x: 58, y: 0, openDoors: ['door_airlock_shaft'] }, inputs: rep(120, { moveX: 1 }) },
+    plan: { setup: { ...KIT, weapons: [1, 2, 3], x: 59.6, y: 0, openDoors: ['door_airlock_shaft'] }, inputs: HUNTER_INPUTS },
     caption: 'The Reclaimer hunts by sound',
-    sub: 'Walk quietly, stay above its reach, or counter the grab.',
+    sub: 'It hears you run. Counter the grab, or walk quietly and stay above its reach.',
     view: 'modern',
   },
   {
     id: 'warden', duration: 12, target: 'world', sector: 'core', flashy: true,
-    plan: { scene: 'boss', setup: { ...BOSS, bossPhase: 2 }, inputs: rep(30, { fire: true, aimX: 83, aimY: 2.4 }) },
+    plan: { scene: 'boss', setup: { ...BOSS, bossPhase: 2 }, inputs: WARDEN_INPUTS },
     caption: 'Core Warden: counter and phases',
-    sub: 'Time the counter on the charge, expose the core, survive phase III.',
+    sub: 'Counter the charge in its last ticks, expose the Warden, and push it into phase III.',
     view: 'modern',
   },
   {
