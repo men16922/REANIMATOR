@@ -32,3 +32,14 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 - [x] Acid 블룸 과다 완화: acid 재질 emissiveIntensity 1.35→0.5, acid PointLight 5/11→3/9, UnrealBloomPass strength 0.42→0.36, radius 0.32→0.3, threshold 0.84→0.9, 출구 포털 링 emissive 1.9→1.3. 시각 확인 unverified.
 - [x] HUD 목표 줄 고정: `index.html`에 `.hud-break`(flex-basis 100%)를 OBJ 칩 앞에 추가해 OBJ를 항상 둘째 줄에 배치.
 - [ ] 브라우저 재확인: `__reanimatorRunBot(700)`(mines)·1500(biolabs) 스크린샷에서 acid 면이 텍스처로 보이고 플랫폼·적이 가독성 있는지, Core Vault에서 OBJ 칩이 둘째 줄인지, 콘솔 오류 0. 업그레이드/세이브 발광 실린더 포화는 미조정(필요 시 다음 라운드).
+
+## 몬스터·지형 전면 개선(2026-11-15 시작)
+
+계획: [plans/2026-11-15_MONSTERS_TERRAIN_OVERHAUL.md](plans/2026-11-15_MONSTERS_TERRAIN_OVERHAUL.md)
+
+- [x] FEAT-001 기준선 기록(테스트 45/45, reach3d 52 wp 3431 ticks, 봇 3433 ticks HP 160) 및 계획 문서.
+- [ ] FEAT-002 몬스터 AI 상태·회전·도약·순찰·가속(시뮬).
+- [ ] FEAT-003 몬스터 애니메이션 블렌딩·절차 모션·흰 실루엣 수정.
+- [ ] FEAT-004 섹터별 지형 세트 드레싱·절차 텍스처·분위기.
+- [ ] FEAT-005 조명 프리셋·블룸 완화·성능 텔레메트리·문서.
+- 브라우저 검증은 모두 unverified(Chrome 불가).
