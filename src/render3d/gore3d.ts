@@ -266,11 +266,11 @@ export class GoreSim {
   }
 
   /** Lethal hit: a shower of chunks plus wall and floor stains. `floorY` is the enemy's feet. */
-  spawnKill(kind: GoreKind, x: number, cy: number, floorY: number, dir: number): void {
+  spawnKill(kind: GoreKind, x: number, cy: number, floorY: number, dir: number, chunkMul = 1, speedMul = 1): void {
     if (this.level === 'off') return;
     const rc = GORE_RECIPES[kind];
-    const n = this.count(rc.chunks);
-    for (let i = 0; i < n; i++) this.chunk(rc, x, cy, floorY, dir, 1);
+    const n = this.count(rc.chunks * chunkMul);
+    for (let i = 0; i < n; i++) this.chunk(rc, x, cy, floorY, dir, 1, speedMul);
     const nd = this.count(rc.decals);
     for (let i = 0; i < nd; i++) {
       // roughly half the stains go on the back wall around the body, the rest pool on the floor
@@ -280,6 +280,14 @@ export class GoreSim {
         this.decals.add(x + this.rr(-1.6, 1.6) + dir * 0.8, floorY + 0.035, this.rr(-0.7, 0.7), rc.decalSize * this.rr(0.7, 1.4), this.rr(-0.4, 0.4), true, rc.splat[0], rc.splat[1], rc.splat[2]);
       }
     }
+  }
+
+  /** A small extra gib wave (Warden death staging, hive pop). Chunks only, no decals. */
+  spawnWave(kind: GoreKind, x: number, cy: number, floorY: number, dir: number, n: number, speedMul = 1): void {
+    if (this.level === 'off') return;
+    const rc = GORE_RECIPES[kind];
+    const c = this.count(n);
+    for (let i = 0; i < c; i++) this.chunk(rc, x, cy, floorY, dir, 0.7, speedMul);
   }
 
   /** Non-lethal hit: a few small flecks and the occasional wall spot. */
@@ -293,9 +301,9 @@ export class GoreSim {
     }
   }
 
-  private chunk(rc: GoreRecipe, x: number, cy: number, floorY: number, dir: number, scale: number): void {
+  private chunk(rc: GoreRecipe, x: number, cy: number, floorY: number, dir: number, scale: number, speedMul = 1): void {
     const a = this.rr(0.2, Math.PI - 0.2);
-    const sp = this.rr(rc.speed * 0.35, rc.speed);
+    const sp = this.rr(rc.speed * 0.35, rc.speed) * speedMul;
     const c = rc.palette[Math.floor(this.rnd() * rc.palette.length)];
     const s = this.rr(rc.sizeLo, rc.sizeHi) * scale;
     this.chunks.add(

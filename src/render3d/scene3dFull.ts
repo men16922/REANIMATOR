@@ -28,6 +28,7 @@ import { HeroController, legDrop, type HeroFrame } from './heroPose.ts';
 import { HeroGear } from './heroGear3d.ts';
 import {
   applyEnemyRim3D,
+  applyWardenLook3D,
   flashMaterials3D,
   flashRiggedMaterials3D,
   getFailedModelNames3D,
@@ -43,7 +44,10 @@ import {
   tuneWardenMaterials3D,
   WARDEN_FLASH_SCALE_3D,
   type RiggedInstance,
+  type WardenLookUniforms3D,
 } from './riggedModels.ts';
+import { WARDEN_RIM_HEX, WARDEN_RIM_STRENGTH, wardenLook } from './wardenLook3d.ts';
+import { WardenHalo3D } from './wardenLookGfx3d.ts';
 import { EnemyRigDriver, ProcSecondary, type EnemyRigFrame } from './enemyRig3d.ts';
 import {
   gaitStep,
@@ -265,7 +269,6 @@ const _HUNTER_BG = new THREE.Color(0x3a0a08);
 const _HUNTER_RED = new THREE.Color(0xd24a3a);
 const _FLASH_TMP = new THREE.Color();
 const _PHASE_TMP = new THREE.Color();
-const BOSS_PHASE_HEX = [0x33ffe0, 0xff8c26, 0xff2418] as const;
 
 function wrapAngle(d: number): number {
   while (d > Math.PI) d -= Math.PI * 2;
@@ -332,6 +335,8 @@ export class Scene3DRenderer {
 
   private readonly bossTele = new BossTelegraph3D();
   private readonly bossSet = new BossSetPieces3D();
+  private readonly wardenHalo = new WardenHalo3D();
+  private readonly wardenLooks = new Map<string, WardenLookUniforms3D>();
   private readonly popupLayer: PopupLayer;
   private readonly introOverlay = new BossIntroOverlay(() => this.renderer.domElement.parentElement);
   private introSkipPending = false;
@@ -606,6 +611,7 @@ export class Scene3DRenderer {
     this.scene.add(this.fxAdd.mesh);
     this.scene.add(this.bossTele.group);
     this.scene.add(this.bossSet.group);
+    this.scene.add(this.wardenHalo.group);
     this.popupLayer = new PopupLayer(this.fx.popups);
     this.scene.add(this.popupLayer.mesh);
     window.addEventListener('keydown', (ev) => {
@@ -1564,6 +1570,7 @@ export class Scene3DRenderer {
       disposeActor3D(r.root, r.mixer, r.modelRoot);
     }
     this.riggedEnemies.clear();
+    this.wardenLooks.clear();
     this.hunterView?.dispose();
     this.hunterView = null;
     for (const st of this.staticEnemies.values()) {
@@ -1633,7 +1640,7 @@ export class Scene3DRenderer {
         rig.root.rotation.order = 'YXZ';
         if (e.kind === 'warden') {
           tuneWardenMaterials3D(rig.materials, rig.baseEmissive);
-          applyEnemyRim3D(rig.materials, ENEMY_RIM_3D[e.kind], 0.14, 0.0);
+          this.wardenLooks.set(e.id, applyWardenLook3D(rig, WARDEN_RIM_HEX, WARDEN_RIM_STRENGTH));
         } else {
           tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, ENEMY_TINT_3D[e.kind]);
           applyEnemyRim3D(rig.materials, ENEMY_RIM_3D[e.kind], 0.6, 0.18);
@@ -2107,6 +2114,7 @@ export class Scene3DRenderer {
     // 5. Enemies (rigged and static meshes), interpolated
     let telegraphWarden: WorldState3D['enemies'][number] | null = null;
     let wardenE: WorldState3D['enemies'][number] | null = null;
+    this.wardenHalo.group.visible = false;
     let wardenX = 0;
     let wardenY = 0;
     let decalIdx = 0;
@@ -2211,16 +2219,32 @@ export class Scene3DRenderer {
         rig.root.rotation.set(frame.rootPitch + fl.pitch * 0.5, v.yaw, v.lean);
         rig.root.scale.set(1, Math.max(0.001, frame.rootScaleY) * Math.max(0.001, deathScale) * fl.sy * turnSq, 1);
         rig.root.scale.x = rig.root.scale.z = Math.max(0.001, (1 + v.recoil * 0.05) * deathScale * fl.sxz);
+        const wl = this.wardenLooks.get(e.id);
+        if (wl) {
+          // R13: phase colour lives on seams and the chest core only; the armour stays dark gunmetal
+          const look = wardenLook({
+            phase: e.phase,
+            active: e.active,
+            alive: e.alive,
+            exposedTicks: e.exposedTicks,
+            winding,
+            windFrac,
+            summon: e.bossPattern === 'summon',
+            intro: this.introAwake,
+            tSec,
+            reduce: this.reduceMotion,
+          });
+          wl.uWardenGlow.value.setRGB(look.glow[0], look.glow[1], look.glow[2]);
+          wl.uWardenCoreColor.value.setRGB(look.coreColor[0], look.coreColor[1], look.coreColor[2]);
+          wl.uWardenSeam.value = look.seam;
+          wl.uWardenCore.value = look.core;
+          if (!e.minion) this.wardenHalo.update(rig.root.visible ? look : null, ex, ey, 3.15);
+        }
         if (flashAmt > 0) {
           flashRiggedMaterials3D(rig, flashHex, flashAmt, flashCap);
-        } else if (e.kind === 'warden' && e.alive && !e.active && this.introAwake > 0.01) {
-          flashRiggedMaterials3D(rig, BOSS_PHASE_HEX[0], WARDEN_FLASH_SCALE_3D * (0.05 + 0.4 * this.introAwake));
-        } else if (e.kind === 'warden' && e.alive && e.exposedTicks > 0) {
-          flashRiggedMaterials3D(rig, 0xffd24a, WARDEN_FLASH_SCALE_3D * (this.reduceMotion ? 0.4 : 0.4 + 0.16 * Math.sin(tSec * 16)));
         } else if (e.kind === 'warden' && winding) {
-          flashRiggedMaterials3D(rig, e.bossPattern === 'summon' ? 0xa060ff : 0xff451f, WARDEN_FLASH_SCALE_3D * (0.12 + 0.2 * windFrac));
-        } else if (e.kind === 'warden' && e.alive) {
-          flashRiggedMaterials3D(rig, BOSS_PHASE_HEX[Math.min(3, e.phase) - 1], WARDEN_FLASH_SCALE_3D * (e.phase >= 2 ? 0.12 : 0.06));
+          // Telegraph keeps a faint whole-body wash; the seams carry most of it
+          flashRiggedMaterials3D(rig, e.bossPattern === 'summon' ? 0xa060ff : 0xff451f, WARDEN_FLASH_SCALE_3D * (0.06 + 0.12 * windFrac));
         } else {
           flashRiggedMaterials3D(rig, 0x000000, 0);
         }

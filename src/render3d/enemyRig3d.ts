@@ -133,7 +133,8 @@ export interface GaitSpec {
 }
 
 export const GAIT: Record<RigKind, GaitSpec> = {
-  stalker: { walkRef: 2.2, runRef: 5.5, walkDur: 1.033, runDur: 0.467, blendLo: 2.6, blendHi: 4.6 },
+  // R13: narrower walk -> run band, so a chase at 3-4 m/s is a real run instead of a 1.6x speed-walk mixed in
+  stalker: { walkRef: 2.2, runRef: 5.5, walkDur: 1.033, runDur: 0.467, blendLo: 2.0, blendHi: 3.6 },
   warden: { walkRef: 2.6, runRef: 6.0, walkDur: 1.033, runDur: 0.633, blendLo: 3.0, blendHi: 5.0 },
 };
 
@@ -143,10 +144,22 @@ export function runBlend(kind: RigKind, speed: number): number {
   return smooth01((speed - g.blendLo) / (g.blendHi - g.blendLo));
 }
 
+/** Longest stride stretch above the run reference speed (cadence then rises at most sqrt-slowly). */
+export const SPRINT_STRIDE_MAX = 1.25;
+
+/**
+ * Stride stretch above the run reference: sprinting animals lengthen their stride instead of spinning their legs.
+ * Without it a 9.6 m/s aggro chase played the run clip at 1.75x. The stretch is capped so foot slip stays small.
+ */
+export function sprintStretch(kind: RigKind, speed: number): number {
+  const ref = GAIT[kind].runRef;
+  return speed <= ref ? 1 : Math.min(SPRINT_STRIDE_MAX, Math.sqrt(speed / ref));
+}
+
 /** Metres travelled per gait cycle for the walk/run mix at this speed. */
 export function strideLength(kind: RigKind, speed: number): number {
   const g = GAIT[kind];
-  return lerp(g.walkRef * g.walkDur, g.runRef * g.runDur, runBlend(kind, speed));
+  return lerp(g.walkRef * g.walkDur, g.runRef * g.runDur, runBlend(kind, speed)) * sprintStretch(kind, speed);
 }
 
 /** Gait cycles per second so that foot travel equals ground travel (no sliding). */
@@ -154,11 +167,35 @@ export function gaitCycleRate(kind: RigKind, speed: number): number {
   return speed / strideLength(kind, speed);
 }
 
-/** Ground speed measured from displayed positions, lightly filtered. Teleports (|dx| > 4 m) are ignored. */
+/** Forward spine lean (rad) for a running stalker: 0 at walk speed, up to 0.22 at a full chase. */
+export function runLean(speed: number): number {
+  return clamp((speed - 2.5) / 7, 0, 1) * 0.22;
+}
+
+/** Hip dip (m) twice per gait cycle, growing with speed. Zero at rest. */
+export function runBob(phase: number, speed: number): number {
+  const amp = clamp((speed - 2) / 6, 0, 1) * 0.045;
+  return amp * 0.5 * (1 - Math.cos(phase * Math.PI * 4));
+}
+
+/** Ceiling on the ground speed fed to the gait (m/s). Faster readings are collision or knockback snaps. */
+export const GROUND_SPEED_MAX = 14;
+/** Gait speed may rise at most this fast (m/s^2); the sim's chase acceleration is about 45. */
+export const GROUND_ACCEL_MAX = 120;
+/** ...and fall at most this fast (a hard stop decelerates at about 170). */
+export const GROUND_DECEL_MAX = 240;
+
+/**
+ * Ground speed measured from displayed positions, lightly filtered. Teleports (|dx| > 4 m) are ignored.
+ * R13: single-frame snaps (enemy separation pushes, step-ups, knockback) used to read as 30-47 m/s and spun the
+ * legs a quarter cycle in one frame. The reading is now capped and slew-limited, so only real locomotion drives it.
+ */
 export function stepGroundSpeed(prev: number, dx: number, dt: number): number {
   const h = clamp(dt, 1e-4, 0.25);
   if (Math.abs(dx) > 4) return prev;
-  return prev + (Math.abs(dx) / h - prev) * expK(140, h);
+  const inst = Math.min(GROUND_SPEED_MAX, Math.abs(dx) / h);
+  const target = clamp(inst, prev - GROUND_DECEL_MAX * h, prev + GROUND_ACCEL_MAX * h);
+  return Math.max(0, prev + (target - prev) * expK(140, h));
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -212,6 +249,7 @@ export class EnemyRigDriver {
   private tuckK = 0;
   private windK = 0;
   private moveW = 0;
+  private wasMoving = false;
   private aimW = 0;
   private aimPitch = 0;
   private hitFront = 1;
@@ -245,7 +283,7 @@ export class EnemyRigDriver {
     const speed = this.groundSpeed;
 
     // --- yaw: the head leads, the body follows (12 rad/s hard cap on both)
-    const bodyRate = warden ? 4.5 : 5.5;
+    const bodyRate = warden ? 4.5 : speed > 3 ? 8 : 5.5; // R13: a sprinting body turns to face its run direction faster
     this.headYaw = stepEnemyYaw(this.headYaw, e.yaw, dt, 14);
     this.bodyYaw = stepEnemyYaw(this.bodyYaw, e.yaw, dt, bodyRate);
     const headRel = clamp(wrapAngle(this.headYaw - this.bodyYaw), -0.95, 0.95);
@@ -292,7 +330,9 @@ export class EnemyRigDriver {
 
     // --- clip weights (smoothed crossfades, 0.12..0.25 s)
     // Windup keeps walking while the sim's slide decays so the feet never skate across the floor
-    const moving = alive && !staggered && !striking && speed > 0.35;
+    // R13: hysteresis (start above 0.5, stop below 0.25) so a speed hovering near the threshold never flickers idle/run
+    this.wasMoving = speed > (this.wasMoving ? 0.25 : 0.5);
+    const moving = alive && !staggered && !striking && this.wasMoving;
     this.moveW += ((moving ? 1 : 0) - this.moveW) * expK(moving ? 40 : 18, dt);
     const rb = runBlend(kind, speed);
     const t: ClipWeights = { idle: 0, walk: 0, run: 0, attack: 0, death: 0 };
@@ -356,6 +396,16 @@ export class EnemyRigDriver {
     tgt.spineTwist += this.recoil.x * 0.25 * this.hitFront;
     tgt.armUpL += this.recoil.x * 0.8;
     tgt.armUpR += this.recoil.x * 0.8;
+
+    // R13 run posture: lean into the sprint and bob the hips twice per cycle (one dip per footfall)
+    if (!warden && alive && !striking && !winding && this.moveW > 0.05) {
+      const lean = runLean(speed) * this.moveW;
+      tgt.spine += lean;
+      tgt.headPitch += -lean * 0.8;
+      tgt.hipsDrop += runBob(this.gaitPhase, speed) * this.moveW;
+      tgt.armUpL += lean * 0.5;
+      tgt.armUpR += lean * 0.5;
+    }
 
     // lateral acceleration sway (secondary spring on the upper body)
     stepSpring(this.sway, clamp((this.moveW > 0.3 ? 0.04 : 0) * Math.sin(this.gaitPhase * Math.PI * 4), -0.05, 0.05), dt, 3, 0.4);

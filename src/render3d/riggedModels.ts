@@ -12,6 +12,7 @@ import type { ActorAnimAction, PlayerPoseState3D } from '../game3d/types3d.ts';
 import { RECOIL_PROFILE, type HeroFrame } from './heroPose.ts';
 import { collectGeometries, disposeActorTree } from './disposeActor.ts';
 import { GAIT, type EnemyRigFrame, type RigChannels, type RigKind } from './enemyRig3d.ts';
+import { WARDEN_ARMOUR_ALBEDO } from './wardenLook3d.ts';
 
 export { THREE };
 
@@ -698,7 +699,7 @@ export const WARDEN_FLASH_SCALE_3D = 0.3;
 export function tuneWardenMaterials3D(materials: THREE.MeshStandardMaterial[], baseEmissive: THREE.Color[]): void {
   for (let i = 0; i < materials.length; i++) {
     const m = materials[i];
-    m.color.multiplyScalar(0.62);
+    m.color.multiplyScalar(WARDEN_ARMOUR_ALBEDO);
     m.metalness = 0.82;
     m.roughness = Math.min(0.62, Math.max(0.42, m.roughness));
     m.envMapIntensity = 0.9;
@@ -737,6 +738,75 @@ export function applyEnemyRim3D(materials: THREE.MeshStandardMaterial[], rimHex:
     m.customProgramCacheKey = () => 'enemy-rim-v1';
     m.needsUpdate = true;
   }
+}
+
+export interface WardenLookUniforms3D {
+  uEnemyRim: { value: THREE.Color };
+  uWardenGlow: { value: THREE.Color };
+  uWardenCoreColor: { value: THREE.Color };
+  uWardenSeam: { value: number };
+  uWardenCore: { value: number };
+  uWardenMin: { value: THREE.Vector3 };
+  uWardenSize: { value: THREE.Vector3 };
+}
+
+/**
+ * R13 Core Warden shader pass (replaces applyEnemyRim3D for the boss): cool fresnel rim plus procedural
+ * armour seams and a chest core in mesh-local normalised space, so the glow rides the skinned body.
+ * Colours and amounts are uniforms driven per frame from wardenLook(); no lights are added.
+ */
+export function applyWardenLook3D(inst: RiggedInstance, rimHex: number, rim: number): WardenLookUniforms3D {
+  const box = new THREE.Box3();
+  let found = false;
+  inst.modelRoot.traverse((o) => {
+    const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+    if (found || !(o as THREE.Mesh).isMesh || !g) return;
+    if (!g.boundingBox) g.computeBoundingBox();
+    if (g.boundingBox) box.copy(g.boundingBox);
+    found = true;
+  });
+  const size = new THREE.Vector3(1, 1, 1);
+  if (found) box.getSize(size);
+  const u: WardenLookUniforms3D = {
+    uEnemyRim: { value: new THREE.Color(rimHex).multiplyScalar(rim) },
+    uWardenGlow: { value: new THREE.Color(0, 0, 0) },
+    uWardenCoreColor: { value: new THREE.Color(0, 0, 0) },
+    uWardenSeam: { value: 0 },
+    uWardenCore: { value: 0 },
+    uWardenMin: { value: found ? box.min.clone() : new THREE.Vector3(-0.5, 0, -0.5) },
+    uWardenSize: { value: new THREE.Vector3(Math.max(1e-4, size.x), Math.max(1e-4, size.y), Math.max(1e-4, size.z)) },
+  };
+  for (const m of inst.materials) {
+    m.userData.enemyRim = u;
+    m.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, u);
+      shader.vertexShader = shader.vertexShader
+        .replace('void main() {', 'uniform vec3 uWardenMin;\nuniform vec3 uWardenSize;\nvarying vec3 vWardenN;\nvoid main() {')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vWardenN = (position - uWardenMin) / uWardenSize;');
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          'void main() {',
+          'uniform vec3 uEnemyRim;\nuniform vec3 uWardenGlow;\nuniform vec3 uWardenCoreColor;\nuniform float uWardenSeam;\nuniform float uWardenCore;\nvarying vec3 vWardenN;\nvoid main() {',
+        )
+        .replace(
+          '#include <opaque_fragment>',
+          `float wRimF = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.4);
+  vec3 wN = vWardenN;
+  float wB1 = abs(fract(wN.y * 9.0 + sin(wN.x * 13.0 + wN.z * 7.0) * 0.35) - 0.5);
+  float wB2 = abs(fract(wN.x * 6.0 + wN.z * 5.0 + sin(wN.y * 17.0) * 0.3) - 0.5);
+  float wCell = fract(sin(dot(floor(wN * vec3(6.0, 9.0, 5.0)), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+  float wSeam = smoothstep(0.04, 0.0, min(wB1, wB2)) * step(0.35, wCell);
+  vec2 wCd = (wN.xy - vec2(0.5, 0.63)) * vec2(1.0, 1.25);
+  float wCoreD = dot(wCd, wCd);
+  float wCore = exp(-wCoreD * 140.0) + 0.35 * exp(-wCoreD * 28.0);
+  outgoingLight += uEnemyRim * wRimF + uWardenGlow * (wSeam * uWardenSeam) + uWardenCoreColor * (wCore * uWardenCore);
+  #include <opaque_fragment>`,
+        );
+    };
+    m.customProgramCacheKey = () => 'warden-look-v1';
+    m.needsUpdate = true;
+  }
+  return u;
 }
 
 const ATTACK_START_FRAC = 0.35;
