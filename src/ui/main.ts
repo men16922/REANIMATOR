@@ -22,7 +22,7 @@ import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
 import { parseCrt, parseViewMode, PixelTransition, toggleViewMode, VIEW_STORE, viewLabel, type ViewMode } from '../render3d/classicView.ts';
 import { ClassicHud } from './classicHud.ts';
-import { getAudioDebug, play as playSound, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
+import { getAudioDebug, play as playSound, playFanfare, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
 import { rankPitch } from './audioLogic.ts';
 import { AudioDirector, snapshotPre } from './audioDirector.ts';
 import { Attract, freshWorld } from './attract.ts';
@@ -402,12 +402,12 @@ const UPGRADE_BANNER: Record<string, { title: string; desc: string }> = {
 /** Seconds of display freeze per pickup kind (the simulation does not advance, so replays stay deterministic) */
 const ITEM_FREEZE_S = 0.85;
 
-function showPickupBanner(b: { title: string; desc: string }): void {
+function showPickupBanner(b: { title: string; desc: string }, quiet = false): void {
   $('pb-title').textContent = b.title;
   $('pb-desc').textContent = b.desc;
   ui.pickupBanner.hidden = false;
   popClass(ui.pickupBanner, 'show', 0);
-  playSound('ui.banner');
+  if (!quiet) playSound('ui.banner');
 }
 
 /** Detects sector changes, new pickups and weapon switches by diffing against the last frame. */
@@ -433,10 +433,9 @@ function observeWorld(): void {
       const last = [...world.collectedUpgrades].pop();
       const kind = world.level.upgrades.find((u) => u.id === last)?.kind;
       if (kind && UPGRADE_BANNER[kind]) {
-        showPickupBanner(UPGRADE_BANNER[kind]);
+        // The simulation plays the short grab (world.upgrade); the per-item fanfare carries the melody and ducks the music
+        showPickupBanner(UPGRADE_BANNER[kind], playFanfare(kind));
         itemFreeze = ITEM_FREEZE_S;
-        // Fanfare: the simulation already played world.upgrade, the banner plays ui.banner, this adds the rising stinger
-        setTimeout(() => playSound('ui.rank', { pitch: rankPitch('A') }), 260);
       }
     }
     seen.collected = world.collectedUpgrades.size;
@@ -458,7 +457,7 @@ function observeWorld(): void {
   }
   if (unlocked !== seen.unlocked) {
     for (const s of [2, 3, 4] as const) {
-      if (unlocked[s - 1] === '1' && seen.unlocked[s - 1] === '0') showPickupBanner(WEAPON_BANNER[s]);
+      if (unlocked[s - 1] === '1' && seen.unlocked[s - 1] === '0') showPickupBanner(WEAPON_BANNER[s], playFanfare('weapon'));
     }
     seen.unlocked = unlocked;
   }
