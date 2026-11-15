@@ -353,6 +353,10 @@ export interface FxTelemetry {
   envPulse: number;
   deathSeq: number;
   bossPhase: number;
+  smoke: number;
+  goreChunks: number;
+  goreDecals: number;
+  smokeColumns: number;
 }
 
 export class FxDirector {
@@ -680,6 +684,10 @@ export class FxDirector {
       envPulse: r(this.envPulse),
       deathSeq: r(this.deathT),
       bossPhase: this.bossPhase,
+      smoke: this.smoke.count,
+      goreChunks: this.gore.chunks.count,
+      goreDecals: this.gore.decals.count,
+      smokeColumns: this.columns.length,
     };
   }
 
