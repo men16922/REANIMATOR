@@ -15,6 +15,7 @@
     "reference:verify": "node tools/reference/verify.ts",
     "reference:holdout": "node tools/reference/verify.ts --holdout",
     "build": "vite build",
+    "meshy:terrain": "node tools/meshy/terrain-kit.ts",
     "test:e2e": "vite build --logLevel warn && node tools/smoke/smoke.ts"
   },
   "devDependencies": {

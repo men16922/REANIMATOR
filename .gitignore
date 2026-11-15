@@ -35,3 +35,6 @@ docs/evidence/g3/c01_attempts/**/*.png
 .env
 .env.*
 !.env.example
+
+# Workspace MCP config may hold the Meshy key
+.kiro/settings/mcp.json

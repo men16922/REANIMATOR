@@ -3,7 +3,7 @@ NODE_BIN := $(CURDIR)/.tools/node-v26.13.1-darwin-arm64/bin
 NODE := $(NODE_BIN)/node
 # GNU Make 3.81 execs simple commands without the shell, so an exported PATH is not applied: use $(NODE) explicitly.
 
-.PHONY: check typecheck test-engine reference-verify reference-holdout reach difficulty build dist-guard smoke-local
+.PHONY: check typecheck test-engine reference-verify reference-holdout reach difficulty build dist-guard smoke-local meshy-terrain
 
 # Required gate: unit/boundary tests + development scenarios against original-run references.
 # A missing/empty/corrupt reference is NOT RUN/ERROR and fails the gate (never a vacuous PASS).
@@ -39,3 +39,7 @@ reference-holdout:
 
 smoke-local: build
 	$(NODE) tools/smoke/smoke.ts
+
+# Needs network + MESHY_API_KEY in .env. Resumable. Add ARGS=--dry-run to preview.
+meshy-terrain:
+	$(NODE) tools/meshy/terrain-kit.ts $(ARGS)
