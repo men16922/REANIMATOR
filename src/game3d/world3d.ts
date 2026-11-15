@@ -5,7 +5,7 @@
 import { stepBody3D, spawnBody3D, floorHeightAt3D, resolveHorizontal3D, ABILITY_3D, type Body3D } from '../engine/motion3d.ts';
 import { newLight, tickLight, toggleLight, type Light } from '../game/light.ts';
 import { buildCollider3D, buildFacilityMap3D } from './map3d.ts';
-import { hazardHits, hazardPhase } from './hazards.ts';
+import { hazardDangerWithin, hazardHits, hazardIdleTicks, hazardPhase } from './hazards.ts';
 import type {
   ActorAnimAction,
   DataLog3D,
@@ -172,6 +172,11 @@ export const ENEMY_BRAKE_MUL_3D = 1.6;
 export const SECTOR_TEMPO_3D: Record<SectorId3D, number> = {
   airlock: 0.95, shaft: 1.05, mines: 1.12, biolabs: 1.2, security: 1.3, core: 1.4,
 };
+
+/** Sector tempo times the difficulty tempo (Normal multiplies by exactly 1, so the default sim is unchanged). */
+function tempo3D(w: Readonly<WorldState3D>, zone: SectorId3D): number {
+  return SECTOR_TEMPO_3D[zone] * w.diff.tempo;
+}
 /** Ceiling/wall ambusher telegraph (dust falls, body trembles) before letting go. */
 export const DROP_WINDUP_TICKS_3D = 28;
 export const LEAP_WINDUP_TICKS_3D = 24;
@@ -304,6 +309,83 @@ export interface ComboState3D {
   best: number;
 }
 
+export type Difficulty3D = 'story' | 'normal' | 'hard';
+export const DIFFICULTIES_3D: readonly Difficulty3D[] = ['story', 'normal', 'hard'];
+
+/** Difficulty is a world-creation parameter. `normal` is the identity preset. */
+export interface DifficultyParams3D {
+  /** Multiplier on all damage the player takes. */
+  damage: number;
+  /** Multiplier on enemy and nest hit points. */
+  enemyHp: number;
+  /** Multiplier on enemy move speed and attack cadence (windup lengths never change). */
+  tempo: number;
+  /** Multiplier on med pickups and combo healing. */
+  heal: number;
+  /** Extra ammo/med drops and bigger ammo packs. */
+  generousDrops: boolean;
+  /** Story only: respawn at a rolling nearby safe spot instead of the last Save station. */
+  nearRespawn: boolean;
+}
+
+export const DIFFICULTY_PARAMS_3D: Record<Difficulty3D, DifficultyParams3D> = {
+  story: { damage: 0.5, enemyHp: 0.8, tempo: 1, heal: 1, generousDrops: true, nearRespawn: true },
+  normal: { damage: 1, enemyHp: 1, tempo: 1, heal: 1, generousDrops: false, nearRespawn: false },
+  hard: { damage: 1.35, enemyHp: 1, tempo: 1.1, heal: 0.6, generousDrops: false, nearRespawn: false },
+};
+
+export interface AssistOptions3D {
+  /** Input layer: pull the aim point toward the nearest enemy. */
+  aim: boolean;
+  /** Input layer: holding fire is latched without keeping the button down. */
+  autoFire: boolean;
+  /** Display clock runs at 0.8x. The simulation tick is unchanged. */
+  slow: boolean;
+  /** Sim: hazard telegraph +20% (period grows by the same amount, so the idle gap is unchanged). */
+  hazardWarn: boolean;
+}
+
+export const NO_ASSIST_3D: AssistOptions3D = { aim: false, autoFire: false, slow: false, hazardWarn: false };
+export const HAZARD_WARN_SCALE = 1.2;
+
+export type DeathCauseKey3D =
+  | 'crusher' | 'laser' | 'vent' | 'rubble' | 'acid' | 'stalker' | 'crawler' | 'spitter' | 'spit'
+  | 'warden' | 'plasma' | 'shockwave' | 'explosion' | 'meltdown' | 'unknown';
+
+export interface DeathCause3D {
+  key: DeathCauseKey3D;
+  label: string;
+  tip: string;
+}
+
+export const DEATH_CAUSES_3D: Record<DeathCauseKey3D, { label: string; tip: string }> = {
+  crusher: { label: 'Crushed by piston', tip: 'The piston lifts and shakes before it slams. Cross right after it rises.' },
+  laser: { label: 'Burned by laser', tip: 'The grid glows red before it fires. Wait for it to go dark, then dash through.' },
+  vent: { label: 'Scalded by steam vent', tip: 'Vents hiss and flash first. Time your jump for the quiet gap.' },
+  rubble: { label: 'Buried by rubble', tip: 'Dust falls just before the rubble drops. Run on when it settles.' },
+  acid: { label: 'Dissolved in acid', tip: 'Acid only burns on the pool floor. Jump across or take the high route.' },
+  stalker: { label: 'Mauled by a Stalker', tip: 'Stalkers shrug off Pulse. Switch to Grenade or Rail, or dash past the lunge.' },
+  crawler: { label: 'Swarmed by Crawlers', tip: 'Scattergun at close range clears crawlers. Back up so only one reaches you.' },
+  spitter: { label: 'Clawed by a Spitter', tip: 'Spitters are weak up close. Close in with Pulse.' },
+  spit: { label: 'Hit by acid spit', tip: 'Spit is slow. Jump or dash it, then rush the Spitter.' },
+  warden: { label: 'Crushed by the Core Warden', tip: 'Every Warden attack has a windup. Jump the slam, dash through the charge.' },
+  plasma: { label: 'Hit by Warden plasma', tip: 'Plasma volleys have gaps. Keep moving and jump the low ones.' },
+  shockwave: { label: 'Caught by a shockwave', tip: 'Shockwaves travel along the floor. Jump as the ring reaches you.' },
+  explosion: { label: 'Caught in a blast', tip: 'Your own rockets and barrels hurt too. Keep your distance.' },
+  meltdown: { label: 'Lost in the meltdown', tip: 'The reactor clock is 90 s and a clean route needs about 15. Do not stop to fight.' },
+  unknown: { label: 'Systems failure', tip: 'Heal at Save stations and keep your hull topped up.' },
+};
+
+export function deathCauseOf3D(key: DeathCauseKey3D | null): DeathCause3D {
+  const k = key ?? 'unknown';
+  return { key: k, ...DEATH_CAUSES_3D[k] };
+}
+
+export interface NewWorldOptions3D {
+  difficulty?: Difficulty3D;
+  assist?: Partial<AssistOptions3D>;
+}
+
 export interface RunStats3D {
   deaths: number;
   damageTaken: number;
@@ -432,6 +514,17 @@ export interface WorldState3D {
   shakeStrength: number;
   nextId: number;
   prevLightButton: boolean;
+  /** Difficulty preset chosen at world creation (part of the deterministic setup). */
+  difficulty: Difficulty3D;
+  diff: DifficultyParams3D;
+  /** Sim-side assist options. Only `hazardWarn` changes the simulation; aim and autofire live in the input layer. */
+  assist: AssistOptions3D;
+  /** Why the player went down last (null while alive and before any defeat). */
+  deathCause: DeathCause3D | null;
+  /** Source of the most recent hit on the player. */
+  lastHurt: DeathCauseKey3D | null;
+  /** Rolling safe spot used by Story to respawn close to where the player fell. */
+  checkpoint: { x: number; y: number; tick: number } | null;
 }
 
 export const WEAPON_META: Record<WeaponSlot3D, { name: string; cooldown: number; initialAmmo: number }> = {
@@ -624,9 +717,9 @@ export function getRunSummary3D(w: Readonly<WorldState3D>): RunSummary3D {
 }
 
 /** Initial enemy state from a level spawn. Hive larvae slots (`hiveId` set), warden minions and extraction slots start dead. */
-function buildEnemy3D(sp: EnemySpawn3D, hiveId = ''): EnemyState3D {
+function buildEnemy3D(sp: EnemySpawn3D, hiveId = '', hpMul = 1): EnemyState3D {
   const st = ENEMY_STATS[sp.kind];
-  const hpScale = sp.kind === 'warden' ? 1 : SECTOR_HP_3D[sp.zone] * (sp.id.startsWith('e-esc-') ? 2 : 1);
+  const hpScale = sp.kind === 'warden' ? 1 : SECTOR_HP_3D[sp.zone] * (sp.id.startsWith('e-esc-') ? 2 : 1) * hpMul;
   const minion = hiveId !== '' || sp.id.startsWith('e-core-m') || sp.id.startsWith('e-esc-') || sp.id.startsWith('e-lift-');
   const surface: EnemySurface3D = sp.surface ?? 'floor';
   const wallDir: 1 | -1 = sp.wallDir ?? 1;
@@ -685,21 +778,24 @@ function buildEnemy3D(sp: EnemySpawn3D, hiveId = ''): EnemyState3D {
   };
 }
 
-export function newWorld3D(): WorldState3D {
+export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
+  const difficulty = options.difficulty ?? 'normal';
+  const diff = DIFFICULTY_PARAMS_3D[difficulty];
+  const assist: AssistOptions3D = { ...NO_ASSIST_3D, ...options.assist };
   const level = buildFacilityMap3D();
   const spawn = level.spawn;
   const body = spawnBody3D(spawn.x, spawn.y, 0);
 
-  const enemies: EnemyState3D[] = level.enemies.map((sp) => buildEnemy3D(sp));
+  const enemies: EnemyState3D[] = level.enemies.map((sp) => buildEnemy3D(sp, '', diff.enemyHp));
   // Hive larvae pools: dead, hidden slots that the owning hive revives one at a time
   const hives: HiveState3D[] = level.hives.map((h) => ({
     id: h.id, zone: h.sector, x: h.x, y: h.y, z: 0, radius: HIVE_RADIUS_3D, height: HIVE_HEIGHT_3D,
-    hp: Math.round(HIVE_HP_3D * SECTOR_HP_3D[h.sector]), maxHp: Math.round(HIVE_HP_3D * SECTOR_HP_3D[h.sector]),
+    hp: Math.round(HIVE_HP_3D * SECTOR_HP_3D[h.sector] * diff.enemyHp), maxHp: Math.round(HIVE_HP_3D * SECTOR_HP_3D[h.sector] * diff.enemyHp),
     alive: true, active: false, spawnTimer: HIVE_FIRST_SPAWN_TICKS_3D, spawnCount: 0, hitFlashTicks: 0, spawnFlashTicks: 0,
   }));
   for (const h of level.hives) {
     for (let n = 0; n < HIVE_CAP_3D; n++) {
-      enemies.push(buildEnemy3D({ id: `e-${h.id}-${n}`, kind: 'crawler', x: h.x, y: h.y, z: 0, zone: h.sector }, h.id));
+      enemies.push(buildEnemy3D({ id: `e-${h.id}-${n}`, kind: 'crawler', x: h.x, y: h.y, z: 0, zone: h.sector }, h.id, diff.enemyHp));
     }
   }
 
@@ -795,7 +891,18 @@ export function newWorld3D(): WorldState3D {
     shakeStrength: 0,
     nextId: 1,
     prevLightButton: false,
+    difficulty,
+    diff,
+    assist,
+    deathCause: null,
+    lastHurt: null,
+    checkpoint: null,
   };
+}
+
+/** Toggle sim-side assist options on a running world. The level stays immutable (it may be shared); hazard timing is warped in `hazardTickAt3D`. */
+export function setAssist3D(w: WorldState3D, next: Partial<AssistOptions3D>): void {
+  w.assist = { ...w.assist, ...next };
 }
 
 /** Read-only pose contract consumed by the renderer (riggedModels.ts). */
@@ -912,9 +1019,11 @@ function doorSolids(w: Readonly<WorldState3D>): MapSolid3D[] {
   return w.level.solids.filter((s) => s.doorId && !w.openDoors.has(s.doorId));
 }
 
-function damagePlayer(w: WorldState3D, rawDamage: number, knockX = 0): void {
+function damagePlayer(w: WorldState3D, rawDamage: number, knockX = 0, cause: DeathCauseKey3D = 'unknown'): void {
   const p = w.player;
   if (p.hurtInvulnTicks > 0 || p.dashInvulnTicks > 0 || w.status !== 'playing') return;
+  if (w.diff.damage !== 1) rawDamage = Math.max(1, Math.round(rawDamage * w.diff.damage));
+  w.lastHurt = cause;
   p.hp = Math.max(0, p.hp - rawDamage);
   w.run.damageTaken += rawDamage;
   w.combo.count = 0; // getting hit breaks the chain
@@ -925,10 +1034,17 @@ function damagePlayer(w: WorldState3D, rawDamage: number, knockX = 0): void {
   w.shakeTicks = Math.max(w.shakeTicks, 10);
   w.shakeStrength = Math.max(w.shakeStrength, 0.28);
   w.events.push({ type: 'hurt' });
-  if (p.hp <= 0) w.status = 'lost';
+  if (p.hp <= 0) {
+    w.status = 'lost';
+    w.deathCause = deathCauseOf3D(cause);
+  }
 }
 
-/** Sector-scaled enemy damage (integer). */
+/** Death-cause key for a melee hit from this enemy. */
+function foeCause(e: Readonly<EnemyState3D>): DeathCauseKey3D {
+  return e.kind === 'warden' ? 'warden' : e.kind;
+}
+
 /** Enemy damage after sector scaling; the reactor meltdown adds +30% pressure. */
 function scaledDamage(w: Readonly<WorldState3D>, e: EnemyState3D, base: number): number {
   return Math.max(1, Math.round(base * SECTOR_DAMAGE_3D[e.zone] * (w.meltdownTicks >= 0 ? 1.3 : 1)));
@@ -945,7 +1061,7 @@ function registerKill(w: WorldState3D, e: { kind: EnemyKind3D }, bonus = 0): voi
   w.run.score += (e.kind === 'warden' ? 2000 : 100) + bonus + (c.count - 1) * 50;
   // Chain reward: every kill refunds the dash; a 3+ chain also patches the hull a little
   p.body.dashCooldown = 0;
-  if (c.count >= 3 && w.meltdownTicks < 0) p.hp = Math.min(p.maxHp, p.hp + 5);
+  if (c.count >= 3 && w.meltdownTicks < 0) p.hp = Math.min(p.maxHp, p.hp + (w.diff.heal === 1 ? 5 : Math.round(5 * w.diff.heal)));
   if (c.count >= 2) w.events.push({ type: 'combo', value: c.count });
 }
 
@@ -1005,12 +1121,12 @@ function damageEnemy(
           m.anim = 'death';
         }
       }
-    } else if (w.player.kills % 2 === 1 && w.meltdownTicks < 0) {
-      const ammo = w.player.kills % 4 === 1;
+    } else if ((w.diff.generousDrops || w.player.kills % 2 === 1) && w.meltdownTicks < 0) {
+      const ammo = w.diff.generousDrops ? w.player.kills % 2 === 1 : w.player.kills % 4 === 1;
       w.pickups.push({
         id: `drop-${w.nextId++}`,
         kind: ammo ? 'ammo' : 'med',
-        value: ammo ? 8 : 18,
+        value: ammo ? (w.diff.generousDrops ? 14 : 8) : (w.diff.generousDrops ? 24 : 18),
         x: e.x,
         y: e.y,
         z: 0,
@@ -1035,7 +1151,7 @@ function damageHive(w: WorldState3D, h: HiveState3D, rawDmg: number, weapon: Wea
   w.shakeTicks = Math.max(w.shakeTicks, 20);
   w.shakeStrength = Math.max(w.shakeStrength, 0.5);
   registerKill(w, { kind: 'stalker' }, 200);
-  w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'ammo', value: 12, x: h.x, y: h.y, z: 0, taken: false });
+  w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'ammo', value: w.diff.generousDrops ? 20 : 12, x: h.x, y: h.y, z: 0, taken: false });
   setHint(w, 'HIVE DESTROYED. BROOD CUT OFF');
 }
 
@@ -1172,7 +1288,7 @@ export function triggerExplosion3D(
     const dp = Math.hypot(pb.x - x, pb.y + 0.9 - y);
     if (dp <= radius * 0.85) {
       const factor = Math.max(0.25, 1 - dp / radius);
-      damagePlayer(w, Math.round(playerCapDamage * factor), dp > 0.05 ? ((pb.x - x) / dp) * 6 : 0);
+      damagePlayer(w, Math.round(playerCapDamage * factor), dp > 0.05 ? ((pb.x - x) / dp) * 6 : 0, 'explosion');
     }
   }
 }
@@ -1542,7 +1658,7 @@ function stepProjectiles3D(w: WorldState3D): void {
         pr.y >= pb.y &&
         pr.y <= pb.y + ABILITY_3D.height
       ) {
-        damagePlayer(w, pr.damage);
+        damagePlayer(w, pr.damage, 0, pr.kind === 'boss_plasma' ? 'plasma' : 'spit');
         consumed = true;
       }
     }
@@ -1607,7 +1723,7 @@ function spitterFire(w: WorldState3D, e: EnemyState3D): void {
     vx: (dx / len) * 12.5, vy: ((ty - sy) / len) * 12.5, vz: 0,
     damage: scaledDamage(w, e, 12), radius: 0.24, lifeTicks: 110, bounces: 0,
   });
-  e.attackCooldown = Math.round(96 / SECTOR_TEMPO_3D[e.zone]);
+  e.attackCooldown = Math.round(96 / tempo3D(w, e.zone));
   e.attackAnimTicks = 20;
 }
 
@@ -1705,7 +1821,7 @@ function stepHanging(w: WorldState3D, e: EnemyState3D): void {
     return;
   }
   // Climbers crawl along the surface toward the player
-  const speed = CLIMB_SPEED_3D * SECTOR_TEMPO_3D[e.zone];
+  const speed = CLIMB_SPEED_3D * tempo3D(w, e.zone);
   let want = 0;
   if (e.variant === 'climber' && e.crawlMax > e.crawlMin) {
     const target = Math.max(e.crawlMin, Math.min(e.crawlMax, ceiling ? pb.x : pb.y));
@@ -1832,7 +1948,7 @@ function stepEnemies3D(w: WorldState3D): void {
         e.lungeTicks--;
         e.vx = e.chargeDir * (ph === 3 ? 19 : 17);
         if (Math.abs(pb.x - e.x) <= e.radius + ABILITY_3D.radius + 0.3 && pb.y - e.y < 1.5 && pb.y - e.y > -1.8) {
-          damagePlayer(w, scaledDamage(w, e, 24), e.chargeDir * 9);
+          damagePlayer(w, scaledDamage(w, e, 24), e.chargeDir * 9, 'warden');
         }
         const atWall = (e.chargeDir > 0 && e.x >= floorX1) || (e.chargeDir < 0 && e.x <= floorX0);
         if (atWall || e.lungeTicks <= 0) {
@@ -1971,7 +2087,7 @@ function stepEnemies3D(w: WorldState3D): void {
         } else {
           e.anim = e.attackAnimTicks > 0 ? 'attack' : 'idle';
           if (e.meleeCooldown === 0 && Math.abs(dy) < 1.8) {
-            damagePlayer(w, scaledDamage(w, e, 16), dirX * 7);
+            damagePlayer(w, scaledDamage(w, e, 16), dirX * 7, 'warden');
             e.attackAnimTicks = 24;
             e.meleeCooldown = 70;
           }
@@ -2059,7 +2175,7 @@ function stepEnemies3D(w: WorldState3D): void {
           if (landed) {
             // Touchdown: a close landing hits, unless the body already clipped the player on the way down
             if (e.meleeCooldown === 0 && Math.abs(pb.x - e.x) <= e.radius + ABILITY_3D.radius + 0.9 && Math.abs(dy) < 1.3) {
-              damagePlayer(w, scaledDamage(w, e, 14), Math.sign(dx) * 5);
+              damagePlayer(w, scaledDamage(w, e, 14), Math.sign(dx) * 5, foeCause(e));
             }
             w.events.push({ type: 'enemy_drop', value: 1 });
             w.shakeTicks = Math.max(w.shakeTicks, 5);
@@ -2069,11 +2185,11 @@ function stepEnemies3D(w: WorldState3D): void {
             if (airborne) {
               // Mid-air graze: one hit per drop, the body keeps falling to its landing
               if (e.meleeCooldown === 0) {
-                damagePlayer(w, scaledDamage(w, e, 12), e.facing * 5);
+                damagePlayer(w, scaledDamage(w, e, 12), e.facing * 5, foeCause(e));
                 e.meleeCooldown = 400;
               }
             } else {
-              damagePlayer(w, scaledDamage(w, e, e.kind === 'stalker' ? 14 : 9), e.facing * 5);
+              damagePlayer(w, scaledDamage(w, e, e.kind === 'stalker' ? 14 : 9), e.facing * 5, foeCause(e));
               e.lungeTicks = 0;
             }
           }
@@ -2081,7 +2197,7 @@ function stepEnemies3D(w: WorldState3D): void {
             direct = false;
             e.dropping = false;
             e.meleeCooldown = 0;
-            e.attackCooldown = Math.round((e.kind === 'stalker' ? 70 : 84) / SECTOR_TEMPO_3D[e.zone]);
+            e.attackCooldown = Math.round((e.kind === 'stalker' ? 70 : 84) / tempo3D(w, e.zone));
             e.vx = 0;
             setEnemyState(e, 'recover', e.kind === 'stalker' ? 30 : 40);
           }
@@ -2101,7 +2217,7 @@ function stepEnemies3D(w: WorldState3D): void {
           const turning = e.turnTicks > 0;
           if (lunger) {
             const reach = e.kind === 'crawler' ? 2.4 : 3.5;
-            const tempo = SECTOR_TEMPO_3D[e.zone];
+            const tempo = tempo3D(w, e.zone);
             // Swarm (crawlers): two slots flank by running past the player, nearby bodies repel, and at most two attack at once
             let flankSide: 0 | 1 | -1 = 0;
             let separation = 0;
@@ -2187,7 +2303,7 @@ function stepEnemies3D(w: WorldState3D): void {
         if (direct) {
           e.vx = 0;
           e.lungeTicks = 0;
-          e.attackCooldown = Math.round((e.kind === 'stalker' ? 70 : 84) / SECTOR_TEMPO_3D[e.zone]);
+          e.attackCooldown = Math.round((e.kind === 'stalker' ? 70 : 84) / tempo3D(w, e.zone));
           setEnemyState(e, 'recover', e.kind === 'stalker' ? 30 : 40);
         } else wantVx = 0;
       }
@@ -2241,7 +2357,7 @@ function stepHives3D(w: WorldState3D): void {
     slot.y = h.y + 0.5;
     slot.vx = side * 2.5;
     slot.vy = 4.5;
-    slot.hp = Math.round(st.hp * SECTOR_HP_3D[h.zone]);
+    slot.hp = Math.round(st.hp * SECTOR_HP_3D[h.zone] * w.diff.enemyHp);
     slot.maxHp = slot.hp;
     slot.alive = true;
     slot.active = true;
@@ -2260,16 +2376,38 @@ function stepHives3D(w: WorldState3D): void {
     setEnemyState(slot, 'chase', 0);
     h.spawnCount++;
     h.spawnFlashTicks = 14;
-    h.spawnTimer = Math.round(HIVE_INTERVAL_TICKS_3D / SECTOR_TEMPO_3D[h.zone]);
+    h.spawnTimer = Math.round(HIVE_INTERVAL_TICKS_3D / tempo3D(w, h.zone));
     w.events.push({ type: 'hive_spawn', value: w.hives.indexOf(h) });
   }
 }
 
 /** Hazard clock for a cycle: world tick, meltdown elapsed ticks, or -1 while the hazard is switched off. */
 export function hazardNowTick3D(w: Readonly<WorldState3D>, h: HazardSpawn3D): number {
+  return hazardTickAt3D(w, h, 0);
+}
+
+/**
+ * Hazard clock `back` ticks ago. With the Hazard Warning assist the telegraph is stretched to 120% (the period grows by the same
+ * amount, so the idle gap and the other phases keep their length) by a piecewise-linear warp of the base clock, a pure function.
+ */
+export function hazardTickAt3D(w: Readonly<WorldState3D>, h: HazardSpawn3D, back: number): number {
   if (h.consoleOff && w.consoleUnlocked) return -1;
-  if (h.meltdownOnly) return w.meltdownTicks < 0 || w.status !== 'playing' ? -1 : MELTDOWN_TICKS - w.meltdownTicks;
-  return w.tick;
+  let bt: number;
+  if (h.meltdownOnly) {
+    if (w.meltdownTicks < 0 || w.status !== 'playing') return -1;
+    bt = MELTDOWN_TICKS - w.meltdownTicks - back;
+  } else bt = w.tick - back;
+  if (bt < 0 || !w.assist.hazardWarn) return bt;
+  const tele = Math.round(h.telegraph * HAZARD_WARN_SCALE);
+  const delta = tele - h.telegraph;
+  if (delta <= 0) return bt;
+  const idle = hazardIdleTicks(h);
+  const period = h.period + delta;
+  const x = bt + h.offset;
+  const k = Math.floor(x / period);
+  const c = x - k * period;
+  const warped = c < idle ? c : c < idle + tele ? idle + ((c - idle) * h.telegraph) / tele : c - delta;
+  return k * h.period + warped - h.offset;
 }
 
 function carOf(w: WorldState3D, id: string): MapSolid3D {
@@ -2302,7 +2440,7 @@ function stepElevators3D(w: WorldState3D): void {
           m.y = spawn.y;
           m.vx = 0;
           m.vy = 0;
-          m.hp = Math.round(ENEMY_STATS[m.kind].hp * SECTOR_HP_3D[m.zone]);
+          m.hp = Math.round(ENEMY_STATS[m.kind].hp * SECTOR_HP_3D[m.zone] * w.diff.enemyHp);
           m.maxHp = m.hp;
           m.alive = true;
           m.active = true;
@@ -2367,7 +2505,8 @@ function stepHazards3D(w: WorldState3D): void {
     const t = hazardNowTick3D(w, h);
     if (t < 0) continue;
     const ph = hazardPhase(h, t);
-    const prev = t > 0 ? hazardPhase(h, t - 1) : 'idle';
+    const tPrev = hazardTickAt3D(w, h, 1);
+    const prev = tPrev >= 0 && t > 0 ? hazardPhase(h, tPrev) : 'idle';
     const near = Math.abs(h.x - pb.x) < 18 && Math.abs(h.y - pb.y) < 9;
     if (ph !== prev) {
       if (near) {
@@ -2391,7 +2530,7 @@ function stepHazards3D(w: WorldState3D): void {
     if (hazardHits(h, t, pb.x, pb.y)) {
       const dir = pb.x >= h.x ? 1 : -1;
       const before = w.player.hp;
-      damagePlayer(w, h.damage, dir * h.knock);
+      damagePlayer(w, h.damage, dir * h.knock, h.kind);
       if (w.player.hp < before && h.kind === 'vent') {
         pb.grounded = false;
         pb.vy = Math.max(pb.vy, 6.5);
@@ -2438,7 +2577,7 @@ function stepShockwaves3D(w: WorldState3D): void {
       // The slam travels along the floor (y 0..0.72 above the Warden's feet); jumping over it dodges cleanly
       if (pb.y < sw.y + 0.72) {
         sw.hitPlayer = true;
-        damagePlayer(w, sw.damage, Math.sign(pb.x - sw.x || 1) * 9);
+        damagePlayer(w, sw.damage, Math.sign(pb.x - sw.x || 1) * 9, 'shockwave');
       }
     }
     if (sw.radius < sw.maxRadius) kept.push(sw);
@@ -2537,7 +2676,9 @@ function activateSave(w: WorldState3D, id: string): void {
 export function respawnPlayer3D(w: WorldState3D): void {
   if (w.status !== 'lost') return;
   const st = w.level.saveStations.find((s) => s.id === w.lastSaveId);
-  const pos = st ? { x: st.x, y: st.y } : { x: w.level.spawn.x, y: w.level.spawn.y };
+  let pos = st ? { x: st.x, y: st.y } : { x: w.level.spawn.x, y: w.level.spawn.y };
+  // Story: come back where you fell (rolling safe spot) when it is newer than the last save
+  if (w.diff.nearRespawn && w.checkpoint) pos = { x: w.checkpoint.x, y: w.checkpoint.y };
   const p = w.player;
   p.body = spawnBody3D(pos.x, pos.y, 0);
   p.hp = p.maxHp;
@@ -2556,6 +2697,22 @@ export function respawnPlayer3D(w: WorldState3D): void {
   }
   if (w.meltdownTicks === 0) w.meltdownTicks = MELTDOWN_TICKS;
   w.status = 'playing';
+}
+
+/** Story auto checkpoint: record a calm, grounded spot on sector entry and every 3 s after, never inside a hazard column or next to a live foe. */
+function stepCheckpoint3D(w: WorldState3D, room: SectorId3D | null): void {
+  const p = w.player;
+  const b = p.body;
+  const entered = room !== null && room !== w.currentRoom && !w.visitedRooms.includes(room);
+  const due = w.checkpoint === null || w.tick - w.checkpoint.tick >= 180;
+  if (!b.grounded || p.hurtInvulnTicks > 0 || w.meltdownTicks >= 0 || w.bossIntroTicks > 0) return;
+  if (!entered && !due) return;
+  if (w.enemies.some((e) => e.alive && e.active && Math.abs(e.x - b.x) < 6 && Math.abs(e.y - b.y) < 3)) return;
+  if (w.level.acidPools.some((pl) => b.x >= pl.minX - 1 && b.x <= pl.maxX + 1 && b.y < pl.surfaceY + 0.5)) return;
+  for (const h of w.level.hazards) {
+    if (Math.abs(b.x - h.x) < h.width / 2 + 2 && hazardDangerWithin(h, hazardNowTick3D(w, h), 120)) return;
+  }
+  w.checkpoint = { x: b.x, y: b.y, tick: w.tick };
 }
 
 export const BOSS_INTRO_TICKS = 210;
@@ -2692,6 +2849,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
 
   // Sector tracking
   const room = roomAt3D(w.level, p.body.x, p.body.y + 0.9);
+  if (w.diff.nearRespawn) stepCheckpoint3D(w, room);
   if (room) {
     w.currentRoom = room;
     if (!w.visitedRooms.includes(room)) w.visitedRooms.push(room);
@@ -2705,7 +2863,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   if (p.body.grounded && p.acidCooldown === 0) {
     for (const pool of w.level.acidPools) {
       if (p.body.x >= pool.minX && p.body.x <= pool.maxX && p.body.y < pool.surfaceY) {
-        damagePlayer(w, 8);
+        damagePlayer(w, 8, 0, 'acid');
         p.acidCooldown = 28;
       }
     }
@@ -2743,7 +2901,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
         w.events.push({ type: 'pickup' });
       } else if (pk.kind === 'med' && p.hp < p.maxHp && w.meltdownTicks < 0) {
         pk.taken = true;
-        p.hp = Math.min(p.maxHp, p.hp + pk.value);
+        p.hp = Math.min(p.maxHp, p.hp + (w.diff.heal === 1 ? pk.value : Math.round(pk.value * w.diff.heal)));
         w.events.push({ type: 'pickup' });
       } else if (pk.kind === 'ammo') {
         pk.taken = true;
@@ -2835,7 +2993,10 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   if (w.meltdownTicks > 0) {
     w.meltdownTicks--;
     stepEscapeBeats3D(w);
-    if (w.meltdownTicks === 0 && w.status === 'playing') w.status = 'lost';
+    if (w.meltdownTicks === 0 && w.status === 'playing') {
+      w.status = 'lost';
+      w.deathCause = deathCauseOf3D('meltdown');
+    }
   }
   if (w.coreDestroyed && w.status === 'playing') {
     const ex = w.level.exitPos;

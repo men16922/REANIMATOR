@@ -109,6 +109,13 @@
               <label class="row">Volume <input type="range" id="volume" min="0" max="100" value="50" /></label>
               <label class="row">Music <input type="range" id="volume-bgm" min="0" max="100" value="100" /></label>
               <label class="row">Effects <input type="range" id="volume-sfx" min="0" max="100" value="100" /></label>
+              <label class="row">Difficulty <select id="difficulty"><option value="story">Story</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select></label>
+              <p id="difficulty-note" class="note"></p>
+              <span class="settings-h">ASSIST</span>
+              <label class="row">Aim assist <input type="checkbox" id="assist-aim" /></label>
+              <label class="row">Auto-fire hold <input type="checkbox" id="assist-autofire" /></label>
+              <label class="row">Game speed 0.8x <input type="checkbox" id="assist-slow" /></label>
+              <label class="row">Hazard warning <input type="checkbox" id="assist-hazard" /></label>
             </div>
             <button id="settings-close" class="mi back">Back</button>
           </div>
@@ -170,6 +177,10 @@
             <label>Volume <input type="range" id="volume-p" min="0" max="100" value="50" /></label>
             <label><input type="checkbox" id="reduce-flash-p" /> Reduce flashing</label>
             <label>Gore <select id="gore-level-p"><option value="full">Full</option><option value="low">Low</option><option value="off">Off</option></select></label>
+                      <label><input type="checkbox" id="assist-aim-p" /> Aim assist</label>
+            <label><input type="checkbox" id="assist-autofire-p" /> Auto-fire hold</label>
+            <label><input type="checkbox" id="assist-slow-p" /> Game speed 0.8x</label>
+            <label><input type="checkbox" id="assist-hazard-p" /> Hazard warning</label>
           </div>
           <div id="controls-panel" hidden>
             <div class="ctrl-grid">
@@ -198,6 +209,7 @@
             <span><em>DEATHS</em><b id="rs-deaths">0</b></span>
             <span><em>COLLECTED</em><b id="rs-collect">0%</b></span>
           </div>
+          <p id="result-cause" class="cause" hidden></p>
           <p id="result-tip" class="tip"></p>
           <button id="resume-save" hidden>Resume at Save (C)</button>
           <button id="restart">Play again</button>

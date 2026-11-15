@@ -13,11 +13,15 @@ import {
   newWorld3D,
   RAIL_CHARGE_TICKS,
   respawnPlayer3D,
+  setAssist3D,
   stepWorld3D,
   WEAPON_META,
+  type AssistOptions3D,
+  type Difficulty3D,
   type InputState3D,
   type WorldState3D,
 } from '../game3d/world3d.ts';
+import { assistAim, difficultyNote, displayClock, parseAssist, parseDifficulty, stepAutoFire } from '../game3d/assist.ts';
 import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2d.ts';
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
 import { parseCrt, parseViewMode, PixelTransition, toggleViewMode, VIEW_STORE, viewLabel, type ViewMode } from '../render3d/classicView.ts';
@@ -144,7 +148,7 @@ const ui = {
 };
 
 // ---- persisted preferences (localStorage may be unavailable, e.g. private mode) ----
-const STORE = { intro: 'reanimator.introSeen.v1', hints: 'reanimator.hints.v1', reduce: 'reanimator.reduceFlash.v1', gore: 'reanimator.goreLevel.v1', volume: 'reanimator.volume.v1' } as const;
+const STORE = { intro: 'reanimator.introSeen.v1', hints: 'reanimator.hints.v1', reduce: 'reanimator.reduceFlash.v1', gore: 'reanimator.goreLevel.v1', volume: 'reanimator.volume.v1', difficulty: 'reanimator.difficulty.v1', assist: 'reanimator.assist.v1' } as const;
 function store(key: string, value?: string): string | null {
   try {
     if (value !== undefined) localStorage.setItem(key, value);
@@ -158,6 +162,10 @@ function store(key: string, value?: string): string | null {
 type Mode = 'title' | 'playing' | 'paused' | 'result' | 'showcase';
 let mode: Mode = 'title';
 let world: WorldState3D = freshWorld();
+/** Difficulty and assist choices persist and apply to the next run (assist toggles also apply live). */
+let difficulty: Difficulty3D = parseDifficulty(store(STORE.difficulty));
+let assist: AssistOptions3D = parseAssist(store(STORE.assist));
+let fireLatched = false;
 const attract = new Attract();
 /** Live only while EXTRAS > WATCH SHOWCASE plays. */
 let showcase: Showcase | null = null;
@@ -225,12 +233,14 @@ function buildInput(): InputState3D {
   const weaponSlot = weaponQueue;
   weaponQueue = 0;
 
-  const aim = currentAim3D();
+  let aim = currentAim3D();
+  if (assist.aim) aim = assistAim(world, aim.x, aim.y);
+  if (!assist.autoFire) fireLatched = false;
   const input: InputState3D = {
     moveX,
     jump: keys.has('Space') || keys.has('KeyW') || keys.has('ArrowUp'),
     dash,
-    fire: mouse.leftDown,
+    fire: stepAutoFire(fireLatched, false, mouse.leftDown).fire,
     interact,
     dropDown: keys.has('KeyS') || keys.has('ArrowDown'),
     toggleLight,
@@ -246,6 +256,7 @@ function releaseInput(): void {
   keys.clear();
   mouse.leftDown = false;
   mouse.rightDown = false;
+  fireLatched = false;
   lightQueued = false;
   dashQueued = false;
   interactQueued = false;
@@ -319,7 +330,7 @@ function hideTransient(): void {
 
 function start(forceIntro = false, stop: DemoStop | null = null): void {
   manualHold = false;
-  world = freshWorld();
+  world = freshWorld({ difficulty, assist });
   demoStop = stop;
   if (stop) applyDebugSetup(world, stop.setup);
   audioDirector.reset();
@@ -689,9 +700,13 @@ function showResult(): void {
     sfx.lose();
   }
   const st = buildRunStats(world, deaths, SIM_HZ_3D);
-  const canResume = !won && !!world.lastSaveId;
+  const canResume = !won && canResumeNow();
   ui.resultTitle.textContent = won ? 'Escaped with the core' : 'Signal lost';
   const cp = won ? '' : canResume ? 'Press C or Enter to resume at the last Save station.' : 'No Save station reached yet. Play again restarts the run.';
+  const cause = world.deathCause;
+  const causeEl = $('result-cause');
+  causeEl.hidden = won || !cause;
+  causeEl.textContent = !won && cause ? cause.label : '';
   ui.resultDetail.textContent = `Weapon [${WEAPON_META[world.player.weapon].name}]${cp ? ' · ' + cp : ''}`;
   $('rs-time').textContent = formatClock(st.seconds);
   $('rs-kills').textContent = String(st.kills);
@@ -701,7 +716,7 @@ function showResult(): void {
   ui.rank.textContent = st.rank;
   ui.rank.className = `rank r-${st.rank}`;
   if (won) setTimeout(() => playSound('ui.rank', { pitch: rankPitch(st.rank) }), 450);
-  $('result-tip').textContent = won ? '' : retryTip(deaths);
+  $('result-tip').textContent = won ? '' : cause ? cause.tip : retryTip(deaths);
   $('result-tip').hidden = won;
   ui.result.classList.toggle('won', won);
   ui.result.classList.toggle('lost', !won);
@@ -749,7 +764,7 @@ function frameBody(t: number): void {
       frozen = true;
     }
     const clock = fx ? fx.slowmo.step(dt) : 1;
-    if (!frozen) acc += dt * clock;
+    if (!frozen) acc += dt * clock * displayClock(assist.slow);
     const stepDt = 1 / SIM_HZ_3D;
     let steps = 0;
     const simT0 = performance.now();
@@ -836,8 +851,13 @@ function restartCurrent(): void {
   start(false, demoStop);
 }
 
+/** Story respawns near where you fell, so a defeat is always resumable. Other difficulties need a Save station. */
+function canResumeNow(): boolean {
+  return !!world.lastSaveId || world.diff.nearRespawn;
+}
+
 function resumeAtSave(): boolean {
-  if (mode !== 'result' || world.status !== 'lost' || !world.lastSaveId) return false;
+  if (mode !== 'result' || world.status !== 'lost' || !canResumeNow()) return false;
   respawnPlayer3D(world);
   scene3d?.fx.reset();
   audioDirector.reset();
@@ -982,7 +1002,10 @@ canvas.addEventListener('mousemove', (e) => {
 });
 canvas.addEventListener('mousedown', (e) => {
   if (mode === 'playing') manualHold = false;
-  if (e.button === 0) mouse.leftDown = true;
+  if (e.button === 0) {
+    mouse.leftDown = true;
+    if (assist.autoFire) fireLatched = stepAutoFire(fireLatched, true, false).latched;
+  }
   if (e.button === 2) {
     mouse.rightDown = true;
     dashQueued = true;
@@ -1079,6 +1102,29 @@ applyCrt(parseCrt(store(VIEW_STORE.crt)), false);
 for (const el of [ui.reduceFlash, ui.reduceFlashP]) el.addEventListener('change', () => applyReduceFx(el.checked));
 for (const el of [ui.goreLevel, ui.goreLevelP]) el.addEventListener('change', () => applyGore(parseGoreLevel(el.value)));
 applyGore(goreLevel);
+// Difficulty and assist: persisted, mirrored between the title and pause panels. Difficulty is read when a run starts.
+const ASSIST_IDS: Record<keyof AssistOptions3D, string> = { aim: 'assist-aim', autoFire: 'assist-autofire', slow: 'assist-slow', hazardWarn: 'assist-hazard' };
+function applyDifficulty(d: Difficulty3D): void {
+  difficulty = d;
+  $<HTMLSelectElement>('difficulty').value = d;
+  $('difficulty-note').textContent = difficultyNote(d);
+  store(STORE.difficulty, d);
+}
+function applyAssist(next: Partial<AssistOptions3D>): void {
+  assist = { ...assist, ...next };
+  setAssist3D(world, assist);
+  for (const [k, id] of Object.entries(ASSIST_IDS) as [keyof AssistOptions3D, string][]) {
+    $<HTMLInputElement>(id).checked = assist[k];
+    $<HTMLInputElement>(`${id}-p`).checked = assist[k];
+  }
+  store(STORE.assist, JSON.stringify(assist));
+}
+$<HTMLSelectElement>('difficulty').addEventListener('change', (e) => applyDifficulty(parseDifficulty((e.target as HTMLSelectElement).value)));
+for (const [k, id] of Object.entries(ASSIST_IDS) as [keyof AssistOptions3D, string][]) {
+  for (const el of [$<HTMLInputElement>(id), $<HTMLInputElement>(`${id}-p`)]) el.addEventListener('change', () => applyAssist({ [k]: el.checked }));
+}
+applyDifficulty(difficulty);
+applyAssist(assist);
 applyReduceFx(store(STORE.reduce) === '1' || window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 for (const id of ['volume', 'volume-p']) {
   const el = $<HTMLInputElement>(id);
@@ -1169,6 +1215,9 @@ function buildSnapshot() {
   return {
     lab: lab ? { id: lab.scenario.id, status: lab.status, mutation: lab.mutation } : null,
     mode,
+    difficulty: world.difficulty,
+    assist: { ...world.assist },
+    deathCause: world.deathCause ? world.deathCause.key : null,
     intro: introActive,
     combo: { ...world.combo },
     run: { ...world.run },
