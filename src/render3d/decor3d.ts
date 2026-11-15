@@ -217,6 +217,17 @@ export function layoutRoomDecor(room: RoomDef3D): DecorLayout {
       }
       L.add('halo', room.minX + 8, room.minY + 5.5, -2.0, 2.4, 8, 0.01, 0x4a7a90);
       L.add('halo', room.minX + 16, room.minY + 5.5, -2.0, 2.4, 8, 0.01, 0x4a7a90);
+      // Cryo pods (frosted frame, lit cyan tube) and floor frost patches (flat decals behind the lane edge).
+      for (let x = room.minX + 5; x < room.maxX - 3; x += 9 + rnd() * 2) {
+        L.add('box', x, room.minY, -2.0, 1.3, 2.5, 0.5, 0x6a8a9c);
+        L.add('box', x, room.minY + 2.5, -2.0, 1.5, 0.18, 0.6, 0xa8d4e4);
+        L.add('glowCyl', x, room.minY + 0.35, -1.72, 0.7, 1.8, 0.7, 0x86f0ff);
+      }
+      for (let x = room.minX + 2; x < room.maxX - 3; x += 4.5 + rnd() * 2) {
+        L.add('box', x, room.minY, -1.3, 1.4 + rnd() * 1.4, 0.02, 0.5, 0xc4e8f4);
+      }
+      // Foreground: frost-crusted conduits hanging from the ceiling.
+      for (let x = room.minX + 6; x < room.maxX - 3; x += 11) L.add('fg', x, room.maxY - 0.95, 2.7, 0.22, 0.95, 0.22, 0x0a1218);
       break;
     }
     case 'shaft': {
@@ -235,6 +246,8 @@ export function layoutRoomDecor(room: RoomDef3D): DecorLayout {
         L.add('cyl', x, room.maxY - 0.8 - len, -2.55, 0.06, len, 0.06, 0x4a4f56);
       }
       L.add('halo', cx, room.minY + h * 0.5, -2.0, 3.0, 20, 0.01, 0x3a5468);
+      // Foreground: massive cross beams crossing the ceiling in the dark.
+      L.add('fg', cx, room.maxY - 0.9, 2.8, w * 0.7, 0.28, 0.4, 0x0b0d10);
       break;
     }
     case 'mines': {
@@ -252,6 +265,28 @@ export function layoutRoomDecor(room: RoomDef3D): DecorLayout {
         const x = room.minX + 2 + rnd() * (w - 4);
         L.add('cone', x, room.minY, -2.7, 0.3 + rnd() * 0.2, 0.6 + rnd() * 0.9, 0.3, 0x2fa890);
       }
+      // Mine track: two rails on sleepers just behind the lane, with ore carts and timber cross braces.
+      L.add('box', cx, room.minY, -1.25, w - 0.6, 0.07, 0.08, 0x7a6a58);
+      L.add('box', cx, room.minY, -1.55, w - 0.6, 0.07, 0.08, 0x7a6a58);
+      for (let x = room.minX + 1.5; x < room.maxX - 1; x += 2.2) L.add('box', x, room.minY, -1.4, 0.22, 0.05, 0.6, 0x4a3420);
+      for (let x = room.minX + 7 + rnd() * 3; x < room.maxX - 5; x += 13 + rnd() * 3) {
+        L.add('box', x, room.minY + 0.2, -1.45, 1.8, 0.8, 0.8, 0x6a3a22);
+        L.add('box', x, room.minY + 1.0, -1.45, 1.95, 0.1, 0.9, 0x8a5a30);
+        L.add('cone', x, room.minY + 1.1, -1.45, 1.1, 0.5, 0.6, 0xa87a2c);
+        L.add('box', x - 0.6, room.minY, -1.3, 0.3, 0.2, 0.1, 0x1c1a18);
+        L.add('box', x + 0.6, room.minY, -1.3, 0.3, 0.2, 0.1, 0x1c1a18);
+      }
+      for (let x = room.minX + 9; x < room.maxX - 5; x += 8) {
+        const ang = Math.atan2(1.8, 3.2);
+        L.add('box', x + 1.6, room.maxY - 1.7 + 0.9, -2.05, Math.hypot(3.2, 1.8), 0.18, 0.2, 0x5a3a1c, undefined, ang);
+      }
+      // Dripping water glow under the stalactites (thin, teal, behind the lane).
+      for (let x = room.minX + 4; x < room.maxX - 3; x += 7 + rnd() * 3) {
+        L.add('glowCyl', x, room.maxY - 2.4, -2.3, 0.07, 1.0, 0.07, 0x58e8cc);
+        L.add('glow', x, room.minY, -1.7, 0.5, 0.03, 0.3, 0x58e8cc);
+      }
+      // Foreground: hanging rock slabs and a dark timber lintel.
+      for (let x = room.minX + 4; x < room.maxX - 3; x += 9.5) L.add('fg', x + rnd() * 2, room.maxY - 0.9, 2.6, 0.9 + rnd() * 0.8, 0.5 + rnd() * 0.4, 0.6, 0x0a0907);
       break;
     }
     case 'biolabs': {
@@ -270,6 +305,21 @@ export function layoutRoomDecor(room: RoomDef3D): DecorLayout {
         for (let k = 0; k < 3; k++) L.add('cyl', x - 0.5 + k * 0.5, room.maxY - 3.0, -2.2, 0.2, 0.4, 0.2, 0x58c8a0);
       }
       L.add('halo', room.minX + 6, room.maxY - 1.8, -2.2, 3.0, 2.6, 0.01, 0x7a9a90);
+      // Specimen jars on a shelf rail, with feed tubes running to the ceiling.
+      for (let x = room.minX + 4.5; x < room.maxX - 3; x += 10) {
+        L.add('box', x + 1.2, room.minY + 1.4, -2.6, 3.4, 0.1, 0.4, 0x4a6a64);
+        for (let k = 0; k < 4; k++) {
+          L.add('cyl', x + 0.2 + k * 0.8, room.minY + 1.5, -2.6, 0.5, 0.8, 0.5, 0x7ad8c0);
+          L.add('glowCyl', x + 0.2 + k * 0.8, room.minY + 1.55, -2.6, 0.38, 0.62, 0.38, k % 2 ? 0xc8f060 : 0x60f0b0);
+        }
+        L.add('cyl', x - 0.4, room.minY + 1.5, -2.5, 0.09, h - 1.7, 0.09, 0x2fb078);
+      }
+      for (let x = room.minX + 8; x < room.maxX - 4; x += 9) {
+        L.add('cyl', x, room.maxY - 1.0, -2.0, 0.14, 4.5, 0.14, 0x2a8a68, 'x');
+        L.add('cyl', x + 2.2, room.maxY - 1.05, -1.9, 0.08, 4.0, 0.08, 0xb0e060, 'x');
+      }
+      // Foreground: dangling sample tubes and a ceiling rail (dark, out of the lane).
+      for (let x = room.minX + 5; x < room.maxX - 3; x += 8.5) L.add('fg', x, room.maxY - 0.9, 2.6, 0.1, 0.9, 0.1, 0x06100d);
       break;
     }
     case 'security': {
@@ -287,6 +337,22 @@ export function layoutRoomDecor(room: RoomDef3D): DecorLayout {
         const y = room.minY + 1.4 + i * 0.7;
         L.add('glow', cx, y, -2.0, w * 0.5, 0.025, 0.03, 0x802828);
       }
+      // Laser grid frames, wall consoles and red banners.
+      for (let x = room.minX + 3; x < room.maxX - 3; x += 9) {
+        L.add('box', x, room.minY, -1.5, 0.12, 2.6, 0.12, 0x3a2024);
+        L.add('box', x + 2.4, room.minY, -1.5, 0.12, 2.6, 0.12, 0x3a2024);
+        for (let k = 0; k < 4; k++) L.add('glow', x + 1.2, room.minY + 0.5 + k * 0.6, -1.5, 2.3, 0.02, 0.02, 0xff3a3a);
+      }
+      for (let x = room.minX + 5; x < room.maxX - 4; x += 8) {
+        L.add('box', x, room.minY + 3.0, -2.5, 0.9, 1.6, 0.1, 0x7a1c22);
+        L.add('box', x, room.minY + 4.6, -2.48, 1.1, 0.07, 0.14, 0x56626f);
+        L.add('glow', x, room.minY + 3.4, -2.44, 0.4, 0.4, 0.04, 0xe8c8c8);
+      }
+      // Foreground: ceiling camera arms (dark).
+      for (let x = room.minX + 4; x < room.maxX - 3; x += 10) {
+        L.add('fg', x, room.maxY - 0.8, 2.6, 0.12, 0.8, 0.12, 0x0a0a0e);
+        L.add('fg', x + 0.3, room.maxY - 0.9, 2.6, 0.7, 0.24, 0.3, 0x0a0a0e);
+      }
       break;
     }
     case 'core': {
@@ -303,6 +369,16 @@ export function layoutRoomDecor(room: RoomDef3D): DecorLayout {
         L.add('box', room.minX + 3 + rnd() * (w - 6), room.minY, -1.8 - rnd(), 1.4 + rnd() * 2, 0.02, 1.0, 0x0e0c0c);
       }
       L.add('halo', cx, room.minY + 2, -2.0, 7, 4, 0.01, 0x7a3418);
+      // Reactor containment rings around the big columns, with heavy feed cables.
+      for (let x = room.minX + 8; x < room.maxX - 6; x += 14) {
+        for (let k = 0; k < 3; k++) L.add('pulse', x, room.minY + 1.5 + k * 3.2, -2.95, 4.9, 0.12, 4.9, 0xe05a24);
+      }
+      for (let i = 0; i < 2; i++) {
+        const x0 = room.minX + 2 + rnd() * 6;
+        L.cables.push({ x0, x1: Math.min(room.maxX - 1, x0 + 10 + rnd() * 6), y: room.maxY - 2.0 - i * 0.7, z: -1.9, sag: 0.9 + rnd() * 0.5 });
+      }
+      // Foreground: smoke-dark gantry hangers.
+      for (let x = room.minX + 5; x < room.maxX - 3; x += 9) L.add('fg', x, room.maxY - 0.95, 2.6, 0.34, 0.95, 0.3, 0x0b0707);
       break;
     }
   }
@@ -321,7 +397,32 @@ export interface Decor3D {
   update(tSec: number, playerX: number, playerY: number, reduce?: boolean): void;
   /** Hides per-room meshes (back walls, dust, bubbles) whose rect lies outside the view window. */
   setView(minX: number, maxX: number, minY: number, maxY: number): void;
+  /**
+   * Render-only Meltdown state: red alarm tint on decor materials (emissive, no lights) and seeded rising sparks around the
+   * player. The tint eases in and out inside update(); `reduce` keeps it steady (no pulse) and hides the sparks.
+   */
+  setMeltdown(active: boolean, tSec?: number, reduce?: boolean): void;
+  /** Current eased Meltdown level 0..1 (for tests and telemetry). */
+  meltdownLevel(): number;
   dispose(): void;
+}
+
+/** Number of sparks in the Meltdown field. */
+export const MELT_SPARKS = 140;
+/** Emissive color the decor materials move toward in Meltdown. */
+export const MELT_EMISSIVE = 0x8a1a10;
+
+const sparkSeeds: { ox: number; phase: number; speed: number; z: number; sway: number }[] = Array.from({ length: MELT_SPARKS }, (_, i) => {
+  const r = mulberry32(0x5eed0000 + i * 2654435761);
+  return { ox: (r() - 0.5) * 44, phase: r(), speed: 0.25 + r() * 0.5, z: -2.4 + r() * 4.4, sway: r() * 6.28 };
+});
+
+/** Pure seeded spark placement: offsets are fixed per index, height and drift are functions of time (no per-frame allocation). */
+export function meltSparkPosition(i: number, tSec: number, out: [number, number, number]): void {
+  const sd = sparkSeeds[i];
+  out[0] = sd.ox + Math.sin(tSec * 1.3 + sd.sway) * 0.4;
+  out[1] = -4 + ((sd.phase + tSec * sd.speed) % 1) * 13;
+  out[2] = sd.z;
 }
 
 function roomTexture(tex: FacilityTextures3D, sector: SectorId3D): { map: THREE.CanvasTexture; bump?: THREE.CanvasTexture; color: number } {
@@ -444,6 +545,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     return o;
   };
   const layouts = layoutAllDecor(level);
+  const meltMats: THREE.MeshStandardMaterial[] = [];
   const roomObjs: { room: RoomDef3D; objs: THREE.Object3D[] }[] = [];
 
   // 1. Back walls with a lower AO gradient and a multiply macro-variation overlay.
@@ -456,6 +558,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     map.repeat.set(Math.max(1, w / 4), Math.max(1, h / 4));
     map.needsUpdate = true;
     const mat = track(new THREE.MeshStandardMaterial({ map, color: rt.color, vertexColors: true, roughness: 0.8, metalness: 0.25 }));
+    meltMats.push(mat);
     const wall = new THREE.Mesh(geo, mat);
     wall.position.set((room.minX + room.maxX) / 2, (room.minY + room.maxY) / 2, BACK_WALL_Z);
     wall.receiveShadow = true;
@@ -509,7 +612,11 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
   };
   const boxScale = (p: DecorProp): [number, number, number] => [p.sx, p.sy, p.sz];
   const cylScale = (p: DecorProp): [number, number, number] => [p.sx, p.sy, p.sx];
-  const litMat = () => new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62, metalness: 0.5 });
+  const litMat = () => {
+    const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.62, metalness: 0.5 });
+    meltMats.push(m);
+    return m;
+  };
   const glowMat = () => new THREE.MeshBasicMaterial({ color: 0xffffff });
 
   makeInstanced(pick(['box']), new THREE.BoxGeometry(1, 1, 1), litMat(), false, boxScale);
@@ -738,11 +845,59 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     return { room, pts };
   });
 
+  // Meltdown sparks: one Points object, seeded, positions are a pure function of time (see meltSparkPosition).
+  const sparkArr = new Float32Array(MELT_SPARKS * 3);
+  const sparkGeo = track(new THREE.BufferGeometry());
+  sparkGeo.setAttribute('position', new THREE.BufferAttribute(sparkArr, 3));
+  const sparks = new THREE.Points(
+    sparkGeo,
+    track(new THREE.PointsMaterial({ color: 0xff7a30, size: 0.14, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending })),
+  );
+  sparks.frustumCulled = false;
+  sparks.visible = false;
+  sparks.name = 'decor-melt-sparks';
+  group.add(sparks);
+  const sparkTmp: [number, number, number] = [0, 0, 0];
+  const meltTint = new THREE.Color(MELT_EMISSIVE);
+  const baseHalo = haloMat.color.clone();
+  let meltTarget = 0;
+  let meltLevel = 0;
+  let meltReduce = false;
+  let lastApplied = -1;
+
   let lastT = 0;
   return {
+    setMeltdown(active: boolean, _tSec = 0, reduce = false): void {
+      meltTarget = active ? 1 : 0;
+      meltReduce = reduce;
+    },
+    meltdownLevel(): number {
+      return meltLevel;
+    },
     update(tSec: number, playerX: number, playerY: number, reduce = false): void {
       const dt = Math.min(0.1, Math.max(0, tSec - lastT));
       lastT = tSec;
+      meltLevel += (meltTarget - meltLevel) * Math.min(1, dt * 1.5);
+      if (Math.abs(meltLevel - meltTarget) < 0.002) meltLevel = meltTarget;
+      const quiet = reduce || meltReduce;
+      const siren = quiet ? 0.7 : 0.55 + 0.45 * Math.sin(tSec * 6.2);
+      const tint = meltLevel * siren;
+      if (tint !== lastApplied || meltLevel > 0) {
+        lastApplied = tint;
+        for (const m of meltMats) m.emissive.copy(meltTint).multiplyScalar(tint);
+        haloMat.color.copy(baseHalo).lerp(meltTint, Math.min(1, meltLevel * 2));
+      }
+      sparks.visible = meltLevel > 0.05 && !quiet;
+      if (sparks.visible) {
+        for (let i = 0; i < MELT_SPARKS; i++) {
+          meltSparkPosition(i, tSec, sparkTmp);
+          sparkArr[i * 3] = playerX + sparkTmp[0];
+          sparkArr[i * 3 + 1] = playerY + sparkTmp[1];
+          sparkArr[i * 3 + 2] = sparkTmp[2];
+        }
+        sparkGeo.attributes.position.needsUpdate = true;
+        (sparks.material as THREE.PointsMaterial).opacity = 0.85 * meltLevel;
+      }
       const k = dt * 60;
       const frame = Math.floor(tSec * 4);
       if (frame !== monFrame) {
