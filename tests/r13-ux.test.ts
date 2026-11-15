@@ -111,24 +111,23 @@ test('setHint defaults to a global hint (pickups and saves survive a sector chan
   assert.equal(visibleHint(w), w.hint);
 });
 
-test('stepGlide: pop, steady run, and release without a visible hop', async () => {
+test('stepGlide: a pop becomes a decaying offset, the runner keeps its speed and never surges', async () => {
   const { stepGlide, GLIDE_WINDOW } = await import('../src/render3d/enemyMotion.ts');
   const dt = 1 / 60, v = 6.1;
-  let raw = 0, disp = 0, snap = GLIDE_WINDOW, active = true, maxStep = 0, last = 0;
-  // pop: raw jumps 0.7 m ahead, display must not follow in one frame
-  raw += 0.7;
-  let g = stepGlide(disp, raw, snap, dt);
-  assert.ok(g.x - disp < 0.2, 'the pop is spread over frames');
-  disp = g.x; snap = g.snap;
+  // pop: raw jumps 0.7 m ahead; the display stays put (offset -0.7) and the offset decays
+  let raw = 0.7, off = -0.7, snap = GLIDE_WINDOW, active = true, disp = 0, maxExtra = 0, maxGap = 0, last = 0;
   for (let i = 0; i < 400 && active; i++) {
     raw += v * dt;
-    g = stepGlide(disp, raw, snap, dt);
-    const step = g.x - disp;
-    maxStep = Math.max(maxStep, Math.abs(step - v * dt));
-    disp = g.x; snap = g.snap; active = g.active; last = i;
+    const g = stepGlide(off, snap, dt);
+    const next = raw + g.off;
+    maxExtra = Math.max(maxExtra, Math.abs(next - disp - v * dt));
+    maxGap = Math.max(maxGap, Math.abs(g.off));
+    disp = next; off = g.off; snap = g.snap; active = g.active; last = i;
   }
   assert.equal(active, false, 'the glide ends');
-  assert.ok(last < 100, 'and ends soon after the window');
-  assert.ok(maxStep < 0.15, `catch-up stays well under the 0.7 m pop (extra ${maxStep.toFixed(3)} m)`);
+  assert.ok(last < 60, `and ends within a second (${last} frames)`);
+  assert.ok(maxGap <= 0.7, `the gap never grows past the pop (${maxGap.toFixed(3)} m): no lag build-up behind a runner`);
+  assert.ok(maxExtra < 0.1, `per-frame extra over the run speed stays small (${maxExtra.toFixed(3)} m)`);
   assert.equal(disp, raw);
+  assert.deepEqual(stepGlide(3, GLIDE_WINDOW, dt), { off: 0, snap: 0, active: false }, 'a teleport is not glided');
 });

@@ -199,6 +199,8 @@ interface EnemyViz {
   /** Seconds of position glide left after a one-tick position pop, and the last displayed x */
   snap: number;
   dispX: number;
+  /** Display minus sim x (m) while a pop glides out */
+  glideOff?: number;
   gliding: boolean;
   snapTick: number;
   /** R13: smoothed display speed (m/s) driving the single-mesh gait */
@@ -2149,14 +2151,20 @@ export class Scene3DRenderer {
       if (v.snapTick !== w.tick) {
         v.snapTick = w.tick;
         const jump = ce.x - pe.x;
-        if (e.alive && e.surface === 'floor' && e.state !== 'stagger' && e.state !== 'attack' && e.attackAnimTicks === 0 && Math.abs(jump) > 0.4 && Math.abs(jump) < 2) v.snap = GLIDE_WINDOW;
+        if (e.alive && e.surface === 'floor' && e.state !== 'stagger' && e.state !== 'attack' && e.attackAnimTicks === 0 && Math.abs(jump) > 0.4 && Math.abs(jump) < 2) {
+          // Keep the body where it was drawn and let the gap decay; it moves at the sim speed meanwhile
+          v.glideOff = (v.glideOff ?? 0) + (v.dispX - exRaw);
+          v.snap = GLIDE_WINDOW;
+          v.gliding = true;
+        }
       }
       let ex = exRaw;
-      if (v.snap > 0 || v.gliding) {
-        const g = stepGlide(v.dispX, exRaw, v.snap, dt);
-        ex = g.x;
+      if (v.gliding) {
+        const g = stepGlide(v.glideOff ?? 0, v.snap, dt);
+        v.glideOff = g.off;
         v.snap = g.snap;
         v.gliding = g.active;
+        ex = exRaw + g.off;
       }
       v.dispX = ex;
       if (e.kind === 'warden' && !e.minion) { wardenE = e; wardenX = ex; wardenY = ey; }

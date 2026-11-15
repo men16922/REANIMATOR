@@ -492,22 +492,20 @@ export function analyzeEnemyTrace(frames: EnemyTraceFrame[], opts: EnemyTraceOpt
 }
 
 export const GLIDE_WINDOW = 0.5; // s a glide stays armed after a position pop
-export const GLIDE_RATE = 9; // 1/s low-pass rate while armed
-export const GLIDE_RELEASE_RATE = 90; // 1/s rate the filter ramps to over the last GLIDE_RAMP seconds
-export const GLIDE_RAMP = 0.15;
-export const GLIDE_END_GAP = 0.1; // m: the glide ends only once display and sim are this close
+export const GLIDE_RATE = 9; // 1/s decay of the display offset
+export const GLIDE_END_GAP = 0.01; // m: below this the offset is dropped (invisible)
 
 /**
- * Display x low-pass after a sim position pop. The rate ramps up as the window expires, and the glide only ends
- * (active=false) when the gap is small, so releasing it never produces a visible hop.
+ * Display offset glide after a sim position pop (safety net, the sim itself no longer pops floor foes).
+ * The pop is kept as an offset `off` = display - sim that decays exponentially, so the body keeps the sim's speed the
+ * whole time. (R13: the earlier position low-pass lagged a 7 m/s runner by v/rate = 0.8 m and then surged 0.25-0.3 m
+ * per frame to catch up, measured live in Chrome.) Offsets over 2 m are dropped at once (a respawn or teleport).
  */
-export function stepGlide(disp: number, raw: number, snap: number, dt: number): { x: number; snap: number; active: boolean } {
+export function stepGlide(off: number, snap: number, dt: number): { off: number; snap: number; active: boolean } {
   const h = Math.min(Math.max(dt, 0), ENEMY_DT_CLAMP);
+  if (Math.abs(off) > 2) return { off: 0, snap: 0, active: false };
   const left = Math.max(0, snap - h);
-  if (Math.abs(disp - raw) > 2) return { x: raw, snap: 0, active: false };
-  const ramp = left >= GLIDE_RAMP ? 0 : 1 - left / GLIDE_RAMP;
-  const rate = GLIDE_RATE + (GLIDE_RELEASE_RATE - GLIDE_RATE) * ramp;
-  const x = disp + (raw - disp) * (1 - Math.exp(-rate * h));
-  if (left === 0 && Math.abs(x - raw) < GLIDE_END_GAP) return { x: raw, snap: 0, active: false };
-  return { x, snap: left, active: true };
+  const next = off * Math.exp(-GLIDE_RATE * h);
+  if (Math.abs(next) < GLIDE_END_GAP) return { off: 0, snap: left, active: false };
+  return { off: next, snap: left, active: true };
 }

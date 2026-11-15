@@ -26,3 +26,6 @@ body.reel-on #showcase-caption em { display: none; }
 #reel-end li::before { content: "\25B8  "; color: #ff9a3c; }
 #reel-end em { margin-top: 1em; font-style: normal; font-size: 0.7em; letter-spacing: 0.3em; color: #8d8072; }
 body.reduce-fx #lab.lab-alarm::before { animation: none; }
+/* R13: the lab is laid out in em with no scroll, so on the lab cuts it is scaled from the top to end above the lower
+   third; the caption no longer covers the match grid and its summary line */
+body.reel-on #lab:not([hidden]) { transform: scale(0.86); transform-origin: 50% 0; }

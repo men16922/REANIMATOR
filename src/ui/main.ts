@@ -1611,6 +1611,8 @@ function buildSnapshot() {
     worldSerial,
     crt: crtOn,
     frame: framePerfOn ? { ...framePerf } : null,
+    // Sim-side enemy x (m, 3 decimals) next to telemetry enemyRender: tools/smoke/enemy-live.ts compares the two
+    enemySim: Object.fromEntries(world.enemies.map((e) => [e.id, { x: Math.round(e.x * 1000) / 1000, kind: e.kind, surface: e.surface, state: e.alive ? e.state : 'dead' }])),
     ...tel,
   };
 }
