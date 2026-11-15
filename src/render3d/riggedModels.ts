@@ -620,8 +620,8 @@ export function stepRiggedAnimation3D(
 export const ENEMY_FLASH_MAX_3D = 0.35;
 const _flashColor = new THREE.Color();
 
-export function flashRiggedMaterials3D(inst: RiggedInstance, hex: number, amount: number): void {
-  flashMaterials3D(inst.materials, inst.baseEmissive, hex, amount);
+export function flashRiggedMaterials3D(inst: RiggedInstance, hex: number, amount: number, cap = ENEMY_FLASH_MAX_3D): void {
+  flashMaterials3D(inst.materials, inst.baseEmissive, hex, amount, cap);
 }
 
 /** Shared flash for rigged and static enemies: clamped lerp, emissiveIntensity pinned to 1 (no bloom blowout). */
@@ -630,9 +630,10 @@ export function flashMaterials3D(
   baseEmissive: THREE.Color[],
   hex: number,
   amount: number,
+  cap = ENEMY_FLASH_MAX_3D,
 ): void {
   _flashColor.setHex(hex);
-  const k = Math.min(ENEMY_FLASH_MAX_3D, Math.max(0, amount));
+  const k = Math.min(cap, Math.max(0, amount));
   for (let i = 0; i < materials.length; i++) {
     const m = materials[i];
     m.emissive.copy(baseEmissive[i]).lerp(_flashColor, k);

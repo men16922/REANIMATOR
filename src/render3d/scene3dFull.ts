@@ -4,6 +4,7 @@
 // 60 -> display-rate interpolation, and the R3.3 visual-only headlamp.
 
 import * as THREE from 'three';
+import { DEATH_POP_CAP, HIT_FLASH_HEX, deathPopAmount, hitFlashAmount } from './vfxStyle3d.ts';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -170,7 +171,6 @@ interface EnemyViz {
 const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
 const ENEMY_WINDUP_TOTAL_3D: Record<string, number> = { crawler: 14, stalker: 18, spitter: 12, warden: 36 };
 const ENEMY_RIM_3D: Record<string, number> = { stalker: 0x9dffb4, crawler: 0xffb090, spitter: 0xd0b0ff, warden: 0xffa070 };
-const ENEMY_FLASH_HEX_3D = 0xff5a28;
 /** Slightly taller than the operative (1.82 m) so the stalker reads as a threat against the backdrop. */
 const STALKER_HEIGHT_3D = 2.0;
 const TELEGRAPH_POOL_3D = 6;
@@ -378,7 +378,6 @@ export class Scene3DRenderer {
   private lastWorldRef: WorldState3D | null = null;
 
   private readonly dynGroup = new THREE.Group();
-  private readonly projMeshes = new Map<number, THREE.Mesh>();
   private readonly ringMeshes = new Map<number, THREE.Mesh>();
   private readonly explMeshes = new Map<number, THREE.Group>();
   private readonly blastSphere = new THREE.SphereGeometry(1, 24, 18);
@@ -1874,7 +1873,10 @@ export class Scene3DRenderer {
       const alerting = e.alive && e.state === 'alert';
       const striking = e.alive && !winding && (e.state === 'attack' || e.attackAnimTicks > 0);
       const windFrac = winding ? 1 - e.windupTicks / windTotal : 0;
-      const flashAmt = e.hitFlashTicks > 0 ? Math.min(1, e.hitFlashTicks / 4) * 0.35 : 0;
+      const popAmt = !e.alive && e.kind !== 'warden' ? deathPopAmount(e.deathTicks, this.reduceMotion) : 0;
+      const flashAmt = popAmt > 0 ? popAmt : hitFlashAmount(e.hitFlashTicks, this.reduceMotion);
+      const flashHex = popAmt > 0 ? 0xffffff : HIT_FLASH_HEX;
+      const flashCap = popAmt > 0 ? DEATH_POP_CAP : undefined;
 
       const rig = this.riggedEnemies.get(e.id);
       if (rig) {
@@ -1927,7 +1929,7 @@ export class Scene3DRenderer {
         rig.root.scale.set(1, Math.max(0.001, frame.rootScaleY) * Math.max(0.001, deathScale), 1);
         rig.root.scale.x = rig.root.scale.z = Math.max(0.001, (1 + v.recoil * 0.05) * deathScale);
         if (flashAmt > 0) {
-          flashRiggedMaterials3D(rig, ENEMY_FLASH_HEX_3D, flashAmt);
+          flashRiggedMaterials3D(rig, flashHex, flashAmt, flashCap);
         } else if (e.kind === 'warden' && e.alive && !e.active && this.introAwake > 0.01) {
           flashRiggedMaterials3D(rig, BOSS_PHASE_HEX[0], WARDEN_FLASH_SCALE_3D * (0.05 + 0.4 * this.introAwake));
         } else if (e.kind === 'warden' && e.alive && e.exposedTicks > 0) {
@@ -2004,7 +2006,7 @@ export class Scene3DRenderer {
           r.rotation.set(pitch, v.yaw, roll);
         }
         r.scale.set(sx * pulse, sy * pulse, sz * pulse);
-        flashMaterials3D(st.materials, st.baseEmissive, ENEMY_FLASH_HEX_3D, flashAmt);
+        flashMaterials3D(st.materials, st.baseEmissive, flashHex, flashAmt, flashCap);
         if (e.alive && e.kind === 'spitter' && winding && glowIdx < this.muzzleGlows.length) {
           const g = this.muzzleGlows[glowIdx++];
           g.visible = true;
@@ -2215,40 +2217,7 @@ export class Scene3DRenderer {
   private syncDynamicFX(w: WorldState3D, _dt: number): void {
     const tSec = performance.now() * 0.001;
     const inMeltdown = w.coreDestroyed && w.meltdownTicks >= 0;
-    // Projectiles
-    const liveProj = new Set<number>();
-    for (const pr of w.projectiles) {
-      liveProj.add(pr.id);
-      let mesh = this.projMeshes.get(pr.id);
-      if (!mesh) {
-        const col =
-          pr.kind === 'grenade'
-            ? 0xff8c2e
-            : pr.kind === 'scatter'
-              ? 0xffd24c
-              : pr.kind === 'enemy_acid'
-                ? 0x73ff3d
-                : pr.kind === 'boss_plasma'
-                  ? 0xff3b2f
-                  : 0x2bf0ff;
-        const r = pr.kind === 'grenade' ? 0.24 : pr.radius;
-        mesh = new THREE.Mesh(
-          new THREE.SphereGeometry(r, 10, 8),
-          new THREE.MeshBasicMaterial({ color: col }),
-        );
-        this.dynGroup.add(mesh);
-        this.projMeshes.set(pr.id, mesh);
-      }
-      mesh.position.set(pr.x, pr.y, 0.2);
-    }
-    for (const [id, m] of this.projMeshes) {
-      if (!liveProj.has(id)) {
-        this.dynGroup.remove(m);
-        m.geometry.dispose();
-        (m.material as THREE.Material).dispose();
-        this.projMeshes.delete(id);
-      }
-    }
+    // Projectiles are drawn by FxDirector.projectileGlow (additive particle pool): no per-shot meshes.
 
     // Boss shockwaves: twin floor waves travelling east and west (jump over them)
     const liveSw = new Set<number>();

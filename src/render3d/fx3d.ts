@@ -7,6 +7,7 @@ import { RAIL_CHARGE_TICKS } from '../game3d/world3d.ts';
 import { chooseMuzzle } from './heroPose.ts';
 import type { EnemyKind3D, EnemyState3D, WorldState3D } from '../game3d/world3d.ts';
 import { PopupPool } from './popups3d.ts';
+import { orbitAngle, popupTier, projectileStyle, stepChroma } from './vfxStyle3d.ts';
 import { GoreSim, goreScale, type GoreKind } from './gore3d.ts';
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
@@ -411,6 +412,9 @@ export class FxDirector {
   private prevGrounded = true;
   private prevVy = 0;
   private prevAcidCd = 0;
+  private tClock = 0;
+  private prevRailF = 0;
+  private lastPx = 0;
   private prevRoom = '';
   private stamp = 0;
   private readonly enemies = new Map<string, EnemySeen>();
@@ -471,6 +475,7 @@ export class FxDirector {
     const b = p.body;
     const px = b.x;
     const py = b.y;
+    this.lastPx = px;
 
     // ---- enemies: hits and kills ----
     for (const e of w.enemies) {
@@ -631,26 +636,12 @@ export class FxDirector {
   /** Display-frame update: decays, trail emission, particle integration. dt is real seconds. */
   update(dt: number, w: WorldState3D): void {
     this.trauma.decay(dt);
-    this.chroma = Math.max(0, this.chroma - dt * 3.2);
+    this.chroma = stepChroma(this.chroma, dt);
     this.trailClock += dt;
     const emitTrail = this.trailClock >= 1 / 90;
     if (emitTrail) this.trailClock = 0;
-    if (emitTrail) {
-      for (const pr of w.projectiles) {
-        if (pr.kind === 'pulse' && pr.fromPlayer) {
-          this.add.emit(pr.x, pr.y, 0.3, 0, 0, 0, 0.16, 0.22, 0.04, 0.2, 0.9, 1.0, 0.7, 0, 0, 1);
-        } else if (pr.kind === 'scatter') {
-          this.add.emit(pr.x, pr.y, 0.3, 0, 0, 0, 0.12, 0.14, 0.03, 1.0, 0.7, 0.2, 0.6, 0, 0, 1);
-        } else if (pr.kind === 'grenade') {
-          this.add.emit(pr.x, pr.y, 0.25, this.rr(-0.4, 0.4), this.rr(0.2, 0.8), 0, 0.5, 0.18, 0.45, 1.0, 0.45, 0.12, 0.55, 0, 1.5, 1);
-          this.alpha.emit(pr.x, pr.y, 0.2, this.rr(-0.3, 0.3), this.rr(0.3, 0.9), 0, 0.7, 0.2, 0.55, 0.18, 0.16, 0.15, 0.4, -0.4, 1.2, 1);
-        } else if (pr.kind === 'enemy_acid') {
-          this.add.emit(pr.x, pr.y, 0.3, this.rr(-0.3, 0.3), this.rr(-0.6, 0), 0, 0.3, 0.16, 0.03, 0.35, 1.0, 0.2, 0.6, 2.5, 0, 1);
-        } else if (pr.kind === 'boss_plasma') {
-          this.add.emit(pr.x, pr.y, 0.3, this.rr(-0.4, 0.4), this.rr(-0.4, 0.4), 0, 0.3, 0.3, 0.05, 1.0, 0.25, 0.15, 0.6, 0, 0, 1);
-        }
-      }
-    }
+    this.tClock += dt;
+    for (const pr of w.projectiles) this.projectileGlow(pr, emitTrail);
     this.frameEmitters(dt, w);
     this.gore.update(dt);
     this.smokeEmitters(dt);
@@ -703,15 +694,8 @@ export class FxDirector {
     if (this.reduce && !boss) return;
     const x = e.x + this.rr(-0.35, 0.35);
     const y = e.y + e.height + 0.35;
-    if (boss && exposed) {
-      this.popups.spawn(String(n), x, y, { size: 1.05 + Math.min(0.5, n / 400), life: 1.0, r: 1.0, g: 0.82, b: 0.25, rise: 3.2, punch: 0.7 });
-    } else if (boss) {
-      this.popups.spawn(String(n), x, y, { size: 0.62, life: 0.8, r: 0.75, g: 0.85, b: 0.9, rise: 2.4 });
-    } else if (n >= 40) {
-      this.popups.spawn(String(n), x, y, { size: 0.62, life: 0.75, r: 1.0, g: 0.6, b: 0.2, rise: 2.6 });
-    } else {
-      this.popups.spawn(String(n), x, y, { size: 0.42, life: 0.6, r: 1.0, g: 1.0, b: 1.0, rise: 2.0, punch: 0.35 });
-    }
+    const t = popupTier(n, boss, exposed);
+    this.popups.spawn(String(n), x, y, { size: t.size, life: t.life, r: t.rgb[0], g: t.rgb[1], b: t.rgb[2], rise: t.rise, punch: t.punch, stack: true });
   }
 
   private onBossPhase(w: WorldState3D, ph: number): void {
@@ -921,6 +905,7 @@ export class FxDirector {
       this.add.emit(b.x + this.rr(-0.25, 0.25), b.y + this.rr(1.0, 1.9), 0.3, 0, this.rr(4, 9), 0, 0.2, 0.2, 0.03, 1.2, 0.8, 0.4, 0.8, 0, 0, 1, Math.PI / 2, 0.0001);
       this.add.emit(b.x, b.y + 0.4, 0.3, this.rr(-0.6, 0.6), this.rr(3, 8), 0, 0.28, 0.14, 0.02, 1.3, 0.7, 0.3, 0.8, 0, 2, 4);
     }
+    if (!(p.railCharge > 0 && p.weapon === 4)) this.prevRailF = 0;
     if (p.railCharge > 0 && p.weapon === 4) {
       const f = clamp(p.railCharge / RAIL_CHARGE_TICKS, 0, 1);
       const cx = b.x;
@@ -936,9 +921,55 @@ export class FxDirector {
       const life = 0.14;
       this.add.emit(mx + Math.cos(a) * r, my + Math.sin(a) * r, 0.5, -Math.cos(a) * r / life, -Math.sin(a) * r / life, 0, life, 0.1 + 0.1 * f, 0.02, 0.9, 0.4, 1.7, 0.9, 0, 0, 3);
       this.add.emit(mx, my, 0.5, 0, 0, 0, 0.07, 0.18 + 0.7 * f, 0.12 + 0.7 * f, 0.9 + f, 0.4 + f * 0.3, 1.7, 0.35 + 0.5 * f, 0, 0, 1);
-      if (f >= 1 && (w.tick & 3) === 0) this.ring(mx, my, 0.5, 0.9, 0.5, 1.0);
+      if (f >= 0.92 && this.prevRailF < 0.92) {
+        // Charge complete: warning ring + flash at the muzzle (audioDirector plays the matching cue).
+        this.ring(mx, my, 0.9, 0.8, 0.4, 1.0);
+        this.ring(mx, my, 0.5, 1.0, 0.9, 1.0);
+        this.add.emit(mx, my, 0.55, 0, 0, 0, 0.12, 0.3, 1.1, 1.2, 0.8, 1.7, 0.7, 0, 0, 1);
+        if (!this.reduce) this.trauma.add(0.06);
+      }
+      this.prevRailF = f;
     }
     if (w.coreDestroyed && w.meltdownTicks > 0 && !this.reduce && this.trauma.value < 0.1) this.trauma.add(0.012);
+  }
+
+  /**
+   * Projectile look, drawn from the existing additive pool (no per-shot meshes, no lights): white core, coloured glow,
+   * velocity-aligned tail, and orbiting sparks on hostile shots. Particle life spans two display frames so it never blinks.
+   */
+  private projectileGlow(pr: WorldState3D['projectiles'][number], emitTrail: boolean): void {
+    const st = projectileStyle(pr.kind, pr.fromPlayer);
+    const sp = Math.hypot(pr.vx, pr.vy);
+    const dx = sp > 1e-3 ? pr.vx / sp : 1;
+    const dy = sp > 1e-3 ? pr.vy / sp : 0;
+    const L = 0.034;
+    const z = 0.3;
+    const pulse = 1 + 0.12 * Math.sin(this.tClock * 40 + pr.id);
+    const g = st.glow;
+    const c = st.core;
+    this.add.emit(pr.x, pr.y, z, 0, 0, 0, L, st.glowSize * pulse, st.glowSize * pulse, g[0], g[1], g[2], 0.55, 0, 0, 1);
+    this.add.emit(pr.x, pr.y, z + 0.02, 0, 0, 0, L, st.coreSize, st.coreSize, c[0], c[1], c[2], 0.95, 0, 0, 1);
+    if (st.tail > 0 && sp > 1) {
+      const len = st.glowSize * st.tail * 0.5;
+      this.add.emit(pr.x - dx * len * 0.5, pr.y - dy * len * 0.5, z - 0.02, dx * 0.001, dy * 0.001, 0, L, st.glowSize * 0.55, st.glowSize * 0.55, g[0], g[1], g[2], 0.5, 0, 0, st.tail);
+    }
+    for (let i = 0; i < st.ringSparks; i++) {
+      const a = orbitAngle(i, st.ringSparks, this.tClock);
+      this.add.emit(pr.x + Math.cos(a) * st.ringRadius, pr.y + Math.sin(a) * st.ringRadius, z + 0.03, 0, 0, 0, L, 0.12, 0.12, 1, 0.55 + 0.4 * (g[1] > g[0] ? 1 : 0), 0.3, 0.9, 0, 0, 1);
+    }
+    if (!emitTrail) return;
+    if (pr.kind === 'pulse' && pr.fromPlayer) {
+      this.add.emit(pr.x, pr.y, 0.3, 0, 0, 0, 0.16, 0.2, 0.03, 0.2, 0.9, 1.0, 0.55, 0, 0, 1);
+    } else if (pr.kind === 'scatter') {
+      this.add.emit(pr.x, pr.y, 0.3, 0, 0, 0, 0.12, 0.13, 0.02, 1.0, 0.6, 0.15, 0.5, 0, 0, 1);
+    } else if (pr.kind === 'grenade') {
+      this.alpha.emit(pr.x, pr.y, 0.2, this.rr(-0.3, 0.3), this.rr(0.3, 0.9), 0, 0.7, 0.2, 0.55, 0.18, 0.16, 0.15, 0.4, -0.4, 1.2, 1);
+      this.add.emit(pr.x, pr.y, 0.25, this.rr(-0.4, 0.4), this.rr(0.2, 0.8), 0, 0.5, 0.18, 0.45, 1.0, 0.45, 0.12, 0.55, 0, 1.5, 1);
+    } else if (pr.kind === 'enemy_acid') {
+      this.add.emit(pr.x, pr.y, 0.3, this.rr(-0.3, 0.3), this.rr(-0.6, 0), 0, 0.3, 0.16, 0.03, 0.35, 1.0, 0.2, 0.6, 2.5, 0, 1);
+    } else if (pr.kind === 'boss_plasma') {
+      this.add.emit(pr.x, pr.y, 0.3, this.rr(-0.4, 0.4), this.rr(-0.4, 0.4), 0, 0.3, 0.3, 0.05, 1.0, 0.25, 0.15, 0.6, 0, 0, 1);
+    }
   }
 
   // ---------------------------------------------------------------------------------------------------------
@@ -1025,7 +1056,17 @@ export class FxDirector {
       this.burst(x, y, 0.3, 0.9, 1, 0.9, 6, 5);
     } else if (fromPlayer && kind === 'scatter') {
       this.burst(x, y, 1, 0.75, 0.3, 0.8, 4, 4);
+      // Point-blank blast: a flat impact wave on the target side sells the knockback.
+      if (Math.abs(x - this.lastPx) < 5) this.scatterImpactWave(x, y, x >= this.lastPx ? 1 : -1);
     }
+  }
+
+  private scatterImpactWave(x: number, y: number, dir: number): void {
+    this.add.emit(x, y, 0.45, dir * 0.001, 0, 0, 0.2, 0.5, 2.2, 1, 0.7, 0.3, 0.55, 0, 0, 1);
+    this.add.emit(x + dir * 0.2, y, 0.45, dir * 6, 0, 0, 0.18, 0.5, 0.2, 1, 0.8, 0.45, 0.6, 0, 3, 3);
+    this.add.emit(x + dir * 0.2, y + 0.3, 0.45, dir * 5, 1.5, 0, 0.16, 0.35, 0.1, 1, 0.8, 0.45, 0.5, 0, 3, 3);
+    this.add.emit(x + dir * 0.2, y - 0.3, 0.45, dir * 5, -1.5, 0, 0.16, 0.35, 0.1, 1, 0.8, 0.45, 0.5, 0, 3, 3);
+    this.dustAt(x, y - 0.5, 3, 3, dir);
   }
 
   private muzzle(kind: 'pulse' | 'scatter' | 'grenade', sx: number, sy: number, vx: number, vy: number, px: number): void {
