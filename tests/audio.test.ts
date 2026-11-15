@@ -2,8 +2,25 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import type { SectorId3D, SoundEventType3D } from '../src/game3d/types3d.ts';
+import { ESCAPE_BEATS_3D, MELTDOWN_TICKS } from '../src/game3d/world3d.ts';
 import {
   EVENT_SOUND,
+  FANFARE_IDS,
+  ITEM_FREEZE_SECONDS,
+  LOOP_BASE,
+  MAX_LOOPS,
+  PANIC_TICKS,
+  alarmPeriodTicks,
+  alarmPitch,
+  elevatorLoop,
+  extraCueForEvent,
+  fanfareFor,
+  hazardLoopLevel,
+  isCountdownTick,
+  mixLevel,
+  panicLevel,
+  planLoops,
+  toDb,
   chargePitch,
   comboPitch,
   crowdGain,
@@ -32,9 +49,9 @@ import {
   type ThemeId,
   type VoiceInfo,
 } from '../src/ui/audioLogic.ts';
-import { SOUND_BANK, SOUND_IDS } from '../src/ui/soundBank.ts';
+import { SOUND_BANK, SOUND_IDS, recipeDuration, recipeEnergy, recipePeak } from '../src/ui/soundBank.ts';
 import {
-  FORM_LOOP, FORM_SONG, STEPS_PER_BAR, THEMES, bpmFor, chordAt, delaySeconds, duckGainAt, fillHit, formAt, formOf, layersAt, stepSeconds,
+  ESCAPE_LAYERS, ESCAPE_STAGE_TICKS, FORM_LOOP, FORM_SONG, STEPS_PER_BAR, THEMES, escapeKeyLift, escapeStageFor, escapeTempoScale, bpmFor, chordAt, delaySeconds, duckGainAt, fillHit, formAt, formOf, layersAt, stepSeconds,
 } from '../src/ui/themes.ts';
 
 const SECTORS: SectorId3D[] = ['airlock', 'shaft', 'mines', 'biolabs', 'security', 'core'];
@@ -346,7 +363,7 @@ test('pure loudness budget: recipe peak sums stay bounded per priority class', (
     const ls = SOUND_BANK[id].layers;
     // worst case: sum of gains of layers sounding together at any layer start
     const peak = Math.max(...ls.map((a) => ls.filter((b) => (b.at ?? 0) <= (a.at ?? 0) && (b.at ?? 0) + b.d > (a.at ?? 0)).reduce((s, b) => s + b.g, 0)));
-    assert.ok(peak < (id.startsWith('stinger.') ? 1 : 0.75), `${id} layer gain sum ${peak}`);
+    assert.ok(peak < (id.startsWith('stinger.') || id.startsWith('fanfare.') ? 1 : 0.75), `${id} layer gain sum ${peak}`);
   }
 });
 test('voice stealing: free slot, steal lowest-priority oldest, drop when outranked', () => {
@@ -363,4 +380,229 @@ test('throttle by minimum gap', () => {
   assert.equal(isThrottled(undefined, 1, 0.1), false);
   assert.equal(isThrottled(1, 1.05, 0.1), true);
   assert.equal(isThrottled(1, 1.2, 0.1), false);
+});
+
+// ---- Round 6 ----
+const BORROWED_BEFORE_R6 = new Set([
+  'enemy.crawler.land', 'enemy.crawler.alert', 'enemy.warden.death', 'enemy.warden.slam', 'world.light_on', 'world.light_off', 'world.explosion',
+  'world.unlock', 'world.door_blast', 'world.pickup', 'player.stomp', 'player.dash', 'stinger.meltdown',
+]);
+const R6_EVENTS: SoundEventType3D[] = [
+  'enemy_drop', 'hive_spawn', 'hive_destroyed', 'hazard_vent', 'hazard_crush', 'laser_on', 'laser_off', 'barrel_explode', 'switch_on',
+  'elevator_start', 'elevator_stop', 'collapse', 'slide', 'block_break', 'map_reveal', 'seal_warn', 'seal_close',
+];
+
+test('round 3-5 events have dedicated recipes, none borrowed, all distinct', () => {
+  const ids = R6_EVENTS.map(soundIdForEvent);
+  assert.equal(new Set(ids).size, R6_EVENTS.length);
+  for (const id of ids) {
+    assert.ok(!BORROWED_BEFORE_R6.has(id), `${id} is still a borrowed recipe`);
+    assert.ok(SOUND_IDS.includes(id as never), id);
+  }
+});
+
+test('phase variants: warning and fire phases, final hatch and bulkhead sirens use different recipes', () => {
+  const id = (type: SoundEventType3D, value?: number) => cueForEvent({ type, value }).id;
+  assert.notEqual(id('hazard_vent', 0), id('hazard_vent', 1));
+  assert.notEqual(id('hazard_crush', 0), id('hazard_crush', 1));
+  assert.notEqual(id('collapse', 0), id('collapse', 2));
+  assert.equal(id('collapse', 1), id('collapse', 2));
+  assert.equal(extraCueForEvent({ type: 'seal_warn', value: 4 }), 'escape.seal_final');
+  for (const v of [0, 1, 2, 3]) assert.equal(extraCueForEvent({ type: 'seal_warn', value: v }), null);
+  assert.equal(extraCueForEvent({ type: 'seal_close' }), null);
+  assert.ok(SOUND_IDS.includes('escape.seal_final'));
+  for (const v of [0, 1, 2, 3, 4]) assert.ok(SOUND_IDS.includes(id('seal_warn', v) as never));
+  for (const t of ['hazard_vent', 'hazard_crush', 'collapse'] as const) for (const v of [0, 1, 2]) assert.ok(SOUND_IDS.includes(id(t, v) as never), `${t} ${v}`);
+  // bulkhead sirens climb in pitch; rail plates ring higher than stomp floors
+  assert.ok(cueForEvent({ type: 'seal_warn', value: 3 }).pitch > cueForEvent({ type: 'seal_warn', value: 0 }).pitch);
+  assert.ok(cueForEvent({ type: 'block_break', value: 1 }).pitch > cueForEvent({ type: 'block_break', value: 0 }).pitch);
+});
+
+test('weapon track events use their dedicated recipes', () => {
+  const id = (type: SoundEventType3D, value?: number) => cueForEvent({ type, value }).id;
+  assert.equal(id('flamer', 1), 'weapon.flamer_loop');
+  assert.equal(id('rocket'), 'weapon.rocket');
+  assert.equal(id('burn'), 'enemy.burn');
+  assert.equal(id('rocket_jump'), 'player.rocket_jump');
+  assert.equal(id('explosion', 1), 'weapon.rocket_explode');
+  assert.equal(id('explosion'), 'world.explosion');
+  assert.ok(cueForEvent({ type: 'flamer', value: 1 }).gain > cueForEvent({ type: 'flamer', value: 0 }).gain);
+});
+
+test('recipe peak estimate: single layer is its gain, overlapping layers add, decayed layers do not', () => {
+  const one = { prio: 1, gap: 0, layers: [{ t: 'o' as const, f: 440, d: 1, w: 'sine' as const, g: 0.2 }] };
+  assert.ok(Math.abs(recipePeak(one) - 0.2) < 1e-12);
+  const two = { prio: 1, gap: 0, layers: [...one.layers, { t: 'o' as const, f: 220, d: 1, w: 'sine' as const, g: 0.1 }] };
+  assert.ok(Math.abs(recipePeak(two) - 0.3) < 1e-12);
+  const seq = { prio: 1, gap: 0, layers: [...one.layers, { t: 'o' as const, f: 220, d: 1, w: 'sine' as const, g: 0.1, at: 0.99 }] };
+  assert.ok(Math.abs(recipePeak(seq) - 0.2) < 1e-9, 'the first layer has decayed to almost nothing when the second starts, so the peak is not 0.3');
+  assert.ok(recipeEnergy(two) > recipeEnergy(one));
+  assert.equal(recipeDuration(seq), 1.99);
+});
+
+test('loudness: new recipes stay under the peak ceiling and within the energy range of the existing bank', () => {
+  const old = SOUND_IDS.filter((id) => !(id.startsWith('hazard.') || id.startsWith('fanfare.') || id.startsWith('escape.') || id.startsWith('move.') || id.startsWith('enemy.drop_') || id.startsWith('enemy.hive_') || id === 'world.map_reveal' || id === 'world.block_break' || id === 'world.countdown' || ARMS_IDS.has(id)));
+  const energies = old.filter((id) => !id.startsWith('amb.') && !id.startsWith('ui.')).map((id) => recipeEnergy(SOUND_BANK[id])).sort((x, y) => x - y);
+  const median = energies[Math.floor(energies.length / 2)];
+  const fresh = SOUND_IDS.filter((id) => !old.includes(id));
+  assert.ok(fresh.length >= 30, `expected the new recipe set, got ${fresh.length}`);
+  for (const id of fresh) {
+    const rec = SOUND_BANK[id];
+    assert.ok(recipePeak(rec) < (id.startsWith('fanfare.') ? 0.9 : 0.6), `${id} peak ${recipePeak(rec).toFixed(3)}`);
+    const ratio = recipeEnergy(rec) / median;
+    assert.ok(ratio > 1 / 20 && ratio < 20, `${id} energy is ${ratio.toFixed(2)}x the median of the existing bank`);
+  }
+  // fanfares sit in the same class as the existing win stinger
+  for (const id of FANFARE_IDS) {
+    const ratio = recipeEnergy(SOUND_BANK[id as 'fanfare.boots']) / recipeEnergy(SOUND_BANK['stinger.win']);
+    assert.ok(ratio > 0.4 && ratio < 2.5, `${id} is ${ratio.toFixed(2)}x stinger.win`);
+  }
+});
+const ARMS_IDS = new Set(['weapon.flamer_loop', 'weapon.rocket', 'weapon.rocket_explode', 'enemy.burn', 'player.rocket_jump']);
+
+test('heavy hits are not louder than the main explosion; warnings are quieter than the hits they announce', () => {
+  const ref = recipePeak(SOUND_BANK['world.explosion']);
+  for (const id of ['hazard.barrel', 'hazard.crush_slam', 'hazard.collapse_crash', 'escape.seal_close', 'enemy.hive_burst', 'weapon.rocket_explode'] as const) {
+    assert.ok(recipePeak(SOUND_BANK[id]) <= ref * 1.1, `${id} ${recipePeak(SOUND_BANK[id]).toFixed(3)} vs explosion ${ref.toFixed(3)}`);
+  }
+  assert.ok(recipeEnergy(SOUND_BANK['hazard.vent_warn']) < recipeEnergy(SOUND_BANK['hazard.vent_burst']));
+  assert.ok(recipeEnergy(SOUND_BANK['hazard.crush_warn']) < recipeEnergy(SOUND_BANK['hazard.crush_slam']));
+  assert.ok(recipeEnergy(SOUND_BANK['hazard.collapse_creak']) < recipeEnergy(SOUND_BANK['hazard.collapse_crash']));
+});
+
+test('limiter headroom: a pile-up of the loudest effects stays bounded and the crowd trim helps', () => {
+  const heavy = ['world.explosion', 'hazard.barrel', 'hazard.crush_slam', 'escape.seal_close', 'weapon.rail', 'player.hurt'] as const;
+  const peaks = heavy.map((id) => recipePeak(SOUND_BANK[id]));
+  const worst = mixLevel(peaks);
+  // the glue compressor (-18 dB threshold, 4:1) and limiter (-3 dB) sit after this; worst case must stay inside what they can tame (+9 dB)
+  assert.ok(toDb(worst) < 9, `worst case ${toDb(worst).toFixed(1)} dB`);
+  assert.ok(mixLevel(peaks) <= peaks.reduce((s, p) => s + p, 0) * 0.85 + 1e-12);
+  // three heavy new hits at once stay near unity before the limiter
+  assert.ok(toDb(mixLevel(['hazard.barrel', 'hazard.crush_slam', 'escape.seal_close'].map((id) => recipePeak(SOUND_BANK[id as 'world.alarm'])))) < 3);
+  assert.equal(toDb(0), -120);
+  assert.ok(Math.abs(toDb(1)) < 1e-12);
+  // a fanfare over a crowd of normal fire: the 3 s item jingle is the loudest thing in the mix but must not exceed a single big explosion pile-up
+  for (const id of FANFARE_IDS) assert.ok(toDb(mixLevel([recipePeak(SOUND_BANK[id as 'fanfare.boots']), recipePeak(SOUND_BANK['weapon.pulse']), recipePeak(SOUND_BANK['step.metal'])])) < 0, id);
+});
+
+test('item fanfares: one per upgrade kind and one for a new weapon, 2-3 s, first phrase inside the item freeze', () => {
+  const kinds = ['thruster_boots', 'energy_tank', 'crawl_slide', 'ammo_expansion', 'weapon'];
+  const ids = kinds.map((k) => fanfareFor(k));
+  assert.equal(new Set(ids).size, 5);
+  assert.equal(fanfareFor('nothing'), null);
+  assert.deepEqual([...FANFARE_IDS].sort(), [...ids].sort() as string[]);
+  for (const id of ids as string[]) {
+    assert.ok(SOUND_IDS.includes(id as never), id);
+    const rec = SOUND_BANK[id as 'fanfare.boots'];
+    const dur = recipeDuration(rec);
+    assert.ok(dur >= 2 && dur <= 3, `${id} lasts ${dur}`);
+    assert.equal(rec.prio, 10, 'fanfares are never stolen or dropped');
+    // The opening phrase (everything before the held chord) starts and mostly ends inside the 0.85 s freeze
+    const opening = rec.layers.filter((l) => (l.at ?? 0) < ITEM_FREEZE_SECONDS - 1e-9);
+    assert.ok(opening.length >= 4, id);
+    assert.ok(rec.layers.some((l) => (l.at ?? 0) >= ITEM_FREEZE_SECONDS - 1e-9 && l.d >= 1.5), `${id} resolves with a held chord after the freeze`);
+  }
+  assert.equal(ITEM_FREEZE_SECONDS, 0.85);
+});
+
+test('proximity loops: attenuated by distance, panned, capped, quiet sources dropped', () => {
+  const near = { key: 'v1', kind: 'vent' as const, x: 2, y: 0, level: 1 };
+  const far = { key: 'v2', kind: 'vent' as const, x: 22, y: 0, level: 1 };
+  const gone = { key: 'v3', kind: 'laser' as const, x: 60, y: 0, level: 1 };
+  const off = { key: 'v4', kind: 'laser' as const, x: 1, y: 0, level: 0 };
+  const plan = planLoops([far, near, gone, off], 0, 0);
+  assert.deepEqual(plan.map((p) => p.key), ['v1', 'v2'], 'nearest first, out-of-range and silent sources dropped');
+  assert.equal(plan[0].gain, 1);
+  assert.ok(plan[1].gain < plan[0].gain && plan[1].lp < plan[0].lp);
+  assert.ok(plan[0].pan > 0 && planLoops([{ ...near, x: -2 }], 0, 0)[0].pan < 0);
+  const many = Array.from({ length: 9 }, (_, i) => ({ key: `k${i}`, kind: 'motor' as const, x: i + 1, y: 0, level: 1 }));
+  assert.equal(planLoops(many, 0, 0).length, MAX_LOOPS);
+  assert.deepEqual(planLoops(many, 0, 0).map((p) => p.key), ['k0', 'k1', 'k2', 'k3']);
+  assert.equal(planLoops([], 0, 0).length, 0);
+  assert.equal(planLoops([{ ...near, level: 0.5 }], 0, 0)[0].gain, 0.5);
+  assert.equal(planLoops([{ ...near, rate: 1.6 }], 0, 0)[0].rate, 1.6);
+  assert.equal(planLoops([near], 0, 0)[0].rate, 1);
+  for (const k of ['vent', 'laser', 'motor'] as const) assert.ok(LOOP_BASE[k] > 0 && LOOP_BASE[k] < 0.1, k);
+});
+
+test('hazard loop levels follow the cycle; lift motor runs only while moving and faster on the empty return', () => {
+  assert.ok(hazardLoopLevel('vent', 'idle') > 0 && hazardLoopLevel('vent', 'idle') < hazardLoopLevel('vent', 'telegraph'));
+  assert.ok(hazardLoopLevel('vent', 'telegraph') < hazardLoopLevel('vent', 'active'));
+  assert.equal(hazardLoopLevel('laser', 'idle'), 0);
+  assert.equal(hazardLoopLevel('laser', 'active'), 1);
+  assert.ok(hazardLoopLevel('laser', 'telegraph') > 0 && hazardLoopLevel('laser', 'telegraph') < 1);
+  assert.equal(elevatorLoop('bottom').level, 0);
+  assert.equal(elevatorLoop('top').level, 0);
+  assert.equal(elevatorLoop('rising').level, 1);
+  assert.ok(elevatorLoop('returning').rate > elevatorLoop('rising').rate);
+});
+
+test('escape stages follow the bulkhead warnings and stack layers monotonically', () => {
+  assert.equal(ESCAPE_STAGE_TICKS.length, ESCAPE_BEATS_3D.length);
+  ESCAPE_BEATS_3D.forEach((b, i) => assert.equal(ESCAPE_STAGE_TICKS[i], b.at, 'stage thresholds match the simulation beats'));
+  assert.equal(escapeStageFor(-1), 0);
+  assert.equal(escapeStageFor(MELTDOWN_TICKS), 0);
+  assert.equal(escapeStageFor(ESCAPE_STAGE_TICKS[0] + 1), 0);
+  assert.equal(escapeStageFor(ESCAPE_STAGE_TICKS[0]), 1);
+  assert.equal(escapeStageFor(ESCAPE_STAGE_TICKS[4]), 5);
+  assert.equal(escapeStageFor(0), 5);
+  let prev = 0;
+  for (let t = MELTDOWN_TICKS; t >= 0; t--) {
+    const s = escapeStageFor(t);
+    assert.ok(s >= prev);
+    prev = s;
+  }
+  const count = (m: (typeof ESCAPE_LAYERS)[number]) => Object.values(m).filter(Boolean).length;
+  for (let i = 1; i < ESCAPE_LAYERS.length; i++) {
+    assert.ok(count(ESCAPE_LAYERS[i]) >= count(ESCAPE_LAYERS[i - 1]));
+    for (const k of Object.keys(ESCAPE_LAYERS[i]) as (keyof (typeof ESCAPE_LAYERS)[number])[]) if (ESCAPE_LAYERS[i - 1][k]) assert.ok(ESCAPE_LAYERS[i][k], `${k} stays on at stage ${i}`);
+  }
+  assert.ok(count(ESCAPE_LAYERS[5]) === 8 && count(ESCAPE_LAYERS[0]) < 8);
+  assert.equal(escapeKeyLift(0), 0);
+  assert.ok(escapeKeyLift(5) > escapeKeyLift(4) && escapeKeyLift(4) > escapeKeyLift(3));
+});
+
+test('escape tempo rises with stage and accelerates in the final 10 seconds', () => {
+  assert.equal(escapeTempoScale(-1), 1);
+  assert.equal(escapeTempoScale(MELTDOWN_TICKS), 1);
+  let prev = 0;
+  for (let t = MELTDOWN_TICKS; t >= 0; t -= 5) {
+    const s = escapeTempoScale(t);
+    assert.ok(s >= prev - 1e-12, `tempo never slows (${t})`);
+    prev = s;
+  }
+  const calm = escapeTempoScale(PANIC_TICKS + 1);
+  const mid = escapeTempoScale(PANIC_TICKS / 2);
+  const end = escapeTempoScale(1);
+  assert.ok(mid > calm * 1.08 && end > mid * 1.08, 'final dash speeds up smoothly');
+  assert.ok(THEMES.meltdown.bpm * end < 240, 'sixteenths stay playable');
+});
+
+test('escape alarm: slow early, faster as bulkheads seal, fastest and highest in the last 10 seconds', () => {
+  assert.equal(alarmPeriodTicks(-1), 0);
+  assert.equal(alarmPeriodTicks(0), 0);
+  assert.equal(alarmPeriodTicks(MELTDOWN_TICKS), 45);
+  assert.equal(alarmPeriodTicks(30 * 60), 45);
+  assert.equal(alarmPeriodTicks(20 * 60), 36);
+  assert.ok(alarmPeriodTicks(PANIC_TICKS) < 36);
+  assert.ok(alarmPeriodTicks(5) < alarmPeriodTicks(PANIC_TICKS - 1) || alarmPeriodTicks(5) === 10);
+  let prev = 99;
+  for (let t = MELTDOWN_TICKS; t > 0; t--) {
+    const p = alarmPeriodTicks(t);
+    assert.ok(p <= prev, `alarm never slows (${t})`);
+    assert.ok(p >= 10, 'pulses stay slower than the recipe throttle');
+    prev = p;
+  }
+  assert.equal(alarmPitch(MELTDOWN_TICKS), 1);
+  assert.ok(alarmPitch(1) > alarmPitch(PANIC_TICKS - 1) && alarmPitch(1) <= 1.5);
+  assert.equal(panicLevel(-1), 0);
+  assert.equal(panicLevel(PANIC_TICKS + 1), 0);
+  assert.equal(panicLevel(0), 1);
+  assert.ok(SOUND_BANK['world.alarm'].gap < 10 / 60, 'the alarm recipe throttle must allow the fastest pulse');
+});
+
+test('countdown beeps land once per second in the last 10 seconds only', () => {
+  const ticks = [];
+  for (let t = MELTDOWN_TICKS; t >= 0; t--) if (isCountdownTick(t)) ticks.push(t);
+  assert.deepEqual(ticks, [600, 540, 480, 420, 360, 300, 240, 180, 120, 60]);
 });

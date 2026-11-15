@@ -2,9 +2,13 @@
 // touches w.light for gameplay (R3.3). All decisions are pure functions from audioLogic.ts.
 import { ABILITY_3D } from '../engine/motion3d.ts';
 import type { EnemyAIState3D, WorldState3D } from '../game3d/world3d.ts';
-import { RAIL_CHARGE_TICKS } from '../game3d/world3d.ts';
-import { ambient, bgm, musicIntensity, play, playCue, railCharge, setPaused, sfx, type SoundId } from './audio.ts';
-import { enemyCue, footstepPeriodTicks, heartbeatPeriodTicks, isHardLanding, selectTheme, spatialFor, surfaceFor, type ThemeId } from './audioLogic.ts';
+import { hazardNowTick3D, RAIL_CHARGE_TICKS } from '../game3d/world3d.ts';
+import { hazardPhase } from '../game3d/hazards.ts';
+import { ambient, bgm, escapeMusic, musicIntensity, play, playCue, railCharge, setLoops, setPaused, sfx, type SoundId } from './audio.ts';
+import {
+  alarmPeriodTicks, alarmPitch, elevatorLoop, enemyCue, extraCueForEvent, footstepPeriodTicks, hazardLoopLevel, heartbeatPeriodTicks, isCountdownTick, isHardLanding,
+  planLoops, selectTheme, spatialFor, surfaceFor, type LoopSource, type ThemeId,
+} from './audioLogic.ts';
 
 export interface PreStep {
   hp: number;
@@ -23,6 +27,27 @@ export function currentTheme(w: WorldState3D): ThemeId {
   return selectTheme(w.currentRoom, w.meltdownTicks >= 0, fighting);
 }
 
+/** Hum sources near the player's sector: steam vents, laser grids and moving cargo lifts. Read-only on the world. */
+export function loopSources(w: WorldState3D): LoopSource[] {
+  const out: LoopSource[] = [];
+  for (const h of w.level.hazards) {
+    if (h.sector !== w.currentRoom || (h.kind !== 'vent' && h.kind !== 'laser')) continue;
+    const t = hazardNowTick3D(w, h);
+    if (t < 0) continue;
+    const level = hazardLoopLevel(h.kind, hazardPhase(h, t));
+    if (level > 0) out.push({ key: h.id, kind: h.kind === 'vent' ? 'vent' : 'laser', x: h.x, y: h.y + h.height * 0.5, level });
+  }
+  for (const sp of w.level.elevators) {
+    if (sp.sector !== w.currentRoom) continue;
+    const st = w.elevators.find((e) => e.id === sp.id);
+    const car = w.level.solids.find((s) => s.id === sp.carId);
+    if (!st || !car) continue;
+    const { level, rate } = elevatorLoop(st.phase);
+    if (level > 0) out.push({ key: sp.id, kind: 'motor', x: (car.minX + car.maxX) / 2, y: st.y, level, rate });
+  }
+  return out;
+}
+
 export class AudioDirector {
   private enemies = new Map<string, { state: EnemyAIState3D; alive: boolean; hp: number }>();
   private stepTicks = 0;
@@ -31,6 +56,7 @@ export class AudioDirector {
   private theme: ThemeId | null = null;
   private ambKey = '';
   private mode = '';
+  private alarmTicks = 0;
 
   /** Forget tracked state (new run, respawn, world replaced). */
   reset(): void {
@@ -40,7 +66,10 @@ export class AudioDirector {
     this.theme = null;
     this.ambKey = '';
     this.mode = '';
+    this.alarmTicks = 0;
     railCharge(0);
+    setLoops([]);
+    escapeMusic(-1);
   }
 
   /** Starts or retunes music and ambient for the current world. Cheap; call after each step and on mode changes. */
@@ -51,7 +80,10 @@ export class AudioDirector {
       this.mode = mode;
       setPaused(mode === 'paused');
     }
-    if (!playing) railCharge(0);
+    if (!playing) {
+      railCharge(0);
+      setLoops([]);
+    }
     if (mode === 'paused') return; // music keeps running behind the pause lowpass
     if (!playing) {
       // Title screen and winning result have their own themes; losing is silent apart from the stinger
@@ -84,9 +116,22 @@ export class AudioDirector {
     const ly = p.body.y;
 
     if (w.light.on !== pre.lightOn) (w.light.on ? sfx.lightOn : sfx.lightOff)();
-    if (w.meltdownTicks > 0 && w.tick % 45 === 0) sfx.alarm();
+    // Escape alarm: pulses speed up and climb in pitch through the final 10 s, which also get a countdown beep each second
+    const alarmEvery = alarmPeriodTicks(w.meltdownTicks);
+    if (alarmEvery === 0) this.alarmTicks = 0;
+    else if (++this.alarmTicks >= alarmEvery) {
+      this.alarmTicks = 0;
+      play('world.alarm', { pitch: alarmPitch(w.meltdownTicks) });
+    }
+    if (isCountdownTick(w.meltdownTicks)) play('world.countdown', { pitch: 1 + (600 - w.meltdownTicks) / 600 });
+    escapeMusic(w.meltdownTicks);
+    setLoops(planLoops(loopSources(w), lx, ly));
     const warden = w.enemies.find((e) => e.kind === 'warden' && e.alive);
-    for (const ev of w.events) playCue(ev, {}, warden ? warden.bossPattern : 'none');
+    for (const ev of w.events) {
+      playCue(ev, {}, warden ? warden.bossPattern : 'none');
+      const extra = extraCueForEvent(ev);
+      if (extra) play(extra as SoundId);
+    }
     if (warden && this.theme === 'boss') musicIntensity(warden.phase);
     const railF = p.weapon === 4 ? p.railCharge / RAIL_CHARGE_TICKS : 0;
     // One-shot "charge complete" tick matches the muzzle warning ring (fx3d) at 92 %.

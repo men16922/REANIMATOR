@@ -40,32 +40,37 @@ export const EVENT_SOUND: Record<SoundEventType3D, string> = {
   boss_exposed: 'boss.exposed',
   collect: 'world.collect',
   secret: 'world.secret',
-  // Round 3 foes (borrowed recipes until dedicated ones exist)
-  enemy_drop: 'enemy.crawler.land',
-  hive_spawn: 'enemy.crawler.alert',
-  hive_destroyed: 'enemy.warden.death',
-  // Round 4 hazards (borrowed recipes; cueForEvent softens the warning phase)
-  hazard_vent: 'enemy.crawler.land',
-  hazard_crush: 'enemy.warden.slam',
-  laser_on: 'world.light_on',
-  laser_off: 'world.light_off',
-  barrel_explode: 'world.explosion',
-  switch_on: 'world.unlock',
-  elevator_start: 'world.door_blast',
-  elevator_stop: 'world.pickup',
-  collapse: 'player.stomp',
-  // Round 5 Metroid systems (borrowed recipes; cueForEvent retunes them)
-  slide: 'player.dash',
-  block_break: 'world.door_blast',
-  map_reveal: 'world.unlock',
-  seal_warn: 'stinger.meltdown',
-  seal_close: 'world.door_blast',
-  // Round 6 arms (borrowed recipes; cueForEvent retunes them, a dedicated recipe can replace each id later)
-  flamer: 'weapon.scatter',
-  rocket: 'weapon.grenade',
-  burn: 'weapon.hit',
-  rocket_jump: 'player.stomp',
+  // Round 3 foes (dedicated recipes since round 6)
+  enemy_drop: 'enemy.drop_land',
+  hive_spawn: 'enemy.hive_spawn',
+  hive_destroyed: 'enemy.hive_burst',
+  // Round 4 hazards. Events with a warning/fire phase (vent, crush, collapse) are refined by cueForEvent
+  hazard_vent: 'hazard.vent_burst',
+  hazard_crush: 'hazard.crush_slam',
+  laser_on: 'hazard.laser_on',
+  laser_off: 'hazard.laser_off',
+  barrel_explode: 'hazard.barrel',
+  switch_on: 'hazard.switch',
+  elevator_start: 'hazard.elevator_start',
+  elevator_stop: 'hazard.elevator_stop',
+  collapse: 'hazard.collapse_crash',
+  // Round 5 Metroid systems (seal_warn is refined per bulkhead by cueForEvent)
+  slide: 'move.slide',
+  block_break: 'world.block_break',
+  map_reveal: 'world.map_reveal',
+  seal_warn: 'escape.seal_warn',
+  seal_close: 'escape.seal_close',
+  // Round 6 arms (dedicated recipes; cueForEvent retunes ignition vs sustain)
+  flamer: 'weapon.flamer_loop',
+  rocket: 'weapon.rocket',
+  burn: 'enemy.burn',
+  rocket_jump: 'player.rocket_jump',
 };
+
+/** Extra sound layered on top of an event's cue: the final hatch warning adds its rising siren. */
+export function extraCueForEvent(ev: { type: SoundEventType3D; value?: number }): string | null {
+  return ev.type === 'seal_warn' && ev.value === 4 ? 'escape.seal_final' : null;
+}
 
 export function soundIdForEvent(type: SoundEventType3D): string {
   return EVENT_SOUND[type];
@@ -115,34 +120,31 @@ export function cueForEvent(ev: { type: SoundEventType3D; value?: number }, boss
   else if (ev.type === 'combo') pitch = comboPitch(ev.value ?? 2);
   else if (ev.type === 'boss_phase') pitch = ev.value === 3 ? 0.84 : ev.value === 2 ? 0.92 : 1;
   else if (ev.type === 'stomp') gain = 0.9;
-  else if ((ev.type === 'hazard_vent' || ev.type === 'hazard_crush' || ev.type === 'collapse') && ev.value === 0) {
-    gain = 0.45;
-    pitch = ev.type === 'hazard_vent' ? 1.5 : 1.2;
-  } else if (ev.type === 'collapse' && ev.value === 1) gain = 1.1;
+  else if (ev.type === 'explosion' && ev.value === 1) id = 'weapon.rocket_explode';
+  else if (ev.type === 'hazard_vent' && ev.value === 0) id = 'hazard.vent_warn';
+  else if (ev.type === 'hazard_crush' && ev.value === 0) id = 'hazard.crush_warn';
+  else if (ev.type === 'collapse' && ev.value === 0) id = 'hazard.collapse_creak';
   else if (ev.type === 'slide') {
-    pitch = 0.7;
-    gain = 0.8;
-  } else if (ev.type === 'block_break') pitch = ev.value === 1 ? 1.25 : 0.8;
-  else if (ev.type === 'map_reveal') pitch = 1.3;
+    pitch = 0.85;
+    gain = 0.9;
+  } else if (ev.type === 'block_break') pitch = ev.value === 1 ? 1.25 : 0.85;
   else if (ev.type === 'seal_warn') {
-    pitch = 1 + 0.08 * (ev.value ?? 0);
-    gain = ev.value === 4 ? 1 : 0.7;
+    // Each bulkhead sirens a little higher than the last: the route is closing in. The final hatch (4) is the highest.
+    pitch = 1 + 0.06 * (ev.value ?? 0);
+    gain = ev.value === 4 ? 1 : 0.8;
   } else if (ev.type === 'seal_close') {
-    pitch = 0.6;
-    gain = 1.15;
+    pitch = 0.75;
+    gain = 1.1;
   } else if (ev.type === 'flamer') {
-    // value 1 = ignition whoosh, 0 = sustain tick
-    pitch = ev.value === 1 ? 0.55 : 0.7;
-    gain = ev.value === 1 ? 0.7 : 0.4;
+    // value 1 = ignition whoosh, 0 = sustain tick (dedicated recipe, so pitch stays near native)
+    pitch = ev.value === 1 ? 1 : 1.08;
+    gain = ev.value === 1 ? 0.85 : 0.45;
   } else if (ev.type === 'rocket') {
-    pitch = 0.7;
-    gain = 0.95;
+    gain = 0.9;
   } else if (ev.type === 'burn') {
-    pitch = 1.7;
-    gain = 0.3;
+    gain = 0.35;
   } else if (ev.type === 'rocket_jump') {
-    pitch = 1.25;
-    gain = 0.75;
+    gain = 0.8;
   }
   return { id, pitch, gain };
 }
@@ -342,4 +344,111 @@ export function voiceToSteal(voices: readonly VoiceInfo[], now: number, max: num
 /** True when the same sound id was started less than `minGap` seconds ago. */
 export function isThrottled(lastStart: number | undefined, now: number, minGap: number): boolean {
   return lastStart !== undefined && now - lastStart < minGap;
+}
+
+// ---- Item fanfares (round 6) ----
+/** Seconds the display freezes on an item pickup (main.ts ITEM_FREEZE_S). The fanfare's first phrase must land inside it. */
+export const ITEM_FREEZE_SECONDS = 0.85;
+
+const FANFARE: Record<string, string> = {
+  thruster_boots: 'fanfare.boots',
+  energy_tank: 'fanfare.tank',
+  crawl_slide: 'fanfare.slide',
+  ammo_expansion: 'fanfare.ammo',
+  weapon: 'fanfare.weapon',
+};
+/** Fanfare recipe for an upgrade kind (or 'weapon' for a new weapon), or null when the kind has none. */
+export function fanfareFor(kind: string): string | null {
+  return FANFARE[kind] ?? null;
+}
+export const FANFARE_IDS: readonly string[] = Object.values(FANFARE);
+
+// ---- Proximity loops: persistent hum beds for hazards and lifts (round 6) ----
+export type LoopKind = 'vent' | 'laser' | 'motor';
+/** Output level of each loop kind at full intensity and zero distance (linear, before the SFX bus). */
+export const LOOP_BASE: Record<LoopKind, number> = { vent: 0.07, laser: 0.04, motor: 0.07 };
+export const MAX_LOOPS = 4;
+
+export interface LoopSource {
+  key: string;
+  kind: LoopKind;
+  x: number;
+  y: number;
+  /** 0..1 how loud the source is right now (vent warning, laser live, lift moving). */
+  level: number;
+  /** Playback rate multiplier (lift motor pitch). */
+  rate?: number;
+}
+export interface LoopTarget {
+  key: string;
+  kind: LoopKind;
+  gain: number;
+  pan: number;
+  lp: number;
+  rate: number;
+}
+
+/** Loudness of a hazard loop by its cycle phase. Vents hiss softly even when idle; lasers only hum while charging or live. */
+export function hazardLoopLevel(kind: 'vent' | 'laser', phase: 'idle' | 'telegraph' | 'active' | 'recover'): number {
+  if (kind === 'vent') return phase === 'active' ? 1 : phase === 'telegraph' ? 0.6 : phase === 'recover' ? 0.35 : 0.15;
+  return phase === 'active' ? 1 : phase === 'telegraph' ? 0.3 : phase === 'recover' ? 0.15 : 0;
+}
+
+/** Loudness and pitch of the cargo lift motor by phase. The empty return runs faster. */
+export function elevatorLoop(phase: string): { level: number; rate: number } {
+  if (phase === 'rising') return { level: 1, rate: 1 };
+  if (phase === 'returning') return { level: 0.8, rate: 1.6 };
+  return { level: 0, rate: 1 };
+}
+
+/** The audible loops for a listener: distance attenuation, pan and lowpass applied, quiet ones dropped, nearest `max` kept. */
+export function planLoops(sources: readonly LoopSource[], lx: number, ly: number, max = MAX_LOOPS): LoopTarget[] {
+  const out: LoopTarget[] = [];
+  for (const s of sources) {
+    const sp = spatialFor(s.x, s.y, lx, ly);
+    const gain = sp.gain * Math.max(0, Math.min(1, s.level));
+    if (gain < 0.02) continue;
+    out.push({ key: s.key, kind: s.kind, gain, pan: sp.pan, lp: sp.lp, rate: s.rate ?? 1 });
+  }
+  out.sort((a, b) => b.gain - a.gain);
+  return out.slice(0, max);
+}
+
+// ---- Escape sequence alarm (round 6) ----
+/** Seconds of the escape that count as the final dash: tempo and alarm accelerate. */
+export const PANIC_TICKS = 600;
+/** 0 at the start of the final dash, 1 at zero time left; 0 outside it. */
+export function panicLevel(meltdownTicks: number): number {
+  if (meltdownTicks <= 0 || meltdownTicks > PANIC_TICKS) return meltdownTicks === 0 ? 1 : 0;
+  return (PANIC_TICKS - meltdownTicks) / PANIC_TICKS;
+}
+
+/** Ticks between alarm pulses: 45 early, 36 once the last bulkheads sealed (<= 28 s left), then 24 down to 10 in the final 10 s. 0 when no escape. */
+export function alarmPeriodTicks(meltdownTicks: number): number {
+  if (meltdownTicks <= 0) return 0;
+  if (meltdownTicks <= PANIC_TICKS) return Math.round(24 - 14 * panicLevel(meltdownTicks));
+  return meltdownTicks <= 28 * 60 ? 36 : 45;
+}
+
+/** Alarm pitch ratio: flat early, climbing up to a fifth over the final 10 s. */
+export function alarmPitch(meltdownTicks: number): number {
+  return 1 + 0.5 * panicLevel(meltdownTicks);
+}
+
+/** True on the whole-second ticks of the final 10 s (the countdown beeps). */
+export function isCountdownTick(meltdownTicks: number): boolean {
+  return meltdownTicks > 0 && meltdownTicks <= PANIC_TICKS && meltdownTicks % 60 === 0;
+}
+
+// ---- Mix checks (round 6) ----
+/**
+ * Linear level at the glue compressor input for voices sounding at once: summed recipe peaks, trimmed by the SFX bus and crowd gain.
+ * It is a worst case: peaks rarely align, but it shows how far above the limiter threshold a pile-up can reach.
+ */
+export function mixLevel(peaks: readonly number[], trim = 0.85): number {
+  return peaks.reduce((s, p) => s + p, 0) * trim * crowdGain(peaks.length);
+}
+/** dB of a linear level (floor -120). */
+export function toDb(x: number): number {
+  return x > 1e-6 ? 20 * Math.log10(x) : -120;
 }

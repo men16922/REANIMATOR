@@ -1124,7 +1124,7 @@ export function triggerExplosion3D(
   enemyKnock = 7,
 ): void {
   w.explosions.push({ id: w.nextId++, x, y, z, maxRadius: radius, ticksLeft: 20, maxTicks: 20, color });
-  w.events.push({ type: 'explosion' });
+  w.events.push(byWeapon === 6 ? { type: 'explosion', value: 1 } : { type: 'explosion' });
   w.shakeTicks = Math.max(w.shakeTicks, 14);
   w.shakeStrength = Math.max(w.shakeStrength, 0.42);
 

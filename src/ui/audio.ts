@@ -8,12 +8,13 @@
 // Pure decisions (mapping, attenuation, pan, voice stealing) live in audioLogic.ts; recipes in soundBank.ts; music in themes.ts.
 import type { SectorId3D, SoundEvent3D } from '../game3d/types3d.ts';
 import {
-  chargePitch, crowdGain, cueForEvent, impulseResponse, isThrottled, musicDuckFor, roomFor, roomMix, voiceToSteal,
-  type ThemeId, type VoiceInfo,
+  chargePitch, crowdGain, cueForEvent, fanfareFor, impulseResponse, isThrottled, LOOP_BASE, musicDuckFor, roomFor, roomMix, voiceToSteal,
+  type LoopKind, type LoopTarget, type ThemeId, type VoiceInfo,
 } from './audioLogic.ts';
 import { SOUND_BANK, type Layer, type SoundId } from './soundBank.ts';
 import {
-  chordAt, delaySeconds, fillHit, formAt, formOf, layersAt, semitone, stepSeconds, STEPS_PER_BAR, THEMES,
+  chordAt, delaySeconds, ESCAPE_LAYERS, escapeKeyLift, escapeStageFor, escapeTempoScale, fillHit, formAt, formOf, layersAt, semitone,
+  stepSeconds, STEPS_PER_BAR, THEMES,
   type Chord, type FormPos, type LayerMask, type ThemeDef,
 } from './themes.ts';
 
@@ -331,6 +332,7 @@ export function play(id: SoundId, opts: { gain?: number; pan?: number; pitch?: n
   counters.played++;
   logPlay(id, gain, pan, true);
   if (id.startsWith('stinger.')) duckBgm(0.35, Math.min(3, dur));
+  else if (id.startsWith('fanfare.')) duckBgm(0.22, Math.min(3, dur * 0.8));
   else if (musicDuckFor(rec.prio) < 1 && !id.startsWith('ui.') && id !== 'player.heartbeat') duckBgm(musicDuckFor(rec.prio), 0.35);
 }
 
@@ -359,8 +361,140 @@ export const sfx = {
   lose: () => play('stinger.lose'),
 };
 
+/** Item pickup jingle (2-3 s, music ducks under it). `kind` is an upgrade kind or 'weapon'. Returns false when the kind has no fanfare. */
+export function playFanfare(kind: string): boolean {
+  const id = fanfareFor(kind);
+  if (!id) return false;
+  play(id as SoundId);
+  return true;
+}
+
 export function playSoundEvent3D(ev: SoundEvent3D, bossPattern = 'none'): void {
   playCue(ev, {}, bossPattern);
+}
+
+// ---- Proximity loops: persistent hum beds (steam vents, laser grids, cargo lift motors) ----
+// Each loop owns a few oscillator/noise nodes. setLoops() is called every tick with the planned targets (distance, pan, lowpass already
+// applied by planLoops). Loops that drop out of the list fade away and are freed, so leaving a sector cleans them up.
+interface LoopVoice {
+  kind: LoopKind;
+  out: GainNode;
+  lp: BiquadFilterNode;
+  pan: StereoPannerNode | null;
+  sources: AudioScheduledSourceNode[];
+  pitchable: OscillatorNode[];
+  pitchBase: number[];
+  timer: ReturnType<typeof setTimeout> | null;
+}
+const loopVoices = new Map<string, LoopVoice>();
+
+function buildLoop(c: AudioContext, kind: LoopKind): LoopVoice | null {
+  if (!ambBus || !noiseBuf) return null;
+  const out = c.createGain();
+  out.gain.value = 0;
+  const lp = c.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 20000;
+  const pan = typeof c.createStereoPanner === 'function' ? c.createStereoPanner() : null;
+  out.connect(lp);
+  if (pan) { lp.connect(pan); pan.connect(ambBus); } else lp.connect(ambBus);
+  const sources: AudioScheduledSourceNode[] = [];
+  const pitchable: OscillatorNode[] = [];
+  const pitchBase: number[] = [];
+  const osc = (type: OscillatorType, f: number, g: number, filt?: BiquadFilterNode): OscillatorNode => {
+    const o = c.createOscillator();
+    o.type = type;
+    o.frequency.value = f;
+    const gn = c.createGain();
+    gn.gain.value = g;
+    if (filt) o.connect(filt).connect(gn);
+    else o.connect(gn);
+    gn.connect(out);
+    o.start();
+    sources.push(o);
+    return o;
+  };
+  const noise = (ft: BiquadFilterType, f: number, q: number, g: number): void => {
+    const s = c.createBufferSource();
+    s.buffer = noiseBuf;
+    s.loop = true;
+    const fl = c.createBiquadFilter();
+    fl.type = ft;
+    fl.frequency.value = f;
+    fl.Q.value = q;
+    const gn = c.createGain();
+    gn.gain.value = g;
+    s.connect(fl).connect(gn).connect(out);
+    s.start(0, Math.random());
+    sources.push(s);
+  };
+  if (kind === 'vent') {
+    // steam: breathy band noise with a low pressure hum
+    noise('bandpass', 900, 1.4, 0.8);
+    noise('highpass', 4200, 0.7, 0.18);
+    osc('sine', 62, 0.45);
+  } else if (kind === 'laser') {
+    // electric hum: detuned saw pair, a 100 Hz buzz and faint crackle
+    const f1 = c.createBiquadFilter();
+    f1.type = 'lowpass';
+    f1.frequency.value = 900;
+    osc('sawtooth', 100, 0.5, f1);
+    osc('sawtooth', 100.9, 0.4, f1);
+    osc('square', 200, 0.12);
+    noise('highpass', 5200, 0.8, 0.07);
+  } else {
+    // lift motor: low saw drone through a lowpass plus gear rumble; pitch follows the lift speed
+    const f1 = c.createBiquadFilter();
+    f1.type = 'lowpass';
+    f1.frequency.value = 520;
+    f1.Q.value = 2;
+    const a = osc('sawtooth', 48, 0.6, f1);
+    const b = osc('triangle', 96, 0.3);
+    pitchable.push(a, b);
+    pitchBase.push(48, 96);
+    noise('lowpass', 260, 0.8, 0.5);
+  }
+  return { kind, out, lp, pan, sources, pitchable, pitchBase, timer: null };
+}
+
+function freeLoop(key: string, v: LoopVoice): void {
+  for (const s of v.sources) { try { s.stop(); } catch { /* already stopped */ } }
+  v.out.disconnect();
+  v.lp.disconnect();
+  v.pan?.disconnect();
+  loopVoices.delete(key);
+}
+
+/** Applies the planned loop targets: creates new voices, updates the rest, fades out and frees any loop that is no longer planned. */
+export function setLoops(targets: readonly LoopTarget[]): void {
+  if (!ctx) {
+    if (targets.length === 0) return;
+    if (!ensure()) return;
+  }
+  const c = ctx;
+  if (!c) return;
+  const t = c.currentTime;
+  const live = new Set<string>();
+  for (const tg of targets) {
+    live.add(tg.key);
+    let v = loopVoices.get(tg.key);
+    if (!v) {
+      const nv = buildLoop(c, tg.kind);
+      if (!nv) continue;
+      loopVoices.set(tg.key, nv);
+      v = nv;
+    }
+    if (v.timer) { clearTimeout(v.timer); v.timer = null; }
+    v.out.gain.setTargetAtTime(tg.gain * LOOP_BASE[tg.kind], t, 0.12);
+    v.lp.frequency.setTargetAtTime(Math.max(300, tg.lp), t, 0.1);
+    if (v.pan) v.pan.pan.setTargetAtTime(Math.max(-1, Math.min(1, tg.pan)), t, 0.1);
+    for (let i = 0; i < v.pitchable.length; i++) v.pitchable[i].frequency.setTargetAtTime(v.pitchBase[i] * tg.rate, t, 0.3);
+  }
+  for (const [key, v] of loopVoices) {
+    if (live.has(key) || v.timer) continue;
+    v.out.gain.setTargetAtTime(0, t, 0.1);
+    v.timer = setTimeout(() => freeLoop(key, v), 900);
+  }
 }
 
 // ---- Rail-cannon charge loop: one persistent oscillator pair whose pitch climbs with the charge ----
@@ -514,6 +648,9 @@ interface MusicLayer {
 let musicLayer: MusicLayer | null = null;
 let musicTimer: ReturnType<typeof setInterval> | null = null;
 let bossIntensity: 1 | 2 | 3 = 1;
+/** Meltdown ticks remaining (-1 outside the escape). Drives the escape stage layers, tempo and key lift. */
+let escapeTicks = -1;
+let escapeStage = 0;
 
 function tone(dest: AudioNode, freq: number, start: number, dur: number, type: OscillatorType, gain: number, attack = 0.015, detune = 0): void {
   if (!ctx) return;
@@ -631,16 +768,20 @@ function scheduleMusic(): void {
   if (!ctx || !L) return;
   const def = L.def;
   const boss = L.theme === 'boss';
+  const esc = L.theme === 'meltdown';
   const inten = boss ? bossIntensity : 1;
-  const sd = stepSeconds(def, inten);
   while (L.next < ctx.currentTime + LOOKAHEAD) {
+    // The escape tempo climbs with the seal stage and the final-10-second dash, so the step length is re-read every step
+    const tempo = esc ? escapeTempoScale(escapeTicks) : 1;
+    const sd = stepSeconds(def, inten) / tempo;
     const t = L.next;
     const si = L.stepInBar;
     if (si === 0) {
       L.pos = formAt(formOf(def), L.bar);
-      L.mask = layersAt(L.pos, inten, boss);
+      L.mask = esc ? ESCAPE_LAYERS[escapeStage] : layersAt(L.pos, inten, boss);
       const ch = chordAt(def, L.bar);
-      L.rootHz = ch.rootHz;
+      L.rootHz = esc ? ch.rootHz * Math.pow(2, escapeKeyLift(escapeStage) / 12) : ch.rootHz;
+      if (esc) tuneDelay(def, 1, tempo);
       L.chord = ch.chord;
       const bd = sd * STEPS_PER_BAR;
       if (L.mask.pad) {
@@ -658,7 +799,7 @@ function scheduleMusic(): void {
         if (L.accent) tomHit(L.gain, t, 0.14, 90);
         L.accent = false;
       }
-      if (L.pos.riser) noiseHit(L.gain, t, bd, 0.05, 'bandpass', 400, 6000, 1.5);
+      if (L.pos.riser || (esc && escapeStage >= 5)) noiseHit(L.gain, t, bd, 0.05, 'bandpass', 400, 6000, 1.5);
     }
     const m = L.mask;
     const inFill = L.pos.fill && si >= 12 && (m.snare || m.kick);
@@ -716,9 +857,9 @@ function retire(layer: MusicLayer, fadeTau: number): void {
 }
 
 /** Applies the delay time and feedback of a theme to the shared delay. */
-function tuneDelay(def: ThemeDef, inten: 1 | 2 | 3): void {
+function tuneDelay(def: ThemeDef, inten: 1 | 2 | 3, tempo = 1): void {
   if (!ctx || !delayNode || !delayFb) return;
-  delayNode.delayTime.setTargetAtTime(Math.min(1.9, delaySeconds(def, inten)), ctx.currentTime, 0.15);
+  delayNode.delayTime.setTargetAtTime(Math.min(1.9, delaySeconds(def, inten) / tempo), ctx.currentTime, 0.15);
   delayFb.gain.setTargetAtTime(def.delayFb, ctx.currentTime, 0.15);
 }
 
@@ -731,6 +872,18 @@ export function musicIntensity(n: number): void {
     musicLayer.accent = true;
     tuneDelay(musicLayer.def, v);
   }
+}
+
+/**
+ * Escape sequence intensity from the meltdown ticks remaining (-1 outside the escape). Each bulkhead stage stacks a layer and nudges the
+ * tempo up; the last 10 s accelerate further. Only affects the meltdown theme. Cheap to call every tick.
+ */
+export function escapeMusic(meltdownTicks: number): void {
+  escapeTicks = meltdownTicks;
+  const stage = escapeStageFor(meltdownTicks);
+  if (stage === escapeStage) return;
+  escapeStage = stage;
+  if (musicLayer && musicLayer.theme === 'meltdown') musicLayer.accent = true;
 }
 
 /** Starts, switches (crossfade) or stops the music. Safe to call every frame. */
@@ -762,6 +915,7 @@ export function bgm(on: boolean, theme: ThemeId = 'airlock'): void {
   melody.connect(delaySend);
   if (delayIn) delaySend.connect(delayIn);
   if (theme !== 'boss') bossIntensity = 1;
+  if (theme !== 'meltdown') { escapeTicks = -1; escapeStage = 0; }
   musicLayer = {
     theme, def, gain, padBus, melody, delaySend, bar: 0, stepInBar: 0, next: c.currentTime + 0.05,
     pos: formAt(formOf(def), 0), mask: layersAt(formAt(formOf(def), 0)), rootHz: def.root, chord: def.prog[0].chord, accent: false,
@@ -784,6 +938,8 @@ export function getAudioDebug() {
     room: roomName,
     rail: railLast,
     ambientSector: ambSector,
+    escape: { ticks: escapeTicks, stage: escapeStage },
+    loops: [...loopVoices.keys()],
     activeVoices: ctx ? voices.filter((v) => v.endsAt > ctx!.currentTime).length : 0,
     maxVoices: MAX_VOICES,
     counters: { ...counters },
@@ -797,3 +953,6 @@ getAudioDebug.bgm = bgm;
 getAudioDebug.musicIntensity = musicIntensity;
 getAudioDebug.railCharge = railCharge;
 getAudioDebug.setPaused = setPaused;
+getAudioDebug.playFanfare = playFanfare;
+getAudioDebug.escapeMusic = escapeMusic;
+getAudioDebug.setLoops = setLoops;

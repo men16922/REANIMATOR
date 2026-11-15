@@ -524,10 +524,10 @@ test('arms: Flamer and Rocket code reads no RNG and never the headlamp', () => {
 
 // ------------------------------------------------------------------ presentation
 
-test('audio: new events are mapped to existing recipes and retuned per event', () => {
+test('audio: new events are mapped to dedicated recipes and retuned per event', () => {
   for (const t of ['flamer', 'rocket', 'burn', 'rocket_jump'] as const) assert.ok(EVENT_SOUND[t], t);
-  assert.equal(EVENT_SOUND.flamer, 'weapon.scatter');
-  assert.equal(EVENT_SOUND.rocket, 'weapon.grenade');
+  assert.equal(EVENT_SOUND.flamer, 'weapon.flamer_loop');
+  assert.equal(EVENT_SOUND.rocket, 'weapon.rocket');
   assert.ok(cueForEvent({ type: 'flamer', value: 1 }).gain > cueForEvent({ type: 'flamer', value: 0 }).gain);
   assert.ok(cueForEvent({ type: 'burn' }).gain < 0.5);
 });

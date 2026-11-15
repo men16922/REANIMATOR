@@ -263,3 +263,39 @@ export function fillHit(stepInBar: number): number {
 export function semitone(root: number, st: number): number {
   return root * Math.pow(2, st / 12);
 }
+
+// ---- Escape sequence arrangement (round 6) ----
+/** Meltdown ticks remaining at which each escape stage begins (the bulkhead warnings: core, bio-labs, shaft, airlock, final hatch). */
+export const ESCAPE_STAGE_TICKS: readonly number[] = [80 * 60, 62 * 60, 44 * 60, 28 * 60, 12 * 60];
+/** Final-dash window in ticks (10 s). Matches PANIC_TICKS in audioLogic.ts. */
+const ESCAPE_PANIC_TICKS = 600;
+
+/** Escape stage 0..5: how many bulkhead warnings have fired. -1 ticks (no meltdown) is stage 0. */
+export function escapeStageFor(meltdownTicks: number): 0 | 1 | 2 | 3 | 4 | 5 {
+  if (meltdownTicks < 0) return 0;
+  let n = 0;
+  for (const t of ESCAPE_STAGE_TICKS) if (meltdownTicks <= t) n++;
+  return n as 0 | 1 | 2 | 3 | 4 | 5;
+}
+
+/** Layers of the meltdown theme per stage: each sealed bulkhead stacks another layer; the final dash has everything. */
+export const ESCAPE_LAYERS: readonly LayerMask[] = [
+  mask('pad', 'bass', 'kick', 'perc'),
+  mask('pad', 'bass', 'kick', 'perc', 'hat', 'arp'),
+  mask('pad', 'bass', 'kick', 'perc', 'hat', 'arp', 'snare'),
+  mask('pad', 'bass', 'kick', 'perc', 'hat', 'arp', 'snare', 'lead'),
+  mask('pad', 'bass', 'kick', 'perc', 'hat', 'arp', 'snare', 'lead'),
+  mask('pad', 'bass', 'kick', 'perc', 'hat', 'arp', 'snare', 'lead'),
+];
+
+/** Tempo multiplier of the escape: +2.5 % per stage, then up to +20 % more across the final 10 s. */
+export function escapeTempoScale(meltdownTicks: number): number {
+  const stage = escapeStageFor(meltdownTicks);
+  const panic = meltdownTicks > 0 && meltdownTicks <= ESCAPE_PANIC_TICKS ? (ESCAPE_PANIC_TICKS - meltdownTicks) / ESCAPE_PANIC_TICKS : meltdownTicks === 0 ? 1 : 0;
+  return (1 + 0.025 * stage) * (1 + 0.2 * panic);
+}
+
+/** Key lift in semitones: the music steps up once the airlock seals and again for the final hatch. */
+export function escapeKeyLift(stage: number): number {
+  return stage >= 5 ? 2 : stage >= 4 ? 1 : 0;
+}
