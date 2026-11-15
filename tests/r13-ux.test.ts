@@ -91,7 +91,7 @@ test('PopupPool: merging stops at the cap and ignores popups that floated away',
   assert.equal(p2.count, 2, 'a hit far below the risen popup is its own number');
 });
 
-test('setHint defaults to a global hint (pickups and saves survive a sector change)', async () => {
+test('door lock hints are bound to the sector where they fired (roomHint)', async () => {
   const { tryOpenDoor3D } = await import('../src/game3d/world3d.ts');
   const w = newWorld3D();
   const door = w.level.solids.find((s) => s.doorId && s.doorLock === 'blue');
@@ -99,4 +99,36 @@ test('setHint defaults to a global hint (pickups and saves survive a sector chan
   w.currentRoom = 'airlock';
   tryOpenDoor3D(w, door!, 0);
   assert.equal(w.hintSector, 'airlock', 'door lock hints are bound to the place');
+});
+
+test('setHint defaults to a global hint (pickups and saves survive a sector change)', async () => {
+  const { setHint } = await import('../src/game3d/world3d.ts');
+  const w = newWorld3D();
+  w.currentRoom = 'airlock';
+  setHint(w, 'PICKED UP');
+  assert.equal(w.hintSector, '', 'a plain setHint carries no sector');
+  w.currentRoom = 'biolabs';
+  assert.equal(visibleHint(w), w.hint);
+});
+
+test('stepGlide: pop, steady run, and release without a visible hop', async () => {
+  const { stepGlide, GLIDE_WINDOW } = await import('../src/render3d/enemyMotion.ts');
+  const dt = 1 / 60, v = 6.1;
+  let raw = 0, disp = 0, snap = GLIDE_WINDOW, active = true, maxStep = 0, last = 0;
+  // pop: raw jumps 0.7 m ahead, display must not follow in one frame
+  raw += 0.7;
+  let g = stepGlide(disp, raw, snap, dt);
+  assert.ok(g.x - disp < 0.2, 'the pop is spread over frames');
+  disp = g.x; snap = g.snap;
+  for (let i = 0; i < 400 && active; i++) {
+    raw += v * dt;
+    g = stepGlide(disp, raw, snap, dt);
+    const step = g.x - disp;
+    maxStep = Math.max(maxStep, Math.abs(step - v * dt));
+    disp = g.x; snap = g.snap; active = g.active; last = i;
+  }
+  assert.equal(active, false, 'the glide ends');
+  assert.ok(last < 100, 'and ends soon after the window');
+  assert.ok(maxStep < 0.15, `catch-up stays well under the 0.7 m pop (extra ${maxStep.toFixed(3)} m)`);
+  assert.equal(disp, raw);
 });

@@ -1058,7 +1058,7 @@ function pointToSegmentDistSq(px: number, py: number, ax: number, ay: number, bx
 }
 
 /** Hints are global by default (pickups, saves, logs name the player, not the place). Location-bound callers pass a sector (see roomHint). */
-function setHint(w: WorldState3D, text: string, sector: SectorId3D | '' = ''): void {
+export function setHint(w: WorldState3D, text: string, sector: SectorId3D | '' = ''): void {
   if (w.hint === text && w.hintTicks > 0 && w.hintSector === sector) return;
   w.hint = text;
   w.hintSector = sector;
@@ -2973,7 +2973,7 @@ function stepSwitches3D(w: WorldState3D, interact: boolean): void {
     st.flashTicks = 30;
     w.openDoors.add(sp.opens);
     w.events.push({ type: 'switch_on' });
-    setHint(w, `${sp.label} ONLINE`);
+    roomHint(w, `${sp.label} ONLINE`);
   }
 }
 
@@ -3134,7 +3134,7 @@ export function breakBlock3D(w: WorldState3D, s: MapSolid3D): boolean {
     w.run.score += 500;
     setHint(w, `SECRET FOUND: ${secret.name.toUpperCase()}`);
   } else {
-    setHint(w, s.breakBy === 'rail' ? 'PLATE SHATTERED' : s.breakBy === 'lean' ? 'THE WALL GIVES WAY' : 'FLOOR BROKE');
+    roomHint(w, s.breakBy === 'rail' ? 'PLATE SHATTERED' : s.breakBy === 'lean' ? 'THE WALL GIVES WAY' : 'FLOOR BROKE');
   }
   return true;
 }

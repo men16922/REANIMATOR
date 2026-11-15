@@ -57,3 +57,11 @@ Screenshots in `.playwright-mcp/`: `r13-run-before-1.png`, `r13-run-after-1.png`
 - Popup merge: a popup absorbs at most `POPUP_MERGE_MAX` (5) hits and only hits within 0.9 m in y of it, so sustained fire starts a new number at the hit point. Different enemies with equal damage inside 0.9 m still merge (accepted: the number reads as combined damage).
 - Hints: `setHint` is global by default. Door lock, hive, ambush, bridge and counter hints use `roomHint` (bound to the sector where they fired); Reclaimer hints stay pinned to the hunter zone.
 - Run lean no longer stacks on the windup or strike pose. Misplaced doc comment moved. The two commits are not bisectable separately (`popupCeilNdc` in `main.ts` needs `scene3dFull.ts`); documented, history not rewritten.
+
+## Review v2 follow-up
+
+- **Glide release pop (fixed).** The filter is now the pure `stepGlide` in `enemyMotion.ts`. Its rate ramps from 9/s to 90/s over the last 0.15 s of the window, and the glide ends only when display and sim x are within 0.1 m, so the lag (about v/9 m) is bled off over a few frames instead of one snap. Remaining release step is under 0.1 m, near one frame of travel at run speed.
+- **Tests added.** `stepGlide` pop, steady run and release (`tests/r13-ux.test.ts`). The earlier 0.18 m figure was taken mid-sawtooth; the test measures the frame step after pops stop.
+- **Hint test renamed.** The door-lock test now names the `roomHint` path; a new test asserts a plain `setHint` is global (`setHint` is exported for it).
+- **Residual hints.** Elevator `ONLINE` and `PLATE SHATTERED` / `FLOOR BROKE` now use `roomHint` (place-bound).
+- Not fixed: the run-time lag (about 0.1 m while a glide is armed) between body and hit volume is cosmetic and accepted. The attack-start exit of the glide is covered by the same convergence rule only while armed; an attack beginning during a glide snaps by at most the remaining lag (under about 0.1 m after the ramp).

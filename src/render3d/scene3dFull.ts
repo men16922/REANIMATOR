@@ -56,6 +56,8 @@ import {
   stepEnemyYaw,
   type Flinch,
   type EnemyRenderTelemetry,
+  GLIDE_WINDOW,
+  stepGlide,
 } from './enemyMotion.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
 import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
@@ -191,6 +193,7 @@ interface EnemyViz {
   /** Seconds of position glide left after a one-tick position pop, and the last displayed x */
   snap: number;
   dispX: number;
+  gliding: boolean;
   snapTick: number;
   /** R13: smoothed display speed (m/s) driving the single-mesh gait */
   dispSpeed?: number;
@@ -2117,7 +2120,7 @@ export class Scene3DRenderer {
       this.lastEnemyStates.set(e.id, e.alive ? e.state : 'dead');
       let v = this.enemyViz.get(e.id);
       if (!v) {
-        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0, flinch: { amp: 0, kb: 0 }, turnErr: 0, snap: 0, snapTick: -1, dispX: exRaw };
+        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0, flinch: { amp: 0, kb: 0 }, turnErr: 0, snap: 0, snapTick: -1, dispX: exRaw, gliding: false };
         this.enemyViz.set(e.id, v);
       }
       // R13: queueing or wall ejection can pop a runner 0.7 m in one tick, repeatedly. After such a pop the display x
@@ -2126,12 +2129,14 @@ export class Scene3DRenderer {
       if (v.snapTick !== w.tick) {
         v.snapTick = w.tick;
         const jump = ce.x - pe.x;
-        if (e.alive && e.surface === 'floor' && e.state !== 'stagger' && e.state !== 'attack' && e.attackAnimTicks === 0 && Math.abs(jump) > 0.4 && Math.abs(jump) < 2) v.snap = 0.5;
+        if (e.alive && e.surface === 'floor' && e.state !== 'stagger' && e.state !== 'attack' && e.attackAnimTicks === 0 && Math.abs(jump) > 0.4 && Math.abs(jump) < 2) v.snap = GLIDE_WINDOW;
       }
       let ex = exRaw;
-      if (v.snap > 0) {
-        v.snap = Math.max(0, v.snap - dt);
-        ex = Math.abs(v.dispX - exRaw) > 2 ? exRaw : v.dispX + (exRaw - v.dispX) * (1 - Math.exp(-9 * Math.min(dt, 1 / 30)));
+      if (v.snap > 0 || v.gliding) {
+        const g = stepGlide(v.dispX, exRaw, v.snap, dt);
+        ex = g.x;
+        v.snap = g.snap;
+        v.gliding = g.active;
       }
       v.dispX = ex;
       if (e.kind === 'warden' && !e.minion) { wardenE = e; wardenX = ex; wardenY = ey; }

@@ -482,3 +482,24 @@ export function analyzeEnemyTrace(frames: EnemyTraceFrame[], opts: EnemyTraceOpt
     maxTransitionJump,
   };
 }
+
+export const GLIDE_WINDOW = 0.5; // s a glide stays armed after a position pop
+export const GLIDE_RATE = 9; // 1/s low-pass rate while armed
+export const GLIDE_RELEASE_RATE = 90; // 1/s rate the filter ramps to over the last GLIDE_RAMP seconds
+export const GLIDE_RAMP = 0.15;
+export const GLIDE_END_GAP = 0.1; // m: the glide ends only once display and sim are this close
+
+/**
+ * Display x low-pass after a sim position pop. The rate ramps up as the window expires, and the glide only ends
+ * (active=false) when the gap is small, so releasing it never produces a visible hop.
+ */
+export function stepGlide(disp: number, raw: number, snap: number, dt: number): { x: number; snap: number; active: boolean } {
+  const h = Math.min(Math.max(dt, 0), ENEMY_DT_CLAMP);
+  const left = Math.max(0, snap - h);
+  if (Math.abs(disp - raw) > 2) return { x: raw, snap: 0, active: false };
+  const ramp = left >= GLIDE_RAMP ? 0 : 1 - left / GLIDE_RAMP;
+  const rate = GLIDE_RATE + (GLIDE_RELEASE_RATE - GLIDE_RATE) * ramp;
+  const x = disp + (raw - disp) * (1 - Math.exp(-rate * h));
+  if (left === 0 && Math.abs(x - raw) < GLIDE_END_GAP) return { x: raw, snap: 0, active: false };
+  return { x, snap: left, active: true };
+}
