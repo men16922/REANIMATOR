@@ -6,6 +6,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { HunterState3D, HunterZoneDef3D } from '../game3d/hunter3d.ts';
 import { HUNTER_HEIGHT } from '../game3d/hunter3d.ts';
 import { EnemyRigDriver } from './enemyRig3d.ts';
+import { collapsePose, flinchPose, flinchStep, type Flinch } from './enemyMotion.ts';
 import {
   applyEnemyRigChannels3D,
   applyEnemyRim3D,
@@ -360,6 +361,8 @@ export class HunterView {
 
   /** Measured body fit (null on the capsule fallback). Tests check plates sit on the body. */
   fit: HunterFit | null = null;
+  private flinch: Flinch = { amp: 0, kb: 0 };
+  private prevHit = 0;
 
   /** Meshes this view adds (tests assert the draw budget). */
   meshCount(): number {
@@ -389,9 +392,14 @@ export class HunterView {
     stepEnemyRigAnimation3D(rig, 'stalker', frame, this.lodAcc);
     applyEnemyRigChannels3D(rig, frame.ch);
     this.lodAcc = 0;
-    rig.root.position.set(ex, h.y, 0);
-    rig.root.rotation.set(frame.rootPitch, frame.bodyYaw, 0);
-    rig.root.scale.set(1, Math.max(0.001, frame.rootScaleY), 1);
+    const hitEdge = h.alive && h.hitFlashTicks > this.prevHit;
+    this.prevHit = h.hitFlashTicks;
+    this.flinch = h.alive ? flinchStep(this.flinch, dt, hitEdge, h.facing, 0.3) : { amp: 0, kb: 0 };
+    const fl = flinchPose(this.flinch.amp);
+    const col3 = h.alive ? { sink: 0, squashY: 1 } : collapsePose(h.deathTicks);
+    rig.root.position.set(ex + this.flinch.kb, h.y - col3.sink, 0);
+    rig.root.rotation.set(frame.rootPitch + fl.pitch * 0.4, frame.bodyYaw, 0);
+    rig.root.scale.set(1, Math.max(0.001, frame.rootScaleY) * fl.sy * col3.squashY, 1);
     rig.root.visible = true;
 
     const f = hunterFlash(h, tick, tSec, reduce);

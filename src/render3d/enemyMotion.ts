@@ -64,6 +64,12 @@ export interface ProcPoseInput {
   gait: number;
   phase: number;
   alerting: boolean;
+  /** Surface the foe is on (default floor). Wall and ceiling crawling uses a travelling body wave. */
+  surface?: 'floor' | 'wall' | 'ceiling';
+  /** Ceiling dropper: true from the moment it lets go until it lands */
+  dropping?: boolean;
+  /** Heavy foes (dropper) squash harder on landing */
+  heavy?: boolean;
 }
 
 export interface ProcPose {
@@ -78,6 +84,8 @@ export interface ProcPose {
   visible: boolean;
   /** Extra heading wiggle (rad) added to the body yaw: the single-mesh foes scuttle by swinging side to side */
   yaw: number;
+  /** Backward display offset (m, along the facing) from a spit kick */
+  kick: number;
 }
 
 export const CRAWLER_REF_SPEED = 5;
@@ -86,6 +94,96 @@ export const CRAWLER_REF_SPEED = 5;
 export function gaitStep(kind: 'crawler' | 'spitter', speed: number): number {
   if (kind === 'spitter') return 2.2;
   return Math.min(2 * Math.PI * 6.5, 6 + (speed / CRAWLER_REF_SPEED) * 28);
+}
+
+// ---- R12 pure motion helpers (display only) ----
+
+/** Hit reaction: amp is the flinch weight (1 on a hit, decays to 0), kb the knockback offset in metres (signed x). */
+export interface Flinch {
+  amp: number;
+  kb: number;
+}
+
+export const FLINCH_AMP_RATE = 9; // 1/s
+export const FLINCH_KB_RATE = 12; // 1/s
+export const FLINCH_KB_MAX = 0.3; // m
+
+/** Advance a flinch. `hit` is the rising edge of a damage event; `facing` is the foe facing, knockback pushes against it. */
+export function flinchStep(f: Flinch, dt: number, hit: boolean, facing: number, strength = 1): Flinch {
+  const h = Math.min(Math.max(dt, 0), ENEMY_DT_CLAMP);
+  let amp = f.amp;
+  let kb = f.kb;
+  if (hit) {
+    amp = 1;
+    kb = Math.max(-FLINCH_KB_MAX, Math.min(FLINCH_KB_MAX, kb - Math.sign(facing || 1) * 0.14 * strength));
+  }
+  amp *= Math.exp(-FLINCH_AMP_RATE * h);
+  kb *= Math.exp(-FLINCH_KB_RATE * h);
+  if (amp < 1e-3) amp = 0;
+  if (Math.abs(kb) < 1e-3) kb = 0;
+  return { amp, kb };
+}
+
+/** Body deformation for a flinch weight: recoils back, squashes, then returns to identity. */
+export function flinchPose(amp: number): { pitch: number; sy: number; sxz: number } {
+  const a = Math.min(1, Math.max(0, amp));
+  return { pitch: -0.2 * a, sy: 1 - 0.06 * a, sxz: 1 + 0.03 * a };
+}
+
+/** Turn-around: 0 when facing the target heading, 1 when it is directly behind. */
+export function turnAmount(yawErr: number): number {
+  const t = Math.min(1, Math.abs(wrapAngle(yawErr)) / Math.PI);
+  return t * t * (3 - 2 * t);
+}
+
+/** Vertical squash while turning around: the body gathers itself mid-turn and recovers as the heading settles. */
+export function turnSquash(yawErr: number): number {
+  return 1 - 0.07 * turnAmount(yawErr);
+}
+
+/** Wall and ceiling crawl: a wave travelling along the body, scaled by speed. */
+export function surfaceWave(gait: number, speed: number): { roll: number; yaw: number; sz: number; sy: number; lift: number; pitch: number } {
+  const k = Math.max(0.5, Math.min(1, speed / 4));
+  const g = Math.sin(gait);
+  const g2 = Math.sin(gait * 2 + 0.9);
+  return { roll: g * 0.1 * k, yaw: g * 0.3 * k, sz: 1 + g2 * 0.1 * k, sy: 1 - Math.abs(g2) * 0.04 * k, lift: Math.abs(g) * 0.05 * k, pitch: g2 * 0.07 * k };
+}
+
+/** Dropper coiling to its ceiling before it lets go: draws in, stretches, trembles harder as the drop nears. */
+export function dropAnticipation(windFrac: number, tSec: number): { sx: number; sy: number; sz: number; pitch: number; shake: number } {
+  const f = Math.min(1, Math.max(0, windFrac));
+  return {
+    sx: 1 - 0.12 * f,
+    sy: 1 + 0.16 * f,
+    sz: 1 - 0.1 * f,
+    pitch: -0.12 * f,
+    shake: Math.sin(tSec * 48) * 0.05 * f * f,
+  };
+}
+
+/** Landing squash for a 0..1 decaying `land` weight. Returns exactly 1 at land = 0. */
+export function landSquash(land: number, heavy: boolean): { sy: number; sxz: number } {
+  const l = Math.min(1, Math.max(0, land));
+  const k = heavy ? 1.7 : 1;
+  return { sy: 1 - 0.22 * k * l, sxz: 1 + 0.12 * k * l };
+}
+
+/** Spit recoil: the body is kicked backward (m) in proportion to the decaying shot weight. */
+export function spitKick(shot: number): number {
+  const s = Math.min(1, Math.max(0, shot));
+  return 0.2 * s * s;
+}
+
+/**
+ * Death collapse for heavy rigs (Reclaimer): a short buckle, a heavy thud, then settle. deathTicks counts sim ticks.
+ * sink is metres below the standing root, squashY multiplies the root height.
+ */
+export function collapsePose(deathTicks: number): { sink: number; squashY: number } {
+  const t = Math.max(0, deathTicks);
+  const fall = Math.min(1, t / 30);
+  const ease = 1 - Math.pow(1 - fall, 3);
+  const thud = t >= 30 ? Math.exp(-(t - 30) / 8) * Math.sin((t - 30) * 0.9) * 0.03 : 0;
+  return { sink: 0.06 * ease + thud, squashY: 1 - 0.04 * ease };
 }
 
 const DEATH_FALL_TICKS = 24;
@@ -103,6 +201,8 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
   let sz = 1;
   let visible = true;
   let yaw = 0;
+  let kick = 0;
+  const onSurface = p.surface !== undefined && p.surface !== 'floor';
 
   if (!p.alive) {
     const t = Math.min(1, p.deathTicks / DEATH_FALL_TICKS);
@@ -118,13 +218,22 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
       lift -= (1 - s) * 0.2;
     }
     visible = p.deathTicks < DEATH_HIDE_TICKS;
-    return { clip: 'death', timeScale: t < 1 ? 1 : 0, lift, pitch, roll, sx, sy, sz, visible, yaw: 0 };
+    return { clip: 'death', timeScale: t < 1 ? 1 : 0, lift, pitch, roll, sx, sy, sz, visible, yaw: 0, kick: 0 };
   }
 
   if (p.kind === 'crawler') {
     const run = Math.min(1, p.speed / 4);
     const airborne = Math.abs(p.vy) > 1.2;
-    if (p.winding) {
+    if (p.winding && onSurface) {
+      const a = dropAnticipation(p.windFrac, p.tSec);
+      clip = 'crouch';
+      timeScale = 0;
+      sx = a.sx;
+      sy = a.sy;
+      sz = a.sz;
+      pitch = a.pitch;
+      roll += a.shake;
+    } else if (p.winding) {
       clip = 'crouch';
       timeScale = 0;
       sy = 1 - 0.3 * p.windFrac;
@@ -141,9 +250,20 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
       sx = 0.94;
     } else if (p.land > 0) {
       clip = 'land';
-      sy = 1 - 0.22 * p.land;
-      sx = sz = 1 + 0.12 * p.land;
+      const q = landSquash(p.land, p.heavy === true);
+      sx = sz = q.sxz;
+      sy = q.sy;
       pitch = 0.12 * p.land;
+    } else if (p.speed > 0.4 && onSurface) {
+      clip = 'crawl';
+      timeScale = Math.max(0.4, Math.min(1.8, p.speed / CRAWLER_REF_SPEED));
+      const w = surfaceWave(p.gait, p.speed);
+      roll += w.roll;
+      yaw = w.yaw;
+      sz = w.sz;
+      sy = w.sy;
+      lift = w.lift;
+      pitch = w.pitch;
     } else if (p.speed > 0.4) {
       clip = 'crawl';
       timeScale = Math.max(0.4, Math.min(1.8, p.speed / CRAWLER_REF_SPEED));
@@ -187,6 +307,7 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
       sz = 1 - 0.15 * p.shot;
       sx = 1 + 0.06 * p.shot;
       pitch = 0.2 * p.shot;
+      kick = spitKick(p.shot);
     } else if (p.alerting) {
       clip = 'alert';
       sy = 1.05;
@@ -202,7 +323,7 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
     sy *= 1 - 0.05 * p.recoil;
   }
 
-  return { clip, timeScale, lift, pitch, roll, sx, sy, sz, visible, yaw };
+  return { clip, timeScale, lift, pitch, roll, sx, sy, sz, visible, yaw, kick };
 }
 
 export interface EnemyTraceFrame {

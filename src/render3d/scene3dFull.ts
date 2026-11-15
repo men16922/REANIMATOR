@@ -48,7 +48,11 @@ import { EnemyRigDriver, ProcSecondary, type EnemyRigFrame } from './enemyRig3d.
 import {
   gaitStep,
   proceduralEnemyPose,
+  flinchStep,
+  flinchPose,
+  turnSquash,
   stepEnemyYaw,
+  type Flinch,
   type EnemyRenderTelemetry,
 } from './enemyMotion.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
@@ -178,6 +182,10 @@ interface EnemyViz {
   lodAcc: number;
   lastFrame?: EnemyRigFrame;
   sec?: ProcSecondary;
+  /** R12 display-only hit reaction (flinch weight and knockback offset) */
+  flinch: Flinch;
+  /** Turn-around error (rad) before this frame's yaw step */
+  turnErr: number;
 }
 
 const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
@@ -2101,14 +2109,17 @@ export class Scene3DRenderer {
 
       let v = this.enemyViz.get(e.id);
       if (!v) {
-        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0 };
+        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0, flinch: { amp: 0, kb: 0 }, turnErr: 0 };
         this.enemyViz.set(e.id, v);
       }
       // Smooth turn (rate ~7) with a lean into the turn
       const yawDiff = wrapAngle(e.yaw - v.yaw);
+      v.turnErr = yawDiff;
       v.yaw = stepEnemyYaw(v.yaw, e.yaw, dt, 7);
       const leanTarget = Math.max(-0.12, Math.min(0.12, yawDiff * 0.1));
       v.lean += (leanTarget - v.lean) * Math.min(1, dt * 10);
+      const hitEdge = e.alive && e.hitFlashTicks > v.prevHit;
+      v.flinch = e.alive ? flinchStep(v.flinch, dt, hitEdge, e.facing, e.kind === 'warden' ? 0.2 : 1) : { amp: 0, kb: 0 };
       if (e.hitFlashTicks > v.prevHit) v.recoil = 1;
       v.prevHit = e.hitFlashTicks;
       v.recoil = Math.max(0, v.recoil - dt * 6);
@@ -2182,10 +2193,12 @@ export class Scene3DRenderer {
         } else {
           rig.root.visible = true;
         }
-        rig.root.position.set(ex, ey - deathSink, 0);
-        rig.root.rotation.set(frame.rootPitch, v.yaw, v.lean);
-        rig.root.scale.set(1, Math.max(0.001, frame.rootScaleY) * Math.max(0.001, deathScale), 1);
-        rig.root.scale.x = rig.root.scale.z = Math.max(0.001, (1 + v.recoil * 0.05) * deathScale);
+        const fl = flinchPose(v.flinch.amp);
+        const turnSq = e.alive ? turnSquash(v.turnErr) : 1;
+        rig.root.position.set(ex + v.flinch.kb, ey - deathSink, 0);
+        rig.root.rotation.set(frame.rootPitch + fl.pitch * 0.5, v.yaw, v.lean);
+        rig.root.scale.set(1, Math.max(0.001, frame.rootScaleY) * Math.max(0.001, deathScale) * fl.sy * turnSq, 1);
+        rig.root.scale.x = rig.root.scale.z = Math.max(0.001, (1 + v.recoil * 0.05) * deathScale * fl.sxz);
         if (flashAmt > 0) {
           flashRiggedMaterials3D(rig, flashHex, flashAmt, flashCap);
         } else if (e.kind === 'warden' && e.alive && !e.active && this.introAwake > 0.01) {
@@ -2227,6 +2240,9 @@ export class Scene3DRenderer {
           gait: v.gait,
           phase: v.phase,
           alerting,
+          surface: e.surface,
+          dropping: e.dropping,
+          heavy: e.variant === 'dropper',
         });
         if (e.alive) v.gait += dt * gaitStep(e.kind === 'spitter' ? 'spitter' : 'crawler', speed);
         const sec = (v.sec ??= new ProcSecondary(e.surfaceAngle));
@@ -2246,8 +2262,14 @@ export class Scene3DRenderer {
           },
           dt,
         );
-        const { lift, pitch, roll } = proc;
-        const { sx, sy, sz } = sc;
+        const fl = flinchPose(v.flinch.amp);
+        const turnSq = e.alive ? turnSquash(v.turnErr) : 1;
+        const kbx = v.flinch.kb - proc.kick * e.facing;
+        const { lift, roll } = proc;
+        const pitch = proc.pitch + fl.pitch;
+        const sx = sc.sx * fl.sxz;
+        const sy = sc.sy * fl.sy * turnSq;
+        const sz = sc.sz * fl.sxz;
         r.visible = proc.visible;
         const inner = r.children[0];
         if (inner) inner.rotation.set(sc.innerPitch, 0, sc.innerRoll);
@@ -2257,10 +2279,10 @@ export class Scene3DRenderer {
         const sa = sc.surf;
         if (Math.abs(sa) > 1e-3) {
           const hh = e.height;
-          r.position.set(ex + Math.sin(sa) * hh * 0.5, ey + hh * 0.5 - Math.cos(sa) * hh * 0.5 + lift, 0);
+          r.position.set(ex + kbx + Math.sin(sa) * hh * 0.5, ey + hh * 0.5 - Math.cos(sa) * hh * 0.5 + lift, 0);
           r.rotation.set(pitch - (Math.sin(v.yaw) >= 0 ? 1 : -1) * sa, v.yaw + proc.yaw, roll);
         } else {
-          r.position.set(ex, ey + lift, 0);
+          r.position.set(ex + kbx, ey + lift, 0);
           r.rotation.set(pitch, v.yaw + proc.yaw, roll);
         }
         r.scale.set(sx * pulse, sy * pulse, sz * pulse);

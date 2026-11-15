@@ -1682,7 +1682,7 @@ function settleFrames(n: number): Promise<void> {
 
 /**
  * Showcase scenes for README captures: `await __reanimatorShowcase(name)`. Names: title, classic, combat, boss, mines, opening, opening-wake, opening-alarm,
- * biolabs, security, slide, escape, lab. Each call builds the scene from a fresh deterministic world, renders it, and
+ * biolabs, security, slide, escape, bestiary, lab. Each call builds the scene from a fresh deterministic world, renders it, and
  * resolves with the snapshot once the renderer has had a few real frames to settle (particles, bloom, camera).
  */
 wAny.__reanimatorShowcase = async (name) => {
