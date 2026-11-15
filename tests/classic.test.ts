@@ -164,7 +164,7 @@ test('classic HUD helpers', () => {
   assert.equal(ammoText(3, 5, false), '--');
   assert.equal(ammoText(4, -3, true), 'INF');
   assert.equal(fitText('Cryo Airlock Bay Extra', 14), 'CRYO AIRLOCK B');
-  const base = { hp: 10, maxHp: 120, energyTanks: 0, weapon: 1 as const, unlocked: [true, false, false, false] as const, ammo: [-1, 0, 0, 0] as const, kills: 0, sector: 'A' };
+  const base = { hp: 10, maxHp: 120, energyTanks: 0, weapon: 1 as const, unlocked: [true, false, false, false, false, false] as const, ammo: [-1, 0, 0, 0, 0, 0] as const, kills: 0, sector: 'A' };
   assert.notEqual(hudKey(base), hudKey({ ...base, hp: 11 }));
   assert.equal(hudKey(base), hudKey({ ...base }));
 });

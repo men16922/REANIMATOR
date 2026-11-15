@@ -68,8 +68,12 @@ export interface PlayerState3D {
   facing: 1 | -1;
   weapon: WeaponSlot3D;
   unlocked: Record<WeaponSlot3D, boolean>;
-  ammo: Record<2 | 3 | 4, number>;
+  ammo: Record<2 | 3 | 4 | 5 | 6, number>;
   fireCooldown: number;
+  /** Flamer: consecutive ticks the flame has been firing (0 = cold). Drives the ignition/sustain sound only. */
+  flameStreak: number;
+  /** Rocket jump: true once a blast has lifted the player this airborne period (reset on landing) */
+  rocketBoosted: boolean;
   /** Rail-Cannon charge in ticks while fire is held (0..RAIL_CHARGE_TICKS); release fires */
   railCharge: number;
   dashInvulnTicks: number;
@@ -148,6 +152,8 @@ export interface EnemyState3D {
   leapVx: number;
   /** Owning hive id for spawned larvae, '' otherwise */
   hive: string;
+  /** Ticks of burn left (Flamer). Deals BURN_DAMAGE_3D every BURN_INTERVAL_TICKS_3D ticks, deterministic. */
+  burnTicks: number;
 }
 
 export type EnemyAIState3D =
@@ -180,7 +186,7 @@ export const HIVE_CAP_3D = 2;
 export const HIVE_INTERVAL_TICKS_3D = 150;
 export const HIVE_FIRST_SPAWN_TICKS_3D = 45;
 /** Grenade shreds a nest; Pulse barely scratches it. */
-export const HIVE_MATCHUP_3D: Record<WeaponSlot3D | 0, number> = { 0: 1, 1: 0.8, 2: 0.9, 3: 2.2, 4: 1.3 };
+export const HIVE_MATCHUP_3D: Record<WeaponSlot3D | 0, number> = { 0: 1, 1: 0.8, 2: 0.9, 3: 2.2, 4: 1.3, 5: 1.8, 6: 1.6 };
 
 export interface HiveState3D {
   id: string;
@@ -205,7 +211,7 @@ export interface HiveState3D {
 
 export interface Projectile3D {
   id: number;
-  kind: 'pulse' | 'scatter' | 'grenade' | 'enemy_acid' | 'boss_plasma';
+  kind: 'pulse' | 'scatter' | 'grenade' | 'rocket' | 'enemy_acid' | 'boss_plasma';
   fromPlayer: boolean;
   x: number;
   y: number;
@@ -253,6 +259,16 @@ export interface BeamFX3D {
   z2: number;
   ticksLeft: number;
   maxTicks: number;
+}
+
+/** Floor ember left by the Flamer. Render-only: it never damages and no logic reads it. `steam` marks embers over an acid pool. */
+export interface EmberFX3D {
+  id: number;
+  x: number;
+  y: number;
+  ticksLeft: number;
+  maxTicks: number;
+  steam: boolean;
 }
 
 export interface CollectibleState3D {
@@ -397,6 +413,8 @@ export interface WorldState3D {
   shockwaves: ShockwaveRing3D[];
   explosions: ExplosionFX3D[];
   beams: BeamFX3D[];
+  /** Flamer floor embers (render-only decals) */
+  embers: EmberFX3D[];
   barrels: BarrelState3D[];
   elevators: ElevatorState3D[];
   switches: SwitchState3D[];
@@ -421,6 +439,54 @@ export const WEAPON_META: Record<WeaponSlot3D, { name: string; cooldown: number;
   2: { name: 'SCATTERGUN', cooldown: 28, initialAmmo: 28 },
   3: { name: 'GRENADE', cooldown: 34, initialAmmo: 14 },
   4: { name: 'RAIL-CANNON', cooldown: 44, initialAmmo: 10 },
+  5: { name: 'FLAMER', cooldown: 3, initialAmmo: 90 },
+  6: { name: 'ROCKET', cooldown: 52, initialAmmo: 8 },
+};
+
+/** Ammo-drop split: each drop of value v gives ceil(v * share) of that weapon's ammo (Scatter gets the full value). */
+export const AMMO_PICKUP_SHARE_3D: Record<2 | 3 | 4 | 5 | 6, number> = { 2: 1, 3: 0.45, 4: 0.35, 5: 2.2, 6: 0.3 };
+export const AMMO_WEAPONS_3D = [2, 3, 4, 5, 6] as const;
+export const WEAPON_SLOTS_3D = [1, 2, 3, 4, 5, 6] as const;
+
+/** Flamer: instant cone from the muzzle (no projectile). Short range, burn status, fuel ammo. */
+export const FLAMER_3D = {
+  range: 4.6,
+  /** Half-angle of the cone in radians (about 21 degrees) */
+  halfAngle: 0.36,
+  /** Raw direct damage per flame tick at point blank (falls to 60% at max range) */
+  directDamage: 2,
+  hiveDamage: 3,
+  barrelDamage: 2,
+  burnTicks: 150,
+  maxEmbers: 14,
+  emberTicks: 150,
+};
+export const BURN_INTERVAL_TICKS_3D = 12;
+export const BURN_DAMAGE_3D = 5;
+
+/** Rocket: slow start, accelerating straight shot with a big blast. Rocket jump is capped so it can never replace the Thruster Boots. */
+export const ROCKET_3D = {
+  startSpeed: 7,
+  maxSpeed: 27,
+  accel: 30,
+  radius: 3.8,
+  damage: 110,
+  enemyKnock: 11,
+  lifeTicks: 150,
+};
+export const ROCKET_JUMP_3D = {
+  /** Blast distance (to the player's centre) inside which the blast pushes the player */
+  radius: 3.2,
+  /** Horizontal push at point blank */
+  kickX: 9,
+  /** Vertical push at point blank */
+  kickY: 12,
+  /** The blast never raises vy above this (m/s): about 1.4 m of extra height, once per airborne period */
+  vyCap: 8.4,
+  /** Horizontal speed ceiling after a blast */
+  vxCap: 13,
+  /** Self damage at point blank; never kills (hull stays at 1 or more) */
+  selfDamage: 7,
 };
 
 /** Weapon that opens each lock kind (0 = not weapon-opened). */
@@ -448,10 +514,10 @@ const ENEMY_STATS: Record<EnemyKind3D, { hp: number; radius: number; height: num
 /** Weapon x enemy matchup multipliers (index = weapon slot). Crawlers are soft to Scattergun, Stalkers are armored
  * against Pulse but weak to Grenade/Rail, Spitters have a soft shell that precise Pulse shots exploit. */
 export const WEAPON_MATCHUP_3D: Record<EnemyKind3D, Record<WeaponSlot3D | 0, number>> = {
-  crawler: { 0: 1, 1: 1, 2: 1.35, 3: 1, 4: 1 },
-  stalker: { 0: 1, 1: 0.7, 2: 1, 3: 1.25, 4: 1.3 },
-  spitter: { 0: 1, 1: 1.3, 2: 0.8, 3: 1, 4: 1 },
-  warden: { 0: 1, 1: 1, 2: 1, 3: 1, 4: 1 },
+  crawler: { 0: 1, 1: 1, 2: 1.35, 3: 1, 4: 1, 5: 1.5, 6: 1.1 },
+  stalker: { 0: 1, 1: 0.7, 2: 1, 3: 1.25, 4: 1.3, 5: 1, 6: 1.2 },
+  spitter: { 0: 1, 1: 1.3, 2: 0.8, 3: 1, 4: 1, 5: 1.1, 6: 1 },
+  warden: { 0: 1, 1: 1, 2: 1, 3: 1, 4: 1, 5: 0.35, 6: 1 },
 };
 
 /** Per-sector enemy damage scaling: gentle start, rising pressure toward the Core. */
@@ -476,7 +542,7 @@ export const WARDEN_GUARDED_MULT = 0.8;
 export const WARDEN_PHASE_FRACTIONS = [2 / 3, 1 / 3] as const;
 export const STOMP_RADIUS = 3.0;
 export const STOMP_DAMAGE = 60;
-export const COMPLETION_WEAPON_PEDESTALS = 3;
+export const COMPLETION_WEAPON_PEDESTALS = 5;
 
 /** Warden pattern cycle per phase (deterministic, no RNG). */
 export const WARDEN_CYCLE_3D: Record<1 | 2 | 3, readonly BossPattern3D[]> = {
@@ -615,6 +681,7 @@ function buildEnemy3D(sp: EnemySpawn3D, hiveId = ''): EnemyState3D {
     dropping: false,
     leapVx: 0,
     hive: hiveId,
+    burnTicks: 0,
   };
 }
 
@@ -682,9 +749,11 @@ export function newWorld3D(): WorldState3D {
       aimY: spawn.y + MUZZLE_HEIGHT,
       facing: 1,
       weapon: 1,
-      unlocked: { 1: true, 2: false, 3: false, 4: false },
-      ammo: { 2: 0, 3: 0, 4: 0 },
+      unlocked: { 1: true, 2: false, 3: false, 4: false, 5: false, 6: false },
+      ammo: { 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
       fireCooldown: 0,
+      flameStreak: 0,
+      rocketBoosted: false,
       railCharge: 0,
       dashInvulnTicks: 0,
       hurtInvulnTicks: 0,
@@ -708,6 +777,7 @@ export function newWorld3D(): WorldState3D {
     shockwaves: [],
     explosions: [],
     beams: [],
+    embers: [],
     elevators: level.elevators.map((e) => ({ id: e.id, phase: 'bottom' as const, y: e.bottomY, timer: 0, waveDone: false })),
     switches: level.switches.map((sw) => ({ id: sw.id, on: false, flashTicks: 0 })),
     collapses: level.collapses.map((c) => ({ id: c.id, startTick: -1, fallen: [], crumbling: [] })),
@@ -920,6 +990,7 @@ function damageEnemy(
   if (e.hp <= 0) {
     e.hp = 0;
     e.alive = false;
+    e.burnTicks = 0;
     e.deathTicks = 1;
     e.anim = 'death';
     registerKill(w, e);
@@ -991,6 +1062,7 @@ function damageCore(w: WorldState3D, dmg: number): void {
       m.alive = true;
       m.active = true;
       m.deathTicks = 0;
+      m.burnTicks = 0;
       m.anim = 'idle';
       m.hitFlashTicks = 8;
       setEnemyState(m, 'chase', 0);
@@ -1005,6 +1077,40 @@ function distPointToSolidXY(s: MapSolid3D, x: number, y: number): number {
   return Math.hypot(x - cx, y - cy);
 }
 
+/**
+ * Rocket jump: a rocket blast near the player pushes them away from the blast centre and costs a little hull (never lethal).
+ * The upward push is limited: it only lifts vy up to ROCKET_JUMP_3D.vyCap and only once per airborne period, so a blast
+ * adds at most ~1.4 m on top of a normal jump and cannot clear a 4.4 m Thruster Boots gate. Deterministic, no RNG.
+ */
+export function rocketJump3D(w: WorldState3D, x: number, y: number): void {
+  const p = w.player;
+  const pb = p.body;
+  const cj = ROCKET_JUMP_3D;
+  const dxp = pb.x - x;
+  const dyp = pb.y + 0.9 - y;
+  const d = Math.hypot(dxp, dyp);
+  if (d > cj.radius || w.status !== 'playing') return;
+  const f = Math.min(1, 1 - Math.max(0, d - 0.4) / (cj.radius - 0.4));
+  const ux = d > 0.05 ? dxp / d : 0;
+  const uy = d > 0.05 ? dyp / d : 1;
+  pb.vx = Math.max(-cj.vxCap, Math.min(cj.vxCap, pb.vx + ux * cj.kickX * f));
+  if (uy > 0.1 && !p.rocketBoosted) {
+    const kick = cj.kickY * f * uy;
+    pb.vy = pb.vy > cj.vyCap ? pb.vy : Math.min(cj.vyCap, pb.vy + kick);
+    if (kick > 0.5) {
+      p.rocketBoosted = true;
+      pb.grounded = false;
+    }
+  }
+  const self = Math.round(cj.selfDamage * f);
+  if (self > 0) {
+    p.hp = Math.max(1, p.hp - self);
+    w.run.damageTaken += self;
+    p.hurtFlashTicks = Math.max(p.hurtFlashTicks, 5);
+  }
+  w.events.push({ type: 'rocket_jump', value: self });
+}
+
 export function triggerExplosion3D(
   w: WorldState3D,
   x: number,
@@ -1015,6 +1121,7 @@ export function triggerExplosion3D(
   color = 0xff7a2f,
   playerCapDamage = 18,
   byWeapon: WeaponSlot3D | 0 = 0,
+  enemyKnock = 7,
 ): void {
   w.explosions.push({ id: w.nextId++, x, y, z, maxRadius: radius, ticksLeft: 20, maxTicks: 20, color });
   w.events.push({ type: 'explosion' });
@@ -1028,6 +1135,8 @@ export function triggerExplosion3D(
     }
   }
 
+  if (byWeapon === 6) rocketJump3D(w, x, y);
+
   if (maxDamage <= 0) return;
 
   for (const e of w.enemies) {
@@ -1035,7 +1144,7 @@ export function triggerExplosion3D(
     const d = Math.hypot(e.x - x, e.y + e.height * 0.5 - y);
     if (d <= radius + e.radius) {
       const falloff = Math.max(0.35, 1 - d / (radius + e.radius + 0.5));
-      const kx = d > 0.05 ? ((e.x - x) / d) * 7 : 0;
+      const kx = d > 0.05 ? ((e.x - x) / d) * enemyKnock : 0;
       damageEnemy(w, e, Math.round(maxDamage * falloff), kx, 12, byWeapon);
     }
   }
@@ -1066,6 +1175,91 @@ export function triggerExplosion3D(
       damagePlayer(w, Math.round(playerCapDamage * factor), dp > 0.05 ? ((pb.x - x) / dp) * 6 : 0);
     }
   }
+}
+
+/** Is (tx, ty) inside the flame cone from (ox, oy) along unit (dx, dy)? Returns the distance when it is, otherwise -1. */
+function flameConeHit(ox: number, oy: number, dx: number, dy: number, tx: number, ty: number, radius: number, reach: number): number {
+  const vx = tx - ox;
+  const vy = ty - oy;
+  const along = vx * dx + vy * dy;
+  if (along < -radius) return -1;
+  const d = Math.hypot(vx, vy);
+  if (d > reach + radius) return -1;
+  const cross = Math.abs(vx * dy - vy * dx);
+  const slack = Math.atan2(radius, Math.max(d, 0.3));
+  return Math.atan2(cross, Math.max(along, 0)) <= FLAMER_3D.halfAngle + slack ? d : -1;
+}
+
+/** One Flamer tick: cone damage + burn on enemies, direct damage on nests and barrels, floor embers where the flame lands. */
+function flameCone3D(w: WorldState3D, ox: number, oy: number, dx: number, dy: number): void {
+  const F = FLAMER_3D;
+  const wall = castRaySolidDistance3D(w, ox, oy, 0, dx, dy, 0, F.range);
+  const reach = Math.min(F.range, wall);
+  const los = (tx: number, ty: number, d: number, r: number): boolean => {
+    const ux = (tx - ox) / (d || 1);
+    const uy = (ty - oy) / (d || 1);
+    return castRaySolidDistance3D(w, ox, oy, 0, ux, uy, 0, d) >= d - r - 0.35;
+  };
+  for (const e of w.enemies) {
+    if (!e.alive) continue;
+    const ty = e.y + e.height * 0.5;
+    const d = flameConeHit(ox, oy, dx, dy, e.x, ty, e.radius, reach);
+    if (d < 0 || !los(e.x, ty, d, e.radius)) continue;
+    e.burnTicks = Math.max(e.burnTicks, F.burnTicks);
+    damageEnemy(w, e, F.directDamage * (1 - 0.4 * Math.min(1, d / F.range)), 0, 0, 5);
+  }
+  for (const h of w.hives) {
+    if (!h.alive) continue;
+    const ty = h.y + h.height * 0.5;
+    const d = flameConeHit(ox, oy, dx, dy, h.x, ty, h.radius, reach);
+    if (d >= 0 && los(h.x, ty, d, h.radius)) damageHive(w, h, F.hiveDamage * (1 - 0.4 * Math.min(1, d / F.range)), 5);
+  }
+  for (const b of w.barrels) {
+    if (!b.alive) continue;
+    const d = flameConeHit(ox, oy, dx, dy, b.x, b.y + 0.7, 0.55, reach);
+    if (d < 0 || !los(b.x, b.y + 0.7, d, 0.55)) continue;
+    b.hp -= F.barrelDamage;
+    b.hitFlashTicks = 6;
+    if (b.hp <= 0) {
+      b.alive = false;
+      w.events.push({ type: 'barrel_explode' });
+      triggerExplosion3D(w, b.x, b.y + 0.7, 0, 4.4, 92, 0xff7a2f);
+    }
+  }
+  // Embers: where the flame tip meets the floor (render-only)
+  const tx = ox + dx * reach;
+  const ty = oy + dy * reach;
+  const fy = floorHeightAt3D(tx, 0, ty, 0.1, buildCollider3D(w.level, w.openDoors));
+  if (fy > -Infinity && ty - fy <= 1.6 && fy <= ty + 0.4) {
+    const near = w.embers.find((m) => Math.abs(m.x - tx) < 0.6 && Math.abs(m.y - fy) < 0.3);
+    if (near) {
+      near.ticksLeft = near.maxTicks;
+    } else {
+      const steam = w.level.acidPools.some((pl) => tx >= pl.minX && tx <= pl.maxX && fy <= pl.surfaceY + 0.05);
+      w.embers.push({ id: w.nextId++, x: tx, y: fy, ticksLeft: F.emberTicks, maxTicks: F.emberTicks, steam });
+      if (w.embers.length > F.maxEmbers) w.embers.shift();
+    }
+  }
+}
+
+/** Burn status: one deterministic damage tick per BURN_INTERVAL_TICKS_3D, scaled by the Flamer matchup. */
+function stepBurn3D(w: WorldState3D): void {
+  let burned = false;
+  for (const e of w.enemies) {
+    if (e.burnTicks <= 0) continue;
+    if (!e.alive) {
+      e.burnTicks = 0;
+      continue;
+    }
+    e.burnTicks--;
+    if (e.burnTicks % BURN_INTERVAL_TICKS_3D === 0) {
+      damageEnemy(w, e, BURN_DAMAGE_3D, 0, 0, 5);
+      burned = true;
+    }
+  }
+  if (burned) w.events.push({ type: 'burn' });
+  for (const m of w.embers) m.ticksLeft--;
+  w.embers = w.embers.filter((m) => m.ticksLeft > 0);
 }
 
 function fireWeapon3D(w: WorldState3D, railFrac = 0): void {
@@ -1124,6 +1318,26 @@ function fireWeapon3D(w: WorldState3D, railFrac = 0): void {
       vx: dx * 16.5, vy: dy * 16.5 + 4.0, vz: 0, damage: 86, radius: 0.26, lifeTicks: 90, bounces: 0,
     });
     w.events.push({ type: 'grenade' });
+  } else if (slot === 5) {
+    p.ammo[5]--;
+    p.fireCooldown = WEAPON_META[5].cooldown;
+    p.muzzleFlashTicks = 3;
+    // Ignition sound on the first tick, then a sustain cue every 5th tick (15 per second would flood the mixer)
+    if (p.flameStreak % 5 === 0) w.events.push({ type: 'flamer', value: p.flameStreak === 0 ? 1 : 0 });
+    p.flameStreak++;
+    flameCone3D(w, ox, oy, dx, dy);
+  } else if (slot === 6) {
+    p.ammo[6]--;
+    p.fireCooldown = WEAPON_META[6].cooldown;
+    p.muzzleFlashTicks = 8;
+    w.shakeTicks = Math.max(w.shakeTicks, 6);
+    w.shakeStrength = Math.max(w.shakeStrength, 0.2);
+    w.projectiles.push({
+      id: w.nextId++, kind: 'rocket', fromPlayer: true, x: mx, y: my, z: 0,
+      vx: dx * ROCKET_3D.startSpeed, vy: dy * ROCKET_3D.startSpeed, vz: 0,
+      damage: ROCKET_3D.damage, radius: 0.28, lifeTicks: ROCKET_3D.lifeTicks, bounces: 0,
+    });
+    w.events.push({ type: 'rocket' });
   } else {
     p.ammo[4]--;
     p.fireCooldown = WEAPON_META[4].cooldown;
@@ -1182,23 +1396,33 @@ function solidHitAt(col: ReturnType<typeof buildCollider3D>, x: number, y: numbe
 }
 
 function weaponOfProjectile(kind: Projectile3D['kind']): WeaponSlot3D | 0 {
-  return kind === 'pulse' ? 1 : kind === 'scatter' ? 2 : kind === 'grenade' ? 3 : 0;
+  return kind === 'pulse' ? 1 : kind === 'scatter' ? 2 : kind === 'grenade' ? 3 : kind === 'rocket' ? 6 : 0;
 }
 
 function stepProjectiles3D(w: WorldState3D): void {
   const dt = ABILITY_3D.dt;
   const col = buildCollider3D(w.level, w.openDoors);
   const kept: Projectile3D[] = [];
-  const blast = (pr: Projectile3D): void =>
-    triggerExplosion3D(w, pr.x, pr.y, 0, 4.1, pr.damage, 0xff8a30, 18, 3);
+  const blast = (pr: Projectile3D): void => {
+    if (pr.kind === 'rocket') triggerExplosion3D(w, pr.x, pr.y, 0, ROCKET_3D.radius, pr.damage, 0xffa23a, 0, 6, ROCKET_3D.enemyKnock);
+    else triggerExplosion3D(w, pr.x, pr.y, 0, 4.1, pr.damage, 0xff8a30, 18, 3);
+  };
+  const explosive = (k: Projectile3D['kind']): boolean => k === 'grenade' || k === 'rocket';
 
   for (const pr of w.projectiles) {
     pr.lifeTicks--;
     if (pr.lifeTicks <= 0) {
-      if (pr.kind === 'grenade') blast(pr);
+      if (explosive(pr.kind)) blast(pr);
       continue;
     }
     if (pr.kind === 'grenade') pr.vy -= 21.5 * dt;
+    if (pr.kind === 'rocket') {
+      // Slow start, steady acceleration along a straight line
+      const sp = Math.hypot(pr.vx, pr.vy) || 1;
+      const ns = Math.min(ROCKET_3D.maxSpeed, sp + ROCKET_3D.accel * dt);
+      pr.vx *= ns / sp;
+      pr.vy *= ns / sp;
+    }
 
     const nextX = pr.x + pr.vx * dt;
     const nextY = pr.y + pr.vy * dt;
@@ -1206,11 +1430,15 @@ function stepProjectiles3D(w: WorldState3D): void {
     const hit = solidHitAt(col, nextX, nextY, pr.radius);
     if (hit) {
       if (hit.doorId && pr.fromPlayer) {
-        if (pr.kind === 'grenade') {
+        if (explosive(pr.kind)) {
           blast(pr);
         } else {
           tryOpenDoor3D(w, hit, weaponOfProjectile(pr.kind));
         }
+        continue;
+      }
+      if (pr.kind === 'rocket') {
+        blast(pr);
         continue;
       }
       if (pr.kind === 'grenade') {
@@ -1256,7 +1484,7 @@ function stepProjectiles3D(w: WorldState3D): void {
       for (const e of w.enemies) {
         if (!e.alive) continue;
         if (Math.abs(e.x - pr.x) <= e.radius + pr.radius && pr.y >= e.y - 0.2 && pr.y <= e.y + e.height + 0.35) {
-          if (pr.kind === 'grenade') {
+          if (explosive(pr.kind)) {
             blast(pr);
           } else if (pr.kind === 'scatter') {
             // Close range is the Scattergun's job: damage and knockback fall off with distance travelled
@@ -1275,7 +1503,7 @@ function stepProjectiles3D(w: WorldState3D): void {
         for (const h of w.hives) {
           if (!h.alive) continue;
           if (Math.abs(h.x - pr.x) <= h.radius + pr.radius && pr.y >= h.y - 0.1 && pr.y <= h.y + h.height + 0.2) {
-            if (pr.kind === 'grenade') blast(pr);
+            if (explosive(pr.kind)) blast(pr);
             else damageHive(w, h, pr.damage, weaponOfProjectile(pr.kind));
             consumed = true;
             break;
@@ -1286,7 +1514,7 @@ function stepProjectiles3D(w: WorldState3D): void {
         for (const b of w.barrels) {
           if (!b.alive) continue;
           if (Math.abs(b.x - pr.x) <= 0.55 + pr.radius && pr.y >= b.y && pr.y <= b.y + 1.45) {
-            if (pr.kind === 'grenade') {
+            if (explosive(pr.kind)) {
               blast(pr);
             } else {
               b.hp -= pr.damage;
@@ -1303,7 +1531,7 @@ function stepProjectiles3D(w: WorldState3D): void {
         }
       }
       if (!consumed && Math.hypot(w.level.corePos.x - pr.x, 1.2 - pr.y) <= w.level.corePos.radius) {
-        if (pr.kind === 'grenade') blast(pr);
+        if (explosive(pr.kind)) blast(pr);
         else damageCore(w, pr.damage);
         consumed = true;
       }
@@ -2236,7 +2464,7 @@ function applyUpgrade(w: WorldState3D, id: string, kind: UpgradePickupKind3D): v
     setHint(w, 'CRAWL SLIDE ONLINE: GROUND DASH + S UNDER LOW TUNNELS');
   } else if (kind === 'ammo_expansion') {
     p.ammoExpansions++;
-    for (const sl of [2, 3, 4] as const) {
+    for (const sl of AMMO_WEAPONS_3D) {
       if (p.unlocked[sl]) p.ammo[sl] += Math.ceil(WEAPON_META[sl].initialAmmo * 0.5);
     }
     setHint(w, 'AMMO EXPANSION: RECHARGE LEVEL +50%');
@@ -2296,7 +2524,7 @@ export function breakBlock3D(w: WorldState3D, s: MapSolid3D): boolean {
 function activateSave(w: WorldState3D, id: string): void {
   const p = w.player;
   p.hp = p.maxHp;
-  for (const s of [2, 3, 4] as const) {
+  for (const s of AMMO_WEAPONS_3D) {
     if (p.unlocked[s]) p.ammo[s] = Math.max(p.ammo[s], Math.round(WEAPON_META[s].initialAmmo * (1 + 0.5 * p.ammoExpansions)));
   }
   w.lastSaveId = id;
@@ -2458,6 +2686,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   }
   if (p.body.dashCanceled) w.events.push({ type: 'dash_cancel' });
   if (p.body.stompLanded) stompBlast(w);
+  if (p.body.grounded) p.rocketBoosted = false;
 
   if (w.combo.ticksLeft > 0 && --w.combo.ticksLeft === 0) w.combo.count = 0;
 
@@ -2500,6 +2729,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
     p.railCharge = 0;
     if (input.fire) fireWeapon3D(w);
   }
+  if (!(input.fire && p.weapon === 5)) p.flameStreak = 0;
 
   // Weapon, medical and ammo pickups
   for (const pk of w.pickups) {
@@ -2508,7 +2738,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
       if (pk.kind === 'weapon' && pk.weapon) {
         pk.taken = true;
         p.unlocked[pk.weapon] = true;
-        if (pk.weapon !== 1) p.ammo[pk.weapon as 2 | 3 | 4] += pk.value;
+        if (pk.weapon !== 1) p.ammo[pk.weapon as 2 | 3 | 4 | 5 | 6] += pk.value;
         p.weapon = pk.weapon;
         w.events.push({ type: 'pickup' });
       } else if (pk.kind === 'med' && p.hp < p.maxHp && w.meltdownTicks < 0) {
@@ -2517,9 +2747,9 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
         w.events.push({ type: 'pickup' });
       } else if (pk.kind === 'ammo') {
         pk.taken = true;
-        p.ammo[2] += pk.value;
-        p.ammo[3] += Math.ceil(pk.value * 0.45);
-        p.ammo[4] += Math.ceil(pk.value * 0.35);
+        for (const sl of AMMO_WEAPONS_3D) {
+          if (sl <= 4 || p.unlocked[sl]) p.ammo[sl] += Math.ceil(pk.value * AMMO_PICKUP_SHARE_3D[sl]);
+        }
         w.events.push({ type: 'pickup' });
       }
     }
@@ -2591,6 +2821,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
 
   stepSwitches3D(w, input.interact);
   stepProjectiles3D(w);
+  stepBurn3D(w);
   stepHazards3D(w);
   stepCollapse3D(w);
   stepHives3D(w);

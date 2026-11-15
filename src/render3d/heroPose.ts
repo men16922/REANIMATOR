@@ -2,7 +2,7 @@
 // weapon recoil decay, weapon swap timing and the diegetic HP colour. Everything here is render-only and reads the
 // simulation without writing to it (R3.3 keeps the headlamp out of gameplay). Unit-tested in tests/hero.test.ts.
 
-export type HeroWeapon = 1 | 2 | 3 | 4;
+export type HeroWeapon = 1 | 2 | 3 | 4 | 5 | 6;
 
 export type HeroPoseState =
   | 'idle'
@@ -232,6 +232,9 @@ export const RECOIL_PROFILE: Record<HeroWeapon, RecoilProfile> = {
   2: { kick: 1.0, decay: 9, climb: 0.2, back: 0.14, rock: 0.14, foregrip: 0.27 },
   3: { kick: 0.85, decay: 10, climb: 0.15, back: 0.11, rock: 0.11, foregrip: 0.22 },
   4: { kick: 1.25, decay: 6.5, climb: 0.24, back: 0.2, rock: 0.2, foregrip: 0.3 },
+  // Flamer: constant light shudder. Rocket: the heaviest kick, slow to settle.
+  5: { kick: 0.14, decay: 24, climb: 0.02, back: 0.025, rock: 0.025, foregrip: 0.2 },
+  6: { kick: 1.4, decay: 5, climb: 0.28, back: 0.24, rock: 0.24, foregrip: 0.3 },
 };
 
 export interface RecoilState {

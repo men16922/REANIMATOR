@@ -24,10 +24,10 @@ test('rankFor: S needs a clean, complete, fast win; losses are always C', () => 
   assert.equal(rankFor(false, 100, 0, 100), 'C');
 });
 
-test('collectionPercent counts upgrades and weapons 2-4', () => {
+test('collectionPercent counts upgrades and weapons 2-6', () => {
   const w = newWorld3D();
   assert.equal(collectionPercent(w), 0);
-  for (const s of [2, 3, 4] as const) w.player.unlocked[s] = true;
+  for (const s of [2, 3, 4, 5, 6] as const) w.player.unlocked[s] = true;
   for (const u of w.level.upgrades) w.collectedUpgrades.add(u.id);
   assert.equal(collectionPercent(w), 100);
 });
@@ -36,7 +36,7 @@ test('buildRunStats converts ticks to seconds and ranks the run', () => {
   const w = newWorld3D();
   w.tick = 60 * 90;
   w.status = 'won';
-  for (const s of [2, 3, 4] as const) w.player.unlocked[s] = true;
+  for (const s of [2, 3, 4, 5, 6] as const) w.player.unlocked[s] = true;
   for (const u of w.level.upgrades) w.collectedUpgrades.add(u.id);
   for (const l of w.collectibles) l.taken = true;
   for (const pk of w.pickups) pk.taken = true;

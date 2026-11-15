@@ -5,7 +5,7 @@ import { ABILITY_3D, floorHeightAt3D, stepBody3D, spawnBody3D, type Body3D } fro
 import { buildCollider3D, buildFacilityMap3D, type Level3D } from '../../src/game3d/map3d.ts';
 import { navReached, navSteer, type NavTarget } from '../../src/game3d/nav3d.ts';
 import { hazardCrossHorizon, hazardHits, hazardHold, hazardSafeWindow } from '../../src/game3d/hazards.ts';
-import { MELTDOWN_TICKS, SEAL_FINAL_CLOSED_TICKS, SEAL_FINAL_ID, SEAL_FINAL_WARN_TICKS, ESCAPE_BEATS_3D } from '../../src/game3d/world3d.ts';
+import { MELTDOWN_TICKS, SEAL_FINAL_CLOSED_TICKS, SEAL_FINAL_ID, SEAL_FINAL_WARN_TICKS, ESCAPE_BEATS_3D, ROCKET_JUMP_3D, emptyInput3D, newWorld3D, stepWorld3D } from '../../src/game3d/world3d.ts';
 
 export interface ReachStep extends NavTarget {
   label: string;
@@ -581,7 +581,13 @@ export function buildCompletionLegs(level: Level3D): CompletionLeg[] {
   const tn = (id: string) => level.tunnels.find((t) => t.id === id)!;
   const t = (id: string, tol = 0.9): NavTarget => ({ x: up(id).x, y: up(id).y, tolX: tol, tolY: 0.5 });
   const under = tn('tun-underfloor');
+  const ped = (id: string) => level.pedestals.find((q) => q.id === id)!;
+  const pt = (id: string): NavTarget => ({ x: ped(id).x, y: ped(id).y, tolX: 0.9, tolY: 0.4 });
   return [
+    // Round 6 arms: Flamer on the Bio-Labs west ledge (one jump from the first gantry), Rocket on the Security Deck past the console.
+    // Neither needs Boots or the Crawl Slide, so both are walked with a single jump.
+    { label: 'ped-flamer', from: { x: 48, y: 2.2 }, target: pt('ped-flamer'), doors: all, maxJumps: 1 },
+    { label: 'ped-rocket', from: { x: 65, y: 8.8 }, target: { ...pt('ped-rocket'), leap: true }, doors: all, maxJumps: 1 },
     // Crawl Slide module: Security Deck west end, no ability needed
     { label: 'crawl_slide', from: { x: 52, y: 8.8 }, target: t('crawl_slide'), doors: all, maxJumps: 2 },
     // Backtrack 1: Airlock Underfloor Duct (Energy Tank 3). Walk to the ledge, then slide
@@ -608,6 +614,11 @@ export function checkCompletion(level: Level3D): string[] {
   const covered = new Set(buildCompletionLegs(level).map((l) => l.label.split(' ')[0]));
   for (const u of level.upgrades) {
     if (!mainRoute.has(u.id) && !covered.has(u.id)) problems.push(`upgrade ${u.id} is not on any completion leg`);
+  }
+  // Weapons: pedestals 2-4 sit on the main route, the Round 6 arms have explicit legs
+  const mainPeds = new Set(['ped-scatter', 'ped-grenade', 'ped-rail']);
+  for (const q of level.pedestals) {
+    if (!mainPeds.has(q.id) && !covered.has(q.id)) problems.push(`pedestal ${q.id} is not on any completion leg`);
   }
   return problems;
 }
@@ -645,6 +656,130 @@ export function checkEscapeFairness(level: Level3D): { problems: string[]; route
   return { problems, routeTicks, spareTicks };
 }
 
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Round 6 arms: the Rocket launcher's self-blast must never substitute for Thruster Boots (4.4 m gates) or the Crawl Slide (tunnels).
+// ---------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Real-world rocket-jump probe (stepWorld3D, no Boots, no Crawl Slide, enemies removed). Sweeps jump timing, hold length, rocket
+ * timing and aim (down, down-forward, down-back), horizontal input, and an optional dash, firing at most one rocket per schedule
+ * plus a follow-up rocket. Returns true if any schedule lands (grounded) on `target`.
+ */
+export function rocketJumpReaches(
+  from: { x: number; y: number },
+  target: NavTarget,
+  /** 'land' = grounded inside the target tolerance (tunnels); 'height' = feet ever reach the target's elevation (gates, conservative) */
+  mode: 'land' | 'height' = 'land',
+  maxTicks = 170,
+): { reached: boolean; apex: number } {
+  const openAll = true;
+  let apex = from.y;
+  const w = newWorld3D();
+  for (const e of w.enemies) e.alive = false;
+  for (const h of w.hives) h.alive = false;
+  for (const b of w.barrels) b.alive = false;
+  if (openAll) for (const s of w.level.solids) if (s.doorId) w.openDoors.add(s.doorId);
+  const towards = Math.sign(target.x - from.x) || 1;
+  for (const jumpAt of [0, 6, 14, 24]) {
+    for (const hold of [2, 40]) {
+      for (const fireOff of [-3, 0, 3, 7, 12, 18, 26, 36]) {
+        for (const aimDeg of [90, 62, 35, 118]) {
+          for (const mv of [towards, 0]) {
+            for (const dashAt of [-1, jumpAt + 8]) {
+              // reset the single reusable world
+              w.status = 'playing';
+              w.projectiles = [];
+              w.explosions = [];
+              w.tick = 0;
+              const p = w.player;
+              p.body = spawnBody3D(from.x, from.y, 0);
+              p.hp = p.maxHp;
+              p.hurtInvulnTicks = 0;
+              p.fireCooldown = 0;
+              p.rocketBoosted = false;
+              p.unlocked[6] = true;
+              p.ammo[6] = 9;
+              p.weapon = 6;
+              p.abilities.thrusterBoots = false;
+              p.abilities.crawlSlide = false;
+              let followed = false;
+              for (let t = 0; t < maxTicks; t++) {
+                const inp = emptyInput3D();
+                inp.moveX = mv;
+                inp.jump = t >= jumpAt && t < jumpAt + hold;
+                inp.dash = t === dashAt;
+                const fireAt = jumpAt + fireOff;
+                // second rocket a bit after the first lands, aimed down again (the one-boost-per-airborne rule must hold)
+                const shoot = t === fireAt || (!followed && t === fireAt + 24 && fireAt >= 0);
+                if (t === fireAt + 24) followed = true;
+                inp.fire = shoot && fireAt >= 0;
+                const b = p.body;
+                const a = (aimDeg * Math.PI) / 180;
+                // aim 90 = straight down; angles lean toward the target side (or away when > 90)
+                inp.aimX = b.x + Math.cos(a - Math.PI / 2) * towards * 4;
+                inp.aimY = b.y + 1.12 - Math.sin(a) * 4;
+                stepWorld3D(w, inp);
+                if (w.status !== 'playing') break;
+                const nb = p.body;
+                apex = Math.max(apex, nb.y);
+                if (mode === 'height' ? nb.y >= target.y - 0.05 : navReached(nb, target) && nb.grounded) return { reached: true, apex };
+                if (nb.y < from.y - 14) break;
+                if (nb.grounded && t > fireAt + 40) break;
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  return { reached: false, apex };
+}
+
+export interface RocketProbeSite {
+  label: string;
+  from: { x: number; y: number };
+  target: NavTarget;
+  mode: 'land' | 'height';
+}
+
+/** The three Thruster Boots gates (4.4 m) and the two Crawl Slide tunnels. */
+export function rocketProbeSites(level: Level3D): RocketProbeSite[] {
+  const sites: RocketProbeSite[] = [
+    { label: 'shaft upper deck', from: { x: 38, y: 4.4 }, target: { x: 31, y: 8.8 }, mode: 'height' },
+    { label: 'security grate', from: { x: 65, y: 4.4 }, target: { x: 65, y: 8.8 }, mode: 'height' },
+    { label: 'security grate (west plat)', from: { x: 55, y: 4.5 }, target: { x: 65, y: 8.8 }, mode: 'height' },
+  ];
+  for (const tn of level.tunnels) sites.push({ label: tn.id, from: tn.approach, target: { x: tn.exit.x, y: tn.exit.y, tolX: 0.7, tolY: 0.5 }, mode: 'land' });
+  return sites;
+}
+
+/**
+ * Rocket jump must not bypass any Thruster Boots gate or Crawl Slide tunnel. The control run lifts the vertical cap (and only that) and
+ * must then reach at least one gate, otherwise the probe is too weak to mean anything. Returns problems (empty = OK).
+ */
+export function checkRocketJump(level: Level3D): { problems: string[]; bestApex: number } {
+  const problems: string[] = [];
+  const sites = rocketProbeSites(level);
+  let bestApex = 0;
+  for (const s of sites) {
+    const r = rocketJumpReaches(s.from, s.target, s.mode);
+    if (s.mode === 'height') bestApex = Math.max(bestApex, r.apex - s.from.y);
+    if (r.reached) problems.push(`${s.label}: rocket jump reaches the target without Boots / Crawl Slide (apex ${r.apex.toFixed(2)})`);
+  }
+  const saved = { ...ROCKET_JUMP_3D };
+  try {
+    ROCKET_JUMP_3D.vyCap = 40;
+    ROCKET_JUMP_3D.kickY = 40;
+    ROCKET_JUMP_3D.radius = 6;
+    const gateReached = sites.slice(0, 3).some((s) => rocketJumpReaches(s.from, s.target, s.mode).reached);
+    if (!gateReached) problems.push('control: an uncapped rocket jump reaches no boots gate, so the probe is not exercising the blast');
+  } finally {
+    Object.assign(ROCKET_JUMP_3D, saved);
+  }
+  return { problems, bestApex };
+}
+
 // Only run when executed directly (tests import walkTo/buildReachRoute).
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const total = runRoute();
@@ -664,6 +799,10 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   const esc = checkEscapeFairness(lvl);
   console.log(esc.problems.length === 0 ? `ESCAPE fairness: walking route ${(esc.routeTicks / 60).toFixed(1)} s, ${(esc.spareTicks / 60).toFixed(1)} s spare before the final hatch shuts: OK` : `ESCAPE FAILED: ${esc.problems.join('; ')}`);
   if (esc.problems.length > 0) process.exit(1);
+  const t0 = Date.now();
+  const rj = checkRocketJump(lvl);
+  console.log(rj.problems.length === 0 ? `ROCKET JUMP: no bypass of ${rocketProbeSites(lvl).length} boots gates / tunnels (vy cap ${ROCKET_JUMP_3D.vyCap} m/s, best rise ${rj.bestApex.toFixed(2)} m of 4.40 m), uncapped control reaches a gate (${Date.now() - t0} ms): OK` : `ROCKET JUMP FAILED: ${rj.problems.join('; ')}`);
+  if (rj.problems.length > 0) process.exit(1);
   const n = buildReachRoute(buildFacilityMap3D()).length;
   console.log(`REACH3D PASS: ${n} waypoints, ${total} ticks (${(total / 60).toFixed(1)} s), Thruster Boots gate verified.`);
 }

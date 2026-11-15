@@ -18,7 +18,7 @@ export interface GlowPart {
 
 export interface WeaponRig {
   slot: HeroWeapon;
-  name: 'pulse-rifle' | 'scatter-gun' | 'grenade-drum' | 'rail-cannon';
+  name: 'pulse-rifle' | 'scatter-gun' | 'grenade-drum' | 'rail-cannon' | 'flamer' | 'rocket-launcher';
   root: THREE.Object3D;
   muzzle: THREE.Object3D;
   glow: GlowPart[];
@@ -32,9 +32,11 @@ export const WEAPON_MODEL_NAME: Record<HeroWeapon, WeaponRig['name']> = {
   2: 'scatter-gun',
   3: 'grenade-drum',
   4: 'rail-cannon',
+  5: 'flamer',
+  6: 'rocket-launcher',
 };
 
-const GLOW_COLOR: Record<HeroWeapon, number> = { 1: 0x39e6ff, 2: 0xff7a28, 3: 0xb8ff3a, 4: 0x9a5cff };
+const GLOW_COLOR: Record<HeroWeapon, number> = { 1: 0x39e6ff, 2: 0xff7a28, 3: 0xb8ff3a, 4: 0x9a5cff, 5: 0xff5a14, 6: 0xffc23a };
 
 const GUN_STEEL = new THREE.MeshStandardMaterial({ color: 0x3a424c, metalness: 0.72, roughness: 0.36 });
 const GUN_DARK = new THREE.MeshStandardMaterial({ color: 0x171b21, metalness: 0.55, roughness: 0.5 });
@@ -153,6 +155,54 @@ export function buildRail(): WeaponRig {
   return { slot: 4, name: 'rail-cannon', root, muzzle, glow, coils };
 }
 
+/** Flamer: a fuel tank slung under a short heat-shielded nozzle with a glowing pilot light. */
+export function buildFlamer(): WeaponRig {
+  const root = new THREE.Group();
+  const glow: GlowPart[] = [];
+  box(root, 0.3, 0.1, 0.085, GUN_STEEL, 0.02, 0.03, 0); // receiver
+  box(root, 0.2, 0.09, 0.07, GUN_WARM, 0.28, 0.0, 0).rotation.z = -0.1; // stock
+  box(root, 0.07, 0.15, 0.06, GUN_DARK, 0.06, -0.1, 0).rotation.z = 0.25; // grip
+  tube(root, 0.04, -0.1, -0.5, GUN_STEEL, 0.04); // nozzle barrel
+  tube(root, 0.062, -0.38, -0.56, GUN_DARK, 0.04, 0, 0.074); // heat shroud around the tip
+  // pressurised fuel tank riding above the receiver, axis along X
+  tube(root, 0.075, -0.02, -0.32, GUN_DARK, 0.145);
+  box(root, 0.03, 0.05, 0.09, GUN_STEEL, -0.1, 0.1, 0); // tank strap
+  const g = glowMat(GLOW_COLOR[5], 1.7);
+  glow.push(g.part);
+  ring(root, 0.058, 0.011, -0.545, 0.04, g.mat); // nozzle heat ring
+  const pilot = addMesh(root, new THREE.SphereGeometry(0.02, 8, 6), g.mat, -0.595, 0.04, 0); // pilot flame
+  pilot.castShadow = false;
+  for (const s of [-1, 1]) box(root, 0.12, 0.012, 0.01, g.mat, -0.02, 0.05, s * 0.044); // side vents
+  const muzzle = new THREE.Object3D();
+  muzzle.position.set(-0.62, 0.04, 0);
+  root.add(muzzle);
+  mergeStaticChildren(root);
+  return { slot: 5, name: 'flamer', root, muzzle, glow, coils: [] };
+}
+
+/** Rocket launcher: a fat shoulder tube with a flared rear exhaust and a warhead tip showing at the muzzle. */
+export function buildRocket(): WeaponRig {
+  const root = new THREE.Group();
+  const glow: GlowPart[] = [];
+  tube(root, 0.085, 0.3, -0.62, GUN_STEEL, 0.06, 0, 0.09); // main launch tube
+  tube(root, 0.1, 0.3, 0.4, GUN_DARK, 0.06, 0, 0.12); // rear exhaust flare
+  tube(root, 0.1, -0.58, -0.66, GUN_DARK, 0.06, 0, 0.1); // muzzle collar
+  box(root, 0.07, 0.15, 0.06, GUN_DARK, 0.08, -0.07, 0).rotation.z = 0.25; // grip
+  box(root, 0.06, 0.12, 0.05, GUN_DARK, -0.28, -0.08, 0); // foregrip
+  box(root, 0.22, 0.03, 0.04, GUN_STEEL, -0.1, 0.17, 0); // sight rail
+  box(root, 0.04, 0.06, 0.03, GUN_DARK, -0.22, 0.2, 0); // front post
+  const g = glowMat(GLOW_COLOR[6], 1.6);
+  glow.push(g.part);
+  const tip = tube(root, 0.04, -0.6, -0.72, g.mat, 0.06, 0, 0.012); // warhead tip pointing out of the tube
+  tip.castShadow = false;
+  ring(root, 0.092, 0.012, -0.5, 0.06, g.mat); // armed band
+  const muzzle = new THREE.Object3D();
+  muzzle.position.set(-0.74, 0.06, 0);
+  root.add(muzzle);
+  mergeStaticChildren(root);
+  return { slot: 6, name: 'rocket-launcher', root, muzzle, glow, coils: [] };
+}
+
 function buildPulseWrapper(inst: RiggedInstance): WeaponRig | null {
   const pivot = inst.riflePivot;
   if (!pivot || !inst.muzzleLocal) return null;
@@ -198,7 +248,7 @@ export class HeroGear {
     const pivot = inst.riflePivot;
     const pulse = buildPulseWrapper(inst);
     if (pulse) this.weapons[1] = pulse;
-    for (const w of [buildScatter(), buildGrenade(), buildRail()]) {
+    for (const w of [buildScatter(), buildGrenade(), buildRail(), buildFlamer(), buildRocket()]) {
       this.weapons[w.slot] = w;
       pivot?.add(w.root);
       w.root.visible = false;
@@ -281,7 +331,7 @@ export class HeroGear {
 
   private setShown(slot: HeroWeapon): void {
     this.shown = slot;
-    for (const key of [1, 2, 3, 4] as const) {
+    for (const key of [1, 2, 3, 4, 5, 6] as const) {
       const w = this.weapons[key];
       if (w) w.root.visible = key === slot;
     }

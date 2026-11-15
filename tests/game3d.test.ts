@@ -1114,7 +1114,7 @@ test('exploration: six data logs (one per sector), completion percent and run su
   stepN(w, 1);
   assert.equal(w.completion.percent, 0);
   assert.equal(w.completion.logsTotal, 6);
-  assert.equal(w.completion.total, 6 + 4 + 7 + 3, 'logs + secrets + upgrades + weapons');
+  assert.equal(w.completion.total, 6 + 4 + 7 + 5, 'logs + secrets + upgrades + weapons');
 
   const log = w.collectibles.find((c) => c.id === 'log_mines')!;
   place(w, log.x, log.y);
@@ -1122,7 +1122,7 @@ test('exploration: six data logs (one per sector), completion percent and run su
   assert.ok(log.taken);
   assert.ok(w.events.some((e) => e.type === 'collect'));
   assert.equal(w.completion.logsFound, 1);
-  assert.equal(w.completion.percent, Math.round((100 * 1) / 20));
+  assert.equal(w.completion.percent, Math.round((100 * 1) / 22));
   // Taking it again does nothing
   stepN(w, 2);
   assert.equal(w.completion.logsFound, 1);

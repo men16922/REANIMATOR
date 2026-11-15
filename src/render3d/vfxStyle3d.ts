@@ -47,7 +47,7 @@ export function stepChroma(c: number, dt: number): number {
 // ---------------------------------------------------------------------------------------------------------
 // Projectile styles. Enemy shots read as danger (red, green), player shots as allied weapon colours.
 // ---------------------------------------------------------------------------------------------------------
-export type ProjectileKind = 'pulse' | 'scatter' | 'grenade' | 'enemy_acid' | 'boss_plasma';
+export type ProjectileKind = 'pulse' | 'scatter' | 'grenade' | 'rocket' | 'enemy_acid' | 'boss_plasma';
 
 export interface ProjectileStyle {
   hostile: boolean;
@@ -68,6 +68,7 @@ const STYLES: Record<string, ProjectileStyle> = {
   pulse: { hostile: false, core: [0.85, 1, 1], glow: [0.1, 0.85, 1], coreSize: 0.2, glowSize: 0.62, tail: 4.5, ringSparks: 0, ringRadius: 0 },
   scatter: { hostile: false, core: [1, 0.95, 0.75], glow: [1, 0.55, 0.12], coreSize: 0.13, glowSize: 0.36, tail: 3, ringSparks: 0, ringRadius: 0 },
   grenade: { hostile: false, core: [1, 0.85, 0.5], glow: [1, 0.45, 0.1], coreSize: 0.3, glowSize: 0.8, tail: 0, ringSparks: 0, ringRadius: 0 },
+  rocket: { hostile: false, core: [1, 0.92, 0.65], glow: [1, 0.62, 0.16], coreSize: 0.34, glowSize: 0.9, tail: 5, ringSparks: 0, ringRadius: 0 },
   enemy_acid: { hostile: true, core: [0.85, 1, 0.55], glow: [0.3, 1, 0.12], coreSize: 0.2, glowSize: 0.6, tail: 3.5, ringSparks: 2, ringRadius: 0.3 },
   boss_plasma: { hostile: true, core: [1, 0.85, 0.7], glow: [1, 0.16, 0.1], coreSize: 0.3, glowSize: 0.95, tail: 5, ringSparks: 3, ringRadius: 0.5 },
 };

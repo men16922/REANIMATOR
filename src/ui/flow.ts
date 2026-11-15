@@ -14,15 +14,15 @@ export interface RunStats {
   rank: Rank;
 }
 
-/** Share of upgrades (Boots, E-Tanks) and weapons (2-4) collected, 0..100. */
+/** Share of upgrades (Boots, E-Tanks) and weapons (2-6) collected, 0..100. */
 export function collectionPercent(w: WorldState3D): number {
   const upgrades = w.level.upgrades.length;
-  const weaponsTotal = 3;
+  const weaponsTotal = 5;
   const total = upgrades + weaponsTotal;
   if (total === 0) return 100;
   const have =
     w.level.upgrades.filter((u) => w.collectedUpgrades.has(u.id)).length +
-    ([2, 3, 4] as const).filter((s) => w.player.unlocked[s]).length;
+    ([2, 3, 4, 5, 6] as const).filter((s) => w.player.unlocked[s]).length;
   return Math.round((have / total) * 100);
 }
 

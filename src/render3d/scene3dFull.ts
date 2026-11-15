@@ -1516,7 +1516,7 @@ export class Scene3DRenderer {
     if (existing) return existing;
     const grp = new THREE.Group();
     const color =
-      kind === 'log' ? 0xc9a8ff : kind === 'med' ? 0x3dff88 : kind === 'ammo' ? 0xf5b942 : weapon === 4 ? 0xd946ef : weapon === 3 ? 0xff7b2f : 0x2bf0ff;
+      kind === 'log' ? 0xc9a8ff : kind === 'med' ? 0x3dff88 : kind === 'ammo' ? 0xf5b942 : weapon === 6 ? 0xffc23a : weapon === 5 ? 0xff5a14 : weapon === 4 ? 0xd946ef : weapon === 3 ? 0xff7b2f : 0x2bf0ff;
 
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(0.45, 0.6, 20),
