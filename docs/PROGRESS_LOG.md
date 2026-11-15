@@ -43,3 +43,10 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - 충돌: lore와 lab 병합 시 `index.html`, `main.ts`, (lore) `style.css`. 양쪽 유지로 해결. `SECTOR_SUBTITLE` 미사용 import 제거.
 - M05: 원래 Lab이 이미 holdout 로그를 표시했고 R8도 동일한 읽기 전용 경로라 정책 충돌 없음.
 - 봉인 파일 무변경. `make check` exit 0(테스트 427/427, reach3d 52 waypoints, dist-guard 13 files 14,775,872 B). 브라우저 검증은 하지 않았다(unverified).
+
+## 2026-11-15 — R9 통합 (r9/fix, world, abuse, parry)
+
+- Status: main에 `--no-ff` 4회 병합(fix, world, abuse, parry; abuse와 parry 병합 순서는 실행 중 뒤바뀜, 결과 동일), 푸시 없음.
+- 충돌: `tests/game3d.test.ts` 1곳, 양쪽 테스트 유지.
+- 통합 보강: `scanTargets3D`가 기댐 가짜 벽(`break_lean_security`)을 시크릿으로 분류(+테스트). 키 X/C/Z는 컨텍스트별 한 의미(사망 화면 C는 Resume, 플레이 중 C는 카운터 보조). [R9_PARRY](R9_PARRY.md).
+- 봉인 파일 무변경. `make check` exit 0(테스트 459/459, reach3d 52 waypoints 3432 ticks, 봇 5362 ticks HP 112/160 56 kills, dist-guard 13 files 14,790,497 B). 브라우저 검증은 하지 않았다(unverified).

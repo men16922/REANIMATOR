@@ -2506,16 +2506,18 @@ export function scanTargets3D(w: WorldState3D, radius: number = SCAN_RADIUS, out
   out.secrets.length = 0;
   out.pickups.length = 0;
   for (const s of w.level.solids) {
-    const isBlock = !!s.breakId && !w.openDoors.has(s.breakId);
+    const gate = s.breakId ?? s.doorId;
+    const closed = !!gate && !w.openDoors.has(gate);
     let isSecret = false;
-    if (!isBlock && s.doorId && !w.openDoors.has(s.doorId)) {
+    if (closed) {
       for (const sr of w.level.secrets) {
-        if (sr.doorId === s.doorId && !w.secretsFound.includes(sr.id)) {
+        if (sr.doorId === gate && !w.secretsFound.includes(sr.id)) {
           isSecret = true;
           break;
         }
       }
     }
+    const isBlock = !!s.breakId && closed && !isSecret;
     if (!isBlock && !isSecret) continue;
     if (!near((s.minX + s.maxX) / 2, (s.minY + s.maxY) / 2)) continue;
     (isSecret ? out.secrets : out.blocks).push(s);

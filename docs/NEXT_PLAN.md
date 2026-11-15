@@ -2,6 +2,12 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R9 병합 후
+
+- [x] fix → world → abuse → parry 병합, `make check` 통과(459/459).
+- [ ] 브라우저 확인(unverified): X/C 카운터 타이밍과 흰 점멸, Z 스캔 윤곽(기댐 벽 amber), 보안 데크 Vault Nook 기댐 열림, 픽업 자석, 섹터 소품, 사망 화면 `C` Resume, `__reanimatorUiAudit()`, 콘솔 오류 0.
+- [ ] 쇼케이스 재촬영과 `make smoke-local`. 카운터 입력 배정(X/C)에 대한 G5 관찰.
+
 ## R8 병합 후
 
 - [x] leak → assist → lore → lab 병합, `make check` 통과(427/427).

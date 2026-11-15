@@ -48,3 +48,8 @@ Not verified: human play-through difficulty, and `make smoke-local` on the newes
 ## Where to read more
 
 [`README.md`](../README.md) · [`docs/KIRO_USAGE.md`](KIRO_USAGE.md) · [`docs/reference/VERIFICATION_CONTRACT.md`](reference/VERIFICATION_CONTRACT.md) · [`docs/R3_CLASSIC.md`](R3_CLASSIC.md) · [`docs/R2_BOSS.md`](R2_BOSS.md)
+
+## R9 additions
+
+- Melee Counter (`X`/`C`) and Scan Pulse (`Z`) borrow Metroid Dread ideas. Security Deck hides a lean-to-open fake wall (Abuse style) with a Vault Nook reward, counted in completion (23 items). Pickups are chunky and magnetised. Details: [R9_PARRY](R9_PARRY.md), [R9_ABUSE](R9_ABUSE.md). Browser behaviour unverified in this round.
+

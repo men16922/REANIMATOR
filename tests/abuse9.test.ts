@@ -152,3 +152,12 @@ test('bot still wins with the magnet and the extra secret', () => {
   assert.equal(w.status, 'won');
   console.log(`bot: ${ticks} ticks, hp ${w.player.hp}/${w.player.maxHp}, kills ${w.player.kills}`);
 });
+
+import { scanTargets3D } from '../src/game3d/world3d.ts';
+test('Scan Pulse lists the lean fake wall as a secret, not a plain block', () => {
+  const w = newWorld3D();
+  w.player.body.x = 68; w.player.body.y = 12;
+  const t = scanTargets3D(w, 8);
+  assert.ok(t.secrets.some((s) => s.breakId === 'break_lean_security'));
+  assert.ok(!t.blocks.some((s) => s.breakId === 'break_lean_security'));
+});

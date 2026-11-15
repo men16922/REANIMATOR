@@ -31,3 +31,21 @@ Two Metroid Dread style additions that Abuse lacks. Both are opt-in by input, so
 - Browser visuals (parry flash, scan outlines and rings, HUD pill), audio feel and the key bindings in a real browser. Chrome cannot run in this environment.
 - Parry window timing as a human-feel value (8 ticks is a design guess, not playtested).
 - Draw call count with scan active is estimated from the pool size, not measured.
+
+## Key bindings after the R9 merge (decision)
+
+Audit of `src/ui/main.ts` key handlers. Only the `keydown` handler maps `KeyX`, `KeyC` and `KeyZ`. Crawl Slide has no key of its own (it triggers from the existing crouch/move input in tunnels), so nothing else claims these keys.
+
+| Key | `playing` | `result` (death/win screen) |
+| --- | --- | --- |
+| `X` | Melee Counter | none |
+| `C` | Melee Counter | Resume at Save (button label "Resume at Save (C)") |
+| `Z` | Scan Pulse | none |
+
+The result-screen `C` handler runs first and returns before the playing-only handlers, and the playing handlers are skipped when `mode !== 'playing'`. Each key therefore has one meaning per context. `X` is the unambiguous counter key, `C` is a secondary alias in play only. No code change was needed.
+
+## Integration notes
+
+- `scanTargets3D` now classifies a solid by its gate (`breakId ?? doorId`). A gate that is also the `doorId` of an unfound secret room (the Security lean wall `break_lean_security`) is listed under `secrets` (amber), not `blocks`. Covered by `tests/abuse9.test.ts`.
+- Sound event counts: parry adds 3 events (50 to 53), abuse adds pickup recipes; `tests/audio.test.ts` merged without change.
+- Browser checks (Chrome unavailable): unverified.

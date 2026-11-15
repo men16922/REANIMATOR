@@ -171,3 +171,7 @@ worktree `/private/tmp/r8-{leak,lab,assist,lore}`에서 4트랙을 돌리고 통
 
 - 통합 작업: 충돌 해결(index.html, main.ts, style.css), 미사용 import 제거, M05 접근 방식 점검, `make check` 427/427.
 - 브라우저 검증은 하지 않았다(unverified).
+
+## 2026-11-15 — R9 병렬 라운드 (오케스트레이터 + worktree 서브에이전트)
+
+- 서브에이전트 4개(fix, world, abuse, parry)가 worktree에서 병렬 작업, 통합 에이전트가 `--no-ff` 병합과 `make check`를 수행했다. 충돌은 `tests/game3d.test.ts` 1곳. 키 배정 감사와 스캔의 기댐 벽 분류 보강을 통합 단계에서 추가했다. 브라우저 검증 unverified.
