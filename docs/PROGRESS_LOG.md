@@ -1,5 +1,12 @@
 # 진행 기록
 
+## 2026-11-15 — 몬스터·지형 개선 2라운드: 활성화 범위·도약 쿨다운·시각 포화 (Kiro)
+- 발견 1 수정(`world3d.ts`): 활성화에 근접 조건(수평 24 m, 수직 16 m) 추가, lostNow에 수직 24 m 조건 추가. 원인은 디버그 텔레포트 위치가 방 사각형 밖이라 `currentRoom`이 airlock으로 남은 것.
+- 발견 2 수정: 크롤러·스토커 도약 종료(접촉·낙하 가드 포함) 시 `attackCooldown` 84/70틱 부여와 속도 0. 추격 중 쿨다운이면 2.2 m 안에서 0.55배속으로 물러난다. 기대 전이: windup 14 → attack ≤16 → recover 40 → chase(물러남) → 쿨다운 소진 후에만 windup (도약 간격 약 84틱 이상).
+- 발견 3 수정(시각, unverified): Airlock 바닥 슬랩 색 0x1e252e→0x4a5866(전경 검은 박스 추정 원인), 업그레이드 케이지 opacity 0.28→0.12·코어 emissive 0.65→0.4, acid emissive 0.5→0.16·색 0x5f7a50·라이트 3→1.1, 콘솔 링 emissive 1.8→0.6·두께 0.05→0.035.
+- 테스트 추가 2건: 다른 섹터 dormant 유지, 크롤러 재웅크림 간격 ≥60틱. 56/56.
+- 검증: `make check` exit 0, reach3d 52 waypoints 3431 ticks, 봇 완주. 브라우저 확인은 unverified(오케스트레이터가 `ov_*` 캡처 재촬영).
+
 ## 2026-11-15 — 몬스터·지형 전면 개선 마무리: 조명 프리셋·블룸 완화·텔레메트리 (FEAT-005, Kiro)
 - 커밋(`git log --oneline cb0d947..HEAD`): 8c9138c 계획 문서, 90a654c 몬스터 AI 상태, 4f879c6 몬스터 애니메이션 블렌딩, 506bd76 섹터 지형 세트 드레싱, 그리고 이번 `chore: lighting presets, bloom tamed pickups, telemetry, docs`.
 - 변경(`scene3dFull.ts`): 업그레이드 젬을 유리형 외곽 케이지(opacity 0.28, 와이어)와 내부 코어(emissive 0.65)로 분리, 받침대 emissive 0.2와 어두운 링 추가. Save 패드 emissive 1.1→0.5, 펄스 0.45±0.15, 빔 opacity 0.1→0.07, 어두운 베이스 링 추가. 섹터별 조명 프리셋(`SECTOR_LIGHT`: 하늘색·태양색·강도·블룸 0.30–0.40)을 방 전환 시 보간. PointLight 추가 0개. `w.light`는 여전히 시각 전용.

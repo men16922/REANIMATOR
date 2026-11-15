@@ -132,7 +132,7 @@ export function buildFacilityMap3D(): Level3D {
 
   const solids: MapSolid3D[] = [
     // ===== 1. room_airlock =====
-    box('airlock-floor', -0.5, 24, -1.2, 0, 'catwalk', { color: 0x1e252e }),
+    box('airlock-floor', -0.5, 24, -1.2, 0, 'catwalk', { color: 0x4a5866 }),
     box('airlock-ceiling', 0, 24, 9.0, 10.2),
     box('airlock-wall-west', -1.5, 0, 0, 10),
     box('airlock-balcony', 1.5, 13.5, 4.8, 5.2, 'catwalk', { color: 0x2a3542 }),

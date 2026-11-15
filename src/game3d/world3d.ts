@@ -928,7 +928,8 @@ function stepEnemies3D(w: WorldState3D): void {
     const isWarden = e.kind === 'warden';
 
     if (!e.active) {
-      if (e.zone === w.currentRoom || e.hitFlashTicks > 0 || (e.zone === 'core' && w.coreDestroyed)) {
+      const nearPlayer = dist < 24 && Math.abs(dy) < 16;
+      if ((e.zone === w.currentRoom && nearPlayer) || e.hitFlashTicks > 0 || (e.zone === 'core' && w.coreDestroyed)) {
         e.active = true;
         e.facing = dirX;
         e.turnTicks = 0;
@@ -1012,7 +1013,7 @@ function stepEnemies3D(w: WorldState3D): void {
       if (e.windupTicks === 0 && wantVx === 0 && e.attackAnimTicks === 0) e.anim = 'idle';
     } else {
       // ---- crawler / stalker / spitter ----
-      const lostNow = dist > 26 || e.zone !== w.currentRoom;
+      const lostNow = dist > 26 || e.zone !== w.currentRoom || Math.abs(dy) > 24;
       if (e.state === 'chase' || e.state === 'recover') {
         e.lostTicks = lostNow ? e.lostTicks + 1 : 0;
         if (e.lostTicks > ENEMY_LOSE_TICKS_3D && e.state === 'chase') {
@@ -1092,6 +1093,8 @@ function stepEnemies3D(w: WorldState3D): void {
           }
           if (e.lungeTicks <= 0) {
             direct = false;
+            e.attackCooldown = e.kind === 'stalker' ? 70 : 84;
+            e.vx = 0;
             setEnemyState(e, 'recover', e.kind === 'stalker' ? 30 : 40);
           }
           break;
@@ -1122,6 +1125,7 @@ function stepEnemies3D(w: WorldState3D): void {
             }
             const rage = e.kind === 'stalker' && dist < 7.5 ? 1.38 : 1.0;
             if (turning) wantVx = 0;
+            else if (e.attackCooldown > 0 && dist < 2.2) wantVx = -e.facing * stats.speed * 0.55; // back off while the lunge recharges
             else if (dist > 0.95) wantVx = e.facing * stats.speed * rage;
             if (
               e.kind === 'stalker' && e.hitFlashTicks > 0 && dist < 4 &&
@@ -1166,6 +1170,7 @@ function stepEnemies3D(w: WorldState3D): void {
         if (direct) {
           e.vx = 0;
           e.lungeTicks = 0;
+          e.attackCooldown = e.kind === 'stalker' ? 70 : 84;
           setEnemyState(e, 'recover', e.kind === 'stalker' ? 30 : 40);
         } else wantVx = 0;
       }

@@ -459,9 +459,10 @@ export class Scene3DRenderer {
         new THREE.MeshStandardMaterial({
           map: tex.acidMap,
           emissiveMap: tex.acidMap,
+          color: 0x5f7a50,
           emissive: 0x6dff3a,
-          emissiveIntensity: 0.5,
-          roughness: 0.15,
+          emissiveIntensity: 0.16,
+          roughness: 0.3,
         }),
       );
       mesh.rotation.x = -Math.PI / 2;
@@ -469,15 +470,15 @@ export class Scene3DRenderer {
       this.scene.add(mesh);
       this.acidMeshes.push(mesh);
 
-      const acidLight = new THREE.PointLight(0x6dff3a, 3, 9, 1.5);
+      const acidLight = new THREE.PointLight(0x6dff3a, 1.1, 8, 1.8);
       acidLight.position.set(mesh.position.x, pool.surfaceY + 1.1, 0.5);
       this.scene.add(acidLight);
     }
 
     // Security Console holographic beacon
     this.consoleRing = new THREE.Mesh(
-      new THREE.TorusGeometry(0.65, 0.05, 8, 24),
-      new THREE.MeshStandardMaterial({ color: 0x2bf0ff, emissive: 0x2bf0ff, emissiveIntensity: 1.8 }),
+      new THREE.TorusGeometry(0.65, 0.035, 8, 24),
+      new THREE.MeshStandardMaterial({ color: 0x2bf0ff, emissive: 0x2bf0ff, emissiveIntensity: 0.6 }),
     );
     this.consoleRing.position.set(w.level.consolePos.x, w.level.consolePos.y + 2.0, 1.0);
     this.scene.add(this.consoleRing);
@@ -511,7 +512,7 @@ export class Scene3DRenderer {
       const gem = new THREE.Group();
       const core = new THREE.Mesh(
         up.kind === 'thruster_boots' ? new THREE.ConeGeometry(0.22, 0.46, 6) : new THREE.BoxGeometry(0.3, 0.46, 0.3),
-        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.65, roughness: 0.25, metalness: 0.1 }),
+        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.4, roughness: 0.35, metalness: 0.1 }),
       );
       gem.add(core);
       const cage = new THREE.Mesh(
@@ -519,11 +520,11 @@ export class Scene3DRenderer {
         new THREE.MeshStandardMaterial({
           color: 0xbfd8e6,
           emissive: color,
-          emissiveIntensity: 0.12,
+          emissiveIntensity: 0.05,
           roughness: 0.1,
           metalness: 0.1,
           transparent: true,
-          opacity: 0.28,
+          opacity: 0.12,
           depthWrite: false,
         }),
       );

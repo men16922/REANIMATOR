@@ -634,3 +634,29 @@ test('monster AI: two identical runs produce identical enemy states', () => {
   };
   assert.equal(run(), run());
 });
+
+test('monster AI: enemies in another sector stay dormant when the player teleports far away', () => {
+  const w = newWorld3D();
+  w.player.body = spawnBody3D(48, -11, 0);
+  w.player.hp = 999;
+  const far = w.enemies.filter((e) => e.zone === 'airlock');
+  assert.ok(far.length > 0);
+  for (let i = 0; i < 60; i++) stepWorld3D(w, emptyInput3D());
+  for (const e of far) assert.equal(e.state, 'dormant', `${e.id} ${e.state}`);
+});
+
+test('monster AI: crawler does not re-windup immediately after a lunge (cooldown)', () => {
+  const { w, e } = soloEnemy('crawler');
+  const px = e.x + 2.2;
+  w.player.hp = 9999;
+  let lastAttack = -1;
+  let gap = Infinity;
+  for (let i = 0; i < 400; i++) {
+    placePlayer(w, px, e.y);
+    const prev = e.state;
+    stepWorld3D(w, emptyInput3D());
+    if (prev === 'attack' && e.state !== 'attack') lastAttack = i;
+    if (prev !== 'windup' && e.state === 'windup' && lastAttack >= 0) gap = Math.min(gap, i - lastAttack);
+  }
+  assert.ok(gap >= 60, `windup restarted ${gap} ticks after lunge`);
+});
