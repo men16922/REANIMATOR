@@ -2,6 +2,7 @@
 // a single canvas atlas, one InstancedMesh, one draw call, no lights. Display-side only.
 
 import * as THREE from 'three';
+import { stackedPopupY } from './vfxStyle3d.ts';
 
 export const POPUP_GLYPHS = '0123456789x';
 export const POPUP_CAPACITY = 40;
@@ -18,6 +19,8 @@ export interface PopupOpts {
   rise?: number;
   /** pop-in scale overshoot */
   punch?: number;
+  /** Push above any live popup this one would overlap. */
+  stack?: boolean;
 }
 
 /** Fixed-capacity pool. Oldest popup is recycled when full. No allocation after construction. */
@@ -41,6 +44,7 @@ export class PopupPool {
   readonly aCol = new Float32Array(GLYPH_CAPACITY * 4);
 
   spawn(text: string, x: number, y: number, o: PopupOpts): void {
+    if (o.stack) y = stackedPopupY(x, y, o.size, this.count, this.x, this.y, this.size, this.age);
     let i: number;
     if (this.count < POPUP_CAPACITY) {
       i = this.count++;

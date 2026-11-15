@@ -26,6 +26,7 @@ export function currentTheme(w: WorldState3D): ThemeId {
 export class AudioDirector {
   private enemies = new Map<string, { state: EnemyAIState3D; alive: boolean; hp: number }>();
   private stepTicks = 0;
+  private prevRailF = 0;
   private heartTicks = 0;
   private theme: ThemeId | null = null;
   private ambKey = '';
@@ -87,7 +88,11 @@ export class AudioDirector {
     const warden = w.enemies.find((e) => e.kind === 'warden' && e.alive);
     for (const ev of w.events) playCue(ev, {}, warden ? warden.bossPattern : 'none');
     if (warden && this.theme === 'boss') musicIntensity(warden.phase);
-    railCharge(p.weapon === 4 ? p.railCharge / RAIL_CHARGE_TICKS : 0);
+    const railF = p.weapon === 4 ? p.railCharge / RAIL_CHARGE_TICKS : 0;
+    // One-shot "charge complete" tick matches the muzzle warning ring (fx3d) at 92 %.
+    if (railF >= 0.92 && this.prevRailF < 0.92) play('ui.select');
+    this.prevRailF = railF;
+    railCharge(railF);
 
     // Footsteps (surface follows the sector) and landings
     const surface = surfaceFor(w.currentRoom);
