@@ -1,6 +1,6 @@
 # 현재 상태
 
-최종 갱신: 2026-11-15 · R9–R11 세션 마감(HEAD `3c8e7a0`, main, 푸시 대기). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-15 · R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## 구현 상태
 
@@ -50,12 +50,19 @@
 - **R12 robust** (`r12/robust`, [R12_ROBUST](R12_ROBUST.md)): bot `replan()` after any respawn (old bot failed 9 of 12 forced-defeat schedules, new passes all plus 93 double-kill schedules per difficulty), shot dash-dodge and counters. Bot Normal 5708 ticks HP 126 (was 5522/95), Story 5807 HP 160 (was 5606/146), Hard 5121 HP 133 min 100 (was 5633/48); 12-variant Hard stress grid 12/12 (was 5/12). Debug hooks: `debugEpoch` cancels stale Showcase/UiAudit, `enterManual` teardown always dismisses loading, Advance `{continue}`, `debug` result object and `layers`. Result copy in `src/ui/resultCopy.ts`. `make check` exit 0, 555/555. Browser unverified.
 
 - **R12 integration** (main, 4 merges: look, motion, onboard, robust): onboard wins the no-save conflict (defeat always resumable, spawn restart keeps the run, `resultCheckpointLine` and `canResume` updated). `debug.stoppedOn` now reads `world.status`. Bot re-pinned after merge: Normal 5444 ticks HP 140 (min 93, lost 39), Story 5812 HP 143, Hard 5121 HP 133 (min 100, floor 80 holds); all win with 0 deaths. SHOWCASE_REEL cuts 4750 (biolabs, Meltdown) and 5400 (airlock) replace 5150/5650 (shaft, past the win). `make check` exit 0, 568/568, reach3d 52 waypoints 3432 ticks, dist-guard PASS. Unverified: browser look of hatch, reticle and bestiary pass, `make smoke-local`, G5 play.
+- **R13 integration** (main, 4 merges: alive, combat, ux, reel, plus sim fixes): one enemy locomotion model. Crawler: ux `crawlerStride` + stride-locked `gaitStep` (3.4 Hz at 6.1 m/s) driven by alive `enemyTravelSpeed` (wall/ceiling crawlers use |v|) through `smoothDisplaySpeed`; the alive `CRAWLER_STRIDE` gait was dropped. Stalker/Warden rig: combat spike filter (`stepGroundSpeed`), sprint stride cap, walk/run band, hip bob and faster sprint turn, with ux `latchHysteresis` and the single per-kind `runLean` (combat's duplicate lean removed). Sim (`world3d.ts`): `separateEnemies3D` slides at most 0.07 m/tick (35% of the overlap, capped so own speed plus slide stays under 0.19 m), knockback launch capped at 12 m/s, and a chaser waits behind a stalled foe instead of pushing into it. Display: `stepGlide` is now a decaying offset safety net; the old position low-pass lagged a running foe by up to 1.5 m and then surged 0.25 to 0.3 m per frame (measured live). Reel: lab cut scales the lab to 0.86 so the caption clears the match grid; combat Counter moved to frame 110. Bot Normal 5208 ticks HP 126 (min 93), Story 5599 HP 139, Hard 5094 HP 114 (min 100), 0 deaths. SHOWCASE_REEL last cut 5160. `make check` exit 0, 625/625. See [R13_ALIVE](R13_ALIVE.md), [R13_COMBAT](R13_COMBAT.md), [R13_UX](R13_UX.md), [R13_REEL](R13_REEL.md).
+- **R13 enemy motion evidence** (bot run, floor crawlers and stalkers). Sim, Normal, all non-attack ticks (`node tools/game/enemyJitter.ts`): before max step 0.79 m, 45 steps over 0.2 m (25 over 0.5 m), 43 chase reversals; after max 0.18 m, 0 over 0.2 m, 2 reversals (Story and Hard also 0 pops). Live Chrome via Playwright MCP, ticks 1900..3600, displayed x vs sim x of chasing foes: before crawler max display step 0.305 m with 27 frames over 0.2 m, stalker 0.294 m with 9; after crawler 0.177 m and stalker 0.174 m with 0 frames over 0.2 m. `tools/smoke/enemy-live.ts` is the same sampler as a script (Chrome does not launch in the agent sandbox, so it was run through the MCP browser). Feel in human play: unverified.
+
 ## 세션 마감 검증 (오케스트레이터 Playwright 관찰, 2026-11-15)
 
 - **R9**: `__reanimatorUiAudit()` 12개 시나리오 ok, Z 스캔 윤곽 표시, 보안 데크 Vault Nook 시크릿 발견, `8376998` 이후 카메라가 Nook 안까지 따라감, 콘솔 경고 0.
 - **R10/R11**: 오프닝 알람·기상 비트가 레터박스와 HUD 없이 렌더, 무릎 꿇은 operative, 푸터 1996, HUD 한 줄에 HUNTER pill, 헌터 외형 개선 확인. 최종 `3c8e7a0`의 외형은 오케스트레이터가 재확인하지 않았다(unverified).
 - **회귀 의심 조사(재현 불가)**: `__reanimatorAdvance`(skipIntro) 후 1.5 s 뒤 타이틀+어트랙트가 다시 나온다는 보고를 실제 Chrome(Playwright)에서 현재 코드로 조사했다(`src/ui/main.ts`: `__reanimatorAdvance` ~L1576, `hideIntro` ~L471, `exitShowcase` ~L1118). 5 s 후 호출과 로드 직후 호출 모두 mode `playing` 유지, `#title` display none, `#hud` 표시, 내비게이션 없음, 4 s 안정. `show('title')` 호출처는 `exitShowcase`, 쇼케이스 `title` 장면, `uiAudit`, 시작 시뿐이며 Advance 뒤에는 발동하지 않는다. 유력한 원인은 오케스트레이터 세션 중 동시 파일 편집으로 인한 Vite 전체 리로드 또는 낡은 HMR 인스턴스(리로드되면 타이틀+Bio-Labs 어트랙트와 이전 HUD 상태가 나온다). 코드 변경 없음. dev 서버를 깨끗이 재시작해 재확인할 것.
 - Abuse·Metroid 느낌 요청은 R4_METROID_GAPS, R5-Rig, R9 Vault Nook, Warden 카운터, Classic View로 이미 반영됐다. 원본 Abuse 데이터는 쓰지 않았다.
+
+## 검증 기준선 (R13 integration, make check 625/625)
+
+- `make check` exit 0: 테스트 625/625, reach3d 52 waypoints 3432 ticks, 봇 Normal 5208 ticks HP 126, Story 5599 HP 139, Hard 5094 HP 114(min 100), dist-guard PASS(13 files). 봉인 파일 무변경.
 
 ## 검증 기준선 (R12 enemy locomotion, make check 544/544)
 

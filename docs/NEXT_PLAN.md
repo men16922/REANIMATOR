@@ -2,6 +2,15 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R13 병합 후
+
+- [x] alive, combat, ux, reel 병합, 이동 모델 하나로 통합, 시뮬 문 앞 순간이동 수정, `make check` 통과(625/625). 봇 Normal 5208/HP 126, Story 5599/139, Hard 5094/114(min 100).
+- [x] 라이브 샘플(Playwright MCP): 추격 크롤러·스토커의 프레임당 표시 이동 0.2 m 초과 0회(이전 27회·9회).
+- [ ] 사람 플레이로 적 달리기 체감 확인(unverified). 남은 후보: 크롤러 리스폰 시 시체 위치에서 새 위치로 글라이드(최대 1.4 m)가 보이는지, 스토커 착지 직후 보폭.
+- [ ] `tools/smoke/enemy-live.ts`와 `make smoke-local`을 실제 Chrome에서 실행(에이전트 샌드박스는 Chrome 실행 불가).
+- [ ] 브라우저 디버그 경로 비결정성: `__reanimatorRunBot(1900)` 한 번과 `RunBot(1)` 1900번이 다른 월드를 만든다(프레임 루프의 HUD·관찰 경로가 상태를 건드리는 것으로 추정). 원인 미조사.
+- [ ] `/private/tmp/r13-*` worktree와 `r13/*` 브랜치는 사용자가 정리.
+
 ## R12 병합 후
 
 - [x] look, motion, onboard, robust 병합, `make check` 통과(568/568). 봇 Normal 5444/HP 140.

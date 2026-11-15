@@ -89,3 +89,8 @@ All are on `window` (declared in `src/ui/main.ts`). Every synchronous one cancel
 
 - Bot respawn routing, shot dodging and counters, plus debug hook robustness (`continue` mode, supersede rule, `debug` and `layers` fields) and result screen copy. Details: [R12_ROBUST](R12_ROBUST.md). Browser behaviour unverified.
 - Integrated R12: diegetic extraction hatch and pickups ([R12_LOOK](R12_LOOK.md)), display-only enemy poses and bestiary view ([R12_MOTION](R12_MOTION.md)), softened first airlock encounter and always-resumable defeat ([R12_ONBOARD](R12_ONBOARD.md)). Bot Normal 5444 ticks HP 140.
+
+## R13 additions
+
+- Judge Reel (`Extras` > `Judge Reel`, `/?reel`), ambient background life per sector ([R13_ALIVE](R13_ALIVE.md)), Core Warden readability and per-weapon impacts ([R13_COMBAT](R13_COMBAT.md)), truthful debug layers, sector hints and a single Classic HUD ([R13_UX](R13_UX.md)).
+- Enemy running: one locomotion model, and the sim no longer teleports queued foes at closed doors. Floor crawlers and stalkers never move more than 0.2 m in one tick on the bot run (`node tools/game/enemyJitter.ts`, `tests/r13-smooth.test.ts`). Bot Normal 5208 ticks HP 126.
