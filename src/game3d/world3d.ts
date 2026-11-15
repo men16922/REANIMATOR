@@ -121,6 +121,8 @@ export interface EnemyState3D {
   patternIndex: number;
   /** Warden only: ticks left in the weak-point window (damage x2, boss is staggered) */
   exposedTicks: number;
+  /** Warden only: the current exposed window came from a Melee Counter (bigger damage multiplier) */
+  counterExposed: boolean;
   /** Warden only: -1/+1 locked charge heading */
   chargeDir: number;
   /** Warden only: remaining barrage bursts */
@@ -657,6 +659,13 @@ export const RAIL_CHARGE_TICKS = 48;
 export const COMBO_WINDOW_TICKS = 180;
 export const WARDEN_EXPOSED_MULT = 2.0;
 export const WARDEN_GUARDED_MULT = 0.8;
+/** Warden Counter (R10): phase 2/3 charge and phase 3 slam open a counter window in the last ticks of the windup. */
+export const WARDEN_COUNTER_WINDOW = 10;
+export const WARDEN_COUNTER_WINDOW_STORY = 16;
+export const WARDEN_COUNTER_REACH = 7;
+export const WARDEN_COUNTER_EXPOSED_MULT = 3.0;
+export const WARDEN_COUNTER_DAMAGE = 40;
+export const WARDEN_COUNTER_EXPOSED_BONUS_TICKS = 24;
 export const WARDEN_PHASE_FRACTIONS = [2 / 3, 1 / 3] as const;
 export const STOMP_RADIUS = 3.0;
 export const STOMP_DAMAGE = 60;
@@ -786,6 +795,7 @@ function buildEnemy3D(sp: EnemySpawn3D, hiveId = '', hpMul = 1): EnemyState3D {
     bossPattern: 'none',
     patternIndex: 0,
     exposedTicks: 0,
+    counterExposed: false,
     chargeDir: 1,
     barrageLeft: 0,
     meleeCooldown: 0,
@@ -1143,7 +1153,7 @@ function damageEnemy(
 ): void {
   if (!e.alive) return;
   let dmg = rawDmg * WEAPON_MATCHUP_3D[e.kind][weapon];
-  if (e.kind === 'warden') dmg *= e.exposedTicks > 0 ? WARDEN_EXPOSED_MULT : WARDEN_GUARDED_MULT;
+  if (e.kind === 'warden') dmg *= e.exposedTicks > 0 ? (e.counterExposed ? WARDEN_COUNTER_EXPOSED_MULT : WARDEN_EXPOSED_MULT) : WARDEN_GUARDED_MULT;
   dmg = Math.max(1, Math.round(dmg));
   e.hp -= dmg;
   e.hitFlashTicks = 8;
@@ -1163,6 +1173,7 @@ function damageEnemy(
       e.barrageLeft = 0;
       e.lungeTicks = 0;
       e.exposedTicks = 70;
+      e.counterExposed = false;
       e.attackCooldown = 60;
       w.projectiles = w.projectiles.filter((pr) => pr.fromPlayer);
       w.shakeTicks = Math.max(w.shakeTicks, 22);
@@ -2006,6 +2017,7 @@ function stepEnemies3D(w: WorldState3D): void {
         e.windupTicks = 0;
         moving = false;
         if (e.exposedTicks === 0) {
+          e.counterExposed = false;
           setEnemyState(e, 'chase', 0);
           e.attackCooldown = Math.max(e.attackCooldown, 24);
         }
@@ -2039,6 +2051,10 @@ function stepEnemies3D(w: WorldState3D): void {
         e.windupTicks--;
         e.anim = 'attack';
         moving = false;
+        if (e.windupTicks > 0 && e.windupTicks <= (w.diff.nearRespawn ? WARDEN_COUNTER_WINDOW_STORY : WARDEN_COUNTER_WINDOW)
+          && ((e.bossPattern === 'charge' && ph >= 2) || (e.bossPattern === 'slam' && ph === 3))) {
+          e.parryOpen = true;
+        }
         if (e.windupTicks === 0) {
           const pat = e.bossPattern;
           if (pat === 'slam') {
@@ -2416,7 +2432,7 @@ function stepCounter3D(w: WorldState3D, pressed: boolean): void {
   for (const e of w.enemies) {
     if (!e.alive || !e.active || !e.parryOpen) continue;
     const d = Math.abs(e.x - p.body.x);
-    if (d > PARRY_REACH || Math.abs(e.y - p.body.y) > 1.8 || d >= bestD) continue;
+    if (d > (e.kind === 'warden' ? WARDEN_COUNTER_REACH : PARRY_REACH) || Math.abs(e.y - p.body.y) > 1.8 || d >= bestD) continue;
     best = e;
     bestD = d;
   }
@@ -2436,6 +2452,25 @@ function stepCounter3D(w: WorldState3D, pressed: boolean): void {
   p.facing = dir;
   p.hurtInvulnTicks = Math.max(p.hurtInvulnTicks, PARRY_INVULN_TICKS);
   p.body.dashCooldown = 0;
+  if (e.kind === 'warden') {
+    // Counter on the Warden: cancel the telegraphed attack, open a long weak-point window with a bigger multiplier
+    const ph = e.phase;
+    e.bossPattern = 'none';
+    e.attackAnimTicks = 0;
+    e.lungeTicks = 0;
+    e.staggerTicks = 0;
+    e.attackCooldown = WARDEN_COOLDOWN[ph];
+    e.exposedTicks = WARDEN_EXPOSED_TICKS[ph] + WARDEN_COUNTER_EXPOSED_BONUS_TICKS;
+    e.counterExposed = true;
+    e.state = 'stagger';
+    e.stateTicks = e.exposedTicks;
+    w.shakeTicks = Math.max(w.shakeTicks, 14);
+    w.shakeStrength = Math.max(w.shakeStrength, 0.34);
+    w.events.push({ type: 'boss_counter', value: ph });
+    w.events.push({ type: 'boss_exposed', value: ph });
+    damageEnemy(w, e, WARDEN_COUNTER_DAMAGE, dir * 2);
+    return;
+  }
   w.shakeTicks = Math.max(w.shakeTicks, 8);
   w.shakeStrength = Math.max(w.shakeStrength, 0.22);
   w.events.push({ type: 'parry', value: w.enemies.indexOf(e) });

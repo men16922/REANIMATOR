@@ -35,6 +35,7 @@ export const EVENT_SOUND: Record<SoundEventType3D, string> = {
   combo: 'ui.combo',
   parry: 'combat.parry',
   parry_whiff: 'combat.parry_whiff',
+  boss_counter: 'boss.counter',
   scan: 'world.scan',
   boss_telegraph: 'boss.tele.slam',
   boss_charge: 'boss.charge',

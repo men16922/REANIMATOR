@@ -187,6 +187,13 @@ export class Onboarding {
       }
     }
 
+    if (!this.done.has('wardenCounter')) {
+      const wd = w.enemies.find((e) => e.kind === 'warden');
+      if (wd && wd.alive && wd.phase >= 2 && wd.state === 'windup' && wd.bossPattern === 'charge' && Math.abs(wd.x - p.x) < 14) {
+        if (w.player.counterPrev) this.done.add('wardenCounter');
+        else return { id: 'wardenCounter', keys: ['X'], text: 'WARDEN CHARGING: press X when its core blinks gold to COUNTER' };
+      }
+    }
     if (!this.done.has('counter')) {
       for (const e of w.enemies) {
         if (e.alive && e.state === 'windup' && (e.kind === 'crawler' || e.kind === 'stalker') && Math.abs(e.x - p.x) < 6 && Math.abs(e.y - p.y) < 2.5) {

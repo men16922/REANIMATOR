@@ -249,6 +249,12 @@ export class BossTelegraph3D {
     cgm.color.copy(exposed ? this.tmp.set(1.0, 0.82, 0.3) : this.tmp);
     cgm.opacity = exposed ? 0.7 : dormant ? 0.1 + 0.3 * intro : 0.22 + 0.08 * pulse;
 
+    if (exposed && wd.counterExposed) {
+      // Counter hit: the core flares gold-white and the weak point is marked (the 3x damage window)
+      cgm.color.set(1.0, 0.95, 0.6);
+      cgm.opacity = 0.9;
+      this.coreGlow.scale.setScalar(sc * 1.35);
+    }
     if (exposed) {
       const f = Math.min(1, wd.exposedTicks / 24);
       this.exposed.visible = true;
@@ -263,6 +269,16 @@ export class BossTelegraph3D {
     if (wd.windupTicks === 0 && wd.barrageLeft === 0) this.windStart = 0;
     this.lastPattern = pat;
     if (!wd.alive || dormant) return;
+    if (wd.parryOpen) {
+      // Counter window: the muzzle core blinks gold so the press timing reads at a glance
+      this.muzzle.visible = true;
+      this.muzzle.position.set(bx, by + wd.height * 0.6, 0.95);
+      const gs = reduce ? 3.4 : 3.0 + Math.sin(tSec * 60) * 0.7;
+      this.muzzle.scale.set(gs, gs, 1);
+      const gm = this.muzzle.material as THREE.SpriteMaterial;
+      gm.color.setRGB(1, 0.85, 0.3);
+      gm.opacity = 0.95;
+    }
     const prog = wd.windupTicks > 0 ? windProgress(wd.windupTicks, this.windStart) : wd.barrageLeft > 0 ? 1 : 0;
     const flick = reduce ? 1 : 0.75 + 0.25 * Math.sin(tSec * 30);
 

@@ -250,3 +250,140 @@ test('the intro never changes the deterministic result of a replay (same inputs,
   };
   assert.equal(run(), run());
 });
+
+// ---------------------------------------------------------------------------------------------------------
+// R10: Warden Counter
+// ---------------------------------------------------------------------------------------------------------
+import { spawnBody3D } from '../src/engine/motion3d.ts';
+import { WARDEN_COUNTER_WINDOW, WARDEN_COUNTER_EXPOSED_MULT, WARDEN_EXPOSED_MULT } from '../src/game3d/world3d.ts';
+
+function counterWorld(phase: 1 | 2 | 3, pattern: 'charge' | 'slam', windup: number): { w: WorldState3D; wd: EnemyState3D } {
+  const w = newWorld3D();
+  w.consoleUnlocked = true;
+  w.openDoors.add('door_boss');
+  w.currentRoom = 'core';
+  w.bossIntroDone = true;
+  w.player.hp = w.player.maxHp = 100000;
+  const wd = warden(w);
+  wd.active = true;
+  wd.phase = phase;
+  wd.hp = wd.maxHp * (phase === 1 ? 0.9 : phase === 2 ? 0.5 : 0.2);
+  wd.x = 88;
+  w.player.body = spawnBody3D(83, wd.y, 0);
+  wd.state = 'windup';
+  wd.bossPattern = pattern;
+  wd.windupTicks = windup;
+  wd.attackCooldown = 0;
+  wd.chargeDir = -1;
+  wd.facing = -1;
+  return { w, wd };
+}
+
+function step(w: WorldState3D, counter = false): void {
+  const i = emptyInput3D();
+  i.counter = counter;
+  stepWorld3D(w, i);
+}
+
+test('warden counter: window opens only in the last ticks of a phase 2 charge windup', () => {
+  const { w, wd } = counterWorld(2, 'charge', 30);
+  const open: boolean[] = [];
+  for (let i = 0; i < 29; i++) {
+    step(w);
+    open.push(wd.parryOpen);
+  }
+  assert.equal(open.filter(Boolean).length, WARDEN_COUNTER_WINDOW, 'window length');
+  assert.equal(open[0], false);
+});
+
+test('warden counter: phase 1 slam and phase 2 slam never open a window', () => {
+  for (const ph of [1, 2] as const) {
+    const { w, wd } = counterWorld(ph, 'slam', 30);
+    for (let i = 0; i < 29; i++) {
+      step(w);
+      assert.equal(wd.parryOpen, false);
+    }
+  }
+});
+
+test('warden counter: press in the window cancels the charge, exposes the Warden with the bonus multiplier', () => {
+  const { w, wd } = counterWorld(2, 'charge', 30);
+  for (let i = 0; i < 24; i++) step(w);
+  assert.equal(wd.parryOpen, true);
+  const hp = wd.hp;
+  w.player.body = spawnBody3D(wd.x - 5, wd.y, 0);
+  step(w, true);
+  assert.ok(w.events.some((e) => e.type === 'boss_counter'));
+  assert.equal(wd.bossPattern, 'none');
+  assert.equal(wd.windupTicks, 0);
+  assert.equal(wd.lungeTicks, 0);
+  assert.ok(wd.exposedTicks > 60);
+  assert.equal(wd.counterExposed, true);
+  assert.ok(wd.hp < hp);
+  assert.ok(WARDEN_COUNTER_EXPOSED_MULT > WARDEN_EXPOSED_MULT);
+  for (let i = 0; i < 40; i++) step(w);
+  assert.equal(wd.lungeTicks, 0, 'the charge never launches');
+  assert.equal(w.player.hp, w.player.maxHp, 'no damage taken');
+});
+
+test('warden counter: phase 3 slam can be countered', () => {
+  const { w, wd } = counterWorld(3, 'slam', 20);
+  for (let i = 0; i < 12; i++) step(w);
+  assert.equal(wd.parryOpen, true);
+  w.player.body = spawnBody3D(wd.x - 4, wd.y, 0);
+  step(w, true);
+  assert.ok(w.events.some((e) => e.type === 'boss_counter'));
+  assert.equal(w.shockwaves.length, 0);
+});
+
+test('warden counter: press outside the window whiffs and the flag clears when the window ends', () => {
+  const { w, wd } = counterWorld(2, 'charge', 30);
+  w.player.body = spawnBody3D(wd.x - 5, wd.y, 0);
+  step(w, true);
+  assert.ok(w.events.some((e) => e.type === 'parry_whiff'));
+  assert.equal(w.events.some((e) => e.type === 'boss_counter'), false);
+  assert.equal(wd.counterExposed, false);
+});
+
+test('warden counter: bonus multiplier applies only while the counter window is open, then plain exposed', () => {
+  const { w, wd } = counterWorld(2, 'charge', 30);
+  for (let i = 0; i < 24; i++) step(w);
+  w.player.body = spawnBody3D(wd.x - 5, wd.y, 0);
+  step(w, true);
+  for (let i = 0; i < 200 && wd.exposedTicks > 0; i++) step(w);
+  assert.equal(wd.exposedTicks, 0);
+  assert.equal(wd.counterExposed, false);
+});
+
+test('warden counter: deterministic, and idle input is identical with or without the counter code path', () => {
+  const run = (): string => {
+    const { w, wd } = counterWorld(2, 'charge', 30);
+    for (let i = 0; i < 24; i++) step(w);
+    w.player.body = spawnBody3D(wd.x - 5, wd.y, 0);
+    step(w, true);
+    for (let i = 0; i < 100; i++) step(w);
+    return JSON.stringify([wd.hp, wd.x, wd.exposedTicks, w.tick]);
+  };
+  assert.equal(run(), run());
+  const idle = (): string => {
+    const { w, wd } = counterWorld(2, 'charge', 30);
+    for (let i = 0; i < 120; i++) step(w);
+    return JSON.stringify([wd.x, wd.state, wd.lungeTicks, w.player.hp]);
+  };
+  assert.equal(idle(), idle());
+});
+
+test('warden counter fx: boss_counter requests slow-mo and hit-stop, a gentler one with reduce motion', () => {
+  const run = (reduce: boolean): { frames: number; scale: number } => {
+    const w = newWorld3D();
+    const fx = new FxDirector();
+    fx.reduce = reduce;
+    observeWith(fx, w, () => w.events.push({ type: 'boss_counter', value: 2 }));
+    fx.slowmo.step(1 / 60);
+    return { frames: fx.hitstop.frames, scale: fx.slowmo.scale };
+  };
+  const full = run(false);
+  const calm = run(true);
+  assert.ok(full.scale < 1 && full.frames > 0);
+  assert.ok(calm.frames <= full.frames && calm.scale >= full.scale);
+});
