@@ -50,6 +50,8 @@ export interface RiggedInstance {
   rightHand?: THREE.Object3D;
   riflePivot?: THREE.Group;
   muzzleLocal?: THREE.Object3D;
+  /** Enemy attack clip is parked at its windup pose (see stepRiggedEnemyAnimation3D) */
+  attackHeld?: boolean;
 }
 
 const MODEL_FILES: Record<ModelKey3D, string> = {
@@ -505,11 +507,115 @@ export function stepRiggedAnimation3D(
   }
 }
 
+/** Hit flash never exceeds this lerp toward a warm tint, so no enemy turns into a white silhouette. */
+export const ENEMY_FLASH_MAX_3D = 0.35;
+const _flashColor = new THREE.Color();
+
 export function flashRiggedMaterials3D(inst: RiggedInstance, hex: number, amount: number): void {
-  const c = new THREE.Color(hex);
-  for (let i = 0; i < inst.materials.length; i++) {
-    const m = inst.materials[i];
-    m.emissive.copy(inst.baseEmissive[i]).lerp(c, amount);
-    m.emissiveIntensity = Math.max(1, 1 + amount * 1.5);
+  flashMaterials3D(inst.materials, inst.baseEmissive, hex, amount);
+}
+
+/** Shared flash for rigged and static enemies: clamped lerp, emissiveIntensity pinned to 1 (no bloom blowout). */
+export function flashMaterials3D(
+  materials: THREE.MeshStandardMaterial[],
+  baseEmissive: THREE.Color[],
+  hex: number,
+  amount: number,
+): void {
+  _flashColor.setHex(hex);
+  const k = Math.min(ENEMY_FLASH_MAX_3D, Math.max(0, amount));
+  for (let i = 0; i < materials.length; i++) {
+    const m = materials[i];
+    m.emissive.copy(baseEmissive[i]).lerp(_flashColor, k);
+    m.emissiveIntensity = 1;
   }
+}
+
+/**
+ * Keeps enemy materials out of saturation under sun 1.9 + hemisphere 1.35 + exposure 1.4 and gives each kind a
+ * distinct tint. Mutates baseEmissive in place so later flashes lerp from the clamped value.
+ */
+export function tuneEnemyMaterials3D(
+  materials: THREE.MeshStandardMaterial[],
+  baseEmissive: THREE.Color[],
+  tintHex: number,
+): void {
+  for (let i = 0; i < materials.length; i++) {
+    const m = materials[i];
+    m.roughness = Math.max(0.55, m.roughness);
+    m.metalness = Math.min(0.35, m.metalness);
+    m.envMapIntensity = 0.6;
+    m.emissiveIntensity = 1;
+    m.color.multiply(_flashColor.setHex(tintHex));
+    const e = baseEmissive[i];
+    const peak = Math.max(e.r, e.g, e.b);
+    if (peak > 0.35) e.multiplyScalar(0.35 / peak);
+    m.emissive.copy(e);
+  }
+}
+
+export interface EnemyAnimInput {
+  desired: 'idle' | 'walk' | 'run' | 'attack' | 'death';
+  /** Actual horizontal speed in m/s (drives locomotion timeScale so feet do not skate) */
+  speed: number;
+  /** Speed at which the clip plays at timeScale 1 */
+  refSpeed: number;
+  /** 'hold' parks the attack clip at its windup pose, 'play' runs through the strike */
+  attackMode: 'hold' | 'play';
+  /** 0..1 progress of the windup, scrubs the hold pose */
+  attackFrac: number;
+}
+
+const ATTACK_HOLD_FRAC = 0.35;
+
+/** Enemy animation stepper: no operative IK, shorter crossfades, attack is never restarted while playing. */
+export function stepRiggedEnemyAnimation3D(inst: RiggedInstance, input: EnemyAnimInput, dt: number): void {
+  let target: ActorAnimAction = input.desired;
+  if (!inst.actions[target]) {
+    target = target === 'run' && inst.actions.walk ? 'walk' : inst.actions.idle ? 'idle' : inst.currentAnim;
+  }
+
+  if (target !== inst.currentAnim) {
+    const prev = inst.actions[inst.currentAnim];
+    const next = inst.actions[target];
+    if (next) {
+      next.reset();
+      if (target === 'death' || target === 'attack') {
+        next.setLoop(THREE.LoopOnce, 1);
+        next.clampWhenFinished = true;
+      } else {
+        next.setLoop(THREE.LoopRepeat, Infinity);
+      }
+      next.play();
+      if (prev && prev !== next) {
+        prev.crossFadeTo(next, target === 'attack' || target === 'death' ? 0.08 : 0.18, false);
+      }
+    }
+    inst.currentAnim = target;
+  }
+
+  const active = inst.actions[inst.currentAnim];
+  if (active) {
+    if (inst.currentAnim === 'attack') {
+      const dur = active.getClip().duration;
+      if (input.attackMode === 'hold') {
+        active.enabled = true;
+        active.paused = false;
+        active.timeScale = 0;
+        active.time = Math.max(0, Math.min(1, input.attackFrac)) * ATTACK_HOLD_FRAC * dur;
+        inst.attackHeld = true;
+      } else {
+        if (inst.attackHeld) {
+          active.time = Math.max(active.time, ATTACK_HOLD_FRAC * dur);
+          inst.attackHeld = false;
+        }
+        active.timeScale = 1;
+      }
+    } else if (inst.currentAnim === 'walk' || inst.currentAnim === 'run') {
+      active.timeScale = Math.max(0.45, Math.min(1.8, input.speed / Math.max(0.1, input.refSpeed)));
+    } else {
+      active.timeScale = 1;
+    }
+  }
+  inst.mixer.update(dt);
 }

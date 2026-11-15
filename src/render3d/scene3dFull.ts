@@ -11,6 +11,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
 import { getPlayerPose3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
 import {
+  flashMaterials3D,
   flashRiggedMaterials3D,
   getFailedModelNames3D,
   getLoadedModelNames3D,
@@ -18,6 +19,8 @@ import {
   instantiateStaticModel3D,
   preloadAllModels3D,
   stepRiggedAnimation3D,
+  stepRiggedEnemyAnimation3D,
+  tuneEnemyMaterials3D,
   type RiggedInstance,
 } from './riggedModels.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
@@ -69,6 +72,28 @@ function turnToward(current: number, target: number, dt: number, rate = 16): num
   return current + d * Math.min(1, dt * rate);
 }
 
+/** Per-enemy render-only smoothing state (never read by the sim). */
+interface EnemyViz {
+  yaw: number;
+  lean: number;
+  recoil: number;
+  prevHit: number;
+  shot: number;
+  prevWindup: number;
+  phase: number;
+}
+
+const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
+const ENEMY_WINDUP_TOTAL_3D: Record<string, number> = { crawler: 14, stalker: 18, spitter: 12, warden: 36 };
+const ENEMY_FLASH_HEX_3D = 0xff5a28;
+const TELEGRAPH_POOL_3D = 6;
+
+function wrapAngle(d: number): number {
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
 interface PosSnap {
   x: number;
   y: number;
@@ -95,6 +120,9 @@ export class Scene3DRenderer {
 
   private operativeRig: RiggedInstance | null = null;
   private wardenTelegraphRing: THREE.Mesh;
+  private readonly enemyViz = new Map<string, EnemyViz>();
+  private readonly lungeDecals: THREE.Mesh[] = [];
+  private readonly muzzleGlows: THREE.Mesh[] = [];
   private readonly riggedEnemies = new Map<string, RiggedInstance>();
   private readonly staticEnemies = new Map<string, StaticActorHandle>();
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
@@ -106,6 +134,7 @@ export class Scene3DRenderer {
   private airTime = 0;
   private prevPlayer: PosSnap = { x: 0, y: 0 };
   private curPlayer: PosSnap = { x: 0, y: 0 };
+  private readonly lastEnemyStates = new Map<string, string>();
   private prevEnemies = new Map<string, PosSnap>();
   private curEnemies = new Map<string, PosSnap>();
   private readonly occludables: OccludableMesh[] = [];
@@ -228,6 +257,34 @@ export class Scene3DRenderer {
     this.wardenTelegraphRing.visible = false;
     this.scene.add(this.wardenTelegraphRing);
 
+    // Pooled telegraph meshes (emissive-free MeshBasicMaterial, no lights)
+    const chevron = new THREE.Shape();
+    chevron.moveTo(0, -0.22);
+    chevron.lineTo(0.8, -0.22);
+    chevron.lineTo(1, 0);
+    chevron.lineTo(0.8, 0.22);
+    chevron.lineTo(0, 0.22);
+    chevron.lineTo(0.18, 0);
+    chevron.closePath();
+    const chevronGeo = new THREE.ShapeGeometry(chevron);
+    const glowGeo = new THREE.SphereGeometry(1, 12, 8);
+    for (let i = 0; i < TELEGRAPH_POOL_3D; i++) {
+      const d = new THREE.Mesh(
+        chevronGeo,
+        new THREE.MeshBasicMaterial({ color: 0xff4a1f, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide }),
+      );
+      d.visible = false;
+      this.scene.add(d);
+      this.lungeDecals.push(d);
+      const g = new THREE.Mesh(
+        glowGeo,
+        new THREE.MeshBasicMaterial({ color: 0xb06aff, transparent: true, opacity: 0.85, depthWrite: false }),
+      );
+      g.visible = false;
+      this.scene.add(g);
+      this.muzzleGlows.push(g);
+    }
+
     this.scene.add(this.dynGroup);
 
     // Post-processing with selective bloom & tone-mapped output
@@ -262,7 +319,10 @@ export class Scene3DRenderer {
     for (const [id, rig] of this.riggedEnemies) {
       activeAnimations[id] = rig.currentAnim;
     }
+    const enemyStates: Record<string, string> = {};
+    for (const [id, st] of this.lastEnemyStates) enemyStates[id] = st;
     return {
+      enemyStates,
       modelsLoaded: this.modelsReady,
       loadedModels: getLoadedModelNames3D(),
       failedModels: getFailedModelNames3D(),
@@ -525,6 +585,7 @@ export class Scene3DRenderer {
     this.riggedEnemies.clear();
     for (const st of this.staticEnemies.values()) this.scene.remove(st.root);
     this.staticEnemies.clear();
+    this.enemyViz.clear();
     for (const b of this.barrelHandles.values()) this.scene.remove(b.root);
     this.barrelHandles.clear();
     if (this.coreModel) {
@@ -560,6 +621,8 @@ export class Scene3DRenderer {
           false,
         );
         rig.root.position.set(e.x, e.y, e.z);
+        rig.root.rotation.order = 'YXZ';
+        tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, ENEMY_TINT_3D[e.kind]);
         this.scene.add(rig.root);
         this.riggedEnemies.set(e.id, rig);
       } else {
@@ -567,6 +630,8 @@ export class Scene3DRenderer {
         const h = e.kind === 'spitter' ? 1.5 : 0.85;
         const st = instantiateStaticModel3D(key, h, true);
         st.root.position.set(e.x, e.y, e.z);
+        st.root.rotation.order = 'YXZ';
+        tuneEnemyMaterials3D(st.materials, st.baseEmissive, ENEMY_TINT_3D[e.kind]);
         this.scene.add(st.root);
         this.staticEnemies.set(e.id, { ...st, baseScale: h });
       }
@@ -784,19 +849,67 @@ export class Scene3DRenderer {
 
     // 5. Enemies (rigged and static meshes), interpolated
     let telegraphWarden: WorldState3D['enemies'][number] | null = null;
+    let decalIdx = 0;
+    let glowIdx = 0;
     for (const e of w.enemies) {
       const pe = this.prevEnemies.get(e.id) ?? { x: e.x, y: e.y };
       const ce = this.curEnemies.get(e.id) ?? { x: e.x, y: e.y };
       const ex = Math.abs(ce.x - pe.x) > 4 ? ce.x : pe.x + (ce.x - pe.x) * a;
       const ey = Math.abs(ce.y - pe.y) > 4 ? ce.y : pe.y + (ce.y - pe.y) * a;
+      this.lastEnemyStates.set(e.id, e.alive ? e.state : 'dead');
+
+      let v = this.enemyViz.get(e.id);
+      if (!v) {
+        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28 };
+        this.enemyViz.set(e.id, v);
+      }
+      // Smooth turn (rate ~7) with a lean into the turn
+      const yawDiff = wrapAngle(e.yaw - v.yaw);
+      v.yaw = turnToward(v.yaw, e.yaw, dt, 7);
+      const leanTarget = Math.max(-0.12, Math.min(0.12, yawDiff * 0.1));
+      v.lean += (leanTarget - v.lean) * Math.min(1, dt * 10);
+      if (e.hitFlashTicks > v.prevHit) v.recoil = 1;
+      v.prevHit = e.hitFlashTicks;
+      v.recoil = Math.max(0, v.recoil - dt * 6);
+      if (v.prevWindup > 0 && e.windupTicks === 0 && e.alive) v.shot = 1;
+      v.prevWindup = e.windupTicks;
+      v.shot = Math.max(0, v.shot - dt * 5);
+
+      const speed = Math.abs(e.vx);
+      const windTotal = e.kind === 'warden' && e.phase === 2 ? 28 : ENEMY_WINDUP_TOTAL_3D[e.kind];
+      const winding = e.alive && (e.windupTicks > 0 || e.state === 'windup');
+      const alerting = e.alive && e.state === 'alert';
+      const striking = e.alive && !winding && (e.state === 'attack' || e.attackAnimTicks > 0);
+      const windFrac = winding ? 1 - e.windupTicks / windTotal : 0;
+      const flashAmt = e.hitFlashTicks > 0 ? Math.min(1, e.hitFlashTicks / 4) * 0.35 : 0;
+
       const rig = this.riggedEnemies.get(e.id);
       if (rig) {
         rig.root.position.set(ex, ey, 0);
-        rig.root.rotation.y = turnToward(rig.root.rotation.y, e.yaw, dt, 12);
-        stepRiggedAnimation3D(rig, e.alive ? e.anim : 'death', dt, e.kind === 'warden' && e.phase === 2 ? 1.25 : 1.0);
-        if (e.hitFlashTicks > 0) {
-          flashRiggedMaterials3D(rig, 0xff7755, 0.32);
-        } else if (e.kind === 'warden' && e.windupTicks > 0) {
+        rig.root.rotation.set(-v.recoil * 0.12, v.yaw, v.lean);
+        rig.root.scale.setScalar(1 + v.recoil * 0.05);
+        let desired: 'idle' | 'walk' | 'run' | 'attack' | 'death' = 'idle';
+        let mode: 'hold' | 'play' = 'play';
+        let frac = 0;
+        if (!e.alive) desired = 'death';
+        else if (winding) {
+          desired = 'attack';
+          mode = 'hold';
+          frac = windFrac;
+        } else if (alerting) {
+          desired = 'attack';
+          mode = 'hold';
+          frac = 1 - e.stateTicks / 20;
+        } else if (striking) desired = 'attack';
+        else if (e.state !== 'stagger' && speed > 0.4) desired = e.kind !== 'warden' && speed > 4.2 ? 'run' : 'walk';
+        stepRiggedEnemyAnimation3D(
+          rig,
+          { desired, speed, refSpeed: desired === 'run' ? 5.5 : e.kind === 'warden' ? 2.6 : 2.2, attackMode: mode, attackFrac: frac },
+          dt,
+        );
+        if (flashAmt > 0) {
+          flashRiggedMaterials3D(rig, ENEMY_FLASH_HEX_3D, flashAmt);
+        } else if (e.kind === 'warden' && winding) {
           flashRiggedMaterials3D(rig, 0xff451f, 0.22);
         } else if (e.kind === 'warden' && e.phase === 2 && e.alive) {
           flashRiggedMaterials3D(rig, 0xff3b18, 0.09);
@@ -804,25 +917,75 @@ export class Scene3DRenderer {
           flashRiggedMaterials3D(rig, 0x000000, 0);
         }
         if (e.kind === 'warden' && e.alive && e.windupTicks > 0) telegraphWarden = e;
-        continue;
       }
 
       const st = this.staticEnemies.get(e.id);
       if (st) {
+        const r = st.root;
+        let sx = 1;
+        let sy = 1;
+        let sz = 1;
+        let pitch = 0;
+        let roll = v.lean;
+        let lift = 0;
         if (!e.alive) {
-          st.root.rotation.z += (Math.PI * 0.48 - st.root.rotation.z) * Math.min(1, dt * 8);
-          st.root.visible = e.deathTicks < 240;
-        } else {
-          const bob = e.kind === 'spitter' ? Math.sin(tSec * 4 + e.x) * 0.14 : Math.abs(Math.sin(tSec * 12 + e.x)) * 0.08;
-          st.root.position.set(ex, ey + bob, 0);
-          st.root.rotation.y = turnToward(st.root.rotation.y, e.yaw, dt, 12);
-          const fAmt = e.hitFlashTicks > 0 ? 0.7 : 0;
-          for (let i = 0; i < st.materials.length; i++) {
-            st.materials[i].emissive.copy(st.baseEmissive[i]).lerp(new THREE.Color(0xffffff), fAmt);
+          const deathT = Math.min(1, e.deathTicks / 24);
+          roll = (Math.PI * 0.48) * (1 - Math.pow(1 - deathT, 3));
+          sy = 1 - 0.1 * deathT;
+          r.visible = e.deathTicks < 240;
+        } else if (e.kind === 'crawler') {
+          const run = Math.min(1, speed / 6);
+          lift = Math.abs(Math.sin(tSec * 22 + v.phase)) * 0.05 * run;
+          pitch = 0.18 * run;
+          roll += Math.sin(tSec * 11 + v.phase) * 0.04 * run;
+          if (winding) {
+            sy = 1 - 0.28 * windFrac;
+            sx = 1 + 0.15 * windFrac;
+            sz = sx;
+            pitch = 0.25 * windFrac;
+          } else if (striking) {
+            sz = 1.3;
+            sy = 0.88;
+            sx = 0.92;
+            pitch = 0.3;
           }
+        } else {
+          lift = 0.05 + Math.sin(tSec * 2.2 + v.phase) * 0.12;
+          roll += Math.sin(tSec * 1.7 + v.phase) * 0.05;
+          if (winding) {
+            const k = 1 + 0.22 * windFrac;
+            sx = k;
+            sz = k;
+            sy = 1 + 0.12 * windFrac;
+            pitch = -0.15 * windFrac;
+          }
+          sz *= 1 - 0.15 * v.shot;
+          pitch += 0.2 * v.shot;
+        }
+        const pulse = 1 + v.recoil * 0.06;
+        r.position.set(ex, ey + lift, 0);
+        r.rotation.set(pitch - v.recoil * 0.18, v.yaw, roll);
+        r.scale.set(sx * pulse, sy * pulse, sz * pulse);
+        flashMaterials3D(st.materials, st.baseEmissive, ENEMY_FLASH_HEX_3D, flashAmt);
+        if (e.alive && e.kind === 'spitter' && winding && glowIdx < this.muzzleGlows.length) {
+          const g = this.muzzleGlows[glowIdx++];
+          g.visible = true;
+          g.position.set(ex + e.facing * 0.6, ey + 1.0 + lift, 0.25);
+          g.scale.setScalar(0.08 + windFrac * 0.3);
         }
       }
+
+      if (e.alive && winding && (e.kind === 'crawler' || e.kind === 'stalker') && decalIdx < this.lungeDecals.length) {
+        const d = this.lungeDecals[decalIdx++];
+        const len = e.kind === 'crawler' ? 2.6 : 3.6;
+        d.visible = true;
+        d.position.set(ex, ey + 0.2, 0.35);
+        d.scale.set(e.facing * len, 0.6, 1);
+        (d.material as THREE.MeshBasicMaterial).opacity = 0.25 + 0.5 * windFrac;
+      }
     }
+    for (let i = decalIdx; i < this.lungeDecals.length; i++) this.lungeDecals[i].visible = false;
+    for (let i = glowIdx; i < this.muzzleGlows.length; i++) this.muzzleGlows[i].visible = false;
 
     if (telegraphWarden) {
       this.wardenTelegraphRing.visible = true;
