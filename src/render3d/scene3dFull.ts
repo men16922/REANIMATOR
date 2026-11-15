@@ -13,6 +13,7 @@ import { BOSS_PHASE_COLORS, createPostParams, FxDirector, stepPostParams } from 
 import { BossTelegraph3D } from './bossTelegraph3d.ts';
 import { BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
 import { PopupLayer } from './popups3d.ts';
+import { ClassicPipeline, classicOrthoHalf, remapNdcToClassic, type ViewMode } from './classicView.ts';
 import { applyPostParams, createPostPass, ParticleLayer } from './fx3dGfx.ts';
 import type { SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
@@ -254,6 +255,11 @@ export class Scene3DRenderer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
   private readonly camera: THREE.PerspectiveCamera;
+  /** Classic View: flat orthographic side view. It follows the perspective camera's pose, so all rig/shake logic is shared. */
+  private readonly orthoCamera = new THREE.OrthographicCamera(-7, 7, 4.6, -4.6, 0.1, 120);
+  private viewMode: ViewMode = 'modern';
+  private crtOn = false;
+  private classic: ClassicPipeline | null = null;
   private readonly composer: EffectComposer;
   private readonly bloomPass: UnrealBloomPass;
   /** Game-feel layer (shake, hit-stop, particles, post params). main.ts drives observe() once per sim tick. */
@@ -597,10 +603,11 @@ export class Scene3DRenderer {
    */
   public pickAt(px: number, py: number, includePoints = false): Array<Record<string, unknown>> {
     const rect = this.renderer.domElement.getBoundingClientRect();
-    const ndc = new THREE.Vector2(((px - rect.left) / rect.width) * 2 - 1, -(((py - rect.top) / rect.height) * 2 - 1));
-    this.camera.updateMatrixWorld();
+    const ndc = this.pickNdc(((px - rect.left) / rect.width) * 2 - 1, -(((py - rect.top) / rect.height) * 2 - 1));
+    const cam = this.activeCamera();
+    cam.updateMatrixWorld();
     const rc = new THREE.Raycaster();
-    rc.setFromCamera(ndc, this.camera);
+    rc.setFromCamera(ndc, cam);
     const hits = rc.intersectObjects(this.scene.children, true).filter((h) => includePoints || h.object.type !== 'Points');
     const hex = (c: unknown): string | null => (c instanceof THREE.Color ? `#${c.getHexString()}` : null);
     return hits.map((h) => {
@@ -629,10 +636,66 @@ export class Scene3DRenderer {
     });
   }
 
+  private activeCamera(): THREE.Camera {
+    return this.viewMode === 'classic' ? this.orthoCamera : this.camera;
+  }
+
+  /** Classic View letterboxes to an integer scale, so canvas NDC is remapped into the picture. */
+  private pickNdc(ndcX: number, ndcY: number): THREE.Vector2 {
+    if (this.viewMode === 'classic' && this.classic) {
+      const b = this.classic.bufferSize;
+      const m = remapNdcToClassic(ndcX, ndcY, this.classic.currentLayout, b.w, b.h);
+      return new THREE.Vector2(m.x, m.y);
+    }
+    return new THREE.Vector2(ndcX, ndcY);
+  }
+
+  public getViewMode(): ViewMode {
+    return this.viewMode;
+  }
+
+  /** Classic View: 320x200 palette-dithered render with an orthographic side camera. Bloom and the grade pass are bypassed. */
+  public setViewMode(m: ViewMode): void {
+    this.viewMode = m;
+    if (m === 'classic' && !this.classic) this.classic = new ClassicPipeline(this.renderer);
+    if (m === 'modern') {
+      this.camera.aspect = this.renderer.domElement.width / this.renderer.domElement.height;
+      this.camera.updateProjectionMatrix();
+    }
+  }
+
+  public setCrt(on: boolean): void {
+    this.crtOn = on;
+  }
+
+  /** Aligns the orthographic camera with the (shaken, zoomed) perspective camera pose. */
+  private syncOrtho(): void {
+    const lay = (this.classic as ClassicPipeline).refresh();
+    const aspect = lay.w / lay.h;
+    const zoom = (15.5 / Math.max(2, this.camera.position.z)) * (this.baseFov / this.camera.fov);
+    const { halfW, halfH } = classicOrthoHalf(aspect, zoom);
+    const o = this.orthoCamera;
+    if (o.right !== halfW || o.top !== halfH) {
+      o.left = -halfW;
+      o.right = halfW;
+      o.top = halfH;
+      o.bottom = -halfH;
+      o.updateProjectionMatrix();
+    }
+    if (Math.abs(this.camera.aspect - aspect) > 1e-4) {
+      this.camera.aspect = aspect;
+      this.camera.updateProjectionMatrix();
+    }
+    o.position.copy(this.camera.position);
+    o.quaternion.copy(this.camera.quaternion);
+    o.updateMatrixWorld();
+  }
+
   /** Converts normalized canvas cursor coordinates (-1..1 NDC) into the world aim point on the z = 0 lane. */
   public screenToWorldAim(ndcX: number, ndcY: number, w: WorldState3D): { x: number; y: number; z: number } {
-    this.camera.updateMatrixWorld();
-    this.raycaster.setFromCamera(new THREE.Vector2(ndcX, ndcY), this.camera);
+    const cam = this.activeCamera();
+    cam.updateMatrixWorld();
+    this.raycaster.setFromCamera(this.pickNdc(ndcX, ndcY), cam);
     const ray = this.raycaster.ray;
     const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
     const hit = new THREE.Vector3();
@@ -1945,7 +2008,13 @@ export class Scene3DRenderer {
 
     this.applyViewCulling(w);
     this.renderer.info.reset();
-    this.composer.render();
+    if (this.viewMode === 'classic' && this.classic) {
+      this.syncOrtho();
+      const hurt = this.postParams.lowHp * this.postParams.pulse;
+      this.classic.render(this.scene, this.orthoCamera, { flash: this.postParams.flash, hurt, crt: this.crtOn });
+    } else {
+      this.composer.render();
+    }
   }
 
   private syncDynamicFX(w: WorldState3D, _dt: number): void {

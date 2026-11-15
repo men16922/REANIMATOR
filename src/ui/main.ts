@@ -20,6 +20,8 @@ import {
 } from '../game3d/world3d.ts';
 import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2d.ts';
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
+import { parseCrt, parseViewMode, PixelTransition, toggleViewMode, VIEW_STORE, viewLabel, type ViewMode } from '../render3d/classicView.ts';
+import { ClassicHud } from './classicHud.ts';
 import { getAudioDebug, play as playSound, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
 import { rankPitch } from './audioLogic.ts';
 import { AudioDirector, snapshotPre } from './audioDirector.ts';
@@ -318,6 +320,48 @@ function applyGore(level: GoreLevel): void {
   store(STORE.gore, level);
 }
 
+// ---- Classic View (1996 look): V toggles, SETTINGS buttons mirror it, both persisted ----
+let viewMode: ViewMode = 'modern';
+let crtOn = false;
+const classicHud = new ClassicHud(ui.hud);
+const viewFx = new PixelTransition(canvas);
+
+function syncViewButtons(): void {
+  $('view-toggle').textContent = `View: ${viewLabel(viewMode)}`;
+  $('crt-toggle').textContent = `CRT: ${crtOn ? 'On' : 'Off'}`;
+}
+
+function applyView(m: ViewMode, persist = true): void {
+  viewMode = m;
+  document.body.classList.toggle('classic', m === 'classic');
+  scene3d?.setViewMode(m);
+  if (persist) store(VIEW_STORE.mode, m);
+  syncViewButtons();
+}
+
+function applyCrt(on: boolean, persist = true): void {
+  crtOn = on;
+  scene3d?.setCrt(on);
+  if (persist) store(VIEW_STORE.crt, on ? '1' : '0');
+  syncViewButtons();
+}
+
+/** 1996 <-> 2026 with the 0.4 s mosaic. Reduced-flash mode switches instantly. */
+function toggleView(): void {
+  if (viewFx.active) return;
+  const target = toggleViewMode(viewMode);
+  if (ui.reduceFlash.checked) {
+    applyView(target);
+    return;
+  }
+  viewFx.start(target, () => applyView(target), performance.now());
+  // Safety net if frames stop rendering (e.g. a hidden tab): finish the switch anyway.
+  window.setTimeout(() => {
+    if (viewMode !== target) applyView(target);
+    viewFx.finish();
+  }, 900);
+}
+
 function popClass(el: HTMLElement, cls: string, ms: number, timerKey?: 'hit'): void {
   el.classList.remove(cls);
   void el.offsetWidth;
@@ -506,6 +550,18 @@ function hud(): void {
 
   const zm = zoneMeta();
   ui.sector.textContent = zm.name;
+  if (viewMode === 'classic') {
+    classicHud.update({
+      hp: p.hp,
+      maxHp: p.maxHp,
+      energyTanks: p.energyTanks,
+      weapon: p.weapon,
+      unlocked: [p.unlocked[1], p.unlocked[2], p.unlocked[3], p.unlocked[4]],
+      ammo: [-1, p.ammo[2], p.ammo[3], p.ammo[4]],
+      kills: p.kills,
+      sector: zm.name,
+    });
+  }
   ui.sectorHint.textContent = world.hintTicks > 0 ? world.hint : zm.hint;
   const cb = world.combo;
   $('combo-pill').hidden = cb.count < 2;
@@ -535,6 +591,7 @@ function renderWorld(alpha = 1): void {
   } else {
     renderFallback2D3D(canvas, world);
   }
+  viewFx.afterRender(performance.now());
 }
 
 function handlePostStepAudio(pre: ReturnType<typeof snapshotPre>): void {
@@ -610,6 +667,7 @@ function frame(t: number): void {
     canvas.style.opacity = String(1 - attract.fade * 0.96);
     if (scene3d) scene3d.render(attract.world, attract.alpha);
     else renderFallback2D3D(canvas, attract.world);
+    viewFx.afterRender(performance.now());
   } else {
     scene3d?.setAttractCamera(null);
     if (canvas.style.opacity) canvas.style.opacity = '';
@@ -674,6 +732,11 @@ function menuNavigate(e: KeyboardEvent): boolean {
 }
 
 window.addEventListener('keydown', (e) => {
+  if (e.code === 'KeyV' && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey && $('loading').hidden) {
+    toggleView();
+    e.preventDefault();
+    return;
+  }
   if (introActive) {
     hideIntro();
     if (mode === 'title') {
@@ -820,6 +883,10 @@ $('controls-close').addEventListener('click', () => {
   ui.controlsPanel.hidden = true;
   $('controls-open').focus();
 });
+$('view-toggle').addEventListener('click', toggleView);
+$('crt-toggle').addEventListener('click', () => applyCrt(!crtOn));
+applyView(parseViewMode(store(VIEW_STORE.mode)), false);
+applyCrt(parseCrt(store(VIEW_STORE.crt)), false);
 for (const el of [ui.reduceFlash, ui.reduceFlashP]) el.addEventListener('change', () => applyReduceFx(el.checked));
 for (const el of [ui.goreLevel, ui.goreLevelP]) el.addEventListener('change', () => applyGore(parseGoreLevel(el.value)));
 applyGore(goreLevel);
@@ -955,6 +1022,8 @@ function buildSnapshot() {
     startX: world.level.spawn.x,
     startY: world.level.spawn.y,
     rendererMode,
+    viewMode,
+    crt: crtOn,
     ...tel,
   };
 }
@@ -1013,6 +1082,7 @@ const wAny = window as unknown as {
   __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D) => ReturnType<typeof buildSnapshot>;
   __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => ReturnType<typeof buildSnapshot>;
   __reanimatorRunBot: (maxTicks: number, untilStep?: string, showResultOnEnd?: boolean) => ReturnType<typeof buildSnapshot>;
+  __reanimatorSetView: (m: ViewMode) => ReturnType<typeof buildSnapshot>;
   __reanimatorAudio: typeof getAudioDebug;
   __reanimatorShowResult: (kind: 'won' | 'lost') => ReturnType<typeof buildSnapshot>;
   __reanimatorShowBanner: (kind: 'sector' | 'weapon' | 'boots' | 'etank' | 'coach') => ReturnType<typeof buildSnapshot>;
@@ -1032,6 +1102,11 @@ function enterManual(): void {
 wAny.__reanimator = buildSnapshot;
 /** Debug: audio graph state, current theme, voice counters and the last 48 sound ids (see docs). */
 wAny.__reanimatorAudio = getAudioDebug;
+/** Debug only: switch view immediately, without the mosaic transition. */
+wAny.__reanimatorSetView = (m) => {
+  applyView(m === 'classic' ? 'classic' : 'modern');
+  return buildSnapshot();
+};
 /** Fresh world, optional setup, then run the given input frames. */
 wAny.__reanimatorAdvance = (inputs, setup) => {
   world = newWorld3D();
