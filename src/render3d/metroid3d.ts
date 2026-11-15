@@ -3,7 +3,7 @@
 // Every visual is a pure function of WorldState3D (openDoors, mapRevealed, meltdown clock). No PointLights, no per-frame allocation:
 // meshes are built once per level and only toggled or moved in update().
 import * as THREE from 'three';
-import { escapeSealView3D, type WorldState3D } from '../game3d/world3d.ts';
+import { SCAN_TICKS, escapeSealView3D, scanTargets3D, type WorldState3D } from '../game3d/world3d.ts';
 import type { Level3D, MapSolid3D } from '../game3d/types3d.ts';
 
 export interface Metroid3D {
@@ -229,6 +229,31 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
       return { s, mesh, mat, fade: 1 };
     });
 
+  // Scan Pulse markers: pooled, hidden unless the sim's scan flag is set. Existing material types only, no lights.
+  const SCAN_POOL = 10;
+  const frameMat = track(new THREE.LineBasicMaterial({ color: 0x52e5ff, transparent: true, opacity: 0.9, depthTest: false }));
+  const secretMat = track(new THREE.LineBasicMaterial({ color: 0xffc03a, transparent: true, opacity: 0.9, depthTest: false }));
+  const ringGeo = new THREE.RingGeometry(0.42, 0.52, 24);
+  geos.push(ringGeo);
+  const ringMat = track(new THREE.MeshBasicMaterial({ color: 0x8fe9ff, transparent: true, opacity: 0.9, depthTest: false, side: THREE.DoubleSide }));
+  const edgeGeo = new THREE.EdgesGeometry(box);
+  geos.push(edgeGeo);
+  const frames: THREE.LineSegments[] = [];
+  const rings: THREE.Mesh[] = [];
+  for (let i = 0; i < SCAN_POOL; i++) {
+    const f = new THREE.LineSegments(edgeGeo, frameMat);
+    f.visible = false;
+    f.renderOrder = 20;
+    root.add(f);
+    frames.push(f);
+    const r = new THREE.Mesh(ringGeo, ringMat);
+    r.visible = false;
+    r.renderOrder = 20;
+    r.position.z = 1.2;
+    root.add(r);
+    rings.push(r);
+  }
+
   // Tunnel mouths: striped frame on the lintel face plus an amber chevron glow inside the opening
   const glows: THREE.MeshBasicMaterial[] = [];
   for (const tn of level.tunnels) {
@@ -308,6 +333,37 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
         if (broken) b.mesh.position.y -= dt * 2.5 * (1 - b.fade);
         else b.mesh.position.y = (b.s.minY + b.s.maxY) / 2;
       }
+      const scanning = w.player.scanTicks > 0;
+      let fi = 0;
+      let ri = 0;
+      if (scanning) {
+        const k = w.player.scanTicks / SCAN_TICKS;
+        const fade = Math.min(1, k * 4);
+        const pulse = reduceMotion ? 1 : 1 + 0.06 * Math.sin(tSec * 8);
+        frameMat.opacity = 0.9 * fade;
+        secretMat.opacity = 0.9 * fade;
+        ringMat.opacity = 0.9 * fade;
+        const t = scanTargets3D(w);
+        for (const [list, mat] of [[t.blocks, frameMat], [t.secrets, secretMat]] as const) {
+          for (const s of list) {
+            if (fi >= SCAN_POOL) break;
+            const f = frames[fi++];
+            f.material = mat;
+            f.visible = true;
+            f.scale.set((s.maxX - s.minX + 0.12) * pulse, (s.maxY - s.minY + 0.12) * pulse, s.maxZ - s.minZ + 0.12);
+            f.position.set((s.minX + s.maxX) / 2, (s.minY + s.maxY) / 2, (s.minZ + s.maxZ) / 2);
+          }
+        }
+        for (const k2 of t.pickups) {
+          if (ri >= SCAN_POOL) break;
+          const r = rings[ri++];
+          r.visible = true;
+          r.position.set(k2.x, k2.y + 0.5, 1.2);
+          r.scale.setScalar(pulse * 1.4);
+        }
+      }
+      for (; fi < SCAN_POOL; fi++) frames[fi].visible = false;
+      for (; ri < SCAN_POOL; ri++) rings[ri].visible = false;
       const slideOn = w.player.abilities.crawlSlide;
       for (const gm of glows) gm.opacity = slideOn ? (reduceMotion ? 0.4 : 0.3 + 0.15 * Math.sin(tSec * 3)) : 0.14;
       for (const t of terms) {

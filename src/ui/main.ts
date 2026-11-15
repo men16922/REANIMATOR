@@ -212,6 +212,7 @@ let lightQueued = false;
 let dashQueued = false;
 let interactQueued = false;
 let counterQueued = false;
+let scanQueued = false;
 let weaponQueue: WeaponSlot3D | 0 = 0;
 
 function cycleWeapon(dir: 1 | -1): void {
@@ -242,6 +243,8 @@ function buildInput(): InputState3D {
   weaponQueue = 0;
   const counter = counterQueued;
   counterQueued = false;
+  const scan = scanQueued;
+  scanQueued = false;
 
   let aim = currentAim3D();
   if (assist.aim) aim = assistAim(world, aim.x, aim.y);
@@ -256,6 +259,7 @@ function buildInput(): InputState3D {
     toggleLight,
     weaponSlot,
     counter,
+    scan,
     aimX: aim.x,
     aimY: aim.y,
   };
@@ -272,6 +276,7 @@ function releaseInput(): void {
   dashQueued = false;
   interactQueued = false;
   counterQueued = false;
+  scanQueued = false;
   weaponQueue = 0;
 }
 
@@ -826,6 +831,8 @@ function hud(): void {
   $('rail-pill').hidden = !railOn;
   if (railOn) $('rail-bar').style.width = `${Math.min(100, (p.railCharge / RAIL_CHARGE_TICKS) * 100)}%`;
   ui.bootsPill.hidden = !p.abilities.thrusterBoots;
+  $('scan-pill').classList.toggle('active', p.scanTicks > 0);
+  $('scan-state').textContent = p.scanTicks > 0 ? 'ACTIVE' : p.scanCooldown > 0 ? `${(p.scanCooldown / 60).toFixed(0)}s` : 'READY';
   ui.etankCount.textContent = `${p.energyTanks}/${world.level.upgrades.filter((u) => u.kind === 'energy_tank').length}`;
   drawMinimap();
 
@@ -1161,6 +1168,7 @@ window.addEventListener('keydown', (e) => {
   if ((e.code === 'ShiftLeft' || e.code === 'ShiftRight') && !e.repeat) dashQueued = true;
   if (e.code === 'KeyF' && !e.repeat) interactQueued = true;
   if ((e.code === 'KeyX' || e.code === 'KeyC') && !e.repeat) counterQueued = true;
+  if (e.code === 'KeyZ' && !e.repeat) scanQueued = true;
   if (e.code === 'Digit1' && !e.repeat) weaponQueue = 1;
   if (e.code === 'Digit2' && !e.repeat) weaponQueue = 2;
   if (e.code === 'Digit3' && !e.repeat) weaponQueue = 3;

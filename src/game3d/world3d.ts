@@ -48,6 +48,8 @@ export interface InputState3D {
   aimY: number;
   /** Melee Counter (parry). Opt-in: omitted or false means the sim is identical to a build without it. Edge-triggered. */
   counter?: boolean;
+  /** Scan Pulse. Opt-in and edge-triggered like `counter`. The sim only keeps a timer, a cooldown and the reveal flag. */
+  scan?: boolean;
 }
 
 export interface PlayerAbilities3D {
@@ -88,6 +90,10 @@ export interface PlayerState3D {
   counterCooldown: number;
   counterPrev: boolean;
   counterStance: number;
+  /** Scan Pulse: reveal ticks left (the reveal flag is scanTicks > 0), cooldown ticks left and previous-tick button */
+  scanTicks: number;
+  scanCooldown: number;
+  scanPrev: boolean;
 }
 
 export interface EnemyState3D {
@@ -654,6 +660,11 @@ export const PARRY_STAGGER_TICKS = 50;
 export const PARRY_DAMAGE = 45;
 export const PARRY_INVULN_TICKS = 24;
 
+/** Scan Pulse: reveal lasts SCAN_TICKS, the next scan is allowed SCAN_COOLDOWN_TICKS after the press. Display aid only, never gates the sim. */
+export const SCAN_TICKS = 240;
+export const SCAN_COOLDOWN_TICKS = 600;
+export const SCAN_RADIUS = 14;
+
 /** Warden pattern cycle per phase (deterministic, no RNG). */
 export const WARDEN_CYCLE_3D: Record<1 | 2 | 3, readonly BossPattern3D[]> = {
   1: ['slam', 'volley', 'slam', 'volley'],
@@ -683,6 +694,7 @@ export function emptyInput3D(): InputState3D {
     aimX: 12,
     aimY: 1.05,
     counter: false,
+    scan: false,
   };
 }
 
@@ -879,6 +891,9 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
       counterCooldown: 0,
       counterPrev: false,
       counterStance: 0,
+      scanTicks: 0,
+      scanCooldown: 0,
+      scanPrev: false,
     },
     currentRoom: 'airlock',
     visitedRooms: ['airlock'],
@@ -2400,6 +2415,47 @@ function stepCounter3D(w: WorldState3D, pressed: boolean): void {
   }
 }
 
+/** Scan Pulse: edge press starts the reveal when the cooldown is over. Timers only; nothing else reads them. */
+function stepScan3D(w: WorldState3D, pressed: boolean): void {
+  const p = w.player;
+  if (p.scanTicks > 0) p.scanTicks--;
+  if (p.scanCooldown > 0) p.scanCooldown--;
+  const edge = pressed && !p.scanPrev;
+  p.scanPrev = pressed;
+  if (!edge || p.scanCooldown > 0) return;
+  p.scanTicks = SCAN_TICKS;
+  p.scanCooldown = SCAN_COOLDOWN_TICKS;
+  w.events.push({ type: 'scan' });
+}
+
+export interface ScanTargets3D {
+  /** Unbroken breakable blocks (includes secret-room walls broken by stomp or rail) */
+  blocks: MapSolid3D[];
+  /** Unfound secret-room door walls (yellow lock) */
+  secrets: MapSolid3D[];
+  /** Untaken pickups, including ones behind walls */
+  pickups: PickupState3D[];
+}
+
+/** Pure radius query used by the renderer while the reveal flag is set. Distance is measured from the player to the target centre. */
+export function scanTargets3D(w: WorldState3D, radius: number = SCAN_RADIUS): ScanTargets3D {
+  const px = w.player.body.x;
+  const py = w.player.body.y;
+  const near = (cx: number, cy: number): boolean => Math.hypot(cx - px, cy - py) <= radius;
+  const blocks: MapSolid3D[] = [];
+  const secrets: MapSolid3D[] = [];
+  const secretDoors = new Set(w.level.secrets.filter((sr) => !w.secretsFound.includes(sr.id)).map((sr) => sr.doorId));
+  for (const s of w.level.solids) {
+    const isBlock = !!s.breakId && !w.openDoors.has(s.breakId);
+    const isSecret = !!s.doorId && secretDoors.has(s.doorId) && !w.openDoors.has(s.doorId);
+    if (!isBlock && !isSecret) continue;
+    if (!near((s.minX + s.maxX) / 2, (s.minY + s.maxY) / 2)) continue;
+    (isSecret ? secrets : blocks).push(s);
+  }
+  const pickups = w.pickups.filter((k) => !k.taken && near(k.x, k.y + 0.5));
+  return { blocks, secrets, pickups };
+}
+
 /** Hives birth larvae on a fixed cadence (deterministic, no RNG) while the player is near, up to HIVE_CAP_3D alive each. */
 function stepHives3D(w: WorldState3D): void {
   const pb = w.player.body;
@@ -3049,6 +3105,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   }
 
   stepCounter3D(w, input.counter === true);
+  stepScan3D(w, input.scan === true);
   stepSwitches3D(w, input.interact);
   stepProjectiles3D(w);
   stepBurn3D(w);

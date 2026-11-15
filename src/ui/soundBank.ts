@@ -92,6 +92,7 @@ export const SOUND_BANK = {
   'player.stomp': r(5, 0.1, o(150, 0.2, 'triangle', 0.2, 38), o(900, 0.05, 'square', 0.06, 300), n(0.22, 0.16, 1400, 'lowpass', 120), n(0.08, 0.07, 3400, 'bandpass', 1200, 0.01, 2)),
   'combat.parry': r(9, 0.08, o(1900, 0.09, 'square', 0.12, 700), o(2850, 0.14, 'sine', 0.08, 1500, 0.01), o(110, 0.22, 'triangle', 0.2, 45), n(0.12, 0.14, 5200, 'highpass', 1800), n(0.2, 0.12, 900, 'lowpass', 120, 0.02)),
   'combat.parry_whiff': r(3, 0.1, o(320, 0.09, 'triangle', 0.06, 180), n(0.07, 0.05, 1500, 'bandpass', 600)),
+  'world.scan': r(3, 0.2, o(300, 0.5, 'sine', 0.1, 1400), o(1400, 0.35, 'triangle', 0.04, 2200, 0.08), n(0.4, 0.04, 3200, 'bandpass', 1800, 0.05, 3)),
   'ui.combo': r(4, 0.05, o(880, 0.28, 'sine', 0.1), o(1760, 0.18, 'sine', 0.045, undefined, 0.01), o(1320, 0.22, 'triangle', 0.03, undefined, 0.02)),
   'world.collect': r(5, 0.2, ...arp([659, 880, 1175, 1568], 0.06, 0.2, 'sine', 0.09), o(1568, 0.5, 'triangle', 0.03, undefined, 0.2)),
   'world.secret': r(6, 0.5, ...arp([392, 466, 587, 740, 587, 880], 0.1, 0.35, 'triangle', 0.1), o(98, 0.9, 'sine', 0.08, 130), n(0.9, 0.025, 4000, 'bandpass', 1500, 0, 6)),
