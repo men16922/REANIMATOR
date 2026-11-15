@@ -21,7 +21,7 @@ import { PopupLayer, popupCeilWorldY } from './popups3d.ts';
 import { CLASSIC_GLOW_SPRITE_SCALE, ClassicPipeline, classicOrthoHalf, gateStrobe, remapNdcToClassic, type ViewMode } from './classicView.ts';
 import { buildBootsItem, buildEnergyTankItem, buildSaveStation, createHoloMaterial, createShieldMaterial, type SaveStationProps } from './propsGfx.ts';
 import { applyPostParams, createFireballMaterial, createGroundWaveMaterial, createPostPass, createShockRingMaterial, ParticleLayer } from './fx3dGfx.ts';
-import type { SectorId3D } from '../game3d/types3d.ts';
+import type { Level3D, SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
 import { getPlayerPose3D, RAIL_CHARGE_TICKS, skipBossIntro3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
 import { HeroController, legDrop, type HeroFrame } from './heroPose.ts';
@@ -84,6 +84,7 @@ import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from 
 import { buildVista3D, type Vista3D } from './vista3d.ts';
 import { buildAmbient3D, type Ambient3D } from './ambient3d.ts';
 import type { OpeningView } from '../ui/opening.ts';
+import { buildTerrainDetail, makeTerrainDetailMaterial } from './terrainDetail.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
 /** Static scenery that is hidden while it is outside the camera window (render-only). */
@@ -172,6 +173,19 @@ const SECTOR_SURFACE: Record<SectorId3D, { wall?: TexKey; floor?: TexKey; tint: 
   security: { wall: 'panelMap', floor: 'panelMap', tint: 0xffffff, grate: 0x9aa4b8 },
   core: { wall: 'concreteMap', floor: 'concreteMap', tint: 0xe0b8a8, grate: 0xc09484 },
 };
+
+/** R14: normal map that pairs with a facility surface texture (null when unavailable, e.g. no pixel access). */
+function surfaceNormal(tex: ReturnType<typeof getFacilityTextures3D>, key: TexKey | 'wallMap' | 'deckMap'): THREE.Texture | null {
+  switch (key) {
+    case 'rockMap': return tex.rockNormal;
+    case 'cleanTileMap': return tex.cleanTileNormal;
+    case 'panelMap': return tex.panelNormal;
+    case 'concreteMap': return tex.concreteNormal;
+    case 'rustMetalMap': return tex.rustMetalNormal;
+    case 'wallMap': return tex.wallNormal;
+    case 'deckMap': return tex.deckNormal;
+  }
+}
 
 function turnToward(current: number, target: number, dt: number, rate = 16): number {
   let d = target - current;
@@ -918,6 +932,7 @@ export class Scene3DRenderer {
     this.flushSolidBatches(tex);
     this.buildDoorDressing(w.level.solids, tex);
     this.buildTrim();
+    this.buildTerrainDetailMeshes(w.level);
     this.decor?.dispose();
     this.decor = buildDecor3D(this.scene, w.level, tex);
     this.vista?.dispose();
@@ -1196,13 +1211,23 @@ export class Scene3DRenderer {
       const map = base.clone();
       map.repeat.set(Math.max(1, sx / 4), Math.max(1, sz / 4));
       map.needsUpdate = true;
+      const fn = surfaceNormal(tex, surf.floor ?? 'deckMap');
+      let nmap: THREE.Texture | null = null;
+      if (fn) {
+        nmap = fn.clone();
+        nmap.repeat.copy(map.repeat);
+        nmap.needsUpdate = true;
+        this.levelTextures.push(nmap);
+      }
       if (surf.floor) {
-        mat = new THREE.MeshStandardMaterial({ map, color: surf.tint, roughness: 0.6, metalness: 0.4 });
+        mat = new THREE.MeshStandardMaterial({ map, normalMap: nmap, normalScale: new THREE.Vector2(0.9, 0.9), color: surf.tint, roughness: 0.6, metalness: 0.4 });
       } else {
         const bump = tex.deckBump.clone();
         bump.repeat.copy(map.repeat);
         bump.needsUpdate = true;
-        mat = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 0.04, roughness: 0.55, metalness: 0.45 });
+        mat = nmap
+          ? new THREE.MeshStandardMaterial({ map, normalMap: nmap, normalScale: new THREE.Vector2(0.8, 0.8), roughness: 0.55, metalness: 0.45 })
+          : new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 0.04, roughness: 0.55, metalness: 0.45 });
       }
     } else if (s.kind === 'door' && s.doorId && this.secretDoorIds.has(s.doorId)) {
       const ct = makeCrackedWallTextures(Math.max(1, sx), Math.max(1, sy));
@@ -1251,8 +1276,18 @@ export class Scene3DRenderer {
       const map = (surf.wall ? tex[surf.wall] : tex.wallMap).clone();
       map.repeat.set(Math.max(1, Math.max(sx, sz) / 4), Math.max(1, sy / 3));
       map.needsUpdate = true;
+      const wn = surfaceNormal(tex, surf.wall ?? 'wallMap');
+      let wnorm: THREE.Texture | null = null;
+      if (wn) {
+        wnorm = wn.clone();
+        wnorm.repeat.copy(map.repeat);
+        wnorm.needsUpdate = true;
+        this.levelTextures.push(wnorm);
+      }
       mat = new THREE.MeshStandardMaterial({
         map,
+        normalMap: wnorm,
+        normalScale: new THREE.Vector2(1, 1),
         color: new THREE.Color(s.color ?? 0x8d9dad).multiply(new THREE.Color(surf.tint)),
         roughness: 0.52,
         metalness: 0.58,
@@ -1267,6 +1302,7 @@ export class Scene3DRenderer {
       let hsh = 2166136261;
       for (let i = 0; i < s.id.length; i++) hsh = Math.imul(hsh ^ s.id.charCodeAt(i), 16777619);
       mat.map.offset.set(((hsh >>> 0) % 997) / 997, ((hsh >>> 8) % 991) / 991);
+      mat.normalMap?.offset.copy(mat.map.offset);
     }
     this.addSolidTrim(s, sx, sy, sz, cx, cy, sector);
 
@@ -1346,7 +1382,11 @@ export class Scene3DRenderer {
         mat = new THREE.MeshStandardMaterial({ map: tiled(tex.grateMap), vertexColors: true, roughness: 0.42, metalness: 0.68 });
       } else if (b.cls === 'floor') {
         const map = tiled(surf.floor ? tex[surf.floor] : tex.deckMap);
-        mat = surf.floor
+        const fnorm = surfaceNormal(tex, surf.floor ?? 'deckMap');
+        const normalMap = fnorm ? tiled(fnorm) : null;
+        mat = normalMap
+          ? new THREE.MeshStandardMaterial({ map, normalMap, normalScale: new THREE.Vector2(0.9, 0.9), vertexColors: true, roughness: surf.floor ? 0.6 : 0.55, metalness: surf.floor ? 0.4 : 0.45 })
+          : surf.floor
           ? new THREE.MeshStandardMaterial({ map, vertexColors: true, roughness: 0.6, metalness: 0.4 })
           : new THREE.MeshStandardMaterial({ map, bumpMap: tiled(tex.deckBump), bumpScale: 0.04, vertexColors: true, roughness: 0.55, metalness: 0.45 });
       } else if (b.cls === 'crate') {
@@ -1355,7 +1395,15 @@ export class Scene3DRenderer {
       } else if (b.cls === 'console') {
         mat = new THREE.MeshStandardMaterial({ vertexColors: true, emissive: 0x1cb8d6, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.65 });
       } else {
-        mat = new THREE.MeshStandardMaterial({ map: tiled(surf.wall ? tex[surf.wall] : tex.wallMap), vertexColors: true, roughness: 0.52, metalness: 0.58 });
+        const wnorm = surfaceNormal(tex, surf.wall ?? 'wallMap');
+        mat = new THREE.MeshStandardMaterial({
+          map: tiled(surf.wall ? tex[surf.wall] : tex.wallMap),
+          normalMap: wnorm ? tiled(wnorm) : null,
+          normalScale: new THREE.Vector2(1, 1),
+          vertexColors: true,
+          roughness: 0.52,
+          metalness: 0.58,
+        });
         applyFrontLift(mat, 0.34);
       }
       const geo = buildBatchGeometry(b.items);
@@ -1371,6 +1419,20 @@ export class Scene3DRenderer {
       this.cullEntries.push({ obj: mesh, minX: bb.min.x, maxX: bb.max.x, minY: bb.min.y, maxY: bb.max.y });
     }
     this.pendingBatches.clear();
+  }
+
+  /** R14 terrain relief (rock outcrops, stalactites, wall ribs, conduits): merged per sector strip, culled by view window. */
+  private buildTerrainDetailMeshes(level: Level3D): void {
+    const mat = makeTerrainDetailMaterial();
+    for (const u of buildTerrainDetail(level, (x, y) => this.sectorAt(x, y))) {
+      const mesh = new THREE.Mesh(u.geometry, mat);
+      mesh.name = `terrain-detail:${u.key}`;
+      mesh.userData.sector = u.sector;
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      this.scene.add(mesh);
+      this.cullEntries.push({ obj: mesh, minX: u.minX, maxX: u.maxX, minY: u.minY, maxY: u.maxY });
+    }
   }
 
   private addCullPoint(obj: THREE.Object3D, x: number, y: number, r: number): void {

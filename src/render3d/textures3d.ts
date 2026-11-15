@@ -1,6 +1,7 @@
 // Procedural canvas PBR textures for REANIMATOR's Full 3D industrial facility.
 // Generates deck plates, ribbed bulkheads, perforated catwalk grates, hazard stripes, and glowing acid.
 import * as THREE from 'three';
+import { enrichTerrainCanvas, normalMapFromCanvas, type TerrainKind } from './terrainMaps.ts';
 
 export interface FacilityTextures3D {
   deckMap: THREE.CanvasTexture;
@@ -17,6 +18,14 @@ export interface FacilityTextures3D {
   rustMetalMap: THREE.CanvasTexture;
   macroMap: THREE.CanvasTexture;
   crateMap: THREE.CanvasTexture;
+  /** R14 height-derived normal maps (null-safe: absent when the canvas has no pixel access). */
+  rockNormal: THREE.CanvasTexture | null;
+  concreteNormal: THREE.CanvasTexture | null;
+  cleanTileNormal: THREE.CanvasTexture | null;
+  panelNormal: THREE.CanvasTexture | null;
+  rustMetalNormal: THREE.CanvasTexture | null;
+  wallNormal: THREE.CanvasTexture | null;
+  deckNormal: THREE.CanvasTexture | null;
   /** Dark vented housing for light fixtures. */
   grilleMap: THREE.CanvasTexture;
   /** Bright slatted lamp face (tinted per instance). */
@@ -440,22 +449,43 @@ export function getFacilityTextures3D(): FacilityTextures3D {
     }
   });
 
+  // R14: upscale the main surfaces to 512 px with kind-specific detail passes, and derive normal maps from them.
+  const enriched = (c: HTMLCanvasElement, kind: TerrainKind): { color: HTMLCanvasElement; normal: THREE.CanvasTexture | null } => {
+    const color = enrichTerrainCanvas(c, kind, 512);
+    const nc = normalMapFromCanvas(color, kind === 'tile' ? 2.6 : 3.2);
+    return { color, normal: nc ? asTiledTexture(nc, 1, 1, false) : null };
+  };
+  const rockE = enriched(rockCanvas, 'rock');
+  const concreteE = enriched(concreteCanvas, 'concrete');
+  const tileE = enriched(tileCanvas, 'tile');
+  const panelE = enriched(panelCanvas, 'panel');
+  const rustE = enriched(rustCanvas, 'rust');
+  const wallE = enriched(wallCanvas, 'wall');
+  const deckE = enriched(deckCanvas, 'deck');
+
   cached = {
+    rockNormal: rockE.normal,
+    concreteNormal: concreteE.normal,
+    cleanTileNormal: tileE.normal,
+    panelNormal: panelE.normal,
+    rustMetalNormal: rustE.normal,
+    wallNormal: wallE.normal,
+    deckNormal: deckE.normal,
     grilleMap: asTiledTexture(grilleCanvas, 1, 1, true),
     lampMap: asTiledTexture(lampCanvas, 1, 1, true),
     shieldMap: asTiledTexture(shieldCanvas, 1, 2, true),
     signMap: asTiledTexture(signCanvas, 1, 1, true),
     crateMap: asTiledTexture(crateCanvas, 1, 1, true),
-    rockMap: asTiledTexture(rockCanvas, 1, 1, true),
+    rockMap: asTiledTexture(rockE.color, 1, 1, true),
     rockBump: asTiledTexture(rockBumpCanvas, 1, 1, false),
-    concreteMap: asTiledTexture(concreteCanvas, 1, 1, true),
-    cleanTileMap: asTiledTexture(tileCanvas, 1, 1, true),
-    panelMap: asTiledTexture(panelCanvas, 1, 1, true),
-    rustMetalMap: asTiledTexture(rustCanvas, 1, 1, true),
+    concreteMap: asTiledTexture(concreteE.color, 1, 1, true),
+    cleanTileMap: asTiledTexture(tileE.color, 1, 1, true),
+    panelMap: asTiledTexture(panelE.color, 1, 1, true),
+    rustMetalMap: asTiledTexture(rustE.color, 1, 1, true),
     macroMap: asTiledTexture(macroCanvas, 1, 1, true),
-    deckMap: asTiledTexture(deckCanvas, 1, 1, true),
+    deckMap: asTiledTexture(deckE.color, 1, 1, true),
     deckBump: asTiledTexture(bumpCanvas, 1, 1, false),
-    wallMap: asTiledTexture(wallCanvas, 1, 1, true),
+    wallMap: asTiledTexture(wallE.color, 1, 1, true),
     grateMap: asTiledTexture(grateCanvas, 2, 1, true),
     hazardMap: asTiledTexture(hazardCanvas, 4, 1, true),
     acidMap: asTiledTexture(acidCanvas, 2, 1, true),

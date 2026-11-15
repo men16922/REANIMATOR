@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import type { MapSolid3D } from '../game3d/map3d.ts';
 import type { Level3D, SectorId3D } from '../game3d/types3d.ts';
 import { batchKeyFor, classifySolid } from './solidBatches.ts';
+import { buildTerrainDetail } from './terrainDetail.ts';
 
 export const SECTOR_DRAW_BUDGET = 300;
 /** Player rig, enemies, pickups, projectiles and fx pools that are alive in a typical frame. */
@@ -28,6 +29,8 @@ export interface ViewParts {
 export interface SectorDrawEstimate {
   sector: SectorId3D;
   solids: number;
+  /** R14 terrain relief strips (merged rock, rib and conduit meshes). */
+  terrain: number;
   decor: number;
   vista: number;
   ambient: number;
@@ -108,6 +111,7 @@ export function estimateSectorDrawCalls(level: Level3D, parts: ViewParts): Secto
     return 'shaft';
   };
   const units = planSolidUnits(level.solids, sectorAt);
+  const detail = buildTerrainDetail(level, sectorAt);
   const hazards = countVisibleMeshes(parts.hazardsRoot).meshes;
   const out: SectorDrawEstimate[] = [];
   const sectors = [...new Set(level.rooms.map((r) => r.sector))];
@@ -128,12 +132,14 @@ export function estimateSectorDrawCalls(level: Level3D, parts: ViewParts): Secto
           const v = countVisibleMeshes(parts.vistaRoot);
           const a = countVisibleMeshes(parts.ambientRoot);
           const solids = units.filter((u) => u.maxX >= vx0 && u.minX <= vx1 && u.maxY >= vy0 && u.minY <= vy1).length;
-          const total = solids + d.meshes + v.meshes + a.meshes + hazards + DRESSING_MESHES + ACTOR_FX_ALLOWANCE;
+          const terrain = detail.filter((u) => u.maxX >= vx0 && u.minX <= vx1 && u.maxY >= vy0 && u.minY <= vy1).length;
+          const total = solids + terrain + d.meshes + v.meshes + a.meshes + hazards + DRESSING_MESHES + ACTOR_FX_ALLOWANCE;
           if (!best || total > best.total) {
             const casters = d.casters + Math.ceil(solids * 0.5);
             best = {
               sector,
               solids,
+              terrain,
               decor: d.meshes,
               vista: v.meshes,
               ambient: a.meshes,
@@ -151,5 +157,6 @@ export function estimateSectorDrawCalls(level: Level3D, parts: ViewParts): Secto
     }
     if (best) out.push(best);
   }
+  detail.forEach((u) => u.geometry.dispose());
   return out;
 }

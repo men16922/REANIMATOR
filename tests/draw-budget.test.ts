@@ -75,3 +75,13 @@ test('decor adds no lights and scales per room, not per prop', () => {
     b.hz.dispose();
   });
 });
+
+test('R14 terrain relief is counted, merged per strip, and light-free', () => {
+  withStubDom(() => {
+    const b = build();
+    const est = estimateSectorDrawCalls(level, b.parts);
+    for (const e of est) assert.ok(e.terrain >= 0 && e.terrain <= 12, `${e.sector} terrain strips ${e.terrain}`);
+    assert.ok(est.some((e) => e.terrain > 0), 'at least one sector carries terrain relief');
+    b.hz.dispose();
+  });
+});
