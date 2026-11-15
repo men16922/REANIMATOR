@@ -33,6 +33,21 @@ import {
 } from './enemyMotion.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
 import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
+import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
+
+/** Static scenery that is hidden while it is outside the camera window (render-only). */
+interface CullEntry {
+  obj: THREE.Object3D;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+interface PendingBatch {
+  sector: SectorId3D;
+  cls: SolidClass;
+  items: BatchItem[];
+}
 
 interface StaticActorHandle {
   root: THREE.Group;
@@ -212,6 +227,8 @@ export class Scene3DRenderer {
   private prevEnemies = new Map<string, PosSnap>();
   private curEnemies = new Map<string, PosSnap>();
   private readonly occludables: OccludableMesh[] = [];
+  private readonly pendingBatches = new Map<string, PendingBatch>();
+  private readonly cullEntries: CullEntry[] = [];
   private decor: Decor3D | null = null;
   private fogDensity = 0.012;
   private readonly presetSky = new THREE.Color(0x8bb6df);
@@ -266,7 +283,8 @@ export class Scene3DRenderer {
     this.sun.shadow.mapSize.set(1024, 1024);
     this.sun.shadow.camera.near = 2;
     this.sun.shadow.camera.far = 56;
-    const d = 22;
+    this.sun.shadow.camera.far = 48;
+    const d = 18;
     this.sun.shadow.camera.left = -d;
     this.sun.shadow.camera.right = d;
     this.sun.shadow.camera.top = d;
@@ -435,6 +453,7 @@ export class Scene3DRenderer {
       activeAnimations,
       drawCalls: this.renderer.info.render.calls,
       triangles: this.renderer.info.render.triangles,
+      perf: this.getPerfTelemetry(),
     };
   }
 
@@ -525,6 +544,7 @@ export class Scene3DRenderer {
     for (const s of w.level.solids) {
       this.addSolidMesh(s, tex);
     }
+    this.flushSolidBatches(tex);
     this.buildDoorDressing(w.level.solids, tex);
     this.buildTrim();
     this.decor?.dispose();
@@ -539,6 +559,7 @@ export class Scene3DRenderer {
       mesh.receiveShadow = true;
       mesh.castShadow = true;
       this.scene.add(mesh);
+      this.cullEntries.push({ obj: mesh, minX: r.minX, maxX: r.maxX, minY: Math.min(r.yMinEdge ?? 0, r.yMaxEdge) - 1, maxY: Math.max(r.yMinEdge ?? 0, r.yMaxEdge) + 1 });
 
       // Side safety curb trim
       const edgeMat = new THREE.MeshStandardMaterial({
@@ -570,6 +591,7 @@ export class Scene3DRenderer {
       mesh.receiveShadow = true;
       this.scene.add(mesh);
       this.occludables.push({ mesh, mat, center: mesh.position.clone() });
+      this.addCullPoint(mesh, p.x, p.minY + h * 0.5, p.radius + 0.5);
 
       // Glowing collar ring around blast pillar
       const ring = new THREE.Mesh(
@@ -578,6 +600,7 @@ export class Scene3DRenderer {
       );
       ring.position.set(p.x, p.minY + 1.4, p.z);
       this.scene.add(ring);
+      this.addCullPoint(ring, p.x, p.minY + 1.4, p.radius + 0.5);
     }
 
     for (const pool of w.level.acidPools) {
@@ -596,6 +619,7 @@ export class Scene3DRenderer {
       mesh.position.set((pool.minX + pool.maxX) * 0.5, pool.surfaceY, (pool.minZ + pool.maxZ) * 0.5);
       this.scene.add(mesh);
       this.acidMeshes.push(mesh);
+      this.cullEntries.push({ obj: mesh, minX: pool.minX, maxX: pool.maxX, minY: pool.surfaceY - 1, maxY: pool.surfaceY + 1 });
 
       const acidLight = new THREE.PointLight(0x6dff3a, 1.1, 8, 1.8);
       acidLight.position.set(mesh.position.x, pool.surfaceY + 1.1, 0.5);
@@ -625,12 +649,15 @@ export class Scene3DRenderer {
       );
       padBase.position.set(st.x, st.y + 0.04, 0.2);
       this.scene.add(padBase);
+      this.addCullPoint(pad, st.x, st.y, 2);
+      this.addCullPoint(padBase, st.x, st.y, 2);
       const beam = new THREE.Mesh(
         new THREE.CylinderGeometry(0.75, 0.75, 2.4, 20, 1, true),
         new THREE.MeshBasicMaterial({ color: 0x2bf0ff, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
       );
       beam.position.set(st.x, st.y + 1.3, 0.2);
       this.scene.add(beam);
+      this.addCullPoint(beam, st.x, st.y + 1.3, 2);
     }
 
     // Upgrade pedestals: Thruster Boots (amber) and Energy Tanks (green)
@@ -664,12 +691,14 @@ export class Scene3DRenderer {
       gem.position.set(up.x, up.y + 0.95, 0.2);
       this.scene.add(gem);
       this.upgradeMeshes.set(up.id, gem);
+      this.addCullPoint(gem, up.x, up.y, 2);
       const base = new THREE.Mesh(
         new THREE.CylinderGeometry(0.55, 0.65, 0.2, 18),
         new THREE.MeshStandardMaterial({ color: 0x1b232c, emissive: color, emissiveIntensity: 0.2, metalness: 0.7, roughness: 0.5 }),
       );
       base.position.set(up.x, up.y + 0.1, 0.2);
       this.scene.add(base);
+      this.addCullPoint(base, up.x, up.y, 2);
       const ring = new THREE.Mesh(
         new THREE.TorusGeometry(0.5, 0.03, 6, 24),
         new THREE.MeshStandardMaterial({ color: 0x1b232c, emissive: color, emissiveIntensity: 0.6 }),
@@ -677,6 +706,7 @@ export class Scene3DRenderer {
       ring.rotation.x = Math.PI / 2;
       ring.position.set(up.x, up.y + 0.22, 0.2);
       this.scene.add(ring);
+      this.addCullPoint(ring, up.x, up.y, 2);
     }
 
     this.rebuildActorInstances(w);
@@ -695,6 +725,12 @@ export class Scene3DRenderer {
 
     const sector = this.sectorAt(cx, cy);
     const surf = SECTOR_SURFACE[sector];
+    const info = classifySolid(s);
+    if (!info.individual) {
+      this.queueSolidBatch(s, info.cls, sector, { sx, sy, sz, cx, cy, cz });
+      this.addSolidTrim(s, sx, sy, sz, cx, cy, sector);
+      return;
+    }
     let mat: THREE.MeshStandardMaterial;
     if (s.kind === 'catwalk' && s.minY >= 0.5) {
       const map = tex.grateMap.clone();
@@ -783,6 +819,132 @@ export class Scene3DRenderer {
     }
   }
 
+  private queueSolidBatch(
+    s: MapSolid3D,
+    cls: SolidClass,
+    sector: SectorId3D,
+    g: { sx: number; sy: number; sz: number; cx: number; cy: number; cz: number },
+  ): void {
+    const surf = SECTOR_SURFACE[sector];
+    const tex = getFacilityTextures3D();
+    let rx = 1;
+    let ry = 1;
+    let color = new THREE.Color(0xffffff);
+    if (cls === 'grate') {
+      rx = Math.max(1, g.sx / 2);
+      ry = Math.max(1, g.sz / 2);
+      color = new THREE.Color(surf.grate);
+    } else if (cls === 'floor') {
+      rx = Math.max(1, g.sx / 4);
+      ry = Math.max(1, g.sz / 4);
+      if (surf.floor) color = new THREE.Color(surf.tint);
+    } else if (cls === 'crate') {
+      rx = tex.crateMap.repeat.x;
+      ry = tex.crateMap.repeat.y;
+      color = new THREE.Color(0xc8d2dc);
+    } else if (cls === 'console') {
+      color = new THREE.Color(0x162b38);
+    } else {
+      rx = Math.max(1, Math.max(g.sx, g.sz) / 4);
+      ry = Math.max(1, g.sy / 3);
+      color = new THREE.Color(s.color ?? 0x8d9dad).multiply(new THREE.Color(surf.tint));
+    }
+    // Break tiling: per-solid texture offset derived from the solid id.
+    let hsh = 2166136261;
+    for (let i = 0; i < s.id.length; i++) hsh = Math.imul(hsh ^ s.id.charCodeAt(i), 16777619);
+    const ox = ((hsh >>> 0) % 997) / 997;
+    const oy = ((hsh >>> 8) % 991) / 991;
+    const bk = batchKeyFor(sector, { cls, transparent: false, individual: false });
+    let b = this.pendingBatches.get(bk.key);
+    if (!b) {
+      b = { sector, cls, items: [] };
+      this.pendingBatches.set(bk.key, b);
+    }
+    b.items.push({ ...g, rx, ry, ox, oy, color });
+  }
+
+  private flushSolidBatches(tex: ReturnType<typeof getFacilityTextures3D>): void {
+    const tiled = (src: THREE.Texture): THREE.Texture => {
+      const t = src.clone();
+      t.repeat.set(1, 1);
+      t.offset.set(0, 0);
+      t.needsUpdate = true;
+      return t;
+    };
+    for (const [key, b] of this.pendingBatches) {
+      const surf = SECTOR_SURFACE[b.sector];
+      let mat: THREE.MeshStandardMaterial;
+      if (b.cls === 'grate') {
+        mat = new THREE.MeshStandardMaterial({ map: tiled(tex.grateMap), vertexColors: true, roughness: 0.42, metalness: 0.68 });
+      } else if (b.cls === 'floor') {
+        const map = tiled(surf.floor ? tex[surf.floor] : tex.deckMap);
+        mat = surf.floor
+          ? new THREE.MeshStandardMaterial({ map, vertexColors: true, roughness: 0.6, metalness: 0.4 })
+          : new THREE.MeshStandardMaterial({ map, bumpMap: tiled(tex.deckBump), bumpScale: 0.04, vertexColors: true, roughness: 0.55, metalness: 0.45 });
+      } else if (b.cls === 'crate') {
+        mat = new THREE.MeshStandardMaterial({ map: tiled(tex.crateMap), vertexColors: true, roughness: 0.5, metalness: 0.55 });
+      } else if (b.cls === 'console') {
+        mat = new THREE.MeshStandardMaterial({ vertexColors: true, emissive: 0x1cb8d6, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.65 });
+      } else {
+        mat = new THREE.MeshStandardMaterial({ map: tiled(surf.wall ? tex[surf.wall] : tex.wallMap), vertexColors: true, roughness: 0.52, metalness: 0.58 });
+      }
+      const geo = buildBatchGeometry(b.items);
+      if (!geo) continue;
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.name = `solid-batch:${key}`;
+      mesh.userData.pickKind = b.cls;
+      mesh.userData.sector = b.sector;
+      mesh.castShadow = b.cls !== 'floor';
+      mesh.receiveShadow = true;
+      this.scene.add(mesh);
+      const bb = geo.boundingBox!;
+      this.cullEntries.push({ obj: mesh, minX: bb.min.x, maxX: bb.max.x, minY: bb.min.y, maxY: bb.max.y });
+    }
+    this.pendingBatches.clear();
+  }
+
+  private addCullPoint(obj: THREE.Object3D, x: number, y: number, r: number): void {
+    this.cullEntries.push({ obj, minX: x - r, maxX: x + r, minY: y - r, maxY: y + r });
+  }
+
+  /** Render-only: hide static scenery, enemies and pickups outside the camera window (no sim reads). */
+  private applyViewCulling(w: WorldState3D): void {
+    const dist = this.camera.position.z + 3;
+    const halfH = dist * Math.tan((this.camera.fov * Math.PI) / 360) + 4;
+    const halfW = halfH * Math.max(1, this.camera.aspect);
+    const vx0 = this.camFocus.x - halfW;
+    const vx1 = this.camFocus.x + halfW;
+    const vy0 = this.camFocus.y - halfH;
+    const vy1 = this.camFocus.y + halfH;
+    for (const c of this.cullEntries) c.obj.visible = c.maxX >= vx0 && c.minX <= vx1 && c.maxY >= vy0 && c.minY <= vy1;
+    this.decor?.setView(vx0, vx1, vy0, vy1);
+    const out = (o: THREE.Object3D): boolean => {
+      const p = o.position;
+      return p.x < vx0 - 3 || p.x > vx1 + 3 || p.y < vy0 - 3 || p.y > vy1 + 3;
+    };
+    for (const rig of this.riggedEnemies.values()) if (out(rig.root)) rig.root.visible = false;
+    for (const st of this.staticEnemies.values()) if (out(st.root)) st.root.visible = false;
+    for (const b of this.barrelHandles.values()) if (out(b.root)) b.root.visible = false;
+    for (const g of this.pickupHandles.values()) if (out(g)) g.visible = false;
+    void w;
+  }
+
+  private getPerfTelemetry() {
+    const info = this.renderer.info;
+    let shadowCasters = 0;
+    this.scene.traverseVisible((o) => {
+      if ((o as THREE.Mesh).isMesh && o.castShadow) shadowCasters++;
+    });
+    return {
+      drawCalls: info.render.calls,
+      triangles: info.render.triangles,
+      programs: info.programs?.length ?? 0,
+      geometries: info.memory.geometries,
+      textures: info.memory.textures,
+      shadowCasters,
+    };
+  }
+
   private sectorAt(x: number, y: number): SectorId3D {
     for (const r of this.rooms) {
       if (x >= r.minX && x <= r.maxX && y >= r.minY - 0.5 && y <= r.maxY + 0.5) return r.sector;
@@ -822,7 +984,8 @@ export class Scene3DRenderer {
       push(s.maxX - 0.06, cy, front + 0.02, 0.12, sy + 0.04, 0.1, look.flange);
       if (s.minY >= 0.5) {
         const th = 0.55;
-        const zt = front - 0.25;
+        // Hang the truss behind the character lane (z < 0) so it never covers the operative or enemies below.
+        const zt = s.minZ + 0.25;
         const wood = sector === 'mines';
         const memberColor = wood ? look.brace : look.flange;
         const seg = wood ? 3 : 1.6;
@@ -1447,6 +1610,7 @@ export class Scene3DRenderer {
       occ.mat.depthWrite = occ.mat.opacity > 0.8;
     }
 
+    this.applyViewCulling(w);
     this.renderer.info.reset();
     this.composer.render();
   }

@@ -307,6 +307,8 @@ export function layoutAllDecor(level: Level3D): DecorLayout[] {
 
 export interface Decor3D {
   update(tSec: number, playerX: number, playerY: number): void;
+  /** Hides per-room meshes (back walls, dust, bubbles) whose rect lies outside the view window. */
+  setView(minX: number, maxX: number, minY: number, maxY: number): void;
   dispose(): void;
 }
 
@@ -359,6 +361,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     return o;
   };
   const layouts = layoutAllDecor(level);
+  const roomObjs: { room: RoomDef3D; objs: THREE.Object3D[] }[] = [];
 
   // 1. Back walls with a lower AO gradient and a multiply macro-variation overlay.
   for (const room of level.rooms) {
@@ -401,6 +404,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     overlay.position.set(wall.position.x, wall.position.y, BACK_WALL_Z + 0.02);
     overlay.name = `decor-backwall-overlay:${room.sector}`;
     group.add(overlay);
+    roomObjs.push({ room, objs: [wall, overlay] });
   }
 
   // 2. Instanced props.
@@ -640,7 +644,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     const pts = new THREE.Points(g, track(new THREE.PointsMaterial({ color: 0xa8e870, size: 0.12, transparent: true, opacity: 0.6, depthWrite: false })));
     pts.frustumCulled = false;
     group.add(pts);
-    return { pts, arr, base, surfaceY: pool.surfaceY };
+    return { pts, arr, base, surfaceY: pool.surfaceY, pool };
   });
 
   // 5. Atmosphere points per sector (<= 400), only the active room is animated.
@@ -650,6 +654,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     track(pts.geometry);
     track(pts.material as THREE.Material);
     group.add(pts);
+    roomObjs.find((r) => r.room === room)?.objs.push(pts);
     return { room, pts };
   });
 
@@ -684,6 +689,16 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
           if (arr[i * 3 + 1] > a.room.maxY - 0.3) arr[i * 3 + 1] = a.room.minY + 0.3;
         }
         attr.needsUpdate = true;
+      }
+    },
+    setView(minX: number, maxX: number, minY: number, maxY: number): void {
+      for (const r of roomObjs) {
+        const vis = r.room.maxX >= minX && r.room.minX <= maxX && r.room.maxY >= minY && r.room.minY <= maxY;
+        for (const o of r.objs) o.visible = vis;
+      }
+      for (const b of bubbles) {
+        const p = b.pool;
+        b.pts.visible = p.maxX >= minX && p.minX <= maxX && p.surfaceY + 1 >= minY && p.surfaceY - 1 <= maxY;
       }
     },
     dispose(): void {
