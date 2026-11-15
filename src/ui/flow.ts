@@ -107,6 +107,8 @@ const DOOR_RULE: Record<DoorLockKind3D, Hint | null> = {
   escape: null,
 };
 
+/** About 10 s of display at 60 updates per second */
+const COUNTER_HINT_CAP = 600;
 const NEAR_DOOR = 5.5;
 const NEAR_SAVE = 4;
 /** Terminals only announce themselves up close, so the spawn-side airlock terminal never pre-empts the opening tutorial */
@@ -115,6 +117,8 @@ const NEAR_MAP = 2.4;
 /** Tracks which hints are finished and chooses the one to show now (at most one at a time). */
 export class Onboarding {
   readonly done: Set<string>;
+  /** Updates that showed the counter hint; it retires itself after COUNTER_HINT_CAP so it cannot nag forever */
+  private counterShown = 0;
   readonly usage: InputUsage = { moved: false, jumped: false, fired: false, dashed: false, light: false, weapon: false };
 
   constructor(done: Iterable<string> = []) {
@@ -185,7 +189,11 @@ export class Onboarding {
 
     if (!this.done.has('counter')) {
       for (const e of w.enemies) {
-        if (e.alive && e.state === 'windup' && e.kind !== 'warden' && Math.abs(e.x - p.x) < 6 && Math.abs(e.y - p.y) < 2.5) {
+        if (e.alive && e.state === 'windup' && (e.kind === 'crawler' || e.kind === 'stalker') && Math.abs(e.x - p.x) < 6 && Math.abs(e.y - p.y) < 2.5) {
+          if (++this.counterShown > COUNTER_HINT_CAP) {
+            this.done.add('counter');
+            break;
+          }
           return { id: 'counter', keys: ['X'], text: 'FOE FLASHING: press X to COUNTER' };
         }
       }

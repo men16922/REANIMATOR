@@ -3,7 +3,7 @@
 // Every visual is a pure function of WorldState3D (openDoors, mapRevealed, meltdown clock). No PointLights, no per-frame allocation:
 // meshes are built once per level and only toggled or moved in update().
 import * as THREE from 'three';
-import { SCAN_TICKS, escapeSealView3D, scanTargets3D, type WorldState3D } from '../game3d/world3d.ts';
+import { SCAN_TICKS, escapeSealView3D, newScanTargets3D, scanTargets3D, type WorldState3D } from '../game3d/world3d.ts';
 import type { Level3D, MapSolid3D } from '../game3d/types3d.ts';
 
 export interface Metroid3D {
@@ -231,6 +231,7 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
 
   // Scan Pulse markers: pooled, hidden unless the sim's scan flag is set. Existing material types only, no lights.
   const SCAN_POOL = 10;
+  const scanOut = newScanTargets3D();
   const frameMat = track(new THREE.LineBasicMaterial({ color: 0x52e5ff, transparent: true, opacity: 0.9, depthTest: false }));
   const secretMat = track(new THREE.LineBasicMaterial({ color: 0xffc03a, transparent: true, opacity: 0.9, depthTest: false }));
   const ringGeo = new THREE.RingGeometry(0.42, 0.52, 24);
@@ -343,8 +344,11 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
         frameMat.opacity = 0.9 * fade;
         secretMat.opacity = 0.9 * fade;
         ringMat.opacity = 0.9 * fade;
-        const t = scanTargets3D(w);
-        for (const [list, mat] of [[t.blocks, frameMat], [t.secrets, secretMat]] as const) {
+        const t = scanTargets3D(w, undefined, scanOut);
+        // Secrets first so a crowd of breakable blocks can never push them out of the pool; each list is nearest first
+        for (let pass = 0; pass < 2; pass++) {
+          const list = pass === 0 ? t.secrets : t.blocks;
+          const mat = pass === 0 ? secretMat : frameMat;
           for (const s of list) {
             if (fi >= SCAN_POOL) break;
             const f = frames[fi++];

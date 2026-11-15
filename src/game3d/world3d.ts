@@ -2409,7 +2409,8 @@ function stepCounter3D(w: WorldState3D, pressed: boolean): void {
   w.shakeStrength = Math.max(w.shakeStrength, 0.22);
   w.events.push({ type: 'parry', value: w.enemies.indexOf(e) });
   damageEnemy(w, e, PARRY_DAMAGE, dir * 4);
-  if (w.meltdownTicks < 0) {
+  // Hive larvae respawn on a cadence, so they never drop: otherwise parrying a nest would farm health and ammo
+  if (w.meltdownTicks < 0 && e.hive === '') {
     const ammo = p.hp >= p.maxHp;
     w.pickups.push({ id: `drop-${w.nextId++}`, kind: ammo ? 'ammo' : 'med', value: ammo ? 8 : 12, x: e.x, y: e.y, z: 0, taken: false });
   }
@@ -2437,23 +2438,63 @@ export interface ScanTargets3D {
   pickups: PickupState3D[];
 }
 
-/** Pure radius query used by the renderer while the reveal flag is set. Distance is measured from the player to the target centre. */
-export function scanTargets3D(w: WorldState3D, radius: number = SCAN_RADIUS): ScanTargets3D {
+/** Reusable result holder: pass the same object every frame to avoid allocation. */
+export function newScanTargets3D(): ScanTargets3D {
+  return { blocks: [], secrets: [], pickups: [] };
+}
+
+/** Insertion sort by squared distance to (px, py); lists are tiny and this allocates nothing. */
+function sortByDist<T>(list: T[], px: number, py: number, pos: (t: T) => [number, number] | { x: number; y: number }): void {
+  const d = (t: T): number => {
+    const q = pos(t);
+    const x = Array.isArray(q) ? q[0] : q.x;
+    const y = Array.isArray(q) ? q[1] : q.y;
+    return (x - px) * (x - px) + (y - py) * (y - py);
+  };
+  for (let i = 1; i < list.length; i++) {
+    const v = list[i];
+    const dv = d(v);
+    let j = i - 1;
+    while (j >= 0 && d(list[j]) > dv) {
+      list[j + 1] = list[j];
+      j--;
+    }
+    list[j + 1] = v;
+  }
+}
+
+/**
+ * Pure radius query used by the renderer while the reveal flag is set. Distance is measured from the player to the target centre.
+ * Each list is sorted nearest first. Pass `out` (from newScanTargets3D) to reuse its arrays instead of allocating.
+ */
+export function scanTargets3D(w: WorldState3D, radius: number = SCAN_RADIUS, out: ScanTargets3D = newScanTargets3D()): ScanTargets3D {
   const px = w.player.body.x;
   const py = w.player.body.y;
   const near = (cx: number, cy: number): boolean => Math.hypot(cx - px, cy - py) <= radius;
-  const blocks: MapSolid3D[] = [];
-  const secrets: MapSolid3D[] = [];
-  const secretDoors = new Set(w.level.secrets.filter((sr) => !w.secretsFound.includes(sr.id)).map((sr) => sr.doorId));
+  out.blocks.length = 0;
+  out.secrets.length = 0;
+  out.pickups.length = 0;
   for (const s of w.level.solids) {
     const isBlock = !!s.breakId && !w.openDoors.has(s.breakId);
-    const isSecret = !!s.doorId && secretDoors.has(s.doorId) && !w.openDoors.has(s.doorId);
+    let isSecret = false;
+    if (!isBlock && s.doorId && !w.openDoors.has(s.doorId)) {
+      for (const sr of w.level.secrets) {
+        if (sr.doorId === s.doorId && !w.secretsFound.includes(sr.id)) {
+          isSecret = true;
+          break;
+        }
+      }
+    }
     if (!isBlock && !isSecret) continue;
     if (!near((s.minX + s.maxX) / 2, (s.minY + s.maxY) / 2)) continue;
-    (isSecret ? secrets : blocks).push(s);
+    (isSecret ? out.secrets : out.blocks).push(s);
   }
-  const pickups = w.pickups.filter((k) => !k.taken && near(k.x, k.y + 0.5));
-  return { blocks, secrets, pickups };
+  for (const k of w.pickups) if (!k.taken && near(k.x, k.y + 0.5)) out.pickups.push(k);
+  const centre = (s: MapSolid3D): [number, number] => [(s.minX + s.maxX) / 2, (s.minY + s.maxY) / 2];
+  sortByDist(out.blocks, px, py, centre);
+  sortByDist(out.secrets, px, py, centre);
+  sortByDist(out.pickups, px, py - 0.5, (k) => k);
+  return out;
 }
 
 /** Hives birth larvae on a fixed cadence (deterministic, no RNG) while the player is near, up to HIVE_CAP_3D alive each. */

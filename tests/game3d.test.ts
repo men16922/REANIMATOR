@@ -1409,3 +1409,48 @@ test('scan: pressing scan never changes simulation outcome', () => {
   assert.equal(a.player.body.x, b.player.body.x);
   assert.equal(a.pickups.length, b.pickups.length);
 });
+
+test('parry: hive larvae never drop a pickup (no farming a respawning nest)', () => {
+  const { w, e } = parryWorld();
+  e.hive = 'h-test';
+  e.hp = 9999; // survive the counter so the kill drop does not mask the parry drop
+  for (let i = 0; i < 8; i++) stepWorld3D(w, emptyInput3D());
+  assert.equal(e.parryOpen, true);
+  w.player.body = spawnBody3D(e.x - 2, e.y, 0);
+  const drops0 = w.pickups.length;
+  stepWorld3D(w, { ...emptyInput3D(), counter: true });
+  assert.ok(w.events.some((ev) => ev.type === 'parry'));
+  assert.equal(w.pickups.length, drops0);
+});
+
+test('scan: targets are nearest first and the reusable buffer is cleared between calls', () => {
+  const w = newWorld3D();
+  const brk = w.level.solids.filter((s) => s.breakId)[0];
+  w.player.body = spawnBody3D((brk.minX + brk.maxX) / 2, (brk.minY + brk.maxY) / 2, 0);
+  const out = scanTargets3D(w, SCAN_RADIUS);
+  const px = w.player.body.x;
+  const py = w.player.body.y;
+  const d = (s: { minX: number; maxX: number; minY: number; maxY: number }): number => Math.hypot((s.minX + s.maxX) / 2 - px, (s.minY + s.maxY) / 2 - py);
+  for (let i = 1; i < out.blocks.length; i++) assert.ok(d(out.blocks[i - 1]) <= d(out.blocks[i]));
+  const again = scanTargets3D(w, SCAN_RADIUS, out);
+  assert.equal(again, out);
+  assert.equal(out.blocks.length, scanTargets3D(w).blocks.length);
+  w.player.body = spawnBody3D(-500, -500, 0);
+  scanTargets3D(w, SCAN_RADIUS, out);
+  assert.equal(out.blocks.length + out.secrets.length + out.pickups.length, 0);
+});
+
+import { Onboarding } from '../src/ui/flow.ts';
+
+test('counter hint: only for crawler and stalker windups, and it retires after a capped number of updates', () => {
+  const { w, e } = parryWorld();
+  e.state = 'windup';
+  e.kind = 'spitter';
+  w.player.body = spawnBody3D(e.x - 2, e.y, 0);
+  assert.notEqual(new Onboarding().update(w)?.id, 'counter');
+  e.kind = 'crawler';
+  const ob = new Onboarding();
+  assert.equal(ob.update(w)?.id, 'counter');
+  for (let i = 0; i < 700; i++) ob.update(w);
+  assert.notEqual(ob.update(w)?.id, 'counter');
+});

@@ -6,16 +6,16 @@ Two Metroid Dread style additions that Abuse lacks. Both are opt-in by input, so
 
 - Keys: `X` or `C`. Edge-triggered (`InputState3D.counter`).
 - Window: the last `PARRY_WINDOW_TICKS` (8, about 0.13 s) of a crawler or stalker lunge windup. The renderer blinks the foe white while `parryOpen` is set.
-- Hit (within `PARRY_REACH` 3.6 m): foe staggers 50 ticks, takes 45 damage, always drops a med or ammo pickup, the player gets 24 ticks of invulnerability and a free dash. Sound `combat.parry`, event `parry`, hit-stop, short slow-mo, "COUNTER" popup.
+- Hit (within `PARRY_REACH` 3.6 m): foe staggers 50 ticks, takes 45 damage, drops a med or ammo pickup (not from hive larvae, which respawn and would farm drops), the player gets 24 ticks of invulnerability and a free dash. Sound `combat.parry`, event `parry`, hit-stop, short slow-mo, "COUNTER" popup.
 - Miss: `parry_whiff` event and a 30 tick lockout.
-- Onboarding hint appears the first time a lunger winds up nearby.
+- Onboarding hint appears when a crawler or stalker winds up nearby (never for spitters or the warden) and retires after about 10 s of display or the first X press.
 
 ## Scan Pulse
 
 - Key: `Z`. Edge-triggered (`InputState3D.scan`). The HUD pill `SCAN [Z]` reads READY, ACTIVE or the cooldown in seconds.
 - Sim state (`PlayerState3D`): `scanTicks` (reveal flag, `SCAN_TICKS` 240 = 4 s), `scanCooldown` (`SCAN_COOLDOWN_TICKS` 600 = 10 s from the press), `scanPrev`. Nothing in movement, combat, doors or AI reads them.
-- `scanTargets3D(w, radius = SCAN_RADIUS 14 m)` is a pure query over unbroken breakables (`breakId`), unfound secret-room walls and untaken pickups.
-- Renderer (`metroid3d.ts`): while the flag is set, a pool of 10 edge outlines (cyan for breakables, amber for secrets) and 10 rings (pickups) is shown, pulsing and fading with the timer. Existing basic line and mesh materials, no new lights, at most 20 extra draw calls, none when idle. `reduceMotion` removes the pulse.
+- `scanTargets3D(w, radius = SCAN_RADIUS 14 m)` is a pure query (nearest first, optional reusable `out` buffer so the renderer allocates nothing per frame) over unbroken breakables (`breakId`), unfound secret-room walls and untaken pickups.
+- Renderer (`metroid3d.ts`): while the flag is set, a pool of 10 edge outlines (amber for secrets first, then cyan for breakables, each nearest first) and 10 rings (pickups) is shown, pulsing and fading with the timer. Existing basic line and mesh materials, no new lights, at most 20 extra draw calls, none when idle. `reduceMotion` removes the pulse.
 - Sound `world.scan` on the `scan` event.
 
 ## Verified (make check exit 0)
