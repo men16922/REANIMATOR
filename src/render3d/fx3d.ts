@@ -476,6 +476,10 @@ export class FxDirector {
           this.damagePopup(e, s.hp - e.hp, s.exposed);
         }
       }
+      // Ceiling/wall ambusher telegraph: grit sifts down while it winds up
+      if (!q && e.alive && e.surface !== 'floor' && e.state === 'windup' && (w.tick & 1) === 0) {
+        this.add.emit(e.x + this.rr(-0.35, 0.35), e.y + (e.surface === 'ceiling' ? 0.1 : 0.45), 0.3, this.rr(-0.25, 0.25), -this.rr(0.5, 1.6), 0, this.rr(0.4, 0.75), 0.1, 0.24, 0.62, 0.54, 0.42, 0.65, 5, 0.6, 1);
+      }
       s.exposed = e.exposedTicks > 0;
       s.hp = e.hp;
       s.alive = e.alive;
@@ -553,6 +557,18 @@ export class FxDirector {
           case 'combo': this.onCombo(px, py, ev.value ?? 2); break;
           case 'collect': this.onCollect(w, ev.value ?? 0, px, py); break;
           case 'secret': this.onSecret(w); break;
+          case 'enemy_drop': if (ev.value === 1) this.trauma.add(0.1); break;
+          case 'hive_spawn': {
+            const hv = w.hives[ev.value ?? 0];
+            if (hv) { this.burst(hv.x, hv.y + 0.9, 0.5, 1, 0.2, 0.5, 10, 4); this.ring(hv.x, hv.y + 0.9, 0.7, 0.6, 1, 0.3); }
+            break;
+          }
+          case 'hive_destroyed': {
+            const hv = w.hives[ev.value ?? 0];
+            if (hv) { this.burst(hv.x, hv.y + 0.8, 0.6, 1, 0.2, 0.9, 36, 9); this.ring(hv.x, hv.y + 0.8, 1.6, 0.7, 1, 0.3); }
+            this.trauma.add(0.6);
+            break;
+          }
           default: break;
         }
       }

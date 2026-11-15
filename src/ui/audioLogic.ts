@@ -40,6 +40,10 @@ export const EVENT_SOUND: Record<SoundEventType3D, string> = {
   boss_exposed: 'boss.exposed',
   collect: 'world.collect',
   secret: 'world.secret',
+  // Round 3 foes (borrowed recipes until dedicated ones exist)
+  enemy_drop: 'enemy.crawler.land',
+  hive_spawn: 'enemy.crawler.alert',
+  hive_destroyed: 'enemy.warden.death',
 };
 
 export function soundIdForEvent(type: SoundEventType3D): string {

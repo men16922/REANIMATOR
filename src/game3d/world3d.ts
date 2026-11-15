@@ -9,6 +9,9 @@ import type {
   ActorAnimAction,
   DataLog3D,
   DoorLockKind3D,
+  EnemySpawn3D,
+  EnemySurface3D,
+  EnemyVariant3D,
   Level3D,
   MapSolid3D,
   PlayerPoseState3D,
@@ -17,7 +20,7 @@ import type {
   WeaponSlot3D,
 } from './types3d.ts';
 
-export type { ActorAnimAction, SoundEvent3D, WeaponSlot3D, SectorId3D, PlayerPoseState3D };
+export type { ActorAnimAction, SoundEvent3D, WeaponSlot3D, SectorId3D, PlayerPoseState3D, EnemySurface3D, EnemyVariant3D };
 
 export type GameStatus3D = 'playing' | 'won' | 'lost';
 export type ObjectivePhase3D = 'console' | 'warden' | 'core' | 'escape' | 'won';
@@ -118,6 +121,26 @@ export interface EnemyState3D {
   lungeTicks: number;
   stuckTicks: number;
   lostTicks: number;
+  /** Crawler variant: `dropper` ambushes from the ceiling, `climber` crawls a wall/ceiling toward the player first */
+  variant: EnemyVariant3D;
+  /** Surface the body clings to. Gameplay y is always the bottom of the body box. */
+  surface: EnemySurface3D;
+  /**
+   * Render rotation about the world Z axis (radians, smoothed by the sim). The body up-vector is (-sin a, cos a):
+   * floor 0, ceiling PI, wall with open space east -PI/2, wall with open space west +PI/2.
+   */
+  surfaceAngle: number;
+  /** Wall surface only: +1 open space east of the wall, -1 west (also the leap direction) */
+  wallDir: 1 | -1;
+  /** Crawl range along the surface (x for ceiling, y for wall) */
+  crawlMin: number;
+  crawlMax: number;
+  /** True from the moment a ceiling/wall ambusher lets go until it touches down */
+  dropping: boolean;
+  /** Horizontal speed while a dropper/leaper is airborne */
+  leapVx: number;
+  /** Owning hive id for spawned larvae, '' otherwise */
+  hive: string;
 }
 
 export type EnemyAIState3D =
@@ -131,6 +154,47 @@ export const ENEMY_LUNGE_TICKS_3D = { crawler: 16, stalker: 18 };
 /** Max |dvx| per tick when speeding up; braking may use ENEMY_BRAKE_MUL_3D times this. */
 export const ENEMY_ACCEL_3D: Record<EnemyKind3D, number> = { crawler: 0.9, stalker: 0.75, spitter: 0.4, warden: 0.25 };
 export const ENEMY_BRAKE_MUL_3D = 1.6;
+
+/** Combat tempo per sector: enemy move speed and attack cadence rise toward the Core. Telegraph (windup) lengths never change. */
+export const SECTOR_TEMPO_3D: Record<SectorId3D, number> = {
+  airlock: 0.95, shaft: 1.05, mines: 1.12, biolabs: 1.2, security: 1.3, core: 1.4,
+};
+/** Ceiling/wall ambusher telegraph (dust falls, body trembles) before letting go. */
+export const DROP_WINDUP_TICKS_3D = 28;
+export const LEAP_WINDUP_TICKS_3D = 24;
+/** Surface crawl speed (m/s) for climbers before the tempo multiplier. */
+export const CLIMB_SPEED_3D = 3.4;
+
+export const HIVE_HP_3D = 220;
+export const HIVE_RADIUS_3D = 1.05;
+export const HIVE_HEIGHT_3D = 1.6;
+/** Larvae slots per hive: also the concurrent-alive cap. */
+export const HIVE_CAP_3D = 2;
+export const HIVE_INTERVAL_TICKS_3D = 150;
+export const HIVE_FIRST_SPAWN_TICKS_3D = 45;
+/** Grenade shreds a nest; Pulse barely scratches it. */
+export const HIVE_MATCHUP_3D: Record<WeaponSlot3D | 0, number> = { 0: 1, 1: 0.8, 2: 0.9, 3: 2.2, 4: 1.3 };
+
+export interface HiveState3D {
+  id: string;
+  zone: SectorId3D;
+  x: number;
+  y: number;
+  z: number;
+  radius: number;
+  height: number;
+  hp: number;
+  maxHp: number;
+  alive: boolean;
+  /** True while the player is close enough for the nest to produce larvae */
+  active: boolean;
+  spawnTimer: number;
+  /** Total larvae birthed (drives the alternating spawn side) */
+  spawnCount: number;
+  hitFlashTicks: number;
+  /** Visual pulse after a birth */
+  spawnFlashTicks: number;
+}
 
 export interface Projectile3D {
   id: number;
@@ -291,6 +355,7 @@ export interface WorldState3D {
   hintTicks: number;
   light: Light; // STRICT R3.3: Never read outside HUD/renderer!
   enemies: EnemyState3D[];
+  hives: HiveState3D[];
   projectiles: Projectile3D[];
   shockwaves: ShockwaveRing3D[];
   explosions: ExplosionFX3D[];
@@ -452,58 +517,84 @@ export function getRunSummary3D(w: Readonly<WorldState3D>): RunSummary3D {
   };
 }
 
+/** Initial enemy state from a level spawn. Hive larvae slots (`hiveId` set), warden minions and extraction slots start dead. */
+function buildEnemy3D(sp: EnemySpawn3D, hiveId = ''): EnemyState3D {
+  const st = ENEMY_STATS[sp.kind];
+  const hpScale = sp.kind === 'warden' ? 1 : SECTOR_HP_3D[sp.zone] * (sp.id.startsWith('e-esc-') ? 2 : 1);
+  const minion = hiveId !== '' || sp.id.startsWith('e-core-m') || sp.id.startsWith('e-esc-');
+  const surface: EnemySurface3D = sp.surface ?? 'floor';
+  const wallDir: 1 | -1 = sp.wallDir ?? 1;
+  const span = sp.span ?? [sp.x, sp.x];
+  return {
+    id: sp.id,
+    kind: sp.kind,
+    zone: sp.zone,
+    x: sp.x,
+    y: sp.y,
+    z: 0,
+    vx: 0,
+    vy: 0,
+    vz: 0,
+    yaw: -Math.PI / 2,
+    hp: minion ? 0 : Math.round(st.hp * hpScale),
+    maxHp: Math.round(st.hp * hpScale),
+    radius: st.radius,
+    height: st.height,
+    alive: !minion,
+    active: false,
+    phase: 1,
+    bossPattern: 'none',
+    patternIndex: 0,
+    exposedTicks: 0,
+    chargeDir: 1,
+    barrageLeft: 0,
+    meleeCooldown: 0,
+    minion,
+    attackCooldown: sp.kind === 'warden' ? 45 : 30,
+    windupTicks: 0,
+    attackAnimTicks: 0,
+    staggerTicks: 0,
+    hitFlashTicks: 0,
+    deathTicks: minion ? 999 : 0,
+    anim: minion ? 'death' : 'idle',
+    homeX: sp.x,
+    state: minion ? 'dead' : 'dormant',
+    stateTicks: 0,
+    facing: -1,
+    turnTicks: 0,
+    speedNow: 0,
+    lungeTicks: 0,
+    stuckTicks: 0,
+    lostTicks: 0,
+    variant: sp.variant ?? 'none',
+    surface,
+    surfaceAngle: surface === 'ceiling' ? Math.PI : surface === 'wall' ? (wallDir > 0 ? -Math.PI / 2 : Math.PI / 2) : 0,
+    wallDir,
+    crawlMin: span[0],
+    crawlMax: span[1],
+    dropping: false,
+    leapVx: 0,
+    hive: hiveId,
+  };
+}
+
 export function newWorld3D(): WorldState3D {
   const level = buildFacilityMap3D();
   const spawn = level.spawn;
   const body = spawnBody3D(spawn.x, spawn.y, 0);
 
-  const enemies: EnemyState3D[] = level.enemies.map((sp) => {
-    const st = ENEMY_STATS[sp.kind];
-    const hpScale = sp.kind === 'warden' ? 1 : SECTOR_HP_3D[sp.zone] * (sp.id.startsWith('e-esc-') ? 2 : 1);
-    const minion = sp.id.startsWith('e-core-m') || sp.id.startsWith('e-esc-');
-    return {
-      id: sp.id,
-      kind: sp.kind,
-      zone: sp.zone,
-      x: sp.x,
-      y: sp.y,
-      z: 0,
-      vx: 0,
-      vy: 0,
-      vz: 0,
-      yaw: -Math.PI / 2,
-      hp: minion ? 0 : Math.round(st.hp * hpScale),
-      maxHp: Math.round(st.hp * hpScale),
-      radius: st.radius,
-      height: st.height,
-      alive: !minion,
-      active: false,
-      phase: 1,
-      bossPattern: 'none',
-      patternIndex: 0,
-      exposedTicks: 0,
-      chargeDir: 1,
-      barrageLeft: 0,
-      meleeCooldown: 0,
-      minion,
-      attackCooldown: sp.kind === 'warden' ? 45 : 30,
-      windupTicks: 0,
-      attackAnimTicks: 0,
-      staggerTicks: 0,
-      hitFlashTicks: 0,
-      deathTicks: minion ? 999 : 0,
-      anim: minion ? 'death' : 'idle',
-      homeX: sp.x,
-      state: minion ? 'dead' : 'dormant',
-      stateTicks: 0,
-      facing: -1,
-      turnTicks: 0,
-      speedNow: 0,
-      lungeTicks: 0,
-      stuckTicks: 0,
-      lostTicks: 0,
-    };
-  });
+  const enemies: EnemyState3D[] = level.enemies.map((sp) => buildEnemy3D(sp));
+  // Hive larvae pools: dead, hidden slots that the owning hive revives one at a time
+  const hives: HiveState3D[] = level.hives.map((h) => ({
+    id: h.id, zone: h.sector, x: h.x, y: h.y, z: 0, radius: HIVE_RADIUS_3D, height: HIVE_HEIGHT_3D,
+    hp: Math.round(HIVE_HP_3D * SECTOR_HP_3D[h.sector]), maxHp: Math.round(HIVE_HP_3D * SECTOR_HP_3D[h.sector]),
+    alive: true, active: false, spawnTimer: HIVE_FIRST_SPAWN_TICKS_3D, spawnCount: 0, hitFlashTicks: 0, spawnFlashTicks: 0,
+  }));
+  for (const h of level.hives) {
+    for (let n = 0; n < HIVE_CAP_3D; n++) {
+      enemies.push(buildEnemy3D({ id: `e-${h.id}-${n}`, kind: 'crawler', x: h.x, y: h.y, z: 0, zone: h.sector }, h.id));
+    }
+  }
 
   const pickups: PickupState3D[] = [
     ...level.pedestals.map((p) => ({
@@ -570,6 +661,7 @@ export function newWorld3D(): WorldState3D {
     hintTicks: 0,
     light: newLight(),
     enemies,
+    hives,
     projectiles: [],
     shockwaves: [],
     explosions: [],
@@ -727,7 +819,7 @@ function scaledDamage(w: Readonly<WorldState3D>, e: EnemyState3D, base: number):
   return Math.max(1, Math.round(base * SECTOR_DAMAGE_3D[e.zone] * (w.meltdownTicks >= 0 ? 1.3 : 1)));
 }
 
-function registerKill(w: WorldState3D, e: EnemyState3D): void {
+function registerKill(w: WorldState3D, e: { kind: EnemyKind3D }, bonus = 0): void {
   const p = w.player;
   p.kills++;
   const c = w.combo;
@@ -735,7 +827,7 @@ function registerKill(w: WorldState3D, e: EnemyState3D): void {
   c.ticksLeft = COMBO_WINDOW_TICKS;
   c.best = Math.max(c.best, c.count);
   w.run.bestCombo = c.best;
-  w.run.score += (e.kind === 'warden' ? 2000 : 100) + (c.count - 1) * 50;
+  w.run.score += (e.kind === 'warden' ? 2000 : 100) + bonus + (c.count - 1) * 50;
   // Chain reward: every kill refunds the dash; a 3+ chain also patches the hull a little
   p.body.dashCooldown = 0;
   if (c.count >= 3 && w.meltdownTicks < 0) p.hp = Math.min(p.maxHp, p.hp + 5);
@@ -812,6 +904,25 @@ function damageEnemy(
   }
 }
 
+/** Damage a hive nest. Grenades are strong against it, Pulse is weak. Destroying it stops spawning and pays out ammo, score and combo. */
+function damageHive(w: WorldState3D, h: HiveState3D, rawDmg: number, weapon: WeaponSlot3D | 0 = 0): void {
+  if (!h.alive) return;
+  const dmg = Math.max(1, Math.round(rawDmg * HIVE_MATCHUP_3D[weapon]));
+  h.hp -= dmg;
+  h.hitFlashTicks = 6;
+  if (h.hp > 0) return;
+  h.hp = 0;
+  h.alive = false;
+  h.active = false;
+  w.events.push({ type: 'hive_destroyed', value: w.hives.indexOf(h) });
+  triggerExplosion3D(w, h.x, h.y + h.height * 0.5, 0, 3.4, 30, 0x9cff3a, 0);
+  w.shakeTicks = Math.max(w.shakeTicks, 20);
+  w.shakeStrength = Math.max(w.shakeStrength, 0.5);
+  registerKill(w, { kind: 'stalker' }, 200);
+  w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'ammo', value: 12, x: h.x, y: h.y, z: 0, taken: false });
+  setHint(w, 'HIVE DESTROYED. BROOD CUT OFF');
+}
+
 function damageCore(w: WorldState3D, dmg: number): void {
   if (w.coreDestroyed) return;
   if (w.enemies.some((e) => e.kind === 'warden' && e.alive)) return; // shielded until the Warden falls
@@ -882,6 +993,12 @@ export function triggerExplosion3D(
       const kx = d > 0.05 ? ((e.x - x) / d) * 7 : 0;
       damageEnemy(w, e, Math.round(maxDamage * falloff), kx, 12, byWeapon);
     }
+  }
+
+  for (const h of w.hives) {
+    if (!h.alive) continue;
+    const dh = Math.hypot(h.x - x, h.y + h.height * 0.5 - y);
+    if (dh <= radius + h.radius) damageHive(w, h, Math.round(maxDamage * Math.max(0.35, 1 - dh / (radius + h.radius + 0.5))), byWeapon);
   }
 
   const dc = Math.hypot(w.level.corePos.x - x, 1.2 - y);
@@ -986,6 +1103,10 @@ function fireWeapon3D(w: WorldState3D, railFrac = 0): void {
       if (!e.alive) continue;
       const d2 = pointToSegmentDistSq(e.x, e.y + e.height * 0.5, ox, oy, ex, ey);
       if (d2 <= (e.radius + 0.45 + 0.5 * frac) ** 2) damageEnemy(w, e, 125 + 135 * frac, dx * (6 + 4 * frac), 30, 4);
+    }
+    for (const h of w.hives) {
+      if (!h.alive) continue;
+      if (pointToSegmentDistSq(h.x, h.y + h.height * 0.5, ox, oy, ex, ey) <= (h.radius + 0.35 + 0.5 * frac) ** 2) damageHive(w, h, 125 + 135 * frac, 4);
     }
     for (const b of w.barrels) {
       if (!b.alive) continue;
@@ -1099,6 +1220,17 @@ function stepProjectiles3D(w: WorldState3D): void {
         }
       }
       if (!consumed) {
+        for (const h of w.hives) {
+          if (!h.alive) continue;
+          if (Math.abs(h.x - pr.x) <= h.radius + pr.radius && pr.y >= h.y - 0.1 && pr.y <= h.y + h.height + 0.2) {
+            if (pr.kind === 'grenade') blast(pr);
+            else damageHive(w, h, pr.damage, weaponOfProjectile(pr.kind));
+            consumed = true;
+            break;
+          }
+        }
+      }
+      if (!consumed) {
         for (const b of w.barrels) {
           if (!b.alive) continue;
           if (Math.abs(b.x - pr.x) <= 0.55 + pr.radius && pr.y >= b.y && pr.y <= b.y + 1.45) {
@@ -1194,8 +1326,128 @@ function spitterFire(w: WorldState3D, e: EnemyState3D): void {
     vx: (dx / len) * 12.5, vy: ((ty - sy) / len) * 12.5, vz: 0,
     damage: scaledDamage(w, e, 12), radius: 0.24, lifeTicks: 110, bounces: 0,
   });
-  e.attackCooldown = 96;
+  e.attackCooldown = Math.round(96 / SECTOR_TEMPO_3D[e.zone]);
   e.attackAnimTicks = 20;
+}
+
+function surfaceTargetAngle(e: EnemyState3D): number {
+  return e.surface === 'ceiling' ? Math.PI : e.surface === 'wall' ? (e.wallDir > 0 ? -Math.PI / 2 : Math.PI / 2) : 0;
+}
+
+/** Gravity and floor snap shared by walking enemies, released ambushers and falling corpses. */
+function settleEnemyY(e: EnemyState3D, col: ReturnType<typeof buildCollider3D>, dt: number): void {
+  const fy = floorHeightAt3D(e.x, 0, e.y, e.radius, col);
+  e.vy = Math.max(-16, e.vy - 24 * dt);
+  const ny = e.y + e.vy * dt;
+  if (fy > -Infinity && (ny <= fy || (fy > e.y && fy <= e.y + 0.38))) {
+    e.y = fy;
+    e.vy = 0;
+  } else {
+    e.y = ny;
+  }
+}
+
+/** Let go of a wall/ceiling. `attack` = deliberate ambush (drop or leap); otherwise the crawler was shot off and just falls. */
+function releaseHanging(w: WorldState3D, e: EnemyState3D, attack: boolean): void {
+  const pb = w.player.body;
+  const wasWall = e.surface === 'wall';
+  e.surface = 'floor';
+  e.windupTicks = 0;
+  e.vx = 0;
+  e.vy = 0;
+  if (!attack) {
+    e.dropping = false;
+    setEnemyState(e, 'chase', 0);
+    e.attackCooldown = 40;
+    return;
+  }
+  e.dropping = true;
+  e.facing = wasWall ? e.wallDir : pb.x >= e.x ? 1 : -1;
+  e.leapVx = wasWall ? 7.5 : 2.4;
+  e.vy = wasWall ? 2.6 : -1;
+  setEnemyState(e, 'attack', 70);
+  e.lungeTicks = 70;
+  e.attackAnimTicks = 70;
+  w.events.push({ type: 'enemy_drop', value: 0 });
+}
+
+function hangLineClear(w: WorldState3D, e: EnemyState3D): boolean {
+  const pb = w.player.body;
+  const ox = e.x;
+  const oy = e.y + e.height * 0.5;
+  const tx = pb.x;
+  const ty = pb.y + 0.9;
+  const len = Math.hypot(tx - ox, ty - oy) || 1;
+  return castRaySolidDistance3D(w, ox, oy, 0, (tx - ox) / len, (ty - oy) / len, 0, len) >= len - 0.8;
+}
+
+/** Ceiling/wall behaviour: wait or crawl toward the player, telegraph with a dust windup, then drop or leap. */
+function stepHanging(w: WorldState3D, e: EnemyState3D): void {
+  const pb = w.player.body;
+  const dx = pb.x - e.x;
+  const near = e.zone === w.currentRoom && Math.abs(dx) < 24 && Math.abs(pb.y - e.y) < 16;
+  if (!e.active) {
+    if (!near && e.hitFlashTicks === 0) {
+      e.anim = 'idle';
+      e.state = 'dormant';
+      return;
+    }
+    e.active = true;
+    e.facing = dx >= 0 ? 1 : -1;
+    setEnemyState(e, 'patrol', 0);
+  }
+  if (e.hitFlashTicks > 0) {
+    releaseHanging(w, e, false);
+    return;
+  }
+  e.yaw = e.facing * (Math.PI / 2);
+  if (e.state === 'windup') {
+    e.vx = 0;
+    e.anim = 'idle';
+    e.stateTicks--;
+    if (e.windupTicks > 0) e.windupTicks--;
+    if (e.stateTicks <= 0) releaseHanging(w, e, true);
+    return;
+  }
+  const ceiling = e.surface === 'ceiling';
+  const centerY = e.y + e.height * 0.5;
+  // Trigger: player passes below a ceiling ambusher, or stands level with a wall crawler and in front of it
+  const under = ceiling
+    ? Math.abs(dx) < 2.0 && pb.y + 0.3 < e.y && e.y - pb.y < 14
+    : Math.abs(pb.y + 0.9 - centerY) < 1.1 && dx * e.wallDir > 0 && Math.abs(dx) < 8;
+  if (under && hangLineClear(w, e)) {
+    const t = ceiling ? DROP_WINDUP_TICKS_3D : LEAP_WINDUP_TICKS_3D;
+    setEnemyState(e, 'windup', t);
+    e.windupTicks = t;
+    e.facing = ceiling ? (dx >= 0 ? 1 : -1) : e.wallDir;
+    e.vx = 0;
+    return;
+  }
+  // Climbers crawl along the surface toward the player
+  const speed = CLIMB_SPEED_3D * SECTOR_TEMPO_3D[e.zone];
+  let want = 0;
+  if (e.variant === 'climber' && e.crawlMax > e.crawlMin) {
+    const target = Math.max(e.crawlMin, Math.min(e.crawlMax, ceiling ? pb.x : pb.y));
+    const cur = ceiling ? e.x : e.y;
+    if (Math.abs(target - cur) > 0.25) want = Math.sign(target - cur);
+  }
+  if (want !== 0) {
+    const step = want * speed * ABILITY_3D.dt;
+    if (ceiling) {
+      e.x += step;
+      e.facing = want > 0 ? 1 : -1;
+      e.vx = want * speed;
+    } else {
+      e.y += step;
+      e.vx = 0;
+    }
+    e.anim = 'walk';
+    e.state = 'patrol';
+  } else {
+    e.vx = 0;
+    e.anim = 'idle';
+    e.state = e.variant === 'dropper' ? 'alert' : 'patrol';
+  }
 }
 
 function stepEnemies3D(w: WorldState3D): void {
@@ -1205,10 +1457,18 @@ function stepEnemies3D(w: WorldState3D): void {
 
   for (const e of w.enemies) {
     if (e.hitFlashTicks > 0) e.hitFlashTicks--;
+    const angleErr = surfaceTargetAngle(e) - e.surfaceAngle;
+    e.surfaceAngle += Math.max(-0.3, Math.min(0.3, angleErr));
     if (!e.alive) {
       e.deathTicks++;
       e.anim = 'death';
       e.state = 'dead';
+      e.dropping = false;
+      if (e.surface !== 'floor') {
+        e.surface = 'floor';
+        e.vy = 0;
+      }
+      if (e.deathTicks < 150) settleEnemyY(e, col, dt);
       continue;
     }
 
@@ -1218,6 +1478,12 @@ function stepEnemies3D(w: WorldState3D): void {
     const dy = pb.y - e.y;
     const stats = ENEMY_STATS[e.kind];
     const isWarden = e.kind === 'warden';
+
+    if (e.surface !== 'floor') {
+      stepHanging(w, e);
+      e.speedNow = Math.abs(e.vx);
+      continue;
+    }
 
     if (!e.active) {
       if (isWarden && w.bossIntroTicks > 0) {
@@ -1253,6 +1519,8 @@ function stepEnemies3D(w: WorldState3D): void {
       e.staggerTicks--;
       e.windupTicks = 0;
       e.lungeTicks = 0;
+      e.dropping = false;
+      e.meleeCooldown = 0;
       e.state = 'stagger';
       e.stateTicks = e.staggerTicks;
       e.anim = 'idle';
@@ -1502,16 +1770,37 @@ function stepEnemies3D(w: WorldState3D): void {
         case 'attack': {
           direct = true;
           e.anim = 'attack';
+          const airborne = e.dropping;
+          const landed = airborne && e.lungeTicks < 69 && e.vy === 0;
           e.lungeTicks--;
           e.stateTicks = e.lungeTicks;
-          e.vx = e.facing * (e.kind === 'crawler' ? 9 : 10.5);
-          if (Math.abs(pb.x - e.x) <= e.radius + ABILITY_3D.radius + 0.6 && Math.abs(dy) < 1.55) {
-            damagePlayer(w, scaledDamage(w, e, e.kind === 'stalker' ? 14 : 9), e.facing * 5);
+          e.vx = e.facing * (airborne ? e.leapVx : e.kind === 'crawler' ? 9 : 10.5);
+          if (landed) {
+            // Touchdown: a close landing hits, unless the body already clipped the player on the way down
+            if (e.meleeCooldown === 0 && Math.abs(pb.x - e.x) <= e.radius + ABILITY_3D.radius + 0.9 && Math.abs(dy) < 1.3) {
+              damagePlayer(w, scaledDamage(w, e, 14), Math.sign(dx) * 5);
+            }
+            w.events.push({ type: 'enemy_drop', value: 1 });
+            w.shakeTicks = Math.max(w.shakeTicks, 5);
+            w.shakeStrength = Math.max(w.shakeStrength, 0.16);
             e.lungeTicks = 0;
+          } else if (Math.abs(pb.x - e.x) <= e.radius + ABILITY_3D.radius + 0.6 && Math.abs(dy) < 1.55) {
+            if (airborne) {
+              // Mid-air graze: one hit per drop, the body keeps falling to its landing
+              if (e.meleeCooldown === 0) {
+                damagePlayer(w, scaledDamage(w, e, 12), e.facing * 5);
+                e.meleeCooldown = 400;
+              }
+            } else {
+              damagePlayer(w, scaledDamage(w, e, e.kind === 'stalker' ? 14 : 9), e.facing * 5);
+              e.lungeTicks = 0;
+            }
           }
           if (e.lungeTicks <= 0) {
             direct = false;
-            e.attackCooldown = e.kind === 'stalker' ? 70 : 84;
+            e.dropping = false;
+            e.meleeCooldown = 0;
+            e.attackCooldown = Math.round((e.kind === 'stalker' ? 70 : 84) / SECTOR_TEMPO_3D[e.zone]);
             e.vx = 0;
             setEnemyState(e, 'recover', e.kind === 'stalker' ? 30 : 40);
           }
@@ -1531,7 +1820,31 @@ function stepEnemies3D(w: WorldState3D): void {
           const turning = e.turnTicks > 0;
           if (lunger) {
             const reach = e.kind === 'crawler' ? 2.4 : 3.5;
-            if (dist <= reach && Math.abs(dy) < 2.2 && e.attackCooldown === 0 && !turning) {
+            const tempo = SECTOR_TEMPO_3D[e.zone];
+            // Swarm (crawlers): two slots flank by running past the player, nearby bodies repel, and at most two attack at once
+            let flankSide: 0 | 1 | -1 = 0;
+            let separation = 0;
+            let attackSlotFree = true;
+            if (e.kind === 'crawler') {
+              let pack = 0;
+              let attackers = 0;
+              for (const o of w.enemies) {
+                if (o === e || !o.alive || !o.active || o.kind !== 'crawler' || o.surface !== 'floor') continue;
+                const ox = o.x - e.x;
+                if (Math.abs(o.x - pb.x) < 14 && Math.abs(o.y - pb.y) < 6) pack++;
+                if (o.state === 'windup' || o.state === 'attack') attackers++;
+                if (Math.abs(ox) < 0.95 && Math.abs(o.y - e.y) < 1.0) {
+                  const away = ox === 0 ? (e.id < o.id ? -1 : 1) : ox > 0 ? -1 : 1;
+                  separation += away * (0.95 - Math.abs(ox)) * 6;
+                }
+              }
+              attackSlotFree = attackers < 2;
+              // Every other crawler runs past the player to the side opposite its home, so a pack closes from both flanks
+              if (pack >= 1 && ((enemyHash3D(e.id, 7) >>> 15) & 1) === 1) flankSide = e.homeX < pb.x ? 1 : -1;
+            }
+            // A flanker that is blocked (wall, pillar, ledge) gives up the run-around and fights from where it stands
+            const crossing = flankSide !== 0 && (e.x - pb.x) * flankSide < 0.8 && e.stuckTicks < 8;
+            if (dist <= reach && Math.abs(dy) < 2.2 && e.attackCooldown === 0 && !turning && !crossing && attackSlotFree) {
               e.facing = dirX;
               e.turnTicks = 0;
               const wt = e.kind === 'crawler' ? 14 : 18;
@@ -1542,9 +1855,14 @@ function stepEnemies3D(w: WorldState3D): void {
               break;
             }
             const rage = e.kind === 'stalker' && dist < 7.5 ? 1.38 : 1.0;
-            if (turning) wantVx = 0;
-            else if (e.attackCooldown > 0 && dist < 2.2) wantVx = -e.facing * stats.speed * 0.55; // back off while the lunge recharges
-            else if (dist > 0.95) wantVx = e.facing * stats.speed * rage;
+            const spd = stats.speed * tempo;
+            if (crossing) {
+              const tx = pb.x + flankSide * 3.8;
+              wantVx = Math.sign(tx - e.x) * spd * 1.1;
+            } else if (turning) wantVx = 0;
+            else if (e.attackCooldown > 0 && dist < 2.2) wantVx = -e.facing * spd * 0.55; // back off while the lunge recharges
+            else if (dist > 0.95) wantVx = e.facing * spd * rage;
+            if (separation !== 0 && !turning) wantVx += Math.max(-3, Math.min(3, separation));
             if (
               e.kind === 'stalker' && e.hitFlashTicks > 0 && dist < 4 &&
               enemyHash3D(e.id, w.tick >> 4) % 3 === 0
@@ -1580,7 +1898,7 @@ function stepEnemies3D(w: WorldState3D): void {
     // Never walk off a ledge deeper than a short hop
     let blocked = false;
     const guardDir = direct ? Math.sign(e.vx) : Math.sign(wantVx);
-    if (guardDir !== 0) {
+    if (guardDir !== 0 && !e.dropping) {
       const ahead = e.x + guardDir * (e.radius + 0.5);
       const fyAhead = floorHeightAt3D(ahead, 0, e.y, 0.1, col);
       if (!(fyAhead > -Infinity) || e.y - fyAhead > 1.3) {
@@ -1588,7 +1906,7 @@ function stepEnemies3D(w: WorldState3D): void {
         if (direct) {
           e.vx = 0;
           e.lungeTicks = 0;
-          e.attackCooldown = e.kind === 'stalker' ? 70 : 84;
+          e.attackCooldown = Math.round((e.kind === 'stalker' ? 70 : 84) / SECTOR_TEMPO_3D[e.zone]);
           setEnemyState(e, 'recover', e.kind === 'stalker' ? 30 : 40);
         } else wantVx = 0;
       }
@@ -1607,18 +1925,62 @@ function stepEnemies3D(w: WorldState3D): void {
       e.vx = 0;
     }
 
-    const fy = floorHeightAt3D(e.x, 0, e.y, e.radius, col);
-    e.vy = Math.max(-16, e.vy - 24 * dt);
-    const ny = e.y + e.vy * dt;
-    if (fy > -Infinity && (ny <= fy || (fy > e.y && fy <= e.y + 0.38))) {
-      e.y = fy;
-      e.vy = 0;
-    } else {
-      e.y = ny;
-    }
+    settleEnemyY(e, col, dt);
     e.yaw = e.facing * (Math.PI / 2);
     e.speedNow = Math.abs(e.vx);
     if (isWarden && e.windupTicks === 0 && e.attackAnimTicks === 0) e.anim = Math.abs(e.vx) > 0.5 ? 'walk' : 'idle';
+  }
+}
+
+/** Hives birth larvae on a fixed cadence (deterministic, no RNG) while the player is near, up to HIVE_CAP_3D alive each. */
+function stepHives3D(w: WorldState3D): void {
+  const pb = w.player.body;
+  for (const h of w.hives) {
+    if (h.hitFlashTicks > 0) h.hitFlashTicks--;
+    if (h.spawnFlashTicks > 0) h.spawnFlashTicks--;
+    if (!h.alive) continue;
+    const near = h.zone === w.currentRoom && Math.abs(pb.x - h.x) < 30 && Math.abs(pb.y - h.y) < 12;
+    if (!near && h.hitFlashTicks === 0) {
+      h.active = false;
+      continue;
+    }
+    if (!h.active) {
+      h.active = true;
+      h.spawnTimer = Math.min(h.spawnTimer, HIVE_FIRST_SPAWN_TICKS_3D);
+    }
+    if (--h.spawnTimer > 0) continue;
+    const slot = w.enemies.find((e) => e.hive === h.id && !e.alive);
+    if (!slot) {
+      h.spawnTimer = 20; // brood is full: keep checking until one dies
+      continue;
+    }
+    const side = h.spawnCount % 2 === 0 ? -1 : 1;
+    const st = ENEMY_STATS.crawler;
+    slot.x = h.x + side * 0.9;
+    slot.y = h.y + 0.5;
+    slot.vx = side * 2.5;
+    slot.vy = 4.5;
+    slot.hp = Math.round(st.hp * SECTOR_HP_3D[h.zone]);
+    slot.maxHp = slot.hp;
+    slot.alive = true;
+    slot.active = true;
+    slot.deathTicks = 0;
+    slot.anim = 'idle';
+    slot.surface = 'floor';
+    slot.dropping = false;
+    slot.windupTicks = 0;
+    slot.staggerTicks = 0;
+    slot.lungeTicks = 0;
+    slot.stuckTicks = 0;
+    slot.lostTicks = 0;
+    slot.homeX = h.x;
+    slot.facing = pb.x >= slot.x ? 1 : -1;
+    slot.attackCooldown = 45;
+    setEnemyState(slot, 'chase', 0);
+    h.spawnCount++;
+    h.spawnFlashTicks = 14;
+    h.spawnTimer = Math.round(HIVE_INTERVAL_TICKS_3D / SECTOR_TEMPO_3D[h.zone]);
+    w.events.push({ type: 'hive_spawn', value: w.hives.indexOf(h) });
   }
 }
 
@@ -1909,6 +2271,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   }
 
   stepProjectiles3D(w);
+  stepHives3D(w);
   stepEnemies3D(w);
   stepShockwaves3D(w);
 

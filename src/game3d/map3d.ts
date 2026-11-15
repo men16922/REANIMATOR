@@ -16,6 +16,7 @@ import type {
   Collider3D,
   DataLog3D,
   EnemySpawn3D,
+  HiveSpawn3D,
   Level3D,
   MapSolid3D,
   MedStation3D,
@@ -34,6 +35,9 @@ export type {
   DoorLockKind3D,
   DataLog3D,
   EnemySpawn3D,
+  EnemySurface3D,
+  EnemyVariant3D,
+  HiveSpawn3D,
   Level3D,
   MapSolid3D,
   MedStation3D,
@@ -314,6 +318,27 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'e-esc-3', kind: 'spitter', x: 33.0, y: 0, z: 0, zone: 'shaft' },
     { id: 'e-esc-4', kind: 'crawler', x: 39.5, y: 0, z: 0, zone: 'shaft' },
     { id: 'e-esc-5', kind: 'spitter', x: 9.0, y: 5.2, z: 0, zone: 'airlock' },
+    // Round 3: ceiling ambushers (y = ceiling underside - 0.85 body height) and wall/ceiling climbers.
+    // Appended last so the original roster order is unchanged.
+    { id: 'e-drop-airlock', kind: 'crawler', x: 15.5, y: 3.95, z: 0, zone: 'airlock', variant: 'dropper', surface: 'ceiling', span: [15.5, 15.5] },
+    { id: 'e-drop-mines-1', kind: 'crawler', x: 21.5, y: -4.85, z: 0, zone: 'mines', variant: 'dropper', surface: 'ceiling', span: [21.5, 21.5] },
+    { id: 'e-drop-mines-2', kind: 'crawler', x: 6.0, y: -4.85, z: 0, zone: 'mines', variant: 'dropper', surface: 'ceiling', span: [6, 6] },
+    { id: 'e-climb-mines', kind: 'crawler', x: 0.45, y: -7.0, z: 0, zone: 'mines', variant: 'climber', surface: 'wall', wallDir: 1, span: [-10.6, -5.6] },
+    { id: 'e-climb-shaft', kind: 'crawler', x: 41.15, y: 6.0, z: 0, zone: 'shaft', variant: 'climber', surface: 'wall', wallDir: -1, span: [3.9, 7.6] },
+    { id: 'e-drop-bio-1', kind: 'crawler', x: 44.5, y: 7.55, z: 0, zone: 'biolabs', variant: 'dropper', surface: 'ceiling', span: [44.5, 44.5] },
+    { id: 'e-drop-bio-2', kind: 'crawler', x: 60.5, y: 7.55, z: 0, zone: 'biolabs', variant: 'dropper', surface: 'ceiling', span: [60.5, 60.5] },
+    { id: 'e-climb-bio', kind: 'crawler', x: 52.0, y: 7.55, z: 0, zone: 'biolabs', variant: 'climber', surface: 'ceiling', span: [47, 61.5] },
+    { id: 'e-drop-sec-1', kind: 'crawler', x: 49.0, y: 12.95, z: 0, zone: 'security', variant: 'dropper', surface: 'ceiling', span: [49, 49] },
+    { id: 'e-climb-sec', kind: 'crawler', x: 60.0, y: 12.95, z: 0, zone: 'security', variant: 'climber', surface: 'ceiling', span: [50, 67] },
+    { id: 'e-climb-sec-wall', kind: 'crawler', x: 69.15, y: 11.0, z: 0, zone: 'security', variant: 'climber', surface: 'wall', wallDir: -1, span: [9.4, 12.4] },
+  ];
+
+  // Spawner nests: 0..2 per sector, concentrated in the Mines and Bio-Labs
+  const hives: HiveSpawn3D[] = [
+    { id: 'hive-mines-1', sector: 'mines', x: 18.2, y: -11.0, z: 0 },
+    { id: 'hive-bio-1', sector: 'biolabs', x: 48.5, y: 0, z: 0 },
+    { id: 'hive-bio-2', sector: 'biolabs', x: 66.5, y: 0, z: 0 },
+    { id: 'hive-sec-1', sector: 'security', x: 58.5, y: 8.8, z: 0 },
   ];
 
   const dataLogs: DataLog3D[] = [
@@ -342,6 +367,7 @@ export function buildFacilityMap3D(): Level3D {
     pedestals,
     medStations,
     enemies,
+    hives,
     dataLogs,
     secrets: [
       { id: 'secret_alcove', sector: 'airlock', name: 'Cryo Alcove', doorId: 'door_secret_alcove' },

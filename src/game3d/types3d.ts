@@ -33,7 +33,11 @@ export type SoundEventType3D =
   | 'boss_phase'
   | 'boss_exposed'
   | 'collect'
-  | 'secret';
+  | 'secret'
+  // Round 3 foes: ceiling ambush landing, hive larvae spawn, hive destruction
+  | 'enemy_drop'
+  | 'hive_spawn'
+  | 'hive_destroyed';
 
 export interface SoundEvent3D {
   type: SoundEventType3D;
@@ -179,6 +183,11 @@ export interface SecretRoom3D {
   doorId: string;
 }
 
+/** Surface a crawler clings to. `floor` is the normal walking state. */
+export type EnemySurface3D = 'floor' | 'wall' | 'ceiling';
+/** `dropper`: waits on the ceiling and falls when the player passes below. `climber`: crawls along a wall/ceiling toward the player, then drops or leaps. */
+export type EnemyVariant3D = 'none' | 'dropper' | 'climber';
+
 export interface EnemySpawn3D {
   id: string;
   kind: 'stalker' | 'crawler' | 'spitter' | 'warden';
@@ -186,6 +195,23 @@ export interface EnemySpawn3D {
   y: number;
   z: number;
   zone: SectorId3D;
+  /** Crawler variants only. y is the bottom of the body box (ceiling hang: ceiling - body height). */
+  variant?: EnemyVariant3D;
+  surface?: EnemySurface3D;
+  /** Wall only: +1 when the open space is east of the wall (leap direction), -1 when west */
+  wallDir?: 1 | -1;
+  /** Crawl range along the surface: x for ceiling, y for wall */
+  span?: [number, number];
+}
+
+/** Destructible spawner structure that periodically births crawlers until destroyed. */
+export interface HiveSpawn3D {
+  id: string;
+  sector: SectorId3D;
+  x: number;
+  /** Floor height the nest sits on */
+  y: number;
+  z: number;
 }
 
 export interface Level3D {
@@ -205,6 +231,7 @@ export interface Level3D {
   pedestals: WeaponPedestal3D[];
   medStations: MedStation3D[];
   enemies: EnemySpawn3D[];
+  hives: HiveSpawn3D[];
   dataLogs: DataLog3D[];
   secrets: SecretRoom3D[];
 }

@@ -1,7 +1,7 @@
 // Kinematic reachability verifier for the six-sector side-view map using the real stepBody3D physics.
 // Verifies the full progression route (blue -> green -> Mines upgrades -> yellow -> Bio-Labs -> Security -> red -> Core -> escape)
 // and the Thruster Boots gate (shaft upper deck 4.4 m above the last platform).
-import { ABILITY_3D, stepBody3D, spawnBody3D, type Body3D } from '../../src/engine/motion3d.ts';
+import { ABILITY_3D, floorHeightAt3D, stepBody3D, spawnBody3D, type Body3D } from '../../src/engine/motion3d.ts';
 import { buildCollider3D, buildFacilityMap3D, type Level3D } from '../../src/game3d/map3d.ts';
 import { navReached, navSteer, type NavTarget } from '../../src/game3d/nav3d.ts';
 
@@ -297,11 +297,48 @@ function runCollectibles(): void {
   console.log('SECRETS sealed until opened: OK');
 }
 
+/**
+ * Round 3 foes: every hive must stand on real floor, every ceiling hanger must touch a ceiling solid along its whole crawl
+ * span, and every wall crawler must sit flush against a wall solid. Returns human-readable problems (empty = OK).
+ */
+export function checkFoePlacement(level: Level3D): string[] {
+  const problems: string[] = [];
+  const col = buildCollider3D(level, new Set());
+  const solids = level.solids.filter((s) => s.kind !== 'platform');
+  for (const h of level.hives) {
+    const fy = floorHeightAt3D(h.x, 0, h.y + 0.5, 0.5, col);
+    if (!(Math.abs(fy - h.y) < 0.05)) problems.push(`${h.id}: floor ${fy} != ${h.y}`);
+  }
+  for (const e of level.enemies) {
+    if (!e.surface || e.surface === 'floor') continue;
+    const span = e.span ?? [e.x, e.x];
+    const bodyH = 0.85;
+    if (e.surface === 'ceiling') {
+      for (const x of span) {
+        const ok = solids.some((s) => Math.abs(s.minY - (e.y + bodyH)) < 0.05 && x >= s.minX + 0.2 && x <= s.maxX - 0.2);
+        if (!ok) problems.push(`${e.id}: no ceiling solid over x=${x}`);
+      }
+    } else {
+      const dir = e.wallDir ?? 1;
+      for (const y of span) {
+        const ok = solids.some(
+          (s) => Math.abs((dir > 0 ? s.maxX : s.minX) - (e.x - dir * 0.45)) < 0.05 && y >= s.minY - 0.01 && y + bodyH <= s.maxY + 0.01,
+        );
+        if (!ok) problems.push(`${e.id}: no wall flush at y=${y}`);
+      }
+    }
+  }
+  return problems;
+}
+
 // Only run when executed directly (tests import walkTo/buildReachRoute).
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const total = runRoute();
   runGate();
   runCollectibles();
+  const foe = checkFoePlacement(buildFacilityMap3D());
+  console.log(foe.length === 0 ? 'FOES placement (hives on floor, hangers on ceiling/wall): OK' : `FOES placement FAILED: ${foe.join('; ')}`);
+  if (foe.length > 0) process.exit(1);
   const n = buildReachRoute(buildFacilityMap3D()).length;
   console.log(`REACH3D PASS: ${n} waypoints, ${total} ticks (${(total / 60).toFixed(1)} s), Thruster Boots gate verified.`);
 }
