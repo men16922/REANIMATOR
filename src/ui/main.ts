@@ -34,6 +34,8 @@ import { buildLogoSvg } from './brand.ts';
 import { objectiveFor } from './objective.ts';
 import { parseGoreLevel, type GoreLevel } from '../render3d/gore3d.ts';
 import { loadProgress, menuKeyAction, PANEL_IDS, stepIndex, type TitlePanel } from './menu.ts';
+import { normalizePanelState, titleCovered, topLayer } from './panels.ts';
+import { runUiAudit, type UiAuditReport } from './uiAudit.ts';
 import { getFailedModelNames3D, getLoadedModelNames3D } from '../render3d/riggedModels.ts';
 
 const SIM_HZ_3D = 60;
@@ -262,6 +264,7 @@ function show(m: Mode): void {
   ui.controlsPanel.hidden = true;
   $('lab').hidden = true;
   for (const id of Object.values(PANEL_IDS)) $(id).hidden = true;
+  syncPanels();
   $('continue').hidden = !(m === 'title' && !!world.lastSaveId);
   if (m === 'title') hideTransient();
   audioDirector.syncBeds(world, m === 'playing', m === 'showcase' ? 'title' : m);
@@ -291,6 +294,19 @@ function openPanelFor(name: TitlePanel, focusId: string): void {
 function closeTitlePanel(returnFocus: string): void {
   for (const id of Object.values(PANEL_IDS)) $(id).hidden = true;
   $(returnFocus).focus({ preventScroll: true });
+}
+
+/** Read the real panel state, derive the top layer, and hide the title logo/menu whenever a panel is open over it. */
+function syncPanels(): void {
+  const tp = openTitlePanel();
+  const name = (Object.keys(PANEL_IDS) as TitlePanel[]).find((k) => PANEL_IDS[k] === tp?.id) ?? null;
+  const st = normalizePanelState({ mode, titlePanel: name, lab: !$('lab').hidden, revived: !ui.revived.hidden, pauseControls: !ui.controlsPanel.hidden });
+  ui.title.classList.toggle('covered', titleCovered(st));
+  $('stage').dataset.topLayer = topLayer(st) ?? '';
+}
+{
+  const mo = new MutationObserver(syncPanels);
+  for (const id of [...Object.values(PANEL_IDS), 'title', 'lab', 'revived', 'pause', 'controls-panel', 'result']) mo.observe($(id), { attributes: true, attributeFilter: ['hidden'] });
 }
 
 function hideTransient(): void {
@@ -1221,6 +1237,7 @@ const wAny = window as unknown as {
   __reanimatorShowcase: (name: string) => Promise<ReturnType<typeof buildSnapshot>>;
   __reanimatorDemo: (id: string) => ReturnType<typeof buildSnapshot>;
   __reanimatorSoak: (n?: number, opts?: SoakOptions) => Promise<SoakReport>;
+  __reanimatorUiAudit: () => Promise<UiAuditReport>;
 };
 
 function enterManual(): void {
@@ -1502,5 +1519,30 @@ wAny.__reanimatorSoak = async (n = 3, opts = {}) => {
   return { iterations: n, samples, leaks, pooled: SOAK_POOLED.map(String), ok: leaks.length === 0, steps, ms: Math.round(performance.now() - t0) };
 };
 
+/**
+ * Debug only: `await __reanimatorUiAudit()`. Opens every panel through its real buttons (title, settings, extras, demo,
+ * controls, revived, lab, credits, pause, pause controls, result) and checks, per control, that elementFromPoint at its
+ * center is the control itself, that it is opaque, and that the title logo and menu are hidden under any open panel.
+ * Resets to a fresh title screen afterwards (the current run is discarded). Returns { ok, scenarios[] }.
+ */
+wAny.__reanimatorUiAudit = () =>
+  runUiAudit({
+    toTitle: () => {
+      exitShowcase();
+      hideIntro();
+      show('title');
+    },
+    toPaused: () => show('paused'),
+    toResult: () => {
+      wAny.__reanimatorShowResult('lost');
+    },
+    frames: settleFrames,
+  }).then((r) => {
+    world = freshWorld();
+    show('title');
+    return r;
+  });
+
 show('title');
 requestAnimationFrame(frame);
+
