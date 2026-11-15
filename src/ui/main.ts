@@ -31,7 +31,7 @@ import { rankPitch } from './audioLogic.ts';
 import { AudioDirector, snapshotPre } from './audioDirector.ts';
 import { Attract, freshWorld, REEL_SEGMENT_SECONDS, Showcase } from './attract.ts';
 import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type DebugSetup3D, type DemoStop } from './demo.ts';
-import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type Hint } from './flow.ts';
+import { buildRunStats, formatClock, Onboarding, retryTip, type Hint } from './flow.ts';
 import { initLab } from './labView.ts';
 import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
