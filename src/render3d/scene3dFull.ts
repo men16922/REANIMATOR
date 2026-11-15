@@ -8,6 +8,9 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { createPostParams, FxDirector, stepPostParams } from './fx3d.ts';
+import { applyPostParams, createPostPass, ParticleLayer } from './fx3dGfx.ts';
 import type { SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
 import { getPlayerPose3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
@@ -173,6 +176,13 @@ export class Scene3DRenderer {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly composer: EffectComposer;
   private readonly bloomPass: UnrealBloomPass;
+  /** Game-feel layer (shake, hit-stop, particles, post params). main.ts drives observe() once per sim tick. */
+  public readonly fx = new FxDirector();
+  private readonly fxAdd: ParticleLayer;
+  private readonly fxAlpha: ParticleLayer;
+  private readonly postPass: ShaderPass;
+  private readonly postParams = createPostParams();
+  private readonly baseFov = 38;
   private readonly raycaster = new THREE.Raycaster();
   private readonly sun: THREE.DirectionalLight;
   private readonly ambient: THREE.HemisphereLight;
@@ -376,6 +386,12 @@ export class Scene3DRenderer {
     );
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(new OutputPass());
+    this.postPass = createPostPass();
+    this.composer.addPass(this.postPass);
+    this.fxAdd = new ParticleLayer(this.fx.add, true, false);
+    this.fxAlpha = new ParticleLayer(this.fx.alpha, false, true);
+    this.scene.add(this.fxAlpha.mesh);
+    this.scene.add(this.fxAdd.mesh);
 
     void preloadAllModels3D().then((res) => {
       this.modelsReady = res.loaded.length > 0;
@@ -386,6 +402,11 @@ export class Scene3DRenderer {
       }
     });
   }
+
+  /** Mirrors the HUD "Reduce flashing" option: damps shake and chromatic kick, steadies the low-HP tint. */
+  public reduceMotion = false;
+  /** Display clock for particles and shake: 0 during hit-stop, <1 during kill slow-motion. */
+  public fxTimeScale = 1;
 
   public isReady(): boolean {
     return this.modelsReady;
@@ -435,6 +456,7 @@ export class Scene3DRenderer {
       activeAnimations,
       drawCalls: this.renderer.info.render.calls,
       triangles: this.renderer.info.render.triangles,
+      fx: this.fx.telemetry(),
     };
   }
 
@@ -1418,20 +1440,29 @@ export class Scene3DRenderer {
     // 7. Dynamic Projectiles, Shockwaves, Explosions & Rail Beams
     this.syncDynamicFX(w, dt);
 
-    // 8. Side-view camera: look-ahead toward the aim, soft follow, per-room vertical clamp, shake
-    const lookAhead = Math.max(-2.2, Math.min(2.2, (p.aimX - px) * 0.14));
-    const targetFocus = new THREE.Vector3(px + lookAhead, py + 1.45, 0);
+    // 8. Side-view camera: smoothed look-ahead (aim + velocity), dead zone, per-room vertical clamp, trauma shake
+    this.fx.reduce = this.reduceMotion;
+    this.fx.update(dt * this.fxTimeScale, w);
+    let anchorY = py + 1.45;
     if (room) {
       const halfH = 5.2;
-      targetFocus.y = Math.max(room.minY + halfH * 0.55, Math.min(Math.max(room.minY + halfH * 0.55, room.maxY - halfH * 0.45), targetFocus.y));
+      anchorY = Math.max(room.minY + halfH * 0.55, Math.min(Math.max(room.minY + halfH * 0.55, room.maxY - halfH * 0.45), anchorY));
     }
-    if (this.camFocus.distanceTo(targetFocus) > 9) this.camFocus.copy(targetFocus);
-    else this.camFocus.lerp(targetFocus, Math.min(1, dt * 7));
-
-    const sx = w.shakeTicks > 0 ? Math.sin(w.tick * 2.1) * w.shakeStrength : 0;
-    const sy = w.shakeTicks > 0 ? Math.cos(w.tick * 2.7) * w.shakeStrength : 0;
-    this.camera.position.set(this.camFocus.x + sx, this.camFocus.y + 1.7 + sy, 15.5);
+    this.fx.rig.update(dt, px, anchorY, p.body.vx, p.aimX - px, p.aimY - py, p.body.grounded);
+    this.camFocus.set(this.fx.rig.fx, this.fx.rig.fy, 0);
+    const shk = this.fx.trauma.sample(tSec, this.reduceMotion);
+    this.camera.position.set(this.camFocus.x + shk.x, this.camFocus.y + 1.7 + shk.y, 15.5);
     this.camera.lookAt(this.camFocus.x, this.camFocus.y, 0);
+    this.camera.rotation.z += shk.roll;
+    const fov = this.baseFov - this.fx.rig.fovKick;
+    if (Math.abs(this.camera.fov - fov) > 0.01) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
+    this.fxAdd.sync();
+    this.fxAlpha.sync();
+    stepPostParams(this.postParams, w.currentRoom, dt, tSec, p.hp / Math.max(1, p.maxHp), this.fx.chroma, this.reduceMotion);
+    applyPostParams(this.postPass, this.postParams, tSec);
 
     this.sun.position.set(px + 6, py + 14, 16);
     this.sun.target.position.set(px, py, 0);
@@ -1598,16 +1629,32 @@ export class Scene3DRenderer {
             depthWrite: false,
           }),
         );
+        const halo = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.34, 0.34, len, 10),
+          new THREE.MeshBasicMaterial({ color: 0x9a4dff, transparent: true, opacity: 0.3, blending: THREE.AdditiveBlending, depthWrite: false }),
+        );
+        halo.name = `beam-halo:${bm.id}`;
+        mesh.add(halo);
         mesh.position.copy(a).lerp(b, 0.5);
         mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
         this.dynGroup.add(mesh);
         this.beamMeshes.set(bm.id, mesh);
       }
-      (mesh.material as THREE.MeshBasicMaterial).opacity = bm.ticksLeft / bm.maxTicks;
+      const bf = bm.ticksLeft / bm.maxTicks;
+      (mesh.material as THREE.MeshBasicMaterial).opacity = bf;
+      // Beam collapses to a thread as it fades; the halo flares first, then dies faster.
+      mesh.scale.set(0.25 + 0.75 * bf, 1, 0.25 + 0.75 * bf);
+      const halo = mesh.children[0] as THREE.Mesh | undefined;
+      if (halo) (halo.material as THREE.MeshBasicMaterial).opacity = 0.34 * bf * bf;
     }
     for (const [id, m] of this.beamMeshes) {
       if (!liveBm.has(id)) {
         this.dynGroup.remove(m);
+        for (const c of m.children) {
+          const cm = c as THREE.Mesh;
+          cm.geometry.dispose();
+          (cm.material as THREE.Material).dispose();
+        }
         m.geometry.dispose();
         (m.material as THREE.Material).dispose();
         this.beamMeshes.delete(id);
