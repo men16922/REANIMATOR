@@ -57,3 +57,12 @@ test('a 3.8 m/s chase is a run, not a sped-up walk', () => {
   assert.ok(runBlend('stalker', 3.8) > 0.99);
   assert.ok(runBlend('stalker', 1.5) === 0);
 });
+
+test('run posture: lean and bob stay bounded and vanish at rest', async () => {
+  const { runLean, runBob } = await import('../src/render3d/enemyRig3d.ts');
+  assert.equal(runLean(0), 0);
+  assert.ok(runLean(9.6) > 0.15 && runLean(40) <= 0.22 + 1e-9);
+  assert.equal(runBob(0.3, 0), 0);
+  for (let p = 0; p <= 1; p += 0.05) assert.ok(runBob(p, 12) >= 0 && runBob(p, 12) <= 0.045 + 1e-9);
+  assert.ok(runBob(0.25, 9) > runBob(0, 9));
+});
