@@ -9,6 +9,7 @@ import type { DoorLockKind3D, WeaponSlot3D } from '../game3d/types3d.ts';
 import {
   emptyInput3D,
   getPlayerPose3D,
+  getRunSummary3D,
   newWorld3D,
   RAIL_CHARGE_TICKS,
   respawnPlayer3D,
@@ -210,7 +211,7 @@ function hideTransient(): void {
   coachId = '';
 }
 
-function start(): void {
+function start(forceIntro = false): void {
   manualHold = false;
   world = freshWorld();
   audioDirector.reset();
@@ -223,7 +224,8 @@ function start(): void {
   hideTransient();
   releaseInput();
   show('playing');
-  if (store(STORE.intro) !== '1' && !navigator.webdriver) showIntro();
+  // Automation skips only the automatic first-run intro; an explicit 'Watch intro' always plays.
+  if (forceIntro || (store(STORE.intro) !== '1' && !navigator.webdriver)) showIntro();
 }
 
 // ---- intro (first run only, skippable, under 10 s) ----
@@ -549,12 +551,14 @@ function frame(t: number): void {
   }
   if (mode === 'title') {
     // Attract mode: a bot plays a private world behind the title. Never touches `world` or human input.
-    attract.advance(dt);
-    scene3d?.setAttractCamera(attract.time);
+    if (attract.advance(dt)) scene3d?.fx.reset();
+    scene3d?.setAttractCamera(attract.time, attract.shot);
+    canvas.style.opacity = String(1 - attract.fade * 0.96);
     if (scene3d) scene3d.render(attract.world, attract.alpha);
     else renderFallback2D3D(canvas, attract.world);
   } else {
     scene3d?.setAttractCamera(null);
+    if (canvas.style.opacity) canvas.style.opacity = '';
     renderWorld(mode === 'playing' && !manualHold ? Math.min(1, acc * SIM_HZ_3D) : 1);
     hud();
     observeWorld();
@@ -715,10 +719,10 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-$('play').addEventListener('click', start);
+$('play').addEventListener('click', () => start());
 $('intro-skip').addEventListener('click', hideIntro);
 window.addEventListener('pointerdown', () => hideIntro());
-$('intro-open').addEventListener('click', showIntro);
+$('intro-open').addEventListener('click', () => start(true));
 $('controls-open').addEventListener('click', () => {
   ui.controlsPanel.hidden = false;
   $('controls-close').focus();
@@ -746,9 +750,9 @@ for (const id of ['volume', 'volume-p']) {
 }
 $<HTMLInputElement>('volume-bgm').addEventListener('input', (e) => setBgmVolume(Number((e.target as HTMLInputElement).value) / 100));
 $<HTMLInputElement>('volume-sfx').addEventListener('input', (e) => setSfxVolume(Number((e.target as HTMLInputElement).value) / 100));
-$('restart').addEventListener('click', start);
+$('restart').addEventListener('click', () => start());
 $('resume-save').addEventListener('click', () => { resumeAtSave(); });
-$('restart-p').addEventListener('click', start);
+$('restart-p').addEventListener('click', () => start());
 $('resume').addEventListener('click', () => {
   manualHold = false;
   show('playing');
@@ -818,6 +822,10 @@ function buildSnapshot() {
   return {
     lab: lab ? { id: lab.scenario.id, status: lab.status, mutation: lab.mutation } : null,
     mode,
+    intro: introActive,
+    combo: { ...world.combo },
+    run: { ...world.run },
+    completion: getRunSummary3D(world).completionPercent,
     status: world.status,
     phase: world.phase,
     tick: world.tick,
@@ -901,8 +909,10 @@ const wAny = window as unknown as {
   __reanimator: () => ReturnType<typeof buildSnapshot>;
   __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D) => ReturnType<typeof buildSnapshot>;
   __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => ReturnType<typeof buildSnapshot>;
-  __reanimatorRunBot: (maxTicks: number, untilStep?: string) => ReturnType<typeof buildSnapshot>;
+  __reanimatorRunBot: (maxTicks: number, untilStep?: string, showResultOnEnd?: boolean) => ReturnType<typeof buildSnapshot>;
   __reanimatorAudio: typeof getAudioDebug;
+  __reanimatorShowResult: (kind: 'won' | 'lost') => ReturnType<typeof buildSnapshot>;
+  __reanimatorShowBanner: (kind: 'sector' | 'weapon' | 'boots' | 'etank' | 'coach') => ReturnType<typeof buildSnapshot>;
   __reanimatorPick: (px: number, py: number, includePoints?: boolean) => Array<Record<string, unknown>>;
 };
 
@@ -946,7 +956,7 @@ wAny.__reanimatorStep = (inputs, alpha = 1) => {
   return buildSnapshot();
 };
 /** Let the deterministic bot play the current world forward (optionally until a named step is reached). */
-wAny.__reanimatorRunBot = (maxTicks, untilStep) => {
+wAny.__reanimatorRunBot = (maxTicks, untilStep, showResultOnEnd = false) => {
   enterManual();
   if (!bot) bot = createBot3D(world);
   for (let i = 0; i < maxTicks && world.status === 'playing'; i++) {
@@ -956,6 +966,37 @@ wAny.__reanimatorRunBot = (maxTicks, untilStep) => {
   scene3d?.fx.observe(world, true);
   renderWorld();
   hud();
+  if (showResultOnEnd && world.status !== 'playing') showResult();
+  return buildSnapshot();
+};
+
+/**
+ * Debug only: force the result screen. 'won' / 'lost' mark the current world finished (status only, nothing else
+ * is changed) and run the same showResult() path as real play.
+ */
+wAny.__reanimatorShowResult = (kind) => {
+  enterManual();
+  world.status = kind;
+  if (kind === 'won') world.phase = 'won';
+  hud();
+  showResult();
+  return buildSnapshot();
+};
+
+/** Debug only: pop a HUD banner or card deterministically ('sector', 'weapon', 'boots', 'etank', 'coach'). */
+wAny.__reanimatorShowBanner = (kind) => {
+  enterManual();
+  hud();
+  if (kind === 'sector') showSectorCard();
+  else if (kind === 'weapon') showPickupBanner(WEAPON_BANNER[2]);
+  else if (kind === 'boots') showPickupBanner(UPGRADE_BANNER.thruster_boots);
+  else if (kind === 'etank') showPickupBanner(UPGRADE_BANNER.energy_tank);
+  else {
+    const c = $('coach');
+    c.hidden = false;
+    c.classList.add('show');
+    c.textContent = 'RUN  [A] [D]';
+  }
   return buildSnapshot();
 };
 

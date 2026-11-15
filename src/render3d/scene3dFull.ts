@@ -265,6 +265,7 @@ export class Scene3DRenderer {
   private readonly camFocus = new THREE.Vector3(3.5, 1.2, 0);
   /** Title attract mode: seconds driving a slow cinematic camera drift, or null for the normal follow camera. */
   private attractT: number | null = null;
+  private attractShot: { dolly: number; sway: number; lift: number; lookDown: number } | null = null;
   private modelsReady = false;
   private lastRenderMs = performance.now();
 
@@ -1252,8 +1253,9 @@ export class Scene3DRenderer {
   }
 
   /** Title attract mode: pass elapsed seconds for a cinematic camera drift, or null to restore the follow camera. */
-  public setAttractCamera(t: number | null): void {
+  public setAttractCamera(t: number | null, shot?: { dolly: number; sway: number; lift: number; lookDown: number }): void {
     this.attractT = t;
+    this.attractShot = shot ?? null;
   }
 
   /** Snapshot positions once per simulation tick so render() can interpolate at the display rate. */
@@ -1639,13 +1641,10 @@ export class Scene3DRenderer {
     this.fx.rig.update(dt, px, anchorY, p.body.vx, p.aimX - px, p.aimY - py, p.body.grounded);
     this.camFocus.set(this.fx.rig.fx, this.fx.rig.fy, 0);
     if (this.attractT !== null) {
-      // Cinematic drift: slow dolly in/out and lateral sway around the followed bot (title screen only).
-      const t = this.attractT;
-      const dolly = 15.5 - 4.2 * (0.5 + 0.5 * Math.sin(t * 0.21));
-      const sway = Math.sin(t * 0.33) * 3.4;
-      const lift = 1.2 + Math.sin(t * 0.17 + 1.3) * 1.1;
-      this.camera.position.set(this.camFocus.x + sway, this.camFocus.y + lift, dolly);
-      this.camera.lookAt(this.camFocus.x, this.camFocus.y + 0.4, 0);
+      // Reel shot (see ui/attract.ts): wide establishing view, then a low push-in on the action.
+      const sh = this.attractShot ?? { dolly: 15.5 - 4.2 * (0.5 + 0.5 * Math.sin(this.attractT * 0.21)), sway: Math.sin(this.attractT * 0.33) * 3.4, lift: 1.2, lookDown: 0.4 };
+      this.camera.position.set(this.camFocus.x + sh.sway, this.camFocus.y + sh.lift, sh.dolly);
+      this.camera.lookAt(this.camFocus.x, this.camFocus.y + sh.lookDown, 0);
     } else {
       const shk = this.fx.trauma.sample(tSec, this.reduceMotion);
       this.camera.position.set(this.camFocus.x + shk.x, this.camFocus.y + 1.7 + shk.y, 15.5);
