@@ -11,6 +11,7 @@ import {
   frameHalfExtents,
   FrameRectSmoother,
   outsideFraction,
+  rectIncludingPlayer,
   screenYFraction,
   sectorCameraHint,
   stepZoom,
@@ -89,4 +90,16 @@ test('room rect smoothing settles in about 0.4 s and snaps on teleport', () => {
   assert.ok(Math.abs(r.minX - 20) < 1.5 && r.minX > 0 && r.minX < 20 + 1e-6 || r.minX >= 18, 'mostly settled by 0.4 s');
   const t = sm.update(1 / 60, a, 5, 5);
   assert.equal(t.maxX, 20, 'teleport snaps');
+});
+
+test('Vault Nook: player outside every room rect stays inside the clamped frame', () => {
+  const { halfW, halfH } = frameHalfExtents(CAM_BASE_DIST, FOV, 16 / 9);
+  const security = { minX: 44, maxX: 70.4, minY: 8, maxY: 20 };
+  for (const [px, py] of [[72, 12], [74.5, 12.3], [77.5, 11.5]] as const) {
+    const rect = rectIncludingPlayer(security, px, py, halfW, halfH);
+    const c = clampFocusToRect(px, py + verticalFocusOffset(halfH), halfW, halfH, rect);
+    assert.ok(Math.abs(px - c.x) < halfW * 0.95, `x ${px} visible (cam ${c.x})`);
+    assert.ok(Math.abs(py - c.y) < halfH * 0.95, `y ${py} visible (cam ${c.y})`);
+  }
+  assert.equal(rectIncludingPlayer(security, 50, 10, halfW, halfH), security, 'inside rooms unchanged');
 });

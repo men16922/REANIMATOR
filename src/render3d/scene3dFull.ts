@@ -52,7 +52,7 @@ import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
 import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
 import { reactorPulse } from './mood3d.ts';
 import { bossCameraBlend, bossFramingWanted } from './bossCamera.ts';
-import { CAM_BASE_DIST, clampFocusToRect, dynamicZoomTarget, frameHalfExtents, FrameRectSmoother, sectorCameraHint, stepZoom, verticalFocusOffset } from './cameraFrame.ts';
+import { CAM_BASE_DIST, clampFocusToRect, dynamicZoomTarget, frameHalfExtents, FrameRectSmoother, rectIncludingPlayer, sectorCameraHint, stepZoom, verticalFocusOffset } from './cameraFrame.ts';
 import { applyFrontLift } from './frontLift.ts';
 import { mergeStaticChildren } from './meshMerge.ts';
 import { buildHazards3D, type Hazards3D } from './hazards3d.ts';
@@ -2325,8 +2325,9 @@ export class Scene3DRenderer {
     {
       // Room clamp: keep the frustum inside the (smoothed) room rectangle; narrow rooms are centered. Skipped for the intro pan.
       if (room) {
-        const rect = this.frameRect.update(dt, { minX: room.minX, maxX: room.maxX, minY: room.minY, maxY: room.maxY }, px, py);
+        const smoothed = this.frameRect.update(dt, { minX: room.minX, maxX: room.maxX, minY: room.minY, maxY: room.maxY }, px, py);
         const ext = frameHalfExtents(camDistZ, this.baseFov, this.camera.aspect);
+        const rect = rectIncludingPlayer(smoothed, px, py, ext.halfW, ext.halfH);
         this.camHalfH = ext.halfH;
         const introActive = this.introPan > 0.002;
         const c = clampFocusToRect(this.camFocus.x, this.camFocus.y, ext.halfW, ext.halfH, rect);

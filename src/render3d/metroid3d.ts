@@ -211,10 +211,9 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
       }
       const mat = track(
         new THREE.MeshStandardMaterial({
-          map: tx ?? undefined,
+          ...(tx ? { map: tx, emissiveMap: tx } : {}),
           color: fake ? (s.color ?? 0x2f3a48) : 0xffffff,
           emissive: s.emissive ?? 0xff7a2a,
-          emissiveMap: tx ?? undefined,
           emissiveIntensity: fake ? 0.12 : 0.55,
           roughness: 0.6,
           metalness: plate ? 0.7 : 0.35,

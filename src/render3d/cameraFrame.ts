@@ -56,6 +56,23 @@ export function clampFocusToRect(fx: number, fy: number, halfW: number, halfH: n
   return { x: cx.v, y: cy.v, clampedX: cx.clamped, clampedY: cy.clamped };
 }
 
+/**
+ * Extends `rect` so a player standing outside it (hidden pockets such as the Vault Nook lie outside every room
+ * rectangle) stays in frame. Unchanged when the player is inside. The margin leaves the player 3/4 of the way
+ * across the frame at the extended edge.
+ */
+export function rectIncludingPlayer(rect: FrameRect, px: number, py: number, halfW: number, halfH: number): FrameRect {
+  if (px >= rect.minX && px <= rect.maxX && py >= rect.minY && py <= rect.maxY) return rect;
+  const mx = halfW * 0.5;
+  const my = halfH * 0.5;
+  return {
+    minX: Math.min(rect.minX, px - mx),
+    maxX: Math.max(rect.maxX, px + mx),
+    minY: Math.min(rect.minY, py - my),
+    maxY: Math.max(rect.maxY, py + my),
+  };
+}
+
 /** Share of the frustum area (0..1) that lies outside `rect`. */
 export function outsideFraction(fx: number, fy: number, halfW: number, halfH: number, rect: FrameRect): number {
   const w = Math.max(0, Math.min(fx + halfW, rect.maxX) - Math.max(fx - halfW, rect.minX));

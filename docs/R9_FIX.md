@@ -8,3 +8,8 @@
 ## Verification
 - Verified: node tests (skip rule, meltdown pill, grenade prompt) and `make check`.
 - Unverified: browser behavior (real `__reanimatorUiAudit()` result, HUD after a bot win, prompt on screen). Playwright cannot run here.
+
+## Post-integration fixes (Nook camera, material warnings)
+- `metroid3d.ts`: breakable/fake-wall materials add `map` and `emissiveMap` only when a texture exists, which removes the two `THREE.Material ... undefined` warnings per level build.
+- Vault Nook camera: the Nook lies outside every room rect, so the R7 room clamp kept the camera at the Security room and the player left the frame. `rectIncludingPlayer` (`cameraFrame.ts`) extends the clamp rect to include the player plus a half-frustum margin when the player is outside it. Framing inside rooms is unchanged. Test in `tests/camera-frame.test.ts`.
+- Unverified: browser view of the Nook.
