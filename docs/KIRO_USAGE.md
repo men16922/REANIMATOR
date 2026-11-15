@@ -72,3 +72,44 @@ agy가 오케스트레이션하고 kiro-cli가 문서·spec 작업을 맡았다.
 
 ## 2026-11-15 — Boots 게이트 수정
 - Kiro 서브에이전트가 `map3d.ts`/`bot3d.ts`/`reach3d.ts`/테스트 수정과 `make check` 실행. Chrome 실행 실패로 smoke는 미수행.
+
+## 2026-11-15 — R1~R4 병렬 라운드 (오케스트레이터 + worktree 서브에이전트)
+
+사용자 지시("6시간 재귀 개선, 원본보다 재미있고 첫인상이 강한 제출작")에 따라 4라운드 재귀 개선을 수행했다. 이 절은 오케스트레이터 세션의 사실 기록이다. 라운드마다 트랙 4개를 동시에 돌렸다.
+
+### 실행 방식
+
+- 트랙마다 `git worktree add /private/tmp/<이름> -b <브랜치> main`으로 격리된 worktree와 브랜치를 만든다. `node_modules`와 `.tools`는 심볼릭 링크로 연결하고 커밋하지 않는다. 각 서브에이전트는 이전 세션을 모르므로 브리핑에 목표·봉인 파일·검증 명령을 모두 적었다.
+- 서브에이전트는 자기 브랜치에서 `make check`를 통과시키고 로컬 커밋만 한다(푸시 금지).
+- 통합 에이전트가 `--no-ff`로 순차 병합하고 충돌을 해결한다. 병합 후 `make check`를 다시 돌린다.
+- 오케스트레이터가 Playwright로 브라우저를 열어 스크린샷·콘솔·`window.__reanimator*` 디버그 훅으로 직접 검증한다(`.playwright-mcp/`).
+
+### 라운드별 트랙
+
+| 라운드 | 트랙(브랜치) | 병합 커밋 | 내용 |
+|---|---|---|---|
+| 0(선행) | improve/monsters, terrain, audio | `dd4abb6`, `3644f9f`, `bfd7773` | 적 AI·모션, 섹터 지형·조명, 오디오 재작성 |
+| R1 | r1/gameplay, perf, juice, title | `c8beede`..`da59783` | 보스 3페이즈·벽점프·스톰프·레일 차지·콤보·수집품·시크릿 / 정적 배칭·컬링 / 히트스톱·셰이크·카메라 rig / 타이틀·어트랙트·온보딩 |
+| R2 | r2/fix, boss, audio, brand | `fa5c847`..`8fa362d` | 버그 수정 / 보스 시네마틱·텔레그래프·데미지 숫자 / 절차 음악·리버브·사이드체인 / SVG 로고·플레이트 메뉴·로딩 화면 |
+| R3 | r3/foes, fix, mood, classic | `0caca1d`..`bbdbbb8` | dropper/climber/hive/떼 / 버그 수정 / Abuse풍 조명·고어·연기 / Classic View |
+| R4 | A 시각 폴리시, B 환경 위험, C 플레이어 캐릭터, D 제출 패키지(`r4/docs`) | 이 문서 작성 시점 병합 전 | D는 README, JUDGES, 이 문서, Credits 패널 |
+
+### 발견하고 고친 버그 예
+
+- 콤보·레일 차지 pill의 `hidden` 속성이 무시됨: `.pill`의 `display`가 UA의 `[hidden]` 규칙을 덮어 `.pill[hidden] { display: none; }` 한 줄로 수정(`38f0907`).
+- 타이틀 워드마크가 SVG 좌측 상단 원점에 뭉침: 글리프 `<path>`의 `transform` 속성이 조립 애니메이션의 CSS `transform`에 덮였다. 배치를 감싸는 `<g>`로 옮겼다(`c47fcce`, `src/ui/brand.ts`).
+- 문 램프 WebGL 오류 "Vertex buffer is not big enough": `InstancedMesh`를 문당 7개로 할당하고 8개씩 기록했다. 단일 상수 `DOOR_LAMPS_PER_DOOR = 8`로 정리하고 상수를 7로 돌리면 실패하는 테스트 추가(`27af96f`, `tests/render-buffers.test.ts`).
+- Three.js 경고 `map: undefined`(재질 생성자에 `map`을 명시적 undefined로 넘기면 재질당 1회 경고): 값이 있을 때만 키를 넣도록 수정. 같은 커밋에서 `CONTINUE` 버튼의 `hidden` 무시(`button.mi[hidden]`)도 고쳤다(`c47fcce`, 회귀 테스트 `tests/r3-fix.test.ts`).
+- 보스 시네마틱이 월드가 멈춘 동안 재생되지 않던 문제: 표시용 인트로 카운트다운(`nextIntroDisplayTicks`)을 렌더러에 추가(`c47fcce`).
+- 이 중 CSS·SVG 문제는 단위 테스트가 아니라 브라우저에서만 보였다.
+
+### 한계
+
+- 서브에이전트가 사용자의 "원본 게임 느낌을 더 살려라" 요청을 받았을 때 병합 작업 범위 밖이라 코드를 바꾸지 않았고, 후속 라운드 항목으로 [NEXT_PLAN](NEXT_PLAN.md)에 남겼다.
+- 푸시는 하지 않았다. Chrome 샌드박스 제한으로 `make smoke-local` 최신 기준은 unverified. 브라우저 확인은 오케스트레이터의 Playwright 관찰이다.
+- R4 A·B·C 결과는 이 시점에 병합 전이므로 여기에 적지 않았다.
+
+### R4-D 작업 (이 에이전트)
+
+- 수행: README 전면 개편, `docs/JUDGES.md`, 하네스 문서 정리(전문은 `docs/archive/`로 이동), 인게임 Credits 패널, `package.json` description·keywords·license.
+- 검증은 오케스트레이터 보고와 `docs/PROGRESS_LOG.md` 참조.
