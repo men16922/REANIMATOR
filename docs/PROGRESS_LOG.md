@@ -11,6 +11,13 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - 11-15 R2 통합: fix/boss/audio/brand. `main.ts` 충돌 2곳 수동 해결.
 - 11-15 R3 통합: foes/fix/mood/classic. 충돌 2곳(`main.ts` import, `index.html`+Classic 블록) 수동 해결. `make check` exit 0(211/211, reach3d 52 waypoints, dist-guard 13 files).
 
+## 2026-11-15 — R6 통합 (r6/arms, fix, sound, demo)
+
+- Status: main에 `--no-ff` 4회 병합(arms → fix → sound → demo), 푸시 없음, worktree 보존.
+- 충돌: sound 병합 시 `audioLogic.ts`(EVENT_SOUND 두 블록, `seal_close` 피치)와 `main.ts`(무기 배너 루프). 전용 레시피를 택하고 arms 이벤트 4개를 `weapon.flamer_loop`·`weapon.rocket`·`enemy.burn`·`player.rocket_jump`로 매핑, 배너 루프는 슬롯 2~6에 팡파르 호출. demo 병합 시 `main.ts`는 `applyDebugSetup` 이동 충돌만이었고 `demo.ts`에 6무기 ammo 타입을 반영.
+- 추가: `triggerExplosion3D`가 로켓(byWeapon 6) 폭발에 `explosion` value 1을 싣고 `cueForEvent`가 `weapon.rocket_explode`로 연결. `PENDING_EVENT_SOUND` 제거, `tests/audio.test.ts`·`tests/arms.test.ts`를 전용 레시피 기준으로 갱신. demo의 `KIT_LATE`(무기 6종)를 보안 데크 이후·보스 체크포인트에 사용.
+- 봉인 파일 무변경. `make check` exit 0(테스트 344/344, reach3d 52 waypoints 3432 ticks, dist-guard 13 files 14,684,946 B). 브라우저 검증은 unverified.
+
 ## 2026-11-15 — R5 통합 (r5/metroid, render, rig, vfx)
 
 - Status: main에 `--no-ff` 4회 병합(순서 metroid → render → rig → vfx), 푸시 없음.

@@ -58,7 +58,7 @@ npm run dev        # Vite dev server, open the printed URL
 | Airborne `Shift` + `S` | Stomp |
 | Mouse | 360° aim |
 | Left click | Fire. With the Rail-Cannon, hold to charge and release |
-| `1` `2` `3` `4` / `Q` | Pulse, Scattergun, Grenade, Rail-Cannon |
+| `1` to `6` / `Q` | Pulse, Scattergun, Grenade, Rail-Cannon, Flamer, Rocket launcher |
 | `E` | Headlamp |
 | `F` | Save station / console |
 | `Tab` | Sector map |
@@ -75,6 +75,9 @@ Walls slow your fall when you press into them in the air, and wall jump needs th
 - **Combat depth.** Wall jump, dash cancel, stomp, per-weapon enemy matchups, kill combos that refund your dash, rail charge. See [`docs/R1_GAMEPLAY.md`](docs/R1_GAMEPLAY.md).
 - **Abuse-style enemies.** Ceiling droppers, wall and ceiling climbers, hive spawners, swarm flanking. See [`docs/R3_FOES.md`](docs/R3_FOES.md).
 - **Classic View.** Press `V` for a 320x200, 256-colour dithered, orthographic look with an optional CRT filter and a pixel HUD. The palette, font, and icons are original work. No Abuse data was read or copied. See [`docs/R3_CLASSIC.md`](docs/R3_CLASSIC.md).
+- **Six weapons (R6).** The Flamer (slot 5, cone, sets enemies burning) and the Rocket launcher (slot 6, accelerating, area blast, a capped rocket jump that cannot bypass the Thruster Boots gates) sit on pedestals in the Mines and the Security Deck. See [`docs/R6_ARMS.md`](docs/R6_ARMS.md).
+- **Demo tour and showcase (R6).** `Extras` has a Demo tour of 11 fixed checkpoints and a one-minute captioned Showcase reel, both on the real game loop. See [`docs/JUDGES.md`](docs/JUDGES.md).
+- **Item fanfares and sound pass (R6).** Five pickup fanfares, dedicated recipes for hazards, hives and the new weapons, proximity loops near live hazards, and an escape music that speeds up as the hatches close. See [`docs/R6_SOUND.md`](docs/R6_SOUND.md).
 - **Enemy rigs (R5).** Stride-locked gaits, pose channels, boss attack patterns, secondary motion, distance LOD. See [`docs/R5_RIG.md`](docs/R5_RIG.md).
 - **Metroid systems (R5).** Crawl Slide through two tunnels, three breakable blocks, six map terminals that reveal the minimap (`M`), extra Energy Tanks and Ammo Expansions, and an escape hatch that shuts during the Meltdown. See [`docs/R5_METROID.md`](docs/R5_METROID.md).
 - **Combat VFX (R5).** Short warm-white hit flash, glowing projectiles, capped chromatic kick, stacked damage popups, death pop, rail ready ring, scatter shock wave. Mesh merging and a soft steam shader keep draw calls down. See [`docs/R5_RENDER.md`](docs/R5_RENDER.md).
@@ -129,9 +132,9 @@ make smoke-local                 # build, then headless Chrome smoke test (tools
 node tools/game/playthrough.ts   # deterministic bot plays the whole game to the escape
 ```
 
-Observed on `main` at commit `c84649e`:
+Observed on `main` after the R6 merges (`8d38018`):
 
-- `make check` exit 0, 211 of 211 node tests, `reference-verify` 3 of 3 scenarios, `reach3d` 52 waypoints, `dist-guard` PASS on 13 files.
+- `make check` exit 0, 344 of 344 node tests, `reference-verify` 3 of 3 scenarios, `reach3d` 52 waypoints (3,432 ticks), `dist-guard` PASS on 13 files (14,684,946 B).
 - Bot run: won in 4,901 ticks with 126 of 160 HP and 50 kills.
 - Draw calls per sector: 159 to 275 in Modern, 123 in Classic. Zero browser console warnings.
 
@@ -166,6 +169,7 @@ Kiro was the working environment for the whole project, not only for code genera
 REANIMATOR는 1996년 DOS 게임 *Abuse* 셰어웨어 1.05의 이동 물리를 원본 실행 로그와 틱 단위로 대조해 복원하고(S1·S2·S3와 봉인 holdout M05, 11개 필드 exact 일치), 그 위에 브라우저에서 돌아가는 3D 사이드뷰 메트로배니아를 새로 설계한 프로젝트다.
 
 - **정직한 경계**: 복원한 것은 이동 물리뿐이다. 15 Hz는 설계값이며 원본 틱은 측정하지 않았다. 3D 게임의 나머지(섹터, 적, 무기, 보스, 음향, 그래픽)는 신규 설계다. 원본 Abuse 에셋은 포함하지 않으며 `dist-guard`가 빌드 산출물을 검사한다.
+- **R6**: 무기 6종(화염방사기·로켓 발사기, 로켓 점프는 부츠 게이트를 우회하지 못함), Extras의 데모 투어 11곳과 1분 쇼케이스, 아이템 팡파르 5종.
 - **실행**: `npm install` 후 `npm run dev`. `V`로 1996풍 Classic View, `Tab` 맵, `E` 헤드램프, `Shift` 대시, 공중 `Shift+S` 스톰프. 타이틀의 Extras에서 Restoration Lab을 열 수 있다.
-- **검증**: `make check`(main `c84649e` 기준 exit 0, 테스트 211/211, reference-verify 3/3, reach3d 52 waypoints), `make reference-holdout`, `make smoke-local`.
+- **검증**: `make check`(R6 병합 `8d38018` 기준 exit 0, 테스트 344/344, reference-verify 3/3, reach3d 52 waypoints), `make reference-holdout`, `make smoke-local`.
 - **Kiro 활용**: spec 5종, steering, hook, 병렬 worktree 서브에이전트 4라운드, Playwright 브라우저 검증. 상세는 [`docs/KIRO_USAGE.md`](docs/KIRO_USAGE.md), 심사위원용 3분 데모는 [`docs/JUDGES.md`](docs/JUDGES.md).

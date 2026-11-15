@@ -2,6 +2,13 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R6 병합 후
+
+- [x] arms → fix → sound → demo 병합, `make check` 통과(STATUS 기준선).
+- [ ] 브라우저 확인: 키 5·6과 wpn-5/6 칩, 화염·로켓 렌더, 로켓 점프, 데모 투어 11곳과 쇼케이스 재생, 팡파르·근접 루프 청취(unverified, 귀로 확인 필요), 콘솔 오류 0.
+- [ ] 쇼케이스 PNG 재촬영(`tools/smoke/capture-showcase.ts`)과 `make smoke-local`.
+- [ ] 병합 후 봇 완주 재측정.
+
 ## R5 병합 후 (오케스트레이터)
 
 - [x] metroid → render → rig → vfx 병합, `make check` 통과(STATUS 기준선).

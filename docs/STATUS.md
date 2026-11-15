@@ -1,6 +1,6 @@
 # 현재 상태
 
-최종 갱신: 2026-11-15 · R5 병합 완료(metroid·render·rig·vfx, `--no-ff`). 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-15 · R6 병합 완료(arms·fix·sound·demo, `--no-ff`, HEAD 병합 `8d38018`). 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## 구현 상태
 
@@ -19,7 +19,17 @@
 - **R5-Rig** (`r5/rig`): 적 리깅(보폭 고정 걸음, 포즈 채널, 보스 패턴, 보조 모션, LOD, trace 지표). [R5_RIG](R5_RIG.md)
 - **R5-VFX** (`r5/vfx`): 4틱 웜화이트 피격 플래시(상한 0.3), 투사체 글로우 파티클, 색수차 상한 0.42, 팝업 티어·스택, 사망 팝, 레일 준비 링·음, 스캐터 파동.
 
-## 검증 기준선 (R5 병합 후, 통합 에이전트 관찰)
+- **R6-Arms** (`r6/arms`): 무기 5 Flamer(원뿔·burn), 6 Rocket(가속·폭발·로켓 점프 제한), 페데스털 2곳, HUD 슬롯 6, 키 5·6. [R6_ARMS](R6_ARMS.md)
+- **R6-Fix** (`r6/fix`): 표시 시간 기준 플레이어 피격 플래시, 폭발 화구 림 마스크, 맵 단말 캔버스 텍스처, `flat-boxes` 진단.
+- **R6-Sound** (`r6/sound`): R3~R5 이벤트 전용 레시피, 팡파르 5종, 근접 루프, 탈출 음악. 병합 시 arms 이벤트(flamer·rocket·burn·rocket_jump)와 로켓 폭발(`explosion` value 1)을 전용 레시피에 연결, `PENDING_EVENT_SOUND` 제거. [R6_SOUND](R6_SOUND.md)
+- **R6-Demo** (`r6/demo`): `src/ui/demo.ts` 데모 투어 11곳, 쇼케이스 릴, `__reanimatorShowcase`·`__reanimatorDemo`. 늦은 체크포인트(보안 데크 이후, 보스)는 무기 6종 지급. [JUDGES](JUDGES.md)
+
+## 검증 기준선 (R6 병합 후, 통합 에이전트 관찰)
+
+- `make check` exit 0: tsc 통과, node 테스트 344/344, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks(로켓 점프 우회 검사 포함), vite build, dist-guard PASS(13 files, 14,684,946 B, 218 대조).
+- 충돌: `audioLogic.ts`·`main.ts`(sound 병합), `main.ts`(demo 병합). arms는 자동 병합, fix는 자동 병합. 브라우저 검증과 봇 완주 재측정은 unverified.
+
+## 이전 기준선 (R5 병합 후)
 
 - `make check` exit 0: tsc 통과, node 테스트 291/291, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks(57.2 s), vite build, dist-guard PASS(13 files, 14,652,123 B, 218 대조). 병합 충돌은 `scene3dFull.ts` 1곳(metroid3d 빌드와 hazards `setClassic`, 양쪽 유지). rig·vfx는 자동 병합. frontLift는 벽·램프 재질 전용이라 적 림 셰이더와 겹치지 않음(코드 확인).
 - 브라우저 검증(콘솔, drawCalls, 쇼케이스 재촬영)은 오케스트레이터가 진행 중이며 이 문서 작성 시점에는 unverified. 봇 완주 수치는 metroid 브랜치 측정 won 5362 ticks, HP 112이며 병합 후 재측정은 unverified.

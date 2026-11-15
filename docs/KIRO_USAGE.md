@@ -128,3 +128,17 @@ R4와 같은 방식(트랙별 worktree `/private/tmp/r5-{rig,metroid,render,vfx}
 - 병합: 충돌은 `scene3dFull.ts` 1곳이었고 양쪽을 유지했다. `make check` 291/291 테스트로 통과(위 STATUS 기준선).
 - 사용자 요청 대응: "적 애니메이션도 자연스럽게 리깅" → R5-Rig, "Abuse에서 미비한 건 Metroid에서" → R4 계획 문서(`R4_METROID_GAPS`)를 R5-Metroid로 일부 구현.
 - 브라우저 검증은 오케스트레이터가 진행 중이며 아직 기록하지 않았다(unverified).
+
+## 2026-11-15 — R6 병렬 라운드 (오케스트레이터 + worktree 서브에이전트)
+
+R5와 같은 방식(worktree `/private/tmp/r6-{arms,fix,sound,demo}`, 로컬 커밋, 통합 에이전트가 `--no-ff` 병합)으로 4트랙을 돌렸다. 통합 에이전트의 사실 기록이다.
+
+| 트랙(브랜치) | 커밋 | 내용 |
+|---|---|---|
+| r6/arms | `e84d514` | Flamer·Rocket 무기, 로켓 점프 제한, 페데스털, HUD 슬롯 6 |
+| r6/fix | `267cea9` | 피격 플래시, 폭발 화구 셰이더, 맵 단말 텍스처, flat-boxes 진단 |
+| r6/sound | `2c056e9` | 전용 레시피, 팡파르, 근접 루프, 탈출 음악 |
+| r6/demo | `ed0c2f4` | 데모 투어, 쇼케이스 릴, 심사위원 가이드 |
+
+- 병합 충돌은 `audioLogic.ts`와 `main.ts`에서 났고 양쪽 의도를 유지해 해결했다(PROGRESS_LOG 참조). 사운드 트랙이 미리 만들어 둔 무기용 레시피를 arms 이벤트에 연결한 것이 통합 단계의 실질 작업이었다.
+- `make check` exit 0, 테스트 344/344. 브라우저 확인과 청취 검증은 하지 않았다(unverified).

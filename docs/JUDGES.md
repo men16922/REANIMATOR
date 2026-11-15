@@ -13,7 +13,7 @@ Every stop below is in `Extras` > `Demo tour`. Each one drops you into the norma
 | 0:25 | `Extras` > `Restoration Lab`. | The core claim. The left side is the numeric log captured from the 1996 original. The right side is our `motion.ts` replaying the same input. 11 fields per tick match exactly on S1, S2, S3 and the sealed holdout M05. Tick "Demo mutation": a wall moves 3 px and the comparator flags the first mismatch. It is a demo, not an original bug. |
 | 1:00 | `Demo tour` > `Airlock start`. Run right with `D`, aim with the mouse, fire with left click, `Shift` dashes. | 60 Hz deterministic sim, hit-stop and screen shake on kills, combo kills refund the dash. Only movement physics is restored; everything else is new design. |
 | 1:15 | `Demo tour` > `Mines: crusher and hive`. | Telegraphed crusher, vents, acid, a hive that spawns larvae. Hazards warn before they hurt. |
-| 1:30 | `Demo tour` > `Bio-Labs: switch and barrels`. | Explosive barrels chain, the gantry switch (`F`) extends a bridge, four weapons each open a different lock. |
+| 1:30 | `Demo tour` > `Bio-Labs: switch and barrels`. | Explosive barrels chain, the gantry switch (`F`) extends a bridge, four weapons each open a different lock; slots 5 and 6 add a Flamer and a Rocket launcher (a Security Deck stop carries all six). |
 | 1:45 | `Demo tour` > `Security: laser grid`. | Lasers cycle on a timer; the Security Console turns them off. |
 | 1:55 | `Demo tour` > `Crawl Slide tunnel`. Hold `S` and dash. | Ability-gated shortcut: the Crawl Slide module opens a 1 m duct. |
 | 2:05 | `Demo tour` > `Core Warden: phase II`. (I and III are also listed.) | Telegraphed attacks, weak-point window, damage numbers, three phases, no cinematic needed. |
@@ -41,7 +41,7 @@ make reference-holdout   # 4/4 including sealed M05
 make smoke-local         # needs Chrome; headless browser smoke test
 ```
 
-Observed on `main` at `c84649e`: `make check` exit 0, 211 of 211 node tests, `reference-verify` 3 of 3, `reach3d` 52 waypoints, `dist-guard` PASS on 13 files. Bot run won in 4,901 ticks. `make reference-holdout` was last observed 4 of 4 on an earlier engine revision and the sealed engine files have not changed since.
+Observed on `main` after the R6 merges (`8d38018`): `make check` exit 0, 344 of 344 node tests, `reference-verify` 3 of 3, `reach3d` 52 waypoints (3,432 ticks), `dist-guard` PASS on 13 files. A bot run after the R6 merge has not been re-measured (unverified); the last measured run won in 5,362 ticks. `make reference-holdout` was last observed 4 of 4 on an earlier engine revision and the sealed engine files have not changed since.
 
 Not verified: human play-through difficulty, and `make smoke-local` on the newest build (earlier runs aborted in a sandboxed Chrome).
 
