@@ -11,6 +11,12 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - 11-15 R2 통합: fix/boss/audio/brand. `main.ts` 충돌 2곳 수동 해결.
 - 11-15 R3 통합: foes/fix/mood/classic. 충돌 2곳(`main.ts` import, `index.html`+Classic 블록) 수동 해결. `make check` exit 0(211/211, reach3d 52 waypoints, dist-guard 13 files).
 
+## 2026-11-15 — Post-R13 수정 (Judge Reel, 적 달리기)
+
+- Judge Reel: DOM 호스트가 랩 열림을 내부 플래그로 기억해 외부에서 `#lab`이 바뀌면 훅 컷 종료 시 닫기를 건너뛸 수 있었다. 이제 매 프레임 DOM 기준으로 "랩은 훅 컷에서만" 불변식을 재확인한다. 릴 시계는 실제 dt(프레임당 최대 0.5 s)를 쓰고 월드는 프레임당 30틱까지 따라잡는다. 모드가 showcase를 벗어나면 릴을 멈추고, 종료 시 랩 mutation 체크를 해제한다. `tests/r13-reel-player.test.ts` 6개. 브라우저 2 s 샘플 표는 [R13_REEL](R13_REEL.md).
+- 적 이동: 크롤러(정적 메시)의 절차 포즈 분기 전환을 0.11 s 감쇠 오프셋으로 블렌드(`PoseTransition`), 버텍스 셰이더 다리 스커틀(`applyCrawlerScuttle3D`, 보폭 위상 고정, 정지 시 0). 시뮬: 플레이어 위 상자에 올라앉은 크롤러가 내려온다(1줄, 봇 핀 불변). 근접 링/가속 변경은 봇 핀·HP 창을 깨서 되돌림. 전후 프레임 [r13_motion](evidence/r13_motion/README.md).
+- `make check` exit 0(635/635, reach3d 52 waypoints 3432 ticks, dist-guard 13 files). 봉인 파일 무변경, 푸시 없음.
+
 ## 2026-11-15 — R6 통합 (r6/arms, fix, sound, demo)
 
 - Status: main에 `--no-ff` 4회 병합(arms → fix → sound → demo), 푸시 없음, worktree 보존.

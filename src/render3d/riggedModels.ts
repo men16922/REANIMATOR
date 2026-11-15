@@ -740,6 +740,42 @@ export function applyEnemyRim3D(materials: THREE.MeshStandardMaterial[], rimHex:
   }
 }
 
+export interface ScuttleUniforms3D {
+  uScuttleAmp: { value: number };
+  uScuttlePhase: { value: number };
+}
+
+/**
+ * Crawler leg scuttle (render-only vertex displacement). Must run after applyEnemyRim3D: it wraps that onBeforeCompile.
+ * Vertices in the lower part of the body (the legs) swing along the body axis and lift slightly, each side and each
+ * z-slot on its own phase, scaled by uScuttleAmp (geometry units, 0 at rest). Per-material uniforms, no extra draws.
+ */
+export function applyCrawlerScuttle3D(materials: THREE.MeshStandardMaterial[]): ScuttleUniforms3D {
+  const u: ScuttleUniforms3D = { uScuttleAmp: { value: 0 }, uScuttlePhase: { value: 0 } };
+  for (const m of materials) {
+    const prev = m.onBeforeCompile;
+    m.onBeforeCompile = (shader, renderer) => {
+      prev.call(m, shader, renderer);
+      shader.uniforms.uScuttleAmp = u.uScuttleAmp;
+      shader.uniforms.uScuttlePhase = u.uScuttlePhase;
+      shader.vertexShader = shader.vertexShader
+        .replace('void main() {', 'uniform float uScuttleAmp;\nuniform float uScuttlePhase;\nvoid main() {')
+        .replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>
+  float scLeg = smoothstep(-0.12, -0.5, position.y);
+  float scSide = position.x >= 0.0 ? 0.0 : 3.14159265;
+  float scPh = uScuttlePhase + scSide + position.z * 3.2;
+  transformed.z += sin(scPh) * uScuttleAmp * scLeg;
+  transformed.y += max(0.0, cos(scPh)) * uScuttleAmp * 0.45 * scLeg;`,
+        );
+    };
+    m.customProgramCacheKey = () => 'enemy-rim-v1+scuttle-v1';
+    m.needsUpdate = true;
+  }
+  return u;
+}
+
 export interface WardenLookUniforms3D {
   uEnemyRim: { value: THREE.Color };
   uWardenGlow: { value: THREE.Color };

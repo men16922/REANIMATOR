@@ -28,6 +28,8 @@ import { HeroController, legDrop, type HeroFrame } from './heroPose.ts';
 import { HeroGear } from './heroGear3d.ts';
 import {
   applyEnemyRim3D,
+  applyCrawlerScuttle3D,
+  type ScuttleUniforms3D,
   applyWardenLook3D,
   flashMaterials3D,
   flashRiggedMaterials3D,
@@ -51,6 +53,8 @@ import { WardenHalo3D } from './wardenLookGfx3d.ts';
 import { EnemyRigDriver, ProcSecondary, type EnemyRigFrame } from './enemyRig3d.ts';
 import {
   crawlerFootSpeed,
+  PoseTransition,
+  scuttleAmp,
   gaitStep,
   enemyTravelSpeed,
   smoothDisplaySpeed,
@@ -96,11 +100,15 @@ interface PendingBatch {
   items: BatchItem[];
 }
 
+/** Sign of the leg wave along the body axis: flip if the planted feet appear to travel with the body. */
+const SCUTTLE_DIR = 1;
+
 interface StaticActorHandle {
   root: THREE.Group;
   materials: THREE.MeshStandardMaterial[];
   baseEmissive: THREE.Color[];
   baseScale: number;
+  scuttle?: ScuttleUniforms3D;
 }
 
 interface OccludableMesh {
@@ -192,6 +200,7 @@ interface EnemyViz {
   lodAcc: number;
   lastFrame?: EnemyRigFrame;
   sec?: ProcSecondary;
+  trans?: PoseTransition;
   /** R12 display-only hit reaction (flinch weight and knockback offset) */
   flinch: Flinch;
   /** Turn-around error (rad) before this frame's yaw step */
@@ -1680,10 +1689,11 @@ export class Scene3DRenderer {
         st.root.rotation.order = 'YXZ';
         tuneEnemyMaterials3D(st.materials, st.baseEmissive, ENEMY_TINT_3D[e.kind]);
         applyEnemyRim3D(st.materials, ENEMY_RIM_3D[e.kind], 0.55, 0.16);
+        const scuttle = e.kind === 'crawler' ? applyCrawlerScuttle3D(st.materials) : undefined;
         st.root.name = `enemy:${e.id}`;
         st.root.userData = { enemyId: e.id, kind: e.kind, state: 'dormant' };
         this.scene.add(st.root);
-        this.staticEnemies.set(e.id, { ...st, baseScale: h });
+        this.staticEnemies.set(e.id, { ...st, baseScale: h, scuttle });
       }
     }
 
@@ -2340,8 +2350,9 @@ export class Scene3DRenderer {
         const fl = flinchPose(v.flinch.amp);
         const turnSq = e.alive ? turnSquash(v.turnErr) : 1;
         const kbx = v.flinch.kb - proc.kick * e.facing;
-        const { lift, roll } = proc;
-        const pitch = proc.pitch + fl.pitch;
+        const tp = (v.trans ??= new PoseTransition()).step(proc.clip, proc, dt, e.alive);
+        const { lift, roll } = tp;
+        const pitch = tp.pitch + fl.pitch;
         const sx = sc.sx * fl.sxz;
         const sy = sc.sy * fl.sy * turnSq;
         const sz = sc.sz * fl.sxz;
@@ -2355,12 +2366,17 @@ export class Scene3DRenderer {
         if (Math.abs(sa) > 1e-3) {
           const hh = e.height;
           r.position.set(ex + kbx + Math.sin(sa) * hh * 0.5, ey + hh * 0.5 - Math.cos(sa) * hh * 0.5 + lift, 0);
-          r.rotation.set(pitch - (Math.sin(v.yaw) >= 0 ? 1 : -1) * sa, v.yaw + proc.yaw, roll);
+          r.rotation.set(pitch - (Math.sin(v.yaw) >= 0 ? 1 : -1) * sa, v.yaw + tp.yaw, roll);
         } else {
           r.position.set(ex + kbx, ey + lift, 0);
-          r.rotation.set(pitch, v.yaw + proc.yaw, roll);
+          r.rotation.set(pitch, v.yaw + tp.yaw, roll);
         }
         r.scale.set(sx * pulse, sy * pulse, sz * pulse);
+        if (st.scuttle) {
+          const legging = e.alive && proc.clip === 'crawl';
+          st.scuttle.uScuttleAmp.value = legging ? scuttleAmp(surfSpeed) / (0.7186 * st.baseScale) : 0;
+          st.scuttle.uScuttlePhase.value = v.gait * SCUTTLE_DIR;
+        }
         flashMaterials3D(st.materials, st.baseEmissive, flashHex, flashAmt, flashCap);
         if (e.alive && e.kind === 'spitter' && winding && glowIdx < this.muzzleGlows.length) {
           const g = this.muzzleGlows[glowIdx++];

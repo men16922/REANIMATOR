@@ -111,6 +111,65 @@ export function crawlerFootSpeed(speed: number): number {
   return (gaitStep('crawler', v) / (2 * Math.PI)) * crawlerStride(v);
 }
 
+/** Leg stride half-amplitude in metres for the crawler scuttle: stride/(2*pi) so a planted foot travels back at ground speed. 0 at rest. */
+export function scuttleAmp(speed: number): number {
+  const v = Math.max(0, speed);
+  const k = Math.min(1, Math.max(0, (v - 0.25) / 0.6));
+  const ease = k * k * (3 - 2 * k);
+  return Math.min(0.24, (crawlerStride(Math.max(0.3, v)) / (2 * Math.PI)) * 1.1) * ease;
+}
+
+export interface PoseChannels {
+  lift: number;
+  pitch: number;
+  roll: number;
+  yaw: number;
+}
+
+/**
+ * Display-only blend across pose branch changes. When the clip changes the jump between the old displayed pose and the
+ * new target becomes an offset that decays with time constant tau, so high-frequency bob and shudder in the target stay
+ * intact while lift/pitch/roll/yaw no longer snap. Dead or non-finite input resets it.
+ */
+export class PoseTransition {
+  private clip = '';
+  private off: PoseChannels = { lift: 0, pitch: 0, roll: 0, yaw: 0 };
+  private out: PoseChannels = { lift: 0, pitch: 0, roll: 0, yaw: 0 };
+  private primed = false;
+
+  step(clip: string, target: PoseChannels, dt: number, enabled: boolean, tau = 0.11): PoseChannels {
+    if (!enabled || !Number.isFinite(target.lift + target.pitch + target.roll + target.yaw)) {
+      this.primed = false;
+      this.off = { lift: 0, pitch: 0, roll: 0, yaw: 0 };
+      this.out = { ...target };
+      this.clip = clip;
+      return this.out;
+    }
+    if (this.primed && clip !== this.clip) {
+      this.off = {
+        lift: this.out.lift - target.lift,
+        pitch: this.out.pitch - target.pitch,
+        roll: this.out.roll - target.roll,
+        yaw: this.out.yaw - target.yaw,
+      };
+    }
+    this.primed = true;
+    this.clip = clip;
+    const d = Math.exp(-Math.min(Math.max(dt, 0), ENEMY_DT_CLAMP) / tau);
+    this.off.lift *= d;
+    this.off.pitch *= d;
+    this.off.roll *= d;
+    this.off.yaw *= d;
+    this.out = {
+      lift: target.lift + this.off.lift,
+      pitch: target.pitch + this.off.pitch,
+      roll: target.roll + this.off.roll,
+      yaw: target.yaw + this.off.yaw,
+    };
+    return this.out;
+  }
+}
+
 /** Display speed filter: follows the sim speed with ~0.1 s lag so the gait never snaps (rate 12/s up, 9/s down). */
 export function smoothDisplaySpeed(prev: number, target: number, dt: number): number {
   const h = Math.min(Math.max(dt, 0), ENEMY_DT_CLAMP);

@@ -2436,6 +2436,7 @@ function stepEnemies3D(w: WorldState3D): void {
               const tx = pb.x + flankSide * 3.8;
               wantVx = Math.sign(tx - e.x) * spd * 1.1;
             } else if (turning) wantVx = 0;
+            else if (dy < -0.7 && dist <= 0.95 && e.vy === 0) wantVx = e.facing * spd * 0.6; // perched above the player (crate, ledge): walk off and drop instead of idling on top
             else if (e.attackCooldown > 0 && dist < 2.2 && dy > -0.7) wantVx = -e.facing * spd * 0.55; // back off while the lunge recharges
             else if (dist > 0.95) wantVx = e.facing * spd * rage;
             if (separation !== 0 && !turning) wantVx += Math.max(-3, Math.min(3, separation));
