@@ -1,6 +1,6 @@
 // Pure title-menu logic (no DOM) so keyboard navigation can be tested under node.
 
-export type TitlePanel = 'settings' | 'extras' | 'controls' | 'credits';
+export type TitlePanel = 'settings' | 'extras' | 'controls' | 'credits' | 'demo';
 
 export interface MenuItem {
   id: string;
@@ -46,6 +46,7 @@ export const PANEL_IDS: Record<TitlePanel, string> = {
   extras: 'extras-panel',
   controls: 'title-controls',
   credits: 'title-credits',
+  demo: 'demo-panel',
 };
 
 /** Loading progress 0..1 from counts; failed models count as settled so the bar never hangs. */

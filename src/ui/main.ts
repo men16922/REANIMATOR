@@ -2,7 +2,7 @@
 // Three.js WebGL2 renderer (with Canvas2D fallback), 4-weapon switching, sector minimap, WebAudio SFX,
 // preserved 15 Hz DOS Restoration Lab, and smoke/showcase inspection hooks.
 
-import { ABILITY_3D, spawnBody3D } from '../engine/motion3d.ts';
+import { ABILITY_3D } from '../engine/motion3d.ts';
 import { LIGHT } from '../game/light.ts';
 import { createBot3D, type Bot3D } from '../game3d/bot3d.ts';
 import type { DoorLockKind3D, WeaponSlot3D } from '../game3d/types3d.ts';
@@ -25,7 +25,8 @@ import { ClassicHud } from './classicHud.ts';
 import { getAudioDebug, play as playSound, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
 import { rankPitch } from './audioLogic.ts';
 import { AudioDirector, snapshotPre } from './audioDirector.ts';
-import { Attract, freshWorld } from './attract.ts';
+import { Attract, freshWorld, REEL_SEGMENT_SECONDS, Showcase } from './attract.ts';
+import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type DebugSetup3D, type DemoStop } from './demo.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type Hint } from './flow.ts';
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
 import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
@@ -125,10 +126,15 @@ function store(key: string, value?: string): string | null {
 }
 
 
-type Mode = 'title' | 'playing' | 'paused' | 'result';
+type Mode = 'title' | 'playing' | 'paused' | 'result' | 'showcase';
 let mode: Mode = 'title';
 let world: WorldState3D = freshWorld();
 const attract = new Attract();
+/** Live only while EXTRAS > WATCH SHOWCASE plays. */
+let showcase: Showcase | null = null;
+let showcaseView: ViewMode | null = null;
+/** Checkpoint being played from EXTRAS > DEMO TOUR (drives the DEMO badge and R-to-restart). */
+let demoStop: DemoStop | null = null;
 let deaths = 0;
 let introActive = false;
 let introTimer = 0;
@@ -222,14 +228,16 @@ function show(m: Mode): void {
   ui.title.hidden = m !== 'title';
   ui.pause.hidden = m !== 'paused';
   ui.result.hidden = m !== 'result';
-  ui.hud.hidden = m === 'title';
+  ui.hud.hidden = m === 'title' || m === 'showcase';
+  $('demo-badge').hidden = !(m === 'playing' && demoStop);
+  if (m !== 'showcase') $('showcase-caption').hidden = true;
   ui.revived.hidden = true;
   ui.controlsPanel.hidden = true;
   $('lab').hidden = true;
   for (const id of Object.values(PANEL_IDS)) $(id).hidden = true;
   $('continue').hidden = !(m === 'title' && !!world.lastSaveId);
   if (m === 'title') hideTransient();
-  audioDirector.syncBeds(world, m === 'playing', m);
+  audioDirector.syncBeds(world, m === 'playing', m === 'showcase' ? 'title' : m);
   if (m === 'playing') canvas.focus();
   else focusDefault();
 }
@@ -266,9 +274,11 @@ function hideTransient(): void {
   coachId = '';
 }
 
-function start(forceIntro = false): void {
+function start(forceIntro = false, stop: DemoStop | null = null): void {
   manualHold = false;
   world = freshWorld();
+  demoStop = stop;
+  if (stop) applyDebugSetup(world, stop.setup);
   audioDirector.reset();
   bot = null;
   acc = 0;
@@ -279,6 +289,14 @@ function start(forceIntro = false): void {
   hideTransient();
   releaseInput();
   show('playing');
+  if (stop) {
+    $('demo-badge-text').textContent = stop.badge;
+    scene3d?.fx.observe(world, true);
+    if (stop.view) applyView(stop.view, false);
+    else if (viewMode !== parseViewMode(store(VIEW_STORE.mode))) applyView(parseViewMode(store(VIEW_STORE.mode)), false);
+    return; // checkpoints never play the first-run intro
+  }
+  if (viewMode !== parseViewMode(store(VIEW_STORE.mode))) applyView(parseViewMode(store(VIEW_STORE.mode)), false);
   // Automation skips only the automatic first-run intro; an explicit 'Watch intro' always plays.
   if (forceIntro || (store(STORE.intro) !== '1' && !navigator.webdriver)) showIntro();
 }
@@ -681,14 +699,23 @@ function frame(t: number): void {
     scene3d.fx.gore.level = goreLevel;
     scene3d.fxTimeScale = frozen ? 0 : fx ? fx.slowmo.scale : 1;
   }
-  if (mode === 'title') {
+  if (mode === 'title' || mode === 'showcase') {
     // Attract mode: a bot plays a private world behind the title. Never touches `world` or human input.
-    if (attract.advance(dt)) scene3d?.fx.reset();
-    scene3d?.setAttractCamera(attract.time, attract.shot);
-    canvas.style.opacity = String(1 - attract.fade * 0.96);
-    if (scene3d) scene3d.render(attract.world, attract.alpha);
-    else renderFallback2D3D(canvas, attract.world);
+    // The captioned showcase uses the same path with its own reel.
+    const reel = mode === 'showcase' && showcase ? showcase : attract;
+    if (reel.advance(dt)) {
+      scene3d?.fx.reset();
+      if (reel === showcase) onShowcaseCut();
+    }
+    scene3d?.setAttractCamera(reel.time, reel.shot);
+    canvas.style.opacity = String(1 - reel.fade * 0.96);
+    if (scene3d) scene3d.render(reel.world, reel.alpha);
+    else renderFallback2D3D(canvas, reel.world);
     viewFx.afterRender(performance.now());
+    if (reel === showcase) {
+      $('showcase-caption').style.opacity = String(showcase.captionAlpha);
+      if (showcase.done) exitShowcase();
+    }
   } else {
     scene3d?.setAttractCamera(null);
     if (canvas.style.opacity) canvas.style.opacity = '';
@@ -698,6 +725,43 @@ function frame(t: number): void {
     updateCoach();
   }
   requestAnimationFrame(frame);
+}
+
+// ---- EXTRAS > WATCH SHOWCASE: one-minute captioned autoplay, any key exits ----
+function onShowcaseCut(): void {
+  if (!showcase) return;
+  const c = showcase.cut;
+  $('showcase-title').textContent = c.caption;
+  $('showcase-sub').textContent = c.sub;
+  if (c.view && c.view !== viewMode) applyView(c.view, false);
+}
+
+function startShowcase(): void {
+  showcase = new Showcase();
+  showcaseView = viewMode;
+  demoStop = null;
+  releaseInput();
+  scene3d?.fx.reset();
+  show('showcase');
+  $('showcase-caption').hidden = false;
+  $('showcase-caption').style.opacity = '0';
+  if (viewMode !== 'modern') applyView('modern', false);
+  onShowcaseCut();
+}
+
+function exitShowcase(): void {
+  if (mode !== 'showcase') return;
+  showcase = null;
+  if (showcaseView && showcaseView !== viewMode) applyView(showcaseView, false);
+  showcaseView = null;
+  scene3d?.fx.reset();
+  show('title');
+  openPanelFor('extras', 'showcase-open');
+}
+
+/** Restart whatever is being played: the demo checkpoint if there is one, else a normal run. */
+function restartCurrent(): void {
+  start(false, demoStop);
 }
 
 function resumeAtSave(): boolean {
@@ -730,6 +794,7 @@ function closeSubPanels(): boolean {
     // Controls opens from Extras, so it goes back there; everything else returns to the main menu.
     if (tp.id === PANEL_IDS.controls) return openPanelFor('extras', 'title-controls-open'), true;
     if (tp.id === PANEL_IDS.credits) return openPanelFor('extras', 'credits-open'), true;
+    if (tp.id === PANEL_IDS.demo) return openPanelFor('extras', 'demo-open'), true;
     closeTitlePanel(tp.id === PANEL_IDS.extras ? 'extras-open' : 'settings-open');
     return true;
   } else return false;
@@ -754,6 +819,11 @@ function menuNavigate(e: KeyboardEvent): boolean {
 }
 
 window.addEventListener('keydown', (e) => {
+  if (mode === 'showcase') {
+    if (!e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey && !/^F\d+$/.test(e.code)) exitShowcase();
+    e.preventDefault();
+    return;
+  }
   if (e.code === 'KeyV' && !e.repeat && !e.metaKey && !e.ctrlKey && !e.altKey && $('loading').hidden) {
     toggleView();
     e.preventDefault();
@@ -789,7 +859,7 @@ window.addEventListener('keydown', (e) => {
   }
   if (mode !== 'playing' && menuNavigate(e)) return;
   if (mode === 'result' && e.code === 'KeyR') {
-    start();
+    restartCurrent();
     e.preventDefault();
     return;
   }
@@ -818,7 +888,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Digit3' && !e.repeat) weaponQueue = 3;
   if (e.code === 'Digit4' && !e.repeat) weaponQueue = 4;
   if (e.code === 'KeyQ' && !e.repeat) cycleWeapon(1);
-  if (e.code === 'KeyR' && !e.repeat) start();
+  if (e.code === 'KeyR' && !e.repeat) restartCurrent();
   if (e.code === 'KeyM' && !e.repeat) mapMarkers = !mapMarkers;
   if (e.code === 'Tab') {
     if (!e.repeat) mapExpanded = !mapExpanded;
@@ -880,18 +950,38 @@ document.addEventListener('click', (e) => {
 });
 $('play').addEventListener('click', () => start());
 $('intro-skip').addEventListener('click', hideIntro);
-window.addEventListener('pointerdown', () => hideIntro());
+window.addEventListener('pointerdown', () => {
+  hideIntro();
+  exitShowcase();
+});
 $('intro-open').addEventListener('click', () => start(true));
 $('settings-open').addEventListener('click', () => openPanelFor('settings', 'reduce-flash'));
 $('settings-close').addEventListener('click', () => closeTitlePanel('settings-open'));
-$('extras-open').addEventListener('click', () => openPanelFor('extras', 'title-controls-open'));
+$('extras-open').addEventListener('click', () => openPanelFor('extras', 'demo-open'));
 $('extras-close').addEventListener('click', () => closeTitlePanel('extras-open'));
 $('title-controls-open').addEventListener('click', () => openPanelFor('controls', 'title-controls-close'));
 $('title-controls-close').addEventListener('click', () => openPanelFor('extras', 'title-controls-open'));
+$('demo-open').addEventListener('click', () => openPanelFor('demo', `demo-${DEMO_STOPS[0].id}`));
+$('demo-close').addEventListener('click', () => openPanelFor('extras', 'demo-open'));
+$('showcase-open').addEventListener('click', startShowcase);
+// Demo tour list: one button per checkpoint, each enters the normal play loop with that checkpoint's setup.
+for (const stop of DEMO_STOPS) {
+  const b = document.createElement('button');
+  b.id = `demo-${stop.id}`;
+  b.className = 'mi';
+  b.setAttribute('role', 'menuitem');
+  b.innerHTML = '<span class="mi-mark" aria-hidden="true"></span>';
+  b.append(stop.label);
+  b.addEventListener('click', () => start(false, stop));
+  b.addEventListener('mouseenter', () => b.focus({ preventScroll: true }));
+  $('demo-list').append(b);
+}
 $('credits-open').addEventListener('click', () => openPanelFor('credits', 'credits-close'));
 $('credits-close').addEventListener('click', () => openPanelFor('extras', 'credits-open'));
 $('continue').addEventListener('click', () => {
   if (!world.lastSaveId) return;
+  demoStop = null;
+  $('demo-badge').hidden = true;
   respawnPlayer3D(world);
   scene3d?.fx.reset();
   audioDirector.reset();
@@ -933,9 +1023,9 @@ for (const id of ['volume', 'volume-p']) {
 }
 $<HTMLInputElement>('volume-bgm').addEventListener('input', (e) => setBgmVolume(Number((e.target as HTMLInputElement).value) / 100));
 $<HTMLInputElement>('volume-sfx').addEventListener('input', (e) => setSfxVolume(Number((e.target as HTMLInputElement).value) / 100));
-$('restart').addEventListener('click', () => start());
+$('restart').addEventListener('click', () => restartCurrent());
 $('resume-save').addEventListener('click', () => { resumeAtSave(); });
-$('restart-p').addEventListener('click', () => start());
+$('restart-p').addEventListener('click', () => restartCurrent());
 $('resume').addEventListener('click', () => {
   manualHold = false;
   show('playing');
@@ -1056,70 +1146,7 @@ function buildSnapshot() {
   };
 }
 
-/** Debug-only world setup for smoke tests and showcase captures (never used by normal play). */
-export interface DebugSetup3D {
-  x?: number;
-  y?: number;
-  boots?: boolean;
-  tanks?: number;
-  weapons?: WeaponSlot3D[];
-  /** Debug: grant the Crawl Slide module */
-  slide?: boolean;
-  /** Debug: reactor already destroyed, this many meltdown ticks left (escape sequence beats, final hatch) */
-  meltdownTicks?: number;
-  openDoors?: string[];
-  console?: boolean;
-  hp?: number;
-  aimX?: number;
-  aimY?: number;
-  /** Debug: force the Core Warden to phase 1|2|3 (sets HP just inside the phase). */
-  bossPhase?: 1 | 2 | 3;
-  /** Debug: mark the Warden intro as already played (no cinematic). */
-  skipIntro?: boolean;
-}
-
-function applyDebugSetup(w: WorldState3D, o: DebugSetup3D): void {
-  const p = w.player;
-  if (o.x !== undefined || o.y !== undefined) {
-    p.body = spawnBody3D(o.x ?? p.body.x, o.y ?? p.body.y, 0);
-  }
-  if (o.boots) p.abilities.thrusterBoots = true;
-  if (o.slide) p.abilities.crawlSlide = true;
-  if (o.meltdownTicks !== undefined) {
-    w.coreDestroyed = true;
-    w.coreHp = 0;
-    w.phase = 'escape';
-    w.openDoors.add('door_escape');
-    w.meltdownTicks = o.meltdownTicks;
-    const wd = w.enemies.find((e) => e.kind === 'warden' && !e.minion);
-    if (wd) {
-      wd.alive = false;
-      wd.hp = 0;
-    }
-  }
-  if (o.tanks !== undefined) {
-    p.energyTanks = o.tanks;
-    p.maxHp = 100 + 30 * o.tanks;
-    p.hp = p.maxHp;
-  }
-  for (const s of o.weapons ?? []) {
-    p.unlocked[s] = true;
-    if (s !== 1) p.ammo[s as 2 | 3 | 4] = WEAPON_META[s].initialAmmo;
-  }
-  for (const d of o.openDoors ?? []) w.openDoors.add(d);
-  if (o.console) w.consoleUnlocked = true;
-  if (o.hp !== undefined) p.hp = o.hp;
-  if (o.aimX !== undefined) p.aimX = o.aimX;
-  if (o.aimY !== undefined) p.aimY = o.aimY;
-  if (o.skipIntro) w.bossIntroDone = true;
-  if (o.bossPhase) {
-    const wd = w.enemies.find((e) => e.kind === 'warden' && !e.minion);
-    if (wd) {
-      wd.phase = o.bossPhase;
-      wd.hp = Math.floor(wd.maxHp * (o.bossPhase === 1 ? 0.95 : o.bossPhase === 2 ? 0.6 : 0.28));
-    }
-  }
-}
+export type { DebugSetup3D };
 
 // Read-only test & showcase inspection hooks
 const wAny = window as unknown as {
@@ -1132,6 +1159,8 @@ const wAny = window as unknown as {
   __reanimatorShowResult: (kind: 'won' | 'lost') => ReturnType<typeof buildSnapshot>;
   __reanimatorShowBanner: (kind: 'sector' | 'weapon' | 'boots' | 'etank' | 'coach') => ReturnType<typeof buildSnapshot>;
   __reanimatorPick: (px: number, py: number, includePoints?: boolean) => Array<Record<string, unknown>>;
+  __reanimatorShowcase: (name: string) => Promise<ReturnType<typeof buildSnapshot>>;
+  __reanimatorDemo: (id: string) => ReturnType<typeof buildSnapshot>;
 };
 
 function enterManual(): void {
@@ -1227,6 +1256,68 @@ wAny.__reanimatorShowBanner = (kind) => {
 
 /** Debug only: list meshes under a CSS-pixel viewport point, nearest first. */
 wAny.__reanimatorPick = (px, py, includePoints = false) => scene3d?.pickAt(px, py, includePoints) ?? [];
+
+function settleFrames(n: number): Promise<void> {
+  return new Promise((res) => {
+    let i = 0;
+    const tick = (): void => {
+      if (++i >= n) res();
+      else requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+/**
+ * Showcase scenes for README captures: `await __reanimatorShowcase(name)`. Names: title, classic, combat, boss, mines,
+ * biolabs, security, slide, escape, lab. Each call builds the scene from a fresh deterministic world, renders it, and
+ * resolves with the snapshot once the renderer has had a few real frames to settle (particles, bloom, camera).
+ */
+wAny.__reanimatorShowcase = async (name) => {
+  const sc = SHOWCASE_SCENES[name];
+  if (!sc) throw new Error(`unknown showcase scene "${name}"; known: ${SHOWCASE_NAMES.join(', ')}`);
+  // Models stream in after first paint; give them a bounded wait so captures never show placeholder meshes.
+  for (let i = 0; i < 100 && scene3d && !scene3d.getTelemetry().modelsLoaded; i++) await settleFrames(3);
+  exitShowcase();
+  demoStop = null;
+  hideIntro();
+  scene3d?.fx.reset();
+  if (sc.kind === 'world') {
+    applyView(sc.view ?? 'modern', false);
+    world = freshWorld();
+    bot = null;
+    applyDebugSetup(world, sc.setup ?? {});
+    enterManual();
+    for (const inp of sc.inputs ?? []) {
+      world = stepWorld3D(world, { ...emptyInput3D(), aimX: world.player.body.x + world.player.facing * 8, aimY: world.player.body.y + 1.12, ...inp });
+      scene3d?.fx.observe(world);
+      if (world.status !== 'playing') break;
+    }
+    renderWorld();
+    hud();
+  } else {
+    applyView('modern', false);
+    show('title');
+    if (sc.kind === 'title') {
+      // Mid-cut of the Acid Mines shot, wide framing, no fade.
+      attract.reset();
+      attract.advance(REEL_SEGMENT_SECONDS + 2);
+    } else {
+      $('lab-open').click();
+    }
+  }
+  await settleFrames(sc.settleFrames);
+  return buildSnapshot();
+};
+
+/** Enter a DEMO TOUR checkpoint by id without touching the menu (same path as the menu button). */
+wAny.__reanimatorDemo = (id) => {
+  const stop = DEMO_STOPS.find((d) => d.id === id);
+  if (!stop) throw new Error(`unknown demo stop "${id}"; known: ${DEMO_STOPS.map((d) => d.id).join(', ')}`);
+  exitShowcase();
+  start(false, stop);
+  return buildSnapshot();
+};
 
 show('title');
 requestAnimationFrame(frame);

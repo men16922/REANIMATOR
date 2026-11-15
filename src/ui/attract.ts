@@ -4,6 +4,7 @@
 import { createBot3D, type Bot3D } from '../game3d/bot3d.ts';
 import { newWorld3D, stepWorld3D, type WorldState3D } from '../game3d/world3d.ts';
 import type { Level3D } from '../game3d/types3d.ts';
+import { SHOWCASE_CUT_SECONDS, SHOWCASE_REEL, showcaseCutAt, type ShowCut } from './demo.ts';
 
 let sharedLevel: Level3D | null = null;
 
@@ -52,8 +53,8 @@ export interface AttractShot {
 }
 
 /** Pure camera plan: a wide establishing shot, then a low, closer push-in (gritty side-on framing). */
-export function attractShot(segTime: number): AttractShot {
-  const u = Math.max(0, Math.min(1, segTime / REEL_SEGMENT_SECONDS));
+export function attractShot(segTime: number, segSeconds = REEL_SEGMENT_SECONDS): AttractShot {
+  const u = Math.max(0, Math.min(1, segTime / segSeconds));
   const wide = u < 0.5;
   const k = wide ? u / 0.5 : (u - 0.5) / 0.5;
   return wide
@@ -62,10 +63,10 @@ export function attractShot(segTime: number): AttractShot {
 }
 
 /** 0 = clear, 1 = black. Fades out before a cut and in after it. */
-export function reelFade(time: number): number {
-  const seg = ((time % REEL_SEGMENT_SECONDS) + REEL_SEGMENT_SECONDS) % REEL_SEGMENT_SECONDS;
+export function reelFade(time: number, segSeconds = REEL_SEGMENT_SECONDS): number {
+  const seg = ((time % segSeconds) + segSeconds) % segSeconds;
   if (seg < REEL_FADE_SECONDS) return 1 - seg / REEL_FADE_SECONDS;
-  if (seg > REEL_SEGMENT_SECONDS - REEL_FADE_SECONDS) return (seg - (REEL_SEGMENT_SECONDS - REEL_FADE_SECONDS)) / REEL_FADE_SECONDS;
+  if (seg > segSeconds - REEL_FADE_SECONDS) return (seg - (segSeconds - REEL_FADE_SECONDS)) / REEL_FADE_SECONDS;
   return 0;
 }
 
@@ -141,6 +142,89 @@ export class Attract {
   }
 
   /** Fraction of the real-time step elapsed since the last tick, for render interpolation. */
+  get alpha(): number {
+    return Math.min(1, this.acc * SIM_HZ);
+  }
+}
+
+/**
+ * One-minute captioned showcase (EXTRAS > WATCH SHOWCASE). Same bot-in-a-private-world idea as Attract, but it
+ * plays the reel once: after the last cut (or when the bot's run ends) the final frame holds until the viewer exits.
+ */
+export class Showcase {
+  world: WorldState3D = freshWorld();
+  time = 0;
+  /** Incremented whenever the world is replaced so the caller can reset particles. */
+  resetCount = 0;
+  private bot: Bot3D = createBot3D(this.world);
+  private acc = 0;
+  private seg = -1;
+
+  readonly reel: readonly ShowCut[];
+
+  constructor(reel: readonly ShowCut[] = SHOWCASE_REEL) {
+    this.reel = reel;
+    this.seek(0);
+  }
+
+  get cut(): ShowCut {
+    return this.reel[this.seg];
+  }
+
+  get cutIndex(): number {
+    return this.seg;
+  }
+
+  get shot(): AttractShot {
+    return attractShot(this.time % SHOWCASE_CUT_SECONDS, SHOWCASE_CUT_SECONDS);
+  }
+
+  get fade(): number {
+    return reelFade(this.time, SHOWCASE_CUT_SECONDS);
+  }
+
+  /** 0..1 caption opacity: fades in just after the cut-in, out before the next cut. */
+  get captionAlpha(): number {
+    const t = this.time % SHOWCASE_CUT_SECONDS;
+    const inA = Math.max(0, Math.min(1, (t - 0.5) / 0.4));
+    const outA = Math.max(0, Math.min(1, (SHOWCASE_CUT_SECONDS - 0.3 - t) / 0.3));
+    return Math.min(inA, outA);
+  }
+
+  get done(): boolean {
+    return this.time >= this.reel.length * SHOWCASE_CUT_SECONDS - 0.002;
+  }
+
+  private seek(index: number): void {
+    this.world = freshWorld();
+    this.bot = createBot3D(this.world);
+    const target = this.reel[index].tick;
+    while (this.world.tick < target && this.world.status === 'playing') this.world = stepWorld3D(this.world, this.bot.next(this.world));
+    this.seg = index;
+    this.acc = 0;
+    this.resetCount++;
+  }
+
+  /** Advance by real seconds. Returns true when the world was replaced (a cut happened). */
+  advance(dt: number): boolean {
+    this.time = Math.min(this.time + dt, this.reel.length * SHOWCASE_CUT_SECONDS - 0.001);
+    const idx = showcaseCutAt(this.time);
+    if (idx !== this.seg) {
+      this.seek(idx);
+      return true;
+    }
+    this.acc += Math.min(dt, 0.1);
+    const step = 1 / SIM_HZ;
+    let n = 0;
+    while (this.acc >= step && n < 4 && this.world.status === 'playing') {
+      this.acc -= step;
+      n++;
+      this.world = stepWorld3D(this.world, this.bot.next(this.world));
+    }
+    if (this.world.status !== 'playing') this.acc = 0;
+    return false;
+  }
+
   get alpha(): number {
     return Math.min(1, this.acc * SIM_HZ);
   }
