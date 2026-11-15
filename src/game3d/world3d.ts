@@ -979,6 +979,23 @@ function setHint(w: WorldState3D, text: string): void {
   w.hintTicks = 150;
 }
 
+/** Cracked Bio-Wall between the Central Shaft and Bio-Labs (yellow lock, needs the Grenade Launcher). */
+export const SHAFT_CRACKED_WALL_ID = 'door-shaft-biolabs';
+export const CRACKED_WALL_PROMPT = 'CRACKED WALL — GRENADE REQUIRED';
+
+/** Contextual prompt while the player stands near the sealed shaft wall without the Grenade. Pure on state; sets only the hint. */
+export function updateCrackedWallPrompt3D(w: WorldState3D): void {
+  const p = w.player;
+  if (p.unlocked[3] || w.openDoors.has(SHAFT_CRACKED_WALL_ID)) return;
+  const wall = w.level.solids.find((s) => s.id === SHAFT_CRACKED_WALL_ID);
+  if (!wall) return;
+  const dx = Math.max(wall.minX - p.body.x, 0, p.body.x - wall.maxX);
+  if (dx > 3.5 || p.body.y < wall.minY - 1 || p.body.y > wall.maxY) return;
+  if (w.hintTicks > 0 && w.hint !== CRACKED_WALL_PROMPT) return;
+  w.hint = CRACKED_WALL_PROMPT;
+  w.hintTicks = Math.max(w.hintTicks, 2);
+}
+
 /** Try to open a lock with a weapon. Mismatches leave the world unchanged except for a hint. */
 export function tryOpenDoor3D(w: WorldState3D, s: MapSolid3D, weapon: WeaponSlot3D | 0): boolean {
   if (!s.doorId || !s.doorLock || w.openDoors.has(s.doorId)) return false;
@@ -2797,6 +2814,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   if (p.acidCooldown > 0) p.acidCooldown--;
   if (w.saveCooldown > 0) w.saveCooldown--;
   if (w.hintTicks > 0 && --w.hintTicks === 0) w.hint = '';
+  updateCrackedWallPrompt3D(w);
   if (w.shakeTicks > 0) {
     w.shakeTicks--;
     if (w.shakeTicks === 0) w.shakeStrength = 0;

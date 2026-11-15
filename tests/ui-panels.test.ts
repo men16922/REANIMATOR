@@ -240,3 +240,23 @@ test('uiAudit has a logs scenario that opens the archive from pause', () => {
   const src = read('src/ui/uiAudit.ts');
   assert.match(src, /name: 'logs', expectedTop: 'log-archive', clicks: \['logs-open'\], mode: 'paused'/);
 });
+
+import { auditShouldSkipControl } from '../src/ui/panels.ts';
+import { meltdownPillVisible } from '../src/ui/objective.ts';
+
+test('uiAudit skip rule: hidden/disabled controls skipped, real controls kept', () => {
+  const base = { disabled: false, opacity: 1, ariaHiddenAncestor: false, clipped: false };
+  assert.equal(auditShouldSkipControl(base), false);
+  assert.equal(auditShouldSkipControl({ ...base, disabled: true }), true); // lab-jump
+  assert.equal(auditShouldSkipControl({ ...base, clipped: true }), true); // lab-scenario in .sr-only
+  assert.equal(auditShouldSkipControl({ ...base, ariaHiddenAncestor: true }), true);
+  assert.equal(auditShouldSkipControl({ ...base, opacity: 0 }), true);
+  // a half-transparent live control is a real issue and stays audited
+  assert.equal(auditShouldSkipControl({ ...base, opacity: 0.3 }), false);
+});
+
+test('meltdown pill hides after extraction', () => {
+  assert.equal(meltdownPillVisible({ status: 'playing', phase: 'escape', meltdownTicks: 4000 } as never), true);
+  assert.equal(meltdownPillVisible({ status: 'won', phase: 'won', meltdownTicks: 4000 } as never), false);
+  assert.equal(meltdownPillVisible({ status: 'playing', phase: 'explore', meltdownTicks: -1 } as never), false);
+});

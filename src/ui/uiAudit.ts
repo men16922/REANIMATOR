@@ -2,6 +2,8 @@
 // checks that each control is actually on top at its own center (document.elementFromPoint), opaque, and that the
 // title logo/menu step aside when a panel is open. The pure rules live in panels.ts; this file only measures.
 
+import { auditShouldSkipControl, type AuditControlFacts } from './panels.ts';
+
 export interface UiAuditFailure {
   id: string;
   reason: 'covered' | 'transparent' | 'offscreen' | 'zero-size' | 'wrong-top-layer' | 'title-chrome-visible';
@@ -65,6 +67,25 @@ function isRendered(el: Element): boolean {
   return el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden';
 }
 
+function isClipped(el: Element): boolean {
+  for (let n: Element | null = el; n; n = n.parentElement) {
+    const cs = getComputedStyle(n);
+    const r = n.getBoundingClientRect();
+    const hiddenClip = (cs.clip !== 'auto' && cs.clip !== '') || cs.clipPath.startsWith('inset(50%');
+    if (hiddenClip || (r.width <= 1 && r.height <= 1 && cs.overflow === 'hidden')) return true;
+  }
+  return false;
+}
+
+function auditFacts(el: HTMLElement): AuditControlFacts {
+  return {
+    disabled: (el as HTMLButtonElement).disabled === true,
+    opacity: effectiveOpacity(el),
+    ariaHiddenAncestor: !!el.closest('[aria-hidden="true"]'),
+    clipped: isClipped(el),
+  };
+}
+
 function measure(el: HTMLElement, failures: UiAuditFailure[]): void {
   const id = el.id || el.tagName.toLowerCase();
   el.scrollIntoView({ block: 'nearest' });
@@ -106,7 +127,7 @@ export async function runUiAudit(d: UiAuditDriver): Promise<UiAuditReport> {
     const topLayer = stage.dataset.topLayer ?? '';
     if (topLayer !== step.expectedTop) failures.push({ id: step.expectedTop, reason: 'wrong-top-layer', detail: `top is "${topLayer}"` });
     const container = document.getElementById(step.expectedTop);
-    const controls = container ? [...container.querySelectorAll<HTMLElement>(CONTROL_SELECTOR)].filter(isRendered) : [];
+    const controls = container ? [...container.querySelectorAll<HTMLElement>(CONTROL_SELECTOR)].filter((el) => isRendered(el) && !auditShouldSkipControl(auditFacts(el))) : [];
     // The title scenario measures only the first-screen menu; sub panels inside #title are display:none then.
     for (const el of controls) measure(el, failures);
     if (step.expectedTop !== 'title') {

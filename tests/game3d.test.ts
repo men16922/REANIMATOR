@@ -1238,3 +1238,20 @@ test('Core Warden intro: starts once on core entry, freezes input and boss, is d
   const s = run(20);
   assert.ok(s.ticks < 30, 'skip ends the intro quickly');
 });
+
+import { CRACKED_WALL_PROMPT, updateCrackedWallPrompt3D } from '../src/game3d/world3d.ts';
+
+test('Central Shaft cracked wall prompts for the Grenade only when near and without it', () => {
+  const w = newWorld3D();
+  w.player.body.x = 39.5; w.player.body.y = 0.5;
+  updateCrackedWallPrompt3D(w);
+  assert.equal(w.hint, CRACKED_WALL_PROMPT);
+  const far = newWorld3D();
+  far.player.body.x = 20; far.player.body.y = 0.5;
+  updateCrackedWallPrompt3D(far);
+  assert.equal(far.hint, '');
+  const armed = newWorld3D();
+  armed.player.body.x = 39.5; armed.player.body.y = 0.5; armed.player.unlocked[3] = true;
+  updateCrackedWallPrompt3D(armed);
+  assert.equal(armed.hint, '');
+});

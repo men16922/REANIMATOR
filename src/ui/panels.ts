@@ -81,3 +81,18 @@ export function normalizePanelState(s: PanelState): PanelState {
     logReader: (s.mode === 'playing' || s.mode === 'paused') && s.logReader,
   };
 }
+
+/** Facts about a control the UI audit measures. */
+export interface AuditControlFacts {
+  disabled: boolean;
+  /** Product of opacity over the element and its ancestors. */
+  opacity: number;
+  ariaHiddenAncestor: boolean;
+  /** Visually hidden by clip/sr-only styling (clip, clip-path inset, 1px box with overflow hidden). */
+  clipped: boolean;
+}
+
+/** True when a control is intentionally not interactive or not visible, so the audit must not flag it. */
+export function auditShouldSkipControl(f: AuditControlFacts): boolean {
+  return f.disabled || f.ariaHiddenAncestor || f.clipped || f.opacity < 0.01;
+}
