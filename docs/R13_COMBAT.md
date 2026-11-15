@@ -29,7 +29,29 @@ Display-side only. No edits to `src/game3d`, sealed files, or popup layout. No n
 - Bot playthrough skate frames (stride 1): 10 before, 2 after (`RIG_STATS=1`, `tests/enemy-rig.test.ts`).
 - Tests: `tests/r13-gait.test.ts`.
 
+### Run gait, part B (steering: running still looked awkward)
+
+- Moving flag has hysteresis (start above 0.5 m/s, stop below 0.25), so a speed hovering near the old 0.35 threshold no longer flickers between idle and run.
+- Stalker run posture: `runLean` tilts the spine forward up to 0.22 rad and lowers the head, `runBob` dips the hips twice per gait cycle (up to 4.5 cm), arms swing slightly forward. Both scale with speed and vanish at rest or during windup and strikes.
+- A sprinting stalker (above 3 m/s) turns its body at 8 rad/s instead of 5.5, so it faces its run direction sooner (still under the 12 rad/s cap checked by `enemy-rig.test.ts`).
+- Not inspected visually in a browser; the evidence is the tests.
+
 ## Evidence
 
 - `docs/evidence/r13_combat/boss_phase2.png`: showcase `boss` (phase II), dev server, Playwright MCP.
 - Run gait was not inspected visually in a browser. The evidence for it is the probe numbers and the tests above.
+
+## Per-weapon hit feedback and per-kind deaths (FEAT-003)
+
+Display only: `fx3d.ts`, `vfxStyle3d.ts`, `gore3d.ts`. No sim edits, no popup layout edits, no new lights.
+
+- `FxDirector.inferWeapon` tags each tick's damage: new beam is rail, a vanished player projectile gives pulse, scatter, grenade or rocket, a new explosion gives grenade or rocket, otherwise the equipped slot (flamer burn ticks land here).
+- `WEAPON_IMPACT` (vfxStyle3d): pulse cyan star, scatter wide orange pocks, grenade and rocket fire flash plus debris (rocket larger), rail violet narrow streak with the longest hit-stop (5 frames), flamer drifting embers with no hit-stop. Each weapon has its own colour, hit-stop and trauma. Reduce motion halves sparks, drops the weapon hit-stop and scales trauma by 0.4.
+- Warden variants: exposed weak point gives a gold-white `crit` burst (22 sparks, ring 1.5, longer freeze). Armoured gives a cold `ping` fan and ring with no gore or fluid.
+- Deaths (`DEATH_STYLE`): crawler 1.6x chunks and fluid; spitter unchanged; stalker slower chunks (0.65x), 5-frame freeze, longer slow-mo and a dust slump; hive pop spawns a crawler gib wave, acid steam and a freeze on `hive_destroyed`; Warden death sequence adds up to 8 sequential gib waves (3 to 5 chunks each) to the chained explosions. Waves use `GoreSim.spawnWave`, pooled in `ChunkPool` (160) and `DecalPool` (96), seeded RNG, `goreScale` respected.
+- Tests: `tests/r13-impact.test.ts` (distinct weapon styles, crit and armour variants, per-kind deaths, pool capacity after 40 staged kills, determinism, bot-run inference).
+
+## Verification
+
+- `make check` exit 0 (bot pins and reach3d unchanged, dist-guard PASS).
+- Unverified: weapon hit and death visuals were not captured in a browser (Playwright runner cannot launch Chrome here); only the boss phase II screenshot exists.

@@ -7,7 +7,7 @@ import { RAIL_CHARGE_TICKS } from '../game3d/world3d.ts';
 import { chooseMuzzle } from './heroPose.ts';
 import type { EnemyKind3D, EnemyState3D, WorldState3D } from '../game3d/world3d.ts';
 import { PopupPool } from './popups3d.ts';
-import { orbitAngle, popupTier, projectileStyle, stepChroma } from './vfxStyle3d.ts';
+import { DEATH_STYLE, impactStyle, orbitAngle, popupTier, projectileStyle, stepChroma, weaponFromSlot, type DeathKind, type ImpactVariant, type WeaponTag } from './vfxStyle3d.ts';
 import { VENT_XS, debrisPeriodTicks, hatchBeat, meltdownIntensity, type ArenaSetPiece } from './setpieces3d.ts';
 import { GoreSim, goreScale, type GoreKind } from './gore3d.ts';
 
@@ -412,11 +412,14 @@ export class FxDirector {
   deathX = 0;
   deathY = 0;
   private deathNext = 0;
+  private deathWaves = 0;
   private emitClock = 0;
 
   private seed = 0x9e3779b9;
   private lastTick = -1;
   private prevNextId = 0;
+  /** Weapon inferred for the current observe() tick (R13). */
+  weaponTag: WeaponTag = 'pulse';
   private prevHp = -1;
   private prevGrounded = true;
   private prevVy = 0;
@@ -496,6 +499,9 @@ export class FxDirector {
     const py = b.y;
     this.lastPx = px;
 
+    // ---- R13: which weapon caused this tick's damage (display-side inference, never read by the sim) ----
+    this.weaponTag = q ? weaponFromSlot(w.player.weapon) : this.inferWeapon(w);
+
     // ---- enemies: hits and kills ----
     for (const e of w.enemies) {
       let s = this.enemies.get(e.id);
@@ -512,7 +518,7 @@ export class FxDirector {
         if (s.alive && !e.alive) {
           this.onKill(e.kind, cx, cy, dir, px, py, e.y);
         } else if (s.alive && e.hp < s.hp) {
-          this.onEnemyHit(e.kind, cx, cy, dir, s.hp - e.hp, e.y);
+          this.onEnemyHit(e.kind, cx, cy, dir, s.hp - e.hp, e.y, e.kind === 'warden' ? (s.exposed || e.exposedTicks > 0 ? 'crit' : 'armor') : 'normal');
           this.damagePopup(e, s.hp - e.hp, s.exposed);
         }
       }
@@ -628,8 +634,15 @@ export class FxDirector {
           }
           case 'hive_destroyed': {
             const hv = w.hives[ev.value ?? 0];
-            if (hv) { this.burst(hv.x, hv.y + 0.8, 0.6, 1, 0.2, 0.9, 36, 9); this.ring(hv.x, hv.y + 0.8, 1.6, 0.7, 1, 0.3); }
-            this.trauma.add(0.6);
+            if (hv) {
+              this.burst(hv.x, hv.y + 0.8, 0.6, 1, 0.2, 0.9, 36, 9);
+              this.ring(hv.x, hv.y + 0.8, 1.6, 0.7, 1, 0.3);
+              const hs = DEATH_STYLE.hive;
+              this.gore.spawnWave('crawler', hv.x, hv.y + 0.8, hv.y, this.rnd() < 0.5 ? -1 : 1, Math.round(10 * hs.chunkMul), hs.chunkSpeedMul);
+              this.acidSteam(hv.x, hv.y + 0.3, 5);
+              this.hitstop.request(hs.hitStop, true);
+            }
+            this.trauma.add(DEATH_STYLE.hive.trauma);
             break;
           }
           default: break;
@@ -918,6 +931,10 @@ export class FxDirector {
         }
         this.trauma.add(big ? 0.45 : 0.22);
         if (big) this.ring(x, y, 1.5, 1.0, 0.6, 0.2);
+        if (this.deathWaves < DEATH_STYLE.warden.waves) {
+          this.deathWaves++;
+          this.gore.spawnWave('warden', x, y, this.deathY - 1.2, this.rnd() < 0.5 ? -1 : 1, big ? 5 : 3, 0.8);
+        }
       }
     } else {
       const cp = w.level.corePos;
@@ -1056,8 +1073,53 @@ export class FxDirector {
   // ---------------------------------------------------------------------------------------------------------
   // Effect recipes
   // ---------------------------------------------------------------------------------------------------------
-  private onEnemyHit(kind: EnemyKind3D, x: number, y: number, dir: number, dmg: number, floorY: number): void {
+  /** Infer the player weapon behind this tick's damage from new beams, explosions and vanished player shots. */
+  private inferWeapon(w: WorldState3D): WeaponTag {
+    for (const bm of w.beams) if (bm.id >= this.prevNextId) return 'rail';
+    let gone: WeaponTag | null = null;
+    for (const [id, s] of this.projs) {
+      if (!s.fromPlayer || w.projectiles.some((p) => p.id === id)) continue;
+      if (s.kind === 'rocket' || s.kind === 'grenade' || s.kind === 'scatter' || s.kind === 'pulse') gone = s.kind;
+    }
+    if (gone) return gone;
+    for (const ex of w.explosions) {
+      if (ex.id >= this.prevNextId) return w.player.weapon === 6 ? 'rocket' : 'grenade';
+    }
+    return weaponFromSlot(w.player.weapon);
+  }
+
+  /** Weapon-specific layer on top of the shared flesh hit. Seeded display RNG only. */
+  private weaponImpact(weapon: WeaponTag, variant: ImpactVariant, x: number, y: number, dir: number): void {
+    const st = impactStyle(weapon, variant);
+    const [r, g, b] = st.rgb;
+    const reduce = this.reduce;
+    const n = reduce ? Math.ceil(st.sparks * 0.5) : st.sparks;
+    if (st.shape === 'star' || st.shape === 'flash' || st.shape === 'crit') {
+      this.burst(x, y, r, g, b, 1, n, st.speed);
+    } else {
+      // directional fans: pocks are wide and slow, streak is a narrow fast line, ping ricochets, ember drifts up
+      for (let i = 0; i < n; i++) {
+        const a = this.rr(-st.spread, st.spread) + (st.shape === 'ember' ? 0.9 : 0);
+        const sp = this.rr(st.speed * 0.5, st.speed * 1.4);
+        this.add.emit(x, y, 0.5, Math.cos(a) * sp * dir, Math.sin(a) * sp + (st.shape === 'ember' ? 1.5 : 0), 0, this.rr(0.12, st.shape === 'streak' ? 0.4 : 0.3), st.shape === 'pocks' ? 0.2 : 0.11, 0.02, r * 1.5, g * 1.5, b * 1.5, 0.95, st.shape === 'ember' ? -1 : 10, 1.5, 4);
+      }
+    }
+    if (st.ringSize > 0) this.ring(x, y, st.ringSize, r, g, b);
+    for (let i = 0; i < st.debris; i++) {
+      this.alpha.emit(x + this.rr(-0.2, 0.2), y, 0.4, this.rr(-3, 3), this.rr(1, 5), 0, this.rr(0.4, 0.8), this.rr(0.14, 0.3), 0.3, 0.3, 0.26, 0.24, 0.9, 14, 0.5, 1, this.rr(0, 6), this.rr(-8, 8));
+    }
+    if (st.shape === 'flash') this.add.emit(x, y, 0.5, 0, 0, 0, 0.12, 0.5, 1.2 + st.ringSize, r * 1.6, g * 1.4, b * 1.2, 0.85, 0, 0, 1);
+    if (!reduce && st.hitStop > 0) this.hitstop.request(st.hitStop);
+    this.trauma.add(reduce ? st.trauma * 0.4 : st.trauma);
+  }
+
+  private onEnemyHit(kind: EnemyKind3D, x: number, y: number, dir: number, dmg: number, floorY: number, variant: ImpactVariant = 'normal'): void {
     const f = KIND_FLUID[kind];
+    const weapon = this.weaponTag;
+    if (variant === 'armor') {
+      this.weaponImpact(weapon, variant, x, y, dir);
+      return;
+    }
     this.gore.spawnHit(kind as GoreKind, x, y, floorY, dir);
     const heavy = kind === 'warden' || dmg >= 30;
     this.sparkFan(x, y, dir, 1.0, 0.85, 0.5, heavy ? 12 : 7, heavy ? 10 : 7);
@@ -1068,20 +1130,22 @@ export class FxDirector {
       this.alpha.emit(x, y + this.rr(-0.2, 0.2), 0.4, Math.cos(a) * sp * dir, Math.sin(a) * sp + 1.5, this.rr(-0.5, 0.5), this.rr(0.35, 0.7), this.rr(0.08, 0.16), 0.05, f[0], f[1], f[2], 0.95, 16, 0.4, 1.4);
     }
     this.add.emit(x, y, 0.5, 0, 0, 0, 0.09, 0.9, 0.2, f[0] * 1.6 + 0.4, f[1] * 1.6 + 0.4, f[2] * 1.6 + 0.4, 0.8, 0, 0, 1);
-    this.hitstop.request(kind === 'warden' ? 3 : heavy ? 3 : 2);
+    this.hitstop.request(weapon === 'flamer' ? 0 : kind === 'warden' ? 3 : heavy ? 3 : 2);
     if (kind === 'warden') {
       this.trauma.add(0.1);
       this.chroma = Math.max(this.chroma, 0.2);
     }
+    this.weaponImpact(weapon, variant, x, y, dir);
   }
 
   private onKill(kind: EnemyKind3D, x: number, y: number, dir: number, _px: number, _py: number, floorY: number): void {
     const f = KIND_FLUID[kind];
     const boss = kind === 'warden';
-    this.gore.spawnKill(kind as GoreKind, x, y, floorY, dir);
+    const ds = DEATH_STYLE[(kind === 'crawler' || kind === 'spitter' || kind === 'stalker' || kind === 'warden' ? kind : 'spitter') as DeathKind];
+    this.gore.spawnKill(kind as GoreKind, x, y, floorY, dir, ds.chunkMul, ds.chunkSpeedMul);
     if (kind === 'crawler' || kind === 'spitter') this.acidSteam(x, floorY + 0.2, kind === 'crawler' ? 6 : 4);
     const gs = goreScale(this.gore.level);
-    const n = boss ? 80 : 26;
+    const n = boss ? 80 : Math.round(26 * ds.fluidMul);
     for (let i = 0; i < n; i++) {
       if (i % 3 !== 0 && this.rnd() >= gs) continue; // low/off: fewer fluid droplets, sparks stay
       const a = this.rr(0, Math.PI * 2);
@@ -1093,18 +1157,23 @@ export class FxDirector {
     }
     this.add.emit(x, y, 0.5, 0, 0, 0, 0.22, boss ? 3 : 1.4, boss ? 8 : 3.6, 1.5, 1.2, 0.8, 0.85, 0, 0, 1);
     this.ring(x, y, boss ? 1.4 : 0.6, f[0], f[1], f[2]);
-    this.trauma.add(boss ? 1.0 : 0.22);
+    this.trauma.add(ds.trauma);
     this.chroma = Math.max(this.chroma, boss ? 0.9 : 0.35);
     this.rig.punch(boss ? 2 : 0.5);
-    this.hitstop.request(boss ? 6 : 4, true);
+    this.hitstop.request(ds.hitStop, true);
     if (boss) {
       this.slowmo.request(0.25, 0.85);
       this.deathT = 0;
       this.deathNext = 0;
+      this.deathWaves = 0;
       this.deathX = x;
       this.deathY = y;
     }
-    else if (kind === 'stalker') this.slowmo.request(0.55, 0.14);
+    else if (kind === 'stalker') {
+      // heavy collapse: longer slow-mo, a low dust slump instead of a flung spray
+      this.slowmo.request(0.5, 0.22);
+      this.dustAt(x, floorY + 0.1, 5, 3, 0);
+    }
   }
 
   private onExplosion(x: number, y: number, radius: number, color: number, px: number, py: number): void {

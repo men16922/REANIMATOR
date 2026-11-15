@@ -155,3 +155,74 @@ export function parryFlashAmount(open: boolean, tick: number, reduce: boolean): 
   if (reduce) return 0.25;
   return (tick >> 1) % 2 === 0 ? 0.6 : 0.22;
 }
+
+// ---------------------------------------------------------------------------------------------------------
+// R13 per-weapon impact styles (display side). The weapon is inferred by FxDirector from projectile, beam,
+// explosion and slot state; nothing here reads or changes the simulation.
+// ---------------------------------------------------------------------------------------------------------
+export type WeaponTag = 'pulse' | 'scatter' | 'grenade' | 'rail' | 'flamer' | 'rocket';
+export const WEAPON_TAGS: readonly WeaponTag[] = ['pulse', 'scatter', 'grenade', 'rail', 'flamer', 'rocket'];
+export type ImpactShape = 'star' | 'pocks' | 'flash' | 'streak' | 'ember' | 'crit' | 'ping';
+/** normal: flesh or hull. crit: Warden weak point exposed. armor: Warden armoured (no gore, metallic ping). */
+export type ImpactVariant = 'normal' | 'crit' | 'armor';
+
+export interface ImpactStyle {
+  shape: ImpactShape;
+  rgb: Rgb;
+  sparks: number;
+  speed: number;
+  /** Half-angle (rad) of the spark spread around the hit direction. PI means a full star. */
+  spread: number;
+  ringSize: number;
+  /** Display frames of hit-stop requested (HitStop clamps to 6). */
+  hitStop: number;
+  trauma: number;
+  /** Extra fire/debris puffs (grenade, rocket). */
+  debris: number;
+}
+
+export const WEAPON_IMPACT: Record<WeaponTag, ImpactStyle> = {
+  pulse: { shape: 'star', rgb: [0.3, 0.9, 1], sparks: 8, speed: 8, spread: Math.PI, ringSize: 0.35, hitStop: 2, trauma: 0.04, debris: 0 },
+  scatter: { shape: 'pocks', rgb: [1, 0.7, 0.3], sparks: 11, speed: 5, spread: 1.3, ringSize: 0, hitStop: 2, trauma: 0.1, debris: 0 },
+  grenade: { shape: 'flash', rgb: [1, 0.55, 0.15], sparks: 14, speed: 7, spread: Math.PI, ringSize: 0.8, hitStop: 3, trauma: 0.2, debris: 4 },
+  rocket: { shape: 'flash', rgb: [1, 0.65, 0.2], sparks: 16, speed: 9, spread: Math.PI, ringSize: 1.0, hitStop: 4, trauma: 0.28, debris: 6 },
+  rail: { shape: 'streak', rgb: [0.75, 0.3, 1], sparks: 12, speed: 18, spread: 0.12, ringSize: 0.5, hitStop: 5, trauma: 0.35, debris: 0 },
+  flamer: { shape: 'ember', rgb: [1, 0.45, 0.1], sparks: 3, speed: 3, spread: 1.6, ringSize: 0, hitStop: 0, trauma: 0.01, debris: 0 },
+};
+
+/** Weak-point hit: bigger, gold-white, longer freeze. */
+export const CRIT_IMPACT: ImpactStyle = { shape: 'crit', rgb: [1, 0.88, 0.4], sparks: 22, speed: 12, spread: Math.PI, ringSize: 1.5, hitStop: 4, trauma: 0.25, debris: 0 };
+/** Armour hit: cold metallic ping. */
+export const ARMOR_IMPACT: ImpactStyle = { shape: 'ping', rgb: [0.8, 0.9, 1], sparks: 9, speed: 11, spread: 1.0, ringSize: 0.5, hitStop: 1, trauma: 0.03, debris: 0 };
+
+export function impactStyle(weapon: WeaponTag, variant: ImpactVariant): ImpactStyle {
+  if (variant === 'crit') {
+    const w = WEAPON_IMPACT[weapon];
+    return { ...CRIT_IMPACT, hitStop: Math.max(CRIT_IMPACT.hitStop, w.hitStop), trauma: Math.max(CRIT_IMPACT.trauma, w.trauma) };
+  }
+  if (variant === 'armor') return weapon === 'flamer' ? { ...ARMOR_IMPACT, hitStop: 0, sparks: 2 } : ARMOR_IMPACT;
+  return WEAPON_IMPACT[weapon];
+}
+
+/** Map the player's weapon slot to a tag (fallback when no projectile, beam or explosion explains a hit). */
+export function weaponFromSlot(slot: number): WeaponTag {
+  return slot === 2 ? 'scatter' : slot === 3 ? 'grenade' : slot === 4 ? 'rail' : slot === 5 ? 'flamer' : slot === 6 ? 'rocket' : 'pulse';
+}
+
+export type DeathKind = 'crawler' | 'spitter' | 'stalker' | 'warden' | 'hive';
+export interface DeathStyle {
+  chunkMul: number;
+  chunkSpeedMul: number;
+  fluidMul: number;
+  hitStop: number;
+  trauma: number;
+  /** Sequential gib waves after the first burst (Warden staging, hive pop). */
+  waves: number;
+}
+export const DEATH_STYLE: Record<DeathKind, DeathStyle> = {
+  crawler: { chunkMul: 1.6, chunkSpeedMul: 1.1, fluidMul: 1.6, hitStop: 3, trauma: 0.2, waves: 0 },
+  spitter: { chunkMul: 1.0, chunkSpeedMul: 1.0, fluidMul: 1.0, hitStop: 4, trauma: 0.22, waves: 0 },
+  stalker: { chunkMul: 1.0, chunkSpeedMul: 0.65, fluidMul: 0.8, hitStop: 5, trauma: 0.28, waves: 0 },
+  hive: { chunkMul: 1.3, chunkSpeedMul: 0.9, fluidMul: 1.2, hitStop: 3, trauma: 0.6, waves: 1 },
+  warden: { chunkMul: 1.0, chunkSpeedMul: 1.0, fluidMul: 1.0, hitStop: 6, trauma: 1.0, waves: 8 },
+};
