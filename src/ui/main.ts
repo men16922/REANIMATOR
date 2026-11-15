@@ -1051,7 +1051,8 @@ function frame(t: number): void {
 }
 
 function frameBody(t: number): void {
-  const dt = Math.min(0.1, (t - last) / 1000 || 1 / 60);
+  const rawDt = Math.min(0.5, (t - last) / 1000 || 1 / 60);
+  const dt = Math.min(0.1, rawDt);
   last = t;
   const fx = scene3d?.fx;
   let frozen = false;
@@ -1095,9 +1096,11 @@ function frameBody(t: number): void {
     scene3d.fx.gore.level = goreLevel;
     scene3d.fxTimeScale = frozen ? 0 : fx ? fx.slowmo.scale : 1;
   }
+  if (reelPlayer.active && mode !== 'showcase') reelPlayer.stop(); // left the showcase from outside (debug hook, menu): never run on frozen
   if (mode === 'showcase' && reelPlayer.active) {
     // Judge Reel (src/ui/reelPlayer.ts): scripted private world, normal gameplay camera, never touches `world`.
-    reelPlayer.frame(dt);
+    // The reel clock follows real time (rawDt, up to 0.5 s) so cuts keep their designed length on a slow frame rate.
+    reelPlayer.frame(rawDt);
     if (reelPlayer.active) {
       scene3d?.setAttractCamera(null);
       if (scene3d) scene3d.render(reelPlayer.world, reelPlayer.alpha);
@@ -1175,6 +1178,7 @@ const reelPlayer = new ReelPlayer(createReelHost({
   finish: () => exitShowcase(),
   openLab: () => labCtl.open(),
   closeLab: () => labCtl.close(),
+  labOpen: () => !$('lab').hidden,
 }));
 
 /** EXTRAS > Judge Reel, `?reel` and `__reanimatorReel()`: ~90 s scripted cuts with lower-third captions. */
@@ -1190,8 +1194,8 @@ function startReel(): void {
 }
 
 function exitShowcase(): void {
-  if (mode !== 'showcase') return;
   reelPlayer.stop();
+  if (mode !== 'showcase') return;
   viewFx.finish();
   showcase = null;
   if (showcaseView && showcaseView !== viewMode) applyView(showcaseView, false);

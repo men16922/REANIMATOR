@@ -4,7 +4,7 @@
 
 import { emptyInput3D, newWorld3D, stepWorld3D, type InputState3D, type WorldState3D } from '../game3d/world3d.ts';
 import { applyDebugSetup } from './demo.ts';
-import { captionAlpha, REEL_CUTS, reelCutAt, reelCutTime, reelTotalSeconds, type ReelCut, type ReelWorldPlan } from './reel.ts';
+import { captionAlpha, REEL_CUTS, reelBeatAt, reelCutAt, reelCutTime, reelTotalSeconds, type ReelCut, type ReelWorldPlan } from './reel.ts';
 
 type Beat = NonNullable<ReelCut['beats']>[number];
 export type ReelView = 'modern' | 'classic';
@@ -90,10 +90,12 @@ export class ReelWorldDriver {
   }
 
   advance(dt: number, onStep?: (w: WorldState3D) => void): void {
-    this.acc += Math.min(0.1, Math.max(0, dt));
+    // Catch up deterministically after a slow frame so the world stays on the reel clock (a throttled tab or a 10 fps
+    // laptop must not stretch a cut): up to 0.5 s of sim per frame, 30 ticks at most.
+    this.acc += Math.min(0.5, Math.max(0, dt));
     const step = 1 / 60;
     let n = 0;
-    while (this.acc >= step && n < 6) {
+    while (this.acc >= step && n < 30) {
       this.acc -= step;
       n++;
       if (this.world.status !== 'playing') continue;
@@ -112,6 +114,8 @@ export interface ReelHost {
   /** Switch view. `crt` true plays the 0.4 s CRT collapse; false switches in place. Never persists. */
   setView(v: ReelView, crt: boolean): void;
   lab(on: boolean, mutation: boolean): void;
+  /** True when the lab panel is really open (read from the DOM, not remembered), so outside closes are noticed. */
+  labOpen(): boolean;
   /** Start or stop the opening wake overlay (real-time clock owned by main). */
   opening(on: boolean): void;
   endCard(on: boolean, cut: ReelCut): void;
@@ -182,6 +186,8 @@ export class ReelPlayer {
     this.apply(events);
     if (!this.active) return;
     const cut = this.runner.cut;
+    // Invariant, every frame: the lab is open exactly during the lab cut. Anything else hid or showed it from outside.
+    if (this.host.labOpen() !== (cut.target === 'lab')) this.host.lab(cut.target === 'lab', this.labMutation(cut));
     if (cut.target === 'world') this.driver.advance(dt, (w) => this.host.observe(w));
     const ct = this.runner.cutTime;
     this.host.canvasFade(cut.target === 'world' ? cutFade(cut, ct, reduce) : 0);
@@ -190,6 +196,10 @@ export class ReelPlayer {
       this.stop();
       this.host.finish();
     }
+  }
+
+  private labMutation(cut: ReelCut): boolean {
+    return reelBeatAt(cut, this.runner.cutTime).labMode === 'mutation';
   }
 
   private apply(events: ReelEvent[]): void {
@@ -233,11 +243,11 @@ export interface ReelDomParts {
   finish(): void;
   openLab(): void;
   closeLab(): void;
+  labOpen(): boolean;
 }
 
 /** Browser host: lower-third caption, lab mutation switch, end card and canvas fade. main.ts supplies the engine hooks. */
 export function createReelHost(p: ReelDomParts): ReelHost {
-  let labOn = false;
   return {
     reduce: p.reduce,
     view: p.view,
@@ -246,16 +256,20 @@ export function createReelHost(p: ReelDomParts): ReelHost {
     observe: p.observe,
     resetFx: p.resetFx,
     finish: p.finish,
+    labOpen: p.labOpen,
     lab(on, mutation) {
-      if (on && !labOn) {
-        p.openLab();
-        labOn = true;
-      } else if (!on && labOn) {
-        p.closeLab();
-        labOn = false;
-      }
-      if (!on) return;
+      const open = p.labOpen();
+      if (on && !open) p.openLab();
+      else if (!on && open) p.closeLab();
       const box = byId('lab-mutation') as HTMLInputElement;
+      if (!on) {
+        // Leave the lab as the viewer would find it: the demo mutation is a reel beat, never a lasting setting
+        if (box.checked) {
+          box.checked = false;
+          box.dispatchEvent(new Event('change'));
+        }
+        return;
+      }
       if (box.checked !== mutation) {
         box.checked = mutation;
         box.dispatchEvent(new Event('change'));
