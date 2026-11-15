@@ -2,6 +2,7 @@
 // glowing visor bar) and draws the zone boundary gates as emissive bars. No new assets, no lights, about 6 draw calls.
 // All colour and state decisions are pure functions at the top so node tests cover them without WebGL.
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { HunterState3D, HunterZoneDef3D } from '../game3d/hunter3d.ts';
 import { HUNTER_HEIGHT } from '../game3d/hunter3d.ts';
 import { EnemyRigDriver } from './enemyRig3d.ts';
@@ -54,6 +55,75 @@ export function hunterFlash(h: HunterState3D, tick: number, tSec: number, reduce
 
 const GATE_DEPTH = 3.4;
 
+/** Hard-surface armour: near-black gunmetal, high metalness, low roughness, so the env reflection draws a cool rim. */
+export const HUNTER_ARMOUR = { color: 0x1c232b, metalness: 0.92, roughness: 0.28, env: 1.1, hazard: 0xc9981a } as const;
+/** Bone groups that carry a merged armour mesh (one mesh per bone, steel + accent + hazard as material groups). */
+export const HUNTER_ARMOUR_BONES = ['spine2', 'leftArm', 'rightArm', 'leftForeArm', 'rightForeArm'] as const;
+
+interface ArmourParts {
+  steel: THREE.BufferGeometry[];
+  accent: THREE.BufferGeometry[];
+  hazard: THREE.BufferGeometry[];
+}
+
+const _up = new THREE.Vector3(0, 1, 0);
+
+/** Places a geometry in rig-root space: centre `c`, orientation from euler `e` (or a quaternion). */
+function place(g: THREE.BufferGeometry, c: THREE.Vector3, q: THREE.Quaternion, sc?: THREE.Vector3): THREE.BufferGeometry {
+  g.applyMatrix4(new THREE.Matrix4().compose(c, q, sc ?? new THREE.Vector3(1, 1, 1)));
+  return g;
+}
+const eul = (x: number, y: number, z: number): THREE.Quaternion => new THREE.Quaternion().setFromEuler(new THREE.Euler(x, y, z));
+
+function rootPos(rig: RiggedInstance, bone: THREE.Object3D): THREE.Vector3 {
+  return rig.root.worldToLocal(bone.getWorldPosition(new THREE.Vector3()));
+}
+
+function armourParts(rig: RiggedInstance, key: (typeof HUNTER_ARMOUR_BONES)[number], bone: THREE.Object3D): ArmourParts {
+  const parts: ArmourParts = { steel: [], accent: [], hazard: [] };
+  const p = rootPos(rig, bone);
+  const id = new THREE.Quaternion();
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+  if (key === 'spine2') {
+    // Chest plate with a lower hazard band, glowing core, back fins and an antenna
+    parts.steel.push(place(new THREE.BoxGeometry(1.0, 0.72, 0.3), p.clone().add(V(0, 0.02, 0.3)), id));
+    parts.steel.push(place(new THREE.BoxGeometry(1.1, 0.14, 0.34), p.clone().add(V(0, 0.42, 0.28)), eul(-0.25, 0, 0)));
+    parts.accent.push(place(new THREE.BoxGeometry(0.18, 0.18, 0.06), p.clone().add(V(0, 0.1, 0.47)), id));
+    for (let i = -1; i <= 1; i++) parts.hazard.push(place(new THREE.BoxGeometry(0.2, 0.09, 0.05), p.clone().add(V(i * 0.3, -0.26, 0.47)), eul(0, 0, 0.7)));
+    for (let i = 0; i < 3; i++) parts.steel.push(place(new THREE.BoxGeometry(0.07, 0.5 - i * 0.1, 0.4), p.clone().add(V((i - 1) * 0.2, 0.26 + i * 0.03, -0.3)), eul(0.4, 0, (i - 1) * 0.15)));
+    parts.steel.push(place(new THREE.CylinderGeometry(0.014, 0.022, 1.0, 5), p.clone().add(V(0.3, 0.75, -0.3)), eul(0.12, 0, -0.1)));
+    parts.accent.push(place(new THREE.BoxGeometry(0.06, 0.06, 0.06), p.clone().add(V(0.33, 1.25, -0.33)), id));
+    return parts;
+  }
+  const s = Math.sign(p.x) || 1;
+  if (key === 'leftArm' || key === 'rightArm') {
+    // Pauldron: a slab and a raised rim over the shoulder, with one accent seam
+    parts.steel.push(place(new THREE.BoxGeometry(0.52, 0.16, 0.56), p.clone().add(V(s * 0.1, 0.18, 0)), eul(0, 0, -s * 0.28)));
+    parts.steel.push(place(new THREE.BoxGeometry(0.4, 0.2, 0.4), p.clone().add(V(s * 0.16, 0.32, 0)), eul(0, 0, -s * 0.28)));
+    parts.accent.push(place(new THREE.BoxGeometry(0.5, 0.03, 0.04), p.clone().add(V(s * 0.1, 0.22, 0.29)), eul(0, 0, -s * 0.28)));
+    return parts;
+  }
+  // Forearm bracer along elbow-to-hand with a forward claw blade
+  const hand = key === 'leftForeArm' ? rig.leftHand : rig.rightHand;
+  const end = hand ? rootPos(rig, hand) : p.clone().add(V(s * 0.6, -0.1, 0));
+  const d = end.clone().sub(p);
+  const len = Math.max(0.3, d.length());
+  d.normalize();
+  const q = new THREE.Quaternion().setFromUnitVectors(_up, d);
+  parts.steel.push(place(new THREE.BoxGeometry(0.2, len * 0.8, 0.2), p.clone().addScaledVector(d, len * 0.45), q));
+  parts.accent.push(place(new THREE.BoxGeometry(0.215, len * 0.1, 0.215), p.clone().addScaledVector(d, len * 0.62), q));
+  const blade = new THREE.ConeGeometry(0.07, 0.8, 4);
+  parts.steel.push(place(blade, end.clone().addScaledVector(d, 0.3), q));
+  return parts;
+}
+
+function mergeGroup(g: THREE.BufferGeometry[]): THREE.BufferGeometry | null {
+  if (!g.length) return null;
+  const m = mergeGeometries(g, false);
+  for (const x of g) x.dispose();
+  return m;
+}
+
 interface GateView {
   mesh: THREE.Mesh;
   mat: THREE.MeshBasicMaterial;
@@ -67,6 +137,10 @@ export class HunterView {
   private visor: THREE.Mesh;
   private visorMat: THREE.MeshBasicMaterial;
   private gates: GateView[] = [];
+  private visorBase = new THREE.Vector3(1, 1, 1);
+  private armour: THREE.Mesh[] = [];
+  private armourMats: THREE.Material[] = [];
+  private accentMat = new THREE.MeshBasicMaterial({ color: HUNTER_COLORS.quiet, toneMapped: false });
   private readonly proxy: THREE.Mesh;
   private prevX: number;
   private curX: number;
@@ -102,6 +176,7 @@ export class HunterView {
     // Local +Z is the facing direction (the root yaws to the facing)
     this.visor.position.set(0, HUNTER_HEIGHT * 0.9, 0.2);
     this.rig.root.add(this.visor);
+    this.buildArmour();
     this.proxy = new THREE.Mesh(new THREE.BoxGeometry(1.6, HUNTER_HEIGHT, 1.6), new THREE.MeshBasicMaterial({ visible: false }));
     this.proxy.visible = false;
     this.proxy.position.y = HUNTER_HEIGHT / 2;
@@ -123,6 +198,39 @@ export class HunterView {
       this.gates.push({ mesh, mat });
     }
     scene.add(this.root);
+  }
+
+  /** Hard-surface plates parented to the rig bones, merged to one mesh per bone. Needs the bones, so the capsule fallback skips it. */
+  private buildArmour(): void {
+    const rig = this.rig;
+    rig.root.updateMatrixWorld(true);
+    const steel = new THREE.MeshStandardMaterial({ color: HUNTER_ARMOUR.color, metalness: HUNTER_ARMOUR.metalness, roughness: HUNTER_ARMOUR.roughness, envMapIntensity: HUNTER_ARMOUR.env, emissive: 0x05080c });
+    const hazard = new THREE.MeshStandardMaterial({ color: HUNTER_ARMOUR.hazard, metalness: 0.3, roughness: 0.55, emissive: 0x2a1c00 });
+    const mats: THREE.Material[] = [steel, this.accentMat, hazard];
+    this.armourMats.push(steel, hazard);
+    for (const key of HUNTER_ARMOUR_BONES) {
+      const bone = rig[key];
+      if (!bone) continue;
+      const parts = armourParts(rig, key, bone);
+      const sets = [mergeGroup(parts.steel), mergeGroup(parts.accent), mergeGroup(parts.hazard)];
+      const used = sets.filter((g): g is THREE.BufferGeometry => !!g);
+      const geo = mergeGeometries(used, true);
+      for (const g of used) g.dispose();
+      if (!geo) continue;
+      const mesh = new THREE.Mesh(geo, sets.map((g, i) => (g ? mats[i] : null)).filter((m): m is THREE.Material => !!m));
+      mesh.name = `hunter-armour:${key}`;
+      mesh.castShadow = false;
+      rig.root.add(mesh);
+      mesh.updateMatrixWorld(true);
+      bone.attach(mesh);
+      this.armour.push(mesh);
+    }
+    // The visor follows the head bone when there is one
+    if (rig.head) {
+      this.visor.updateMatrixWorld(true);
+      rig.head.attach(this.visor);
+      this.visorBase.copy(this.visor.scale);
+    }
   }
 
   /** Meshes this view adds (tests assert the draw budget). */
@@ -165,7 +273,8 @@ export class HunterView {
     const look = hunterLook(h);
     const col = h.alive ? HUNTER_COLORS[look] : HUNTER_COLORS.dead;
     this.visorMat.color.setHex(col);
-    this.visor.scale.set(1, h.alive ? 1 : 0.4, 1);
+    this.accentMat.color.setHex(col);
+    this.visor.scale.set(this.visorBase.x, this.visorBase.y * (h.alive ? 1 : 0.4), this.visorBase.z);
     const pulse = reduce ? 0.8 : 0.65 + 0.35 * Math.sin(tSec * (look === 'alarm' ? 12 : 3));
     for (const g of this.gates) {
       g.mat.color.setHex(HUNTER_COLORS[look]);
@@ -180,6 +289,9 @@ export class HunterView {
       g.mesh.geometry.dispose();
       g.mat.dispose();
     }
+    for (const m of this.armour) m.geometry.dispose();
+    for (const m of this.armourMats) m.dispose();
+    this.accentMat.dispose();
     this.visor.geometry.dispose();
     this.visorMat.dispose();
     this.proxy.geometry.dispose();

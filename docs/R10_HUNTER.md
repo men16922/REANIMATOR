@@ -116,3 +116,8 @@ The estimator (`src/render3d/drawBudget.ts`) covers decor, solids, vista, hazard
 - Root cause of the flat orange look: the shared Stalker albedo is flesh orange and a colour multiply cannot remove a hue. The hunter now drops the albedo, emissive map and vertex colours for a dark steel material (`HUNTER_STEEL`) with a cool blue rim, and the visor bar is larger and sits nearer the head. Scale was already 2.9 m (about 1.4x the operative in the capture).
 - HUD pill is compact: label `HUNTER`, 2.8 em noise bar (`.bar-xs`), tighter padding.
 - User-facing year is 1996 everywhere (`brand.ts`, `index.html`).
+
+## R11 armour pass
+- `hunterView.ts` adds hard-surface plates parented to rig bones: chest plate with hazard stripes, glowing core, back fins and antenna (spine2); pauldrons (both upper arms); forearm bracers with claw blades (both forearms, oriented elbow to hand from the rest pose). The visor now rides the head bone.
+- One merged mesh per bone (`hunter-armour:<bone>`, steel + accent + hazard as material groups), so 5 extra meshes. Armour is near-black gunmetal (`HUNTER_ARMOUR`, metalness 0.92, roughness 0.28, env 1.1) so the environment map draws a cool rim. Accent and visor share the alert colour (amber quiet, red alarmed, cyan exposed, dark when disabled). No lights. The capsule fallback has no bones and skips the plates.
+- Tests unchanged (<= 12 meshes, no lights); node has no GLB so the real mesh count is about 5 rig-independent + visor + gates + rig meshes, unverified in a browser. Visuals unverified (headless Chrome cannot launch here).
