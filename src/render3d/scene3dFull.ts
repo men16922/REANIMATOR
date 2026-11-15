@@ -1023,6 +1023,9 @@ export class Scene3DRenderer {
   private teardownLevel(): void {
     this.decor?.dispose();
     this.decor = null;
+    this.vista?.dispose();
+    this.vista = null;
+    this.frameRect.reset();
     this.mood?.dispose();
     this.mood = null;
     this.hazards3d?.dispose();
