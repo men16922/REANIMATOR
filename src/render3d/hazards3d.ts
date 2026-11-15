@@ -6,10 +6,13 @@ import * as THREE from 'three';
 import type { ParticlePool } from './fx3d.ts';
 import { crusherBottomY, hazardPhase, hazardPhaseT } from '../game3d/hazards.ts';
 import { hazardNowTick3D, type WorldState3D } from '../game3d/world3d.ts';
+import { mergeStaticChildren } from './meshMerge.ts';
 import type { HazardSpawn3D, Level3D, MapSolid3D } from '../game3d/types3d.ts';
 
 export interface Hazards3D {
   update(w: WorldState3D, tSec: number, dt: number, smoke: ParticlePool, reduceMotion: boolean): void;
+  /** Classic View quantizes to a 16 color palette: steam and glow get weaker so they do not turn into white slabs. */
+  setClassic(on: boolean): void;
   dispose(): void;
 }
 
@@ -63,7 +66,37 @@ function beamTexture(): THREE.Texture | null {
   return t;
 }
 
-interface VentView { h: HazardSpawn3D; plume: THREE.Mesh; acc: number }
+/** Soft steam column: scrolling value noise, horizontal edge fade that widens with height, fade in at the base and out at the top. */
+export const STEAM_VERT = `varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}`;
+export const STEAM_FRAG = `precision highp float;
+varying vec2 vUv;
+uniform float uTime;
+uniform float uIntensity;
+uniform vec3 uTint;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+void main() {
+  float h = vUv.y;
+  float hw = mix(0.22, 0.5, h);
+  float x = abs(vUv.x - 0.5) / hw;
+  float edge = 1.0 - smoothstep(0.35, 1.0, x);
+  float rise = smoothstep(0.0, 0.12, h) * (1.0 - smoothstep(0.55, 1.0, h));
+  vec2 q = vec2(vUv.x * 3.0, h * 4.0 - uTime * 1.6);
+  float n = 0.6 * vnoise(q) + 0.3 * vnoise(q * 2.1 + 7.3) + 0.1 * vnoise(q * 4.3 - 3.1);
+  float a = edge * rise * smoothstep(0.25, 0.85, n) * uIntensity;
+  gl_FragColor = vec4(uTint * (0.8 + 0.2 * n), a);
+}`;
+
+interface VentView { h: HazardSpawn3D; plume: THREE.Mesh; mat: THREE.ShaderMaterial; acc: number }
 interface CrusherView { h: HazardSpawn3D; piston: THREE.Mesh; stripes: THREE.MeshStandardMaterial }
 interface LaserView { h: HazardSpawn3D; beam: THREE.Mesh; posts: THREE.Mesh[] }
 interface RubbleView { h: HazardSpawn3D; shadow: THREE.Mesh; rock: THREE.Mesh; landed: boolean }
@@ -85,42 +118,75 @@ export function buildHazards3D(scene: THREE.Scene, level: Level3D): Hazards3D {
   const beamTex = beamTexture();
   if (beamTex) texs.push(beamTex);
 
+  // Static pieces are parented to one group per room and merged by shared material at the end of the build.
+  const ventBaseMat = track(new THREE.MeshStandardMaterial({ color: 0x2b2f35, emissive: 0xff7a1a, emissiveIntensity: 0.25, roughness: 0.5, metalness: 0.7 }));
+  const plateMat = track(new THREE.MeshStandardMaterial({ map: stripes ?? undefined, color: 0xffffff, roughness: 0.6, metalness: 0.4 }));
+  const metalMat = track(MAT_METAL());
+  const postMat = track(new THREE.MeshStandardMaterial({ color: 0x2c313a, roughness: 0.5, metalness: 0.8 }));
+  const roomGroups = new Map<string, THREE.Group>();
+  const staticFor = (x: number, y: number): THREE.Group => {
+    let key = 'shaft';
+    for (const r of level.rooms) {
+      if (x >= r.minX && x <= r.maxX && y >= r.minY - 0.5 && y <= r.maxY + 0.5) {
+        key = r.id;
+        break;
+      }
+    }
+    let g = roomGroups.get(key);
+    if (!g) {
+      g = new THREE.Group();
+      g.name = `hazard-static:${key}`;
+      root.add(g);
+      roomGroups.set(key, g);
+    }
+    return g;
+  };
+  const rockMat = track(new THREE.MeshStandardMaterial({ color: 0x4a4038, roughness: 0.95, metalness: 0.1, flatShading: true }));
   const vents: VentView[] = [];
   const crushers: CrusherView[] = [];
   const lasers: LaserView[] = [];
   const rubbles: RubbleView[] = [];
-  const plumeGeo = new THREE.CylinderGeometry(0.5, 0.9, 1, 10, 1, true);
+  const plumeGeo = new THREE.PlaneGeometry(1, 1);
   const discGeo = new THREE.CircleGeometry(1, 20);
   const rockGeo = new THREE.IcosahedronGeometry(0.8, 0);
   geos.push(plumeGeo, discGeo, rockGeo);
 
   for (const h of level.hazards) {
     if (h.kind === 'vent') {
-      const base = new THREE.Mesh(box, track(new THREE.MeshStandardMaterial({ color: 0x2b2f35, emissive: 0xff7a1a, emissiveIntensity: 0.25, roughness: 0.5, metalness: 0.7 })));
+      const base = new THREE.Mesh(box, ventBaseMat);
       base.scale.set(h.width + 0.5, 0.16, 1.6);
       base.position.set(h.x, h.y + 0.08, 0);
-      root.add(base);
-      const plume = new THREE.Mesh(plumeGeo, track(new THREE.MeshBasicMaterial({ color: 0xcfe9ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide })));
-      plume.scale.set(h.width, h.height, h.width);
-      plume.position.set(h.x, h.y + h.height / 2, 0);
+      staticFor(h.x, h.y).add(base);
+      const mat = track(new THREE.ShaderMaterial({
+        uniforms: { uTime: { value: 0 }, uIntensity: { value: 0 }, uTint: { value: new THREE.Color(0.78, 0.86, 0.95) } },
+        vertexShader: STEAM_VERT,
+        fragmentShader: STEAM_FRAG,
+        transparent: true,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }));
+      // Flat sheet facing the side camera, just behind the character lane (z in [-0.6, 0.6]) so the depth test lets the operative cover it.
+      const plume = new THREE.Mesh(plumeGeo, mat);
+      plume.scale.set(h.width * 2.2, h.height, 1);
+      plume.position.set(h.x, h.y + h.height / 2, -0.7);
       plume.visible = false;
       root.add(plume);
-      vents.push({ h, plume, acc: 0 });
+      vents.push({ h, plume, mat, acc: 0 });
     } else if (h.kind === 'crusher') {
-      const plate = new THREE.Mesh(box, track(new THREE.MeshStandardMaterial({ map: stripes ?? undefined, color: 0xffffff, roughness: 0.6, metalness: 0.4 })));
+      const plate = new THREE.Mesh(box, plateMat);
       plate.scale.set(h.width + 0.6, 0.1, 1.8);
       plate.position.set(h.x, h.y + 0.05, 0);
-      root.add(plate);
+      staticFor(h.x, h.y).add(plate);
       const sm = track(new THREE.MeshStandardMaterial({ map: stripes ?? undefined, color: 0xd8d2c0, roughness: 0.5, metalness: 0.75, emissive: 0xff2a10, emissiveIntensity: 0 }));
       if (sm.map) { sm.map = sm.map.clone(); sm.map.repeat.set(2, 3); sm.map.needsUpdate = true; texs.push(sm.map); }
       const piston = new THREE.Mesh(box, sm);
       piston.castShadow = true;
       root.add(piston);
       // Guide housing on the ceiling
-      const housing = new THREE.Mesh(box, track(MAT_METAL()));
+      const housing = new THREE.Mesh(box, metalMat);
       housing.scale.set(h.width + 0.7, 0.5, 2.0);
       housing.position.set(h.x, h.y + h.height - 0.05, 0);
-      root.add(housing);
+      staticFor(h.x, h.y).add(housing);
       crushers.push({ h, piston, stripes: sm });
     } else if (h.kind === 'laser') {
       const beam = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), track(new THREE.MeshBasicMaterial({ map: beamTex ?? undefined, color: 0xff5548, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, opacity: 0 })));
@@ -129,14 +195,17 @@ export function buildHazards3D(scene: THREE.Scene, level: Level3D): Hazards3D {
       beam.position.set(h.x, h.y + h.height / 2, 0);
       beam.visible = false;
       root.add(beam);
-      const posts: THREE.Mesh[] = [];
+      const postsRoot = new THREE.Group();
+      const laserPostMat = track(new THREE.MeshStandardMaterial({ color: 0x2c313a, emissive: 0xff2a2a, emissiveIntensity: 0.2, roughness: 0.4, metalness: 0.8 }));
       for (const z of [-1.5, 1.5]) {
-        const p = new THREE.Mesh(box, track(new THREE.MeshStandardMaterial({ color: 0x2c313a, emissive: 0xff2a2a, emissiveIntensity: 0.2, roughness: 0.4, metalness: 0.8 })));
+        const p = new THREE.Mesh(box, laserPostMat);
         p.scale.set(0.3, h.height + 0.3, 0.3);
         p.position.set(h.x, h.y + h.height / 2, z);
-        root.add(p);
-        posts.push(p);
+        postsRoot.add(p);
       }
+      const merged = mergeStaticChildren(postsRoot).merged;
+      for (const m of merged) { geos.push(m.geometry); root.add(m); }
+      const posts: THREE.Mesh[] = merged;
       // Emitter bar across z so the grid reads from the side camera
       lasers.push({ h, beam, posts });
     } else {
@@ -145,7 +214,7 @@ export function buildHazards3D(scene: THREE.Scene, level: Level3D): Hazards3D {
       shadow.position.set(h.x, h.y + 0.04, 0);
       shadow.visible = false;
       root.add(shadow);
-      const rock = new THREE.Mesh(rockGeo, track(new THREE.MeshStandardMaterial({ color: 0x4a4038, roughness: 0.95, metalness: 0.1, flatShading: true })));
+      const rock = new THREE.Mesh(rockGeo, rockMat);
       rock.scale.set(h.width * 0.6, h.width * 0.6, h.width * 0.6);
       rock.visible = false;
       root.add(rock);
@@ -155,10 +224,10 @@ export function buildHazards3D(scene: THREE.Scene, level: Level3D): Hazards3D {
 
   // Switch posts
   const switchViews = level.switches.map((sp) => {
-    const post = new THREE.Mesh(box, track(new THREE.MeshStandardMaterial({ color: 0x2c313a, roughness: 0.5, metalness: 0.8 })));
+    const post = new THREE.Mesh(box, postMat);
     post.scale.set(0.35, sp.y + 0.5, 0.35);
     post.position.set(sp.x, (sp.y + 0.5) / 2 - 0.05, 0);
-    root.add(post);
+    staticFor(sp.x, sp.y).add(post);
     const head = new THREE.Mesh(box, track(new THREE.MeshStandardMaterial({ color: 0x300808, emissive: 0xff3322, emissiveIntensity: 1.2 })));
     head.scale.set(0.7, 0.7, 0.7);
     head.position.set(sp.x, sp.y, 0);
@@ -174,10 +243,10 @@ export function buildHazards3D(scene: THREE.Scene, level: Level3D): Hazards3D {
     car.scale.set(s.maxX - s.minX, 0.28, 2.6);
     root.add(car);
     for (const x of [s.minX - 0.1, s.maxX + 0.1]) {
-      const rail = new THREE.Mesh(box, track(MAT_METAL()));
+      const rail = new THREE.Mesh(box, metalMat);
       rail.scale.set(0.12, e.topY - e.bottomY, 0.2);
       rail.position.set(x, (e.topY + e.bottomY) / 2, -1.3);
-      root.add(rail);
+      staticFor(x, (e.topY + e.bottomY) / 2).add(rail);
     }
     return { e, s, car };
   });
@@ -198,6 +267,9 @@ export function buildHazards3D(scene: THREE.Scene, level: Level3D): Hazards3D {
     return { solid: s, mesh, fall: 0, vy: 0, rot: 0 };
   });
 
+  for (const g of roomGroups.values()) for (const m of mergeStaticChildren(g).merged) geos.push(m.geometry);
+  let classicK = 1;
+
   const smokePuff = (smoke: ParticlePool, x: number, y: number, n: number, up: number, spread: number, r: number, g: number, b: number, a: number): void => {
     for (let i = 0; i < n; i++) {
       // Deterministic jitter (display only), no Math.random
@@ -208,24 +280,28 @@ export function buildHazards3D(scene: THREE.Scene, level: Level3D): Hazards3D {
   };
 
   return {
+    setClassic(on): void {
+      classicK = on ? 0.45 : 1;
+    },
     update(w, tSec, dt, smoke, reduceMotion): void {
       for (const v of vents) {
         const t = hazardNowTick3D(w, v.h);
         const ph = hazardPhase(v.h, t);
         const pt = hazardPhaseT(v.h, t);
-        const mat = v.plume.material as THREE.MeshBasicMaterial;
         v.plume.visible = ph === 'active' || (ph === 'recover' && pt < 1);
-        mat.opacity = ph === 'active' ? 0.38 : ph === 'recover' ? 0.38 * (1 - pt) : 0;
-        v.plume.rotation.y = tSec * 3;
+        // Faint and soft: the sheet only tints the air, the smoke particles carry the motion.
+        const peak = 0.2 * classicK;
+        v.mat.uniforms.uIntensity.value = ph === 'active' ? peak : ph === 'recover' ? peak * (1 - pt) : 0;
+        v.mat.uniforms.uTime.value = reduceMotion ? 0 : tSec;
         if (ph === 'telegraph') {
           // Warning: growing hiss of small puffs
           v.acc += dt * (8 + 20 * pt);
         } else if (ph === 'active') {
-          v.acc += dt * 70;
+          v.acc += dt * 34 * classicK;
         } else v.acc = 0;
         while (v.acc >= 1) {
           v.acc -= 1;
-          smokePuff(smoke, v.h.x, v.h.y + 0.15, 1, ph === 'active' ? 7 : 1.8, v.h.width * (ph === 'active' ? 0.9 : 0.5), 0.85, 0.9, 0.95, ph === 'active' ? 0.5 : 0.3);
+          smokePuff(smoke, v.h.x, v.h.y + 0.15, 1, ph === 'active' ? 7 : 1.8, v.h.width * (ph === 'active' ? 0.9 : 0.5), 0.85, 0.9, 0.95, (ph === 'active' ? 0.3 : 0.2) * classicK);
         }
       }
       for (const c of crushers) {

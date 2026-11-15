@@ -5,6 +5,11 @@ import * as THREE from 'three';
 import { buildFacilityMap3D } from '../src/game3d/map3d.ts';
 import type { SectorId3D } from '../src/game3d/types3d.ts';
 import { buildDecor3D } from '../src/render3d/decor3d.ts';
+import { BOSS_CAM_BASE_DIST, BOSS_CAM_MAX_DIST, bossCameraBlend, bossFramingWanted } from '../src/render3d/bossCamera.ts';
+import { frontLiftGlsl } from '../src/render3d/frontLift.ts';
+import { buildGrenade, buildRail, buildScatter } from '../src/render3d/heroGear3d.ts';
+import { buildHazards3D } from '../src/render3d/hazards3d.ts';
+import { mergeStaticChildren } from '../src/render3d/meshMerge.ts';
 import { buildBatchGeometry, classifySolid, planSolidMeshCount } from '../src/render3d/solidBatches.ts';
 
 const level = buildFacilityMap3D();
@@ -76,4 +81,102 @@ test('decor mesh and material counts stay within budget', () => {
   } finally {
     g.document = prev;
   }
+});
+
+function meshStats(root: THREE.Object3D): { meshes: number; materials: number } {
+  let meshes = 0;
+  const mats = new Set<THREE.Material>();
+  root.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    meshes++;
+    for (const mm of Array.isArray(m.material) ? m.material : [m.material]) mats.add(mm);
+  });
+  return { meshes, materials: mats.size };
+}
+
+test('mergeStaticChildren merges same-material meshes and keeps animated parts', () => {
+  const root = new THREE.Group();
+  const a = new THREE.MeshStandardMaterial();
+  const b = new THREE.MeshStandardMaterial();
+  for (let i = 0; i < 4; i++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), a);
+    m.position.set(i * 2, 0, 0);
+    root.add(m);
+  }
+  const keep = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), a);
+  root.add(keep);
+  root.add(new THREE.Mesh(new THREE.SphereGeometry(1), b));
+  const r = mergeStaticChildren(root, new Set([keep]));
+  assert.equal(r.before, 5);
+  assert.equal(r.after, 2);
+  assert.equal(root.children.length, 3); // merged + kept + sphere
+  const merged = r.merged[0];
+  merged.geometry.computeBoundingBox();
+  assert.ok(merged.geometry.boundingBox!.max.x >= 6.5, 'baked positions survive the merge');
+});
+
+test('hero weapon rigs stay within mesh and material budgets', () => {
+  for (const [name, rig] of [['scatter', buildScatter()], ['grenade', buildGrenade()], ['rail', buildRail()]] as const) {
+    const s = meshStats(rig.root);
+    assert.ok(s.meshes <= 9, `${name} meshes ${s.meshes} <= 9`);
+    assert.ok(s.materials <= 5, `${name} materials ${s.materials} <= 5`);
+  }
+});
+
+test('hazard meshes per level stay within budget and the steam is a soft shader, not an opaque cone', () => {
+  const scene = new THREE.Scene();
+  const hz = buildHazards3D(scene, level);
+  const s = meshStats(scene);
+  assert.ok(s.meshes <= 30, `hazard meshes ${s.meshes}`);
+  assert.ok(s.materials <= 26, `hazard materials ${s.materials}`);
+  let plumes = 0;
+  scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (m.isMesh && m.material instanceof THREE.ShaderMaterial) {
+      plumes++;
+      assert.equal(m.material.transparent, true);
+      assert.equal(m.material.depthWrite, false);
+      assert.notEqual(m.material.blending, THREE.AdditiveBlending);
+      assert.ok(m.position.z < 0, 'steam sheet sits behind the character lane');
+    }
+  });
+  assert.ok(plumes >= 1);
+  hz.dispose();
+});
+
+test('boss camera: no change at k=0, zooms out and centers both actors, never loses the player', () => {
+  const still = bossCameraBlend({ px: 10, py: 4, bx: 30, by: 6, k: 0, fovDeg: 38, aspect: 1.42 });
+  assert.deepEqual(still, { fx: 10, fy: 4, dist: BOSS_CAM_BASE_DIST });
+
+  const near = bossCameraBlend({ px: 10, py: 4, bx: 12, by: 5, k: 1, fovDeg: 38, aspect: 1.42 });
+  assert.equal(near.dist, BOSS_CAM_BASE_DIST, 'close boss needs no extra zoom');
+
+  const mid = bossCameraBlend({ px: 10, py: 4, bx: 28, by: 6, k: 1, fovDeg: 38, aspect: 1.42 });
+  assert.ok(mid.dist > BOSS_CAM_BASE_DIST && mid.dist <= BOSS_CAM_MAX_DIST);
+  const tan = Math.tan((38 * Math.PI) / 360);
+  const halfW = mid.dist * tan * 1.42;
+  assert.ok(Math.abs(mid.fx - 10) + 1 < halfW && Math.abs(28 - mid.fx) + 1 < halfW, 'both actors inside the frame');
+
+  const far = bossCameraBlend({ px: 0, py: 4, bx: 60, by: 4, k: 1, fovDeg: 38, aspect: 1.42 });
+  assert.equal(far.dist, BOSS_CAM_MAX_DIST);
+  assert.ok(Math.abs(far.fx - 0) < far.dist * tan * 1.42, 'player stays on screen when the pair cannot fit');
+  assert.ok(far.fx > 0, 'still leans toward the boss');
+
+  const half = bossCameraBlend({ px: 10, py: 4, bx: 28, by: 6, k: 0.5, fovDeg: 38, aspect: 1.42 });
+  assert.ok(half.dist > BOSS_CAM_BASE_DIST && half.dist < mid.dist);
+  assert.ok(half.fx > 10 && half.fx < mid.fx);
+});
+
+test('boss framing only applies to a live boss with no cinematic in charge', () => {
+  assert.equal(bossFramingWanted(true, 10, 2, false), true);
+  assert.equal(bossFramingWanted(false, 10, 2, false), false);
+  assert.equal(bossFramingWanted(true, 10, 2, true), false);
+  assert.equal(bossFramingWanted(true, 60, 2, false), false);
+});
+
+test('front lift shader snippet targets camera-facing faces only', () => {
+  const g = frontLiftGlsl(0.3, [0.02, 0.02, 0.02]);
+  assert.match(g, /smoothstep\(0\.45, 0\.95, normal\.z\)/);
+  assert.match(g, /totalEmissiveRadiance \+=/);
 });
