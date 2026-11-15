@@ -206,6 +206,18 @@ export function loreLogById(id: string): LoreLog | undefined {
 }
 
 /** Small UI strings used by the log panels and the result screen. */
+/**
+ * UI chrome language. Buttons, panel titles, key hints and counters stay English in every language so the pause menu
+ * matches the title menu (PLAY / SETTINGS / EXTRAS) and the HUD. Only story text (intro lines, log titles, speakers,
+ * bodies, sector subtitles, endings, credits) follows the KO/EN choice. The language toggle names its target language.
+ */
+export const CHROME_LANG: Lang = 'en';
+
+/** Chrome label for a LORE_UI key: always CHROME_LANG, except the toggle, which names the other language. */
+export function chromeLabel(key: keyof typeof LORE_UI, lang: Lang): string {
+  return key === 'langButton' ? LORE_UI.langButton[lang] : LORE_UI[key][CHROME_LANG];
+}
+
 export const LORE_UI = {
   hintTyping: { en: 'Press any key to skip', ko: '아무 키나 눌러 건너뛰기' },
   hintDone: { en: 'Press any key to close', ko: '아무 키나 눌러 닫기' },

@@ -40,10 +40,10 @@ import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
 import { meltdownPillVisible, objectiveFor } from './objective.ts';
 import { parseGoreLevel, type GoreLevel } from '../render3d/gore3d.ts';
-import { loadProgress, menuKeyAction, PANEL_IDS, stepIndex, type TitlePanel } from './menu.ts';
+import { loadProgress, menuKeyAction, PANEL_IDS, pauseEscapeAction, stepIndex, type TitlePanel } from './menu.ts';
 import { normalizePanelState, titleCovered, topLayer } from './panels.ts';
 import { archiveRows, canOpen, LOG_FREEZE_S, openReader, pressReader, tickReader, visibleBody, type ReaderState } from './logReader.ts';
-import { CREDITS_LINES, endingText, INTRO_LINES, LANG_STORE_KEY, LORE_LOGS, LORE_UI, loreLogById, otherLang, pickLang, SECTOR_SUB, type Lang } from './lore.ts';
+import { CREDITS_LINES, endingText, INTRO_LINES, LANG_STORE_KEY, LORE_LOGS, chromeLabel, loreLogById, otherLang, pickLang, SECTOR_SUB, type Lang } from './lore.ts';
 import { runUiAudit, type UiAuditReport } from './uiAudit.ts';
 import { getFailedModelNames3D, getLoadedModelNames3D } from '../render3d/riggedModels.ts';
 
@@ -54,10 +54,13 @@ $('title-logo').innerHTML = buildLogoSvg('t');
 $('loading-logo').innerHTML = buildLogoSvg('l');
 
 // ---- loading screen: logo + progress while the 9 Meshy models load (polls the loader; never blocks) ----
+/** Hides the loading screen now (debug and showcase entry points must not leave the logo screen over their scene). */
+let dismissLoading: () => void = () => {};
 {
   const MODEL_TOTAL = 9;
   const loading = $('loading');
   const started = performance.now();
+  let fadeTimer = 0;
   const timer = window.setInterval(() => {
     const l = getLoadedModelNames3D().length;
     const f = getFailedModelNames3D().length;
@@ -67,9 +70,16 @@ $('loading-logo').innerHTML = buildLogoSvg('l');
     if (pr >= 1 || performance.now() - started > 12000 || !scene3d) {
       window.clearInterval(timer);
       loading.classList.add('done');
-      window.setTimeout(() => { loading.hidden = true; focusDefault(); }, 520);
+      fadeTimer = window.setTimeout(() => { loading.hidden = true; focusDefault(); }, 520);
     }
   }, 80);
+  dismissLoading = () => {
+    if (loading.hidden) return;
+    window.clearInterval(timer);
+    window.clearTimeout(fadeTimer);
+    loading.classList.add('done');
+    loading.hidden = true;
+  };
 }
 
 // Must probe WebGL2 BEFORE any getContext('2d') call, because a canvas locks context type on first acquire.
@@ -475,12 +485,12 @@ function applyLang(): void {
   INTRO_LINES.forEach((l, i) => {
     $(`intro-l${i}`).textContent = l[lang];
   });
-  $('log-lang').textContent = LORE_UI.langButton[lang];
-  $('logs-open').textContent = LORE_UI.logsButton[lang];
-  $('logs-close').textContent = LORE_UI.back[lang];
-  $('credits-roll-open').textContent = LORE_UI.creditsButton[lang];
-  document.querySelector('#log-archive h2')!.textContent = LORE_UI.archiveTitle[lang];
-  $('lr-hint').textContent = LORE_UI.hintTyping[lang];
+  $('log-lang').textContent = chromeLabel('langButton', lang);
+  $('logs-open').textContent = chromeLabel('logsButton', lang);
+  $('logs-close').textContent = chromeLabel('back', lang);
+  $('credits-roll-open').textContent = chromeLabel('creditsButton', lang);
+  document.querySelector('#log-archive h2')!.textContent = chromeLabel('archiveTitle', lang);
+  $('lr-hint').textContent = chromeLabel('hintTyping', lang);
   if (!$('log-archive').hidden) renderArchive();
 }
 
@@ -493,7 +503,7 @@ function openLogReader(id: string, from: 'pickup' | 'archive'): void {
   if (!e) return;
   releaseInput();
   reader = openReader(e, lang, from);
-  $('lr-eyebrow').textContent = `${LORE_UI.dataLog[lang]} ${e.order}/${LORE_LOGS.length}`;
+  $('lr-eyebrow').textContent = `${chromeLabel('dataLog', lang)} ${e.order}/${LORE_LOGS.length}`;
   $('lr-title').textContent = e.title[lang];
   $('lr-speaker').textContent = e.speaker[lang];
   $('lr-stamp').textContent = e.stamp;
@@ -509,7 +519,7 @@ function renderReader(): void {
   const txt = visibleBody(reader);
   if (body.textContent !== txt) body.textContent = txt;
   body.classList.toggle('typing', reader.phase === 'typing');
-  const hint = reader.phase === 'typing' ? LORE_UI.hintTyping[reader.lang] : LORE_UI.hintDone[reader.lang];
+  const hint = reader.phase === 'typing' ? chromeLabel('hintTyping', reader.lang) : chromeLabel('hintDone', reader.lang);
   if ($('lr-hint').textContent !== hint) $('lr-hint').textContent = hint;
 }
 
@@ -544,7 +554,7 @@ function pressLayer(): void {
 function renderArchive(): void {
   const taken = takenLogIds();
   const rows = archiveRows(taken, lang);
-  $('log-count').textContent = `${rows.filter((r) => r.unlocked).length}/${rows.length} ${LORE_UI.recovered[lang]}`;
+  $('log-count').textContent = `${rows.filter((r) => r.unlocked).length}/${rows.length} ${chromeLabel('recovered', lang)}`;
   const list = $('log-list');
   list.textContent = '';
   for (const r of rows) {
@@ -590,7 +600,7 @@ function openCredits(): void {
   box.style.animation = 'none';
   void box.offsetWidth;
   box.style.animation = '';
-  $('credits-roll').querySelector('.scan-hint')!.textContent = LORE_UI.hintCredits[lang];
+  $('credits-roll').querySelector('.scan-hint')!.textContent = chromeLabel('hintCredits', lang);
   $('credits-roll').hidden = false;
   window.clearTimeout(creditsTimer);
   creditsTimer = window.setTimeout(() => closeCredits(true), 14500);
@@ -1200,6 +1210,17 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     return;
   }
+  // Escape (or P) on the pause screen: a sub-panel (Controls, Logs) goes back one level, the root menu resumes.
+  // Handled before the opening skip so a paused opening cannot swallow the press.
+  if (mode === 'paused' && (e.code === 'Escape' || e.code === 'KeyP') && !e.repeat) {
+    if (pauseEscapeAction(!ui.controlsPanel.hidden, !$('log-archive').hidden) === 'back') closeSubPanels();
+    else {
+      manualHold = false;
+      show('playing');
+    }
+    e.preventDefault();
+    return;
+  }
   if (introActive) {
     hideIntro();
     if (mode === 'title') {
@@ -1223,11 +1244,6 @@ window.addEventListener('keydown', (e) => {
     }
     return;
   }
-  if (mode === 'paused' && e.code === 'Escape' && (!ui.controlsPanel.hidden || !$('log-archive').hidden)) {
-    closeSubPanels();
-    e.preventDefault();
-    return;
-  }
   if (mode !== 'playing' && menuNavigate(e)) return;
   if (mode === 'result' && e.code === 'KeyR') {
     restartCurrent();
@@ -1238,9 +1254,6 @@ window.addEventListener('keydown', (e) => {
     if (mode === 'playing') {
       releaseInput();
       show('paused');
-    } else if (mode === 'paused') {
-      manualHold = false;
-      show('playing');
     }
     e.preventDefault();
     return;
@@ -1561,6 +1574,10 @@ wAny.__reanimatorSetView = (m) => {
 };
 /** Fresh world, optional setup, then run the given input frames. */
 wAny.__reanimatorAdvance = (inputs, setup) => {
+  // A held showcase (frozen opening overlay, letterbox) or a running opening must not stay over the debug world.
+  exitShowcase();
+  if (setup?.skipIntro || openingFrozen || introActive) hideIntro();
+  if (scene3d?.getTelemetry().modelsLoaded) dismissLoading();
   world = newWorld3D();
   bot = null;
   if (setup) applyDebugSetup(world, setup);
@@ -1680,6 +1697,9 @@ wAny.__reanimatorShowcase = async (name) => {
   if (!sc) throw new Error(`unknown showcase scene "${name}"; known: ${SHOWCASE_NAMES.join(', ')}`);
   // Models stream in after first paint; give them a bounded wait so captures never show placeholder meshes.
   for (let i = 0; i < 100 && scene3d && !scene3d.getTelemetry().modelsLoaded; i++) await settleFrames(3);
+  // The loading screen fades out on its own timer after the models land; a capture right after the first call
+  // must not show the logo screen (it reads as "the title is still up").
+  dismissLoading();
   exitShowcase();
   demoStop = null;
   hideIntro();

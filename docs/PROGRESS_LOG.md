@@ -60,3 +60,8 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 ## 2026-11-15 — R11 polish (hunter armour, opening cinematic)
 
 - Status: 2 commits on main, no push. Sealed files untouched. Hunter: 5 merged armour meshes on bones, accent follows alert colours. Opening: HUD/minimap hidden then faded in, letterbox, display-only wake pose, title card; 4 new tests. Visuals unverified (Chrome cannot launch).
+
+## 2026-11-15 — R11 final fix pass
+
+- Status: 1 commit on main, no push. Sealed files untouched. Hunter steel/plates root-caused and fixed, showcase hold exit, pause Escape resume, English chrome. 7 new tests. `make check` exit 0 (534/534, bot Normal 5533 ticks HP 95/160 57 kills, reach3d 52 waypoints 3432 ticks, dist-guard PASS). Playwright check done on the dev server.
+- Note: the "first showcase call ignored" report matched the loading screen (logo over the scene) still fading out after the first call resolved. A Vite dependency-reload a few seconds after first load can also replace the page; that is dev-server behaviour, not game code.

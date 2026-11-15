@@ -40,6 +40,14 @@ export function menuKeyAction(code: string): MenuKeyAction {
   return 'none';
 }
 
+/**
+ * Pause screen Escape/P: with Controls or Logs open, step back one level; on the root pause menu, resume.
+ * P on a sub-panel also steps back (it never skips past an open panel).
+ */
+export function pauseEscapeAction(controlsOpen: boolean, logsOpen: boolean): 'back' | 'resume' {
+  return controlsOpen || logsOpen ? 'back' : 'resume';
+}
+
 /** Which panel id (DOM) belongs to a title panel name. */
 export const PANEL_IDS: Record<TitlePanel, string> = {
   settings: 'settings-panel',

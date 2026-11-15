@@ -69,3 +69,6 @@
 
 ## R11 polish
 - Hunter armour plates on rig bones ([R10_HUNTER](R10_HUNTER.md)); opening HUD fade-in, letterbox, wake pose, title card ([R10_OPENING](R10_OPENING.md)). Browser visuals unverified.
+
+## R11 final fix pass
+- Hunter: steel on every material slot (maps dropped, linear-space flash tints cut), armour fitted to the measured torso in bone-local space ([R10_HUNTER](R10_HUNTER.md)). Debug hooks: `__reanimatorAdvance` exits a held showcase/opening (`skipIntro`, frozen or running), `__reanimatorShowcase` drops the loading screen at once. Pause: Escape/P resumes from the root menu, sub-panels step back first, handled before the opening skip. UI chrome is English in every language (`CHROME_LANG`, `chromeLabel()` in `lore.ts`); only story text is KO/EN. `make check` exit 0, 534/534. Browser-checked in Playwright (ko-KR): dark hunter, no floating plates, overlay cleared, Escape toggles, `Logs` label.
