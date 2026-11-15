@@ -11,7 +11,7 @@
 
 ## 검증 기준선 (이번 세션 관찰)
 
-- `make check` exit 0: `tsc`, `node --test tests/` 44/44(`game3d` 14), `reference-verify` 3/3, `reach`+`reach3d` PASS, build, dist-guard PASS(12 files 14,329,300 B / 218).
+- `make check` exit 0: `tsc`, `node --test tests/` 45/45(`game3d` 15), `reference-verify` 3/3, `reach`+`reach3d` PASS, build, dist-guard PASS(12 files 14,329,300 B / 218).
 - `make reference-holdout` 4/4 PASS(이 엔진 리비전 1회, 봉인 엔진 무변경).
 - `make smoke-local` 29/29 PASS(`webgl-3d`, `loadedModels: 9`, `fps: 60.5`, 페이지 오류 0).
 - `capture-showcase.ts` PNG 11장(`docs/evidence/g4_playable/`) 육안 검수: 사이드뷰 카메라, 양손 IK 조준, 점프 상승/하강, 보스·미니맵 HUD 비겹침 확인.
@@ -24,7 +24,8 @@
 
 ## 미확인·위험
 
-- 사람 플레이(G5) 미실시. 봇은 HP를 거의 잃지 않아 난이도 판단 근거가 못 된다.
+- 사람 플레이(G5) 미실시. 봇은 HP를 거의 잃지 않아 난이도 판단 근거가 못 된다. 무모한 입력 측정(`make difficulty`, 3600 ticks): HP 248 손실, 사망 2, 처치 3, x≈41에서 정체 → 무방비 돌진은 통하지 않는다(난이도 하한 확인, 사람 체감은 G5).
+- `riggedCount`는 7(= operative 1 + stalker 5 + warden 1)이 현재 맵 기준 정상값(과거 8은 쿼터뷰 맵). `PCFShadowMap` 전환·vite 청크 분리는 smoke 미실행으로 시각 unverified.
 - 부츠 우회 제거: `bio-grate-up`을 y 4.4로 낮춰 Security 데크도 4.4 m 게이트(`reach3d`·테스트로 확인). 제트 대시 우회 없음(`reach3d` `dashReaches`, 테스트로 확인; 스크립트 탐색 한계, 사람 확인은 G5).
 - `make smoke-local`은 이 샌드박스에서 Chrome이 abort(exit 134, `--no-sandbox`도 동일)해 최신 맵 기준 unverified. 위 29/29는 맵 변경 전 값.
 - 움직임 자연스러움(방향 전환·점프 포즈·머리 회전 수정)은 정지 캡처로만 확인, 사람 눈 확인 필요. 어두운 샤프트는 보조 조명으로 완화했으나 튜닝 여지 있음. 15 Hz는 설계값. `.kiro/settings/mcp.json` REA MCP 쓰기 차단 잔여.

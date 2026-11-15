@@ -24,6 +24,7 @@ import {
   type InputState3D,
   type WorldState3D,
 } from '../src/game3d/world3d.ts';
+import { runReckless } from '../tools/game/difficulty.ts';
 import { buildReachRoute, dashReaches, walkTo } from '../tools/game/reach3d.ts';
 
 function readGlbJson(relPath: string): {
@@ -509,4 +510,12 @@ test('Rigged & static Meshy GLBs exist with skins and required clips', () => {
     const st = statSync(resolve(import.meta.dirname, '..', statPath));
     assert.ok(st.size > 10_000, `${statPath} unexpectedly small (${st.size} bytes)`);
   }
+});
+
+test('Reckless-input difficulty probe measures HP loss deterministically', () => {
+  const a = runReckless(1800);
+  const b = runReckless(1800);
+  assert.deepEqual(a, b, 'probe must be deterministic');
+  assert.ok(a.hpLost > 0, 'reckless play must lose HP');
+  assert.equal(a.ticks, 1800);
 });

@@ -1,6 +1,6 @@
 // Full 3D Side-View Metroidvania Three.js WebGL2 Renderer for REANIMATOR.
 // The camera looks down -Z at the z = 0 gameplay lane (2.5D). Drives rigged SkinnedMesh animations via AnimationMixer,
-// two-handed rifle IK (riggedModels.ts), z = 0 cursor raycasting, selective UnrealBloomPass, PCFSoftShadowMap,
+// two-handed rifle IK (riggedModels.ts), z = 0 cursor raycasting, selective UnrealBloomPass, PCFShadowMap,
 // 60 -> display-rate interpolation, and the R3.3 visual-only headlamp.
 
 import * as THREE from 'three';
@@ -137,7 +137,7 @@ export class Scene3DRenderer {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.4;
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x090e14);

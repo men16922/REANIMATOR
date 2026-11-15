@@ -1,5 +1,11 @@
 # 진행 기록
 
+## 2026-11-15 — 난이도 측정 도구 + 폴리시 (Kiro)
+- 추가: `tools/game/difficulty.ts`(`make difficulty`). 무모한 입력(상시 동진·주기 점프·상시 사격·엄폐 없음)으로 3600 ticks 실행, 결과 `hpLost 248, deaths 2, kills 3, endX 41.18`(결정적, 2회 동일). 봉인 파일·`w.light` 무접촉. 테스트 1개 추가(45/45).
+- 정리: `PCFSoftShadowMap`→`PCFShadowMap`(`scene3dFull.ts`), `vite.config.ts` 신설(`three` 수동 청크, 경고 한도 700 kB; three 661 kB·앱 128 kB), 아카이브 깨진 링크 3개 수정.
+- riggedCount 7 vs 8: 버그 아님. `riggedCount = 1(operative) + stalker·warden 수`. 쿼터뷰 맵은 stalker 6+warden 1=8, 사이드뷰 맵은 stalker 5+warden 1=7. smoke는 `>= 1`만 요구.
+- 검증: `make check` exit 0(45/45, dist-guard PASS 13 files 14,330,289 B). `make smoke-local` NOT RUN(Chrome abort), 그림자 모드 변경은 시각 unverified.
+
 ## 2026-11-15 — 제트 대시 부츠 게이트 우회 검사 (Kiro)
 - 결과: 우회 없음. 대시는 상승 속도를 0.2배로 줄이고 중력을 끄므로 높이를 더하지 않는다. `reach3d`의 `dashReaches`가 navSteer 이동에 14개 첫 대시 틱 × 3개 반복 간격을 주입해 세 4.4 m 게이트(Shaft 38/4.4, Security 65/4.4, 55/4.5)를 검사: 부츠 없음 도달 불가, 부츠+대시 도달 가능(대조). 맵·`motion3d.ts` 무변경.
 - 테스트: `tests/game3d.test.ts` reachability 테스트에 대시 게이트 단언 추가. `make check` exit 0.

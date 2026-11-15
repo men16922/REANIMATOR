@@ -14,3 +14,9 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 ## G6 — 최종 정리·제출 준비
 
 - 문서 링크(archive 제외)·`make check` 확인 완료. 남음: 실제 Chrome 환경에서 `make smoke-local`과 `capture-showcase.ts` 재실행(맵 변경 후), G5 사람 플레이, `git push`(사용자 승인 대기).
+
+## 개선 계획(2026-11-15 수행 완료)
+
+- [x] 난이도 측정 도구 `make difficulty`(`tools/game/difficulty.ts`) + 테스트.
+- [x] `PCFShadowMap`, vite `three` 청크 분리, 아카이브 링크 수정, riggedCount 원인 문서화.
+- [ ] 남음: Chrome 환경에서 `make smoke-local`·showcase로 그림자·청크 변경 확인, G5 사람 플레이, 푸시 승인.
