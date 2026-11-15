@@ -24,6 +24,7 @@ import {
   type RiggedInstance,
 } from './riggedModels.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
+import { buildDecor3D, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 
 interface StaticActorHandle {
   root: THREE.Group;
@@ -138,6 +139,9 @@ export class Scene3DRenderer {
   private prevEnemies = new Map<string, PosSnap>();
   private curEnemies = new Map<string, PosSnap>();
   private readonly occludables: OccludableMesh[] = [];
+  private decor: Decor3D | null = null;
+  private fogDensity = 0.012;
+  private readonly trimSpecs: { x: number; y: number; z: number; sx: number; sy: number; sz: number; color: number }[] = [];
 
   private coreModel: THREE.Group | null = null;
   private coreShield: THREE.Mesh | null = null;
@@ -378,6 +382,9 @@ export class Scene3DRenderer {
     for (const s of w.level.solids) {
       this.addSolidMesh(s, tex);
     }
+    this.buildTrim();
+    this.decor?.dispose();
+    this.decor = buildDecor3D(this.scene, w.level, tex);
     for (const r of w.level.ramps) {
       const mat = new THREE.MeshStandardMaterial({
         map: tex.grateMap,
@@ -561,6 +568,14 @@ export class Scene3DRenderer {
       });
     }
 
+    // Break tiling: per-solid texture offset derived from the solid id.
+    if (mat.map && mat.map.image && mat.map !== tex.hazardMap) {
+      let hsh = 2166136261;
+      for (let i = 0; i < s.id.length; i++) hsh = Math.imul(hsh ^ s.id.charCodeAt(i), 16777619);
+      mat.map.offset.set(((hsh >>> 0) % 997) / 997, ((hsh >>> 8) % 991) / 991);
+    }
+    this.addSolidTrim(s, sx, sy, sz, cx, cy);
+
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
     mesh.position.set(cx, cy, cz);
     mesh.castShadow = s.kind !== 'catwalk' || s.minY >= 0.5;
@@ -573,6 +588,50 @@ export class Scene3DRenderer {
       mat.transparent = true;
       this.occludables.push({ mesh, mat, center: mesh.position.clone() });
     }
+  }
+
+  /** Collects bevel lips, truss ribs, door frames and rivet rows as instanced trim boxes. */
+  private addSolidTrim(s: MapSolid3D, sx: number, sy: number, sz: number, cx: number, cy: number): void {
+    const top = s.minY + sy;
+    const front = s.maxZ;
+    const cap = 700;
+    const push = (x: number, y: number, z: number, w: number, h: number, d: number, color: number): void => {
+      if (this.trimSpecs.length < cap) this.trimSpecs.push({ x, y, z, sx: w, sy: h, sz: d, color });
+    };
+    if (s.kind === 'catwalk' || s.kind === 'platform') {
+      push(cx, top + 0.02, front - 0.12, sx, 0.04, 0.24, 0x7a8a9c);
+      if (s.minY >= 0.5) {
+        for (let x = s.minX + 0.5; x < s.maxX - 0.2; x += 2) push(x, s.minY - 0.17, (s.minZ + s.maxZ) * 0.5, 0.12, 0.34, sz * 0.9, 0x2c343e);
+      }
+    } else if (s.kind === 'door') {
+      push(s.minX - 0.1, cy, front + 0.05, 0.22, sy + 0.2, 0.14, 0x3a4350);
+      push(s.maxX + 0.1, cy, front + 0.05, 0.22, sy + 0.2, 0.14, 0x3a4350);
+      push(cx, top + 0.1, front + 0.05, sx + 0.44, 0.2, 0.14, 0x8a6a1a);
+    } else if (s.kind === 'wall' && sx >= 4 && sy >= 3) {
+      for (let x = s.minX + 1; x < s.maxX - 0.5; x += 2) push(x, cy, front + 0.02, 0.1, 0.1, 0.06, 0x56626f);
+    }
+  }
+
+  private buildTrim(): void {
+    const n = this.trimSpecs.length;
+    if (n === 0) return;
+    const im = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.55, metalness: 0.6 }),
+      n,
+    );
+    const d = new THREE.Object3D();
+    const c = new THREE.Color();
+    this.trimSpecs.forEach((t, i) => {
+      d.position.set(t.x, t.y, t.z);
+      d.scale.set(t.sx, t.sy, t.sz);
+      d.updateMatrix();
+      im.setMatrixAt(i, d.matrix);
+      im.setColorAt(i, c.setHex(t.color));
+    });
+    im.receiveShadow = true;
+    this.scene.add(im);
+    this.trimSpecs.length = 0;
   }
 
   private rebuildActorInstances(w: WorldState3D | { level: WorldState3D['level']; enemies?: WorldState3D['enemies']; barrels?: WorldState3D['barrels']; pickups?: WorldState3D['pickups'] }): void {
@@ -776,6 +835,10 @@ export class Scene3DRenderer {
     const bg = new THREE.Color(room ? room.ambientColor : 0x090e14).multiplyScalar(0.28);
     (this.scene.background as THREE.Color).lerp(bg, Math.min(1, dt * 3));
     (this.scene.fog as THREE.FogExp2).color.copy(this.scene.background as THREE.Color);
+    const fogTarget = Math.min(0.02, room ? SECTOR_FOG[room.sector] : 0.012);
+    this.fogDensity += (fogTarget - this.fogDensity) * Math.min(1, dt * 2);
+    (this.scene.fog as THREE.FogExp2).density = this.fogDensity;
+    this.decor?.update(tSec, w.player.body.x, w.player.body.y);
     if (inMeltdown) {
       const pulse = 0.5 + 0.5 * Math.sin(tSec * 8.5);
       this.alarmLight.intensity = 14 + pulse * 18;

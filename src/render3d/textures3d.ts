@@ -9,6 +9,47 @@ export interface FacilityTextures3D {
   grateMap: THREE.CanvasTexture;
   hazardMap: THREE.CanvasTexture;
   acidMap: THREE.CanvasTexture;
+  rockMap: THREE.CanvasTexture;
+  rockBump: THREE.CanvasTexture;
+  concreteMap: THREE.CanvasTexture;
+  cleanTileMap: THREE.CanvasTexture;
+  panelMap: THREE.CanvasTexture;
+  rustMetalMap: THREE.CanvasTexture;
+  macroMap: THREE.CanvasTexture;
+}
+
+/** Deterministic PRNG (no Math.random) shared by textures and decor layout. */
+export function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function speckle(ctx: CanvasRenderingContext2D, w: number, h: number, seed: number, count: number, light: string, dark: string): void {
+  const rnd = mulberry32(seed);
+  for (let i = 0; i < count; i++) {
+    ctx.fillStyle = rnd() < 0.5 ? light : dark;
+    ctx.fillRect(rnd() * w, rnd() * h, 1 + rnd() * 3, 1 + rnd() * 3);
+  }
+}
+
+function blotches(ctx: CanvasRenderingContext2D, w: number, h: number, seed: number, count: number, rgb: string, maxA: number): void {
+  const rnd = mulberry32(seed);
+  for (let i = 0; i < count; i++) {
+    const x = rnd() * w;
+    const y = rnd() * h;
+    const r = 12 + rnd() * 40;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(${rgb},${(rnd() * maxA).toFixed(3)})`);
+    g.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
 }
 
 let cached: FacilityTextures3D | null = null;
@@ -152,7 +193,109 @@ export function getFacilityTextures3D(): FacilityTextures3D {
     }
   });
 
+  const rockCanvas = makeCanvas(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = '#3a342d';
+    ctx.fillRect(0, 0, w, h);
+    blotches(ctx, w, h, 11, 40, '20,16,12', 0.5);
+    blotches(ctx, w, h, 12, 30, '90,78,62', 0.25);
+    speckle(ctx, w, h, 13, 900, '#5a5043', '#241f19');
+    ctx.strokeStyle = 'rgba(15,12,9,0.7)';
+    ctx.lineWidth = 2;
+    const rnd = mulberry32(14);
+    for (let i = 0; i < 9; i++) {
+      ctx.beginPath();
+      let x = rnd() * w;
+      let y = rnd() * h;
+      ctx.moveTo(x, y);
+      for (let k = 0; k < 5; k++) {
+        x += (rnd() - 0.5) * 50;
+        y += (rnd() - 0.2) * 40;
+        ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  });
+  const rockBumpCanvas = makeCanvas(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, w, h);
+    blotches(ctx, w, h, 21, 50, '255,255,255', 0.5);
+    blotches(ctx, w, h, 22, 50, '0,0,0', 0.5);
+    speckle(ctx, w, h, 23, 700, '#c0c0c0', '#303030');
+  });
+  const concreteCanvas = makeCanvas(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = '#2b323b';
+    ctx.fillRect(0, 0, w, h);
+    blotches(ctx, w, h, 31, 30, '10,14,18', 0.35);
+    blotches(ctx, w, h, 32, 24, '90,105,120', 0.18);
+    speckle(ctx, w, h, 33, 600, '#3a4552', '#1c2229');
+    ctx.strokeStyle = '#161b21';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(0, 0, w, h);
+    ctx.beginPath();
+    ctx.moveTo(w / 2, 0);
+    ctx.lineTo(w / 2, h);
+    ctx.stroke();
+    ctx.fillStyle = '#3d4856';
+    for (const [x, y] of [[10, 10], [w - 14, 10], [10, h - 14], [w - 14, h - 14]]) ctx.fillRect(x, y, 4, 4);
+  });
+  const tileCanvas = makeCanvas(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = '#7f9a94';
+    ctx.fillRect(0, 0, w, h);
+    const rnd = mulberry32(41);
+    for (let x = 0; x < w; x += 64) {
+      for (let y = 0; y < h; y += 64) {
+        const v = 120 + Math.floor(rnd() * 28);
+        ctx.fillStyle = `rgb(${v - 14},${v + 14},${v})`;
+        ctx.fillRect(x + 2, y + 2, 60, 60);
+      }
+    }
+    ctx.strokeStyle = '#33433f';
+    ctx.lineWidth = 3;
+    for (let i = 0; i <= w; i += 64) {
+      ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(w, i); ctx.stroke();
+    }
+    blotches(ctx, w, h, 42, 14, '30,60,40', 0.25);
+  });
+  const panelCanvas = makeCanvas(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = '#242a35';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#12161d';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(2, 2, w / 2 - 3, h - 4);
+    ctx.strokeRect(w / 2 + 1, 2, w / 2 - 3, h - 4);
+    ctx.fillStyle = '#3b4656';
+    for (const x of [10, w / 2 - 12, w / 2 + 10, w - 12]) {
+      for (let y = 12; y < h; y += 40) { ctx.beginPath(); ctx.arc(x, y, 2.5, 0, Math.PI * 2); ctx.fill(); }
+    }
+    ctx.fillStyle = '#0d1116';
+    for (let i = 0; i < 6; i++) ctx.fillRect(w / 2 + 24, 150 + i * 8, 72, 3);
+    blotches(ctx, w, h, 51, 12, '5,8,12', 0.35);
+  });
+  const rustCanvas = makeCanvas(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = '#3a3029';
+    ctx.fillRect(0, 0, w, h);
+    blotches(ctx, w, h, 61, 40, '120,60,28', 0.35);
+    blotches(ctx, w, h, 62, 30, '15,10,8', 0.4);
+    speckle(ctx, w, h, 63, 800, '#6b4a30', '#1e1712');
+    ctx.fillStyle = 'rgba(20,14,10,0.6)';
+    for (let y = 40; y < h; y += 80) ctx.fillRect(0, y, w, 3);
+  });
+  const macroCanvas = makeCanvas(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = '#b4b4b4';
+    ctx.fillRect(0, 0, w, h);
+    blotches(ctx, w, h, 71, 14, '255,255,255', 0.35);
+    blotches(ctx, w, h, 72, 14, '40,40,40', 0.4);
+  });
+
   cached = {
+    rockMap: asTiledTexture(rockCanvas, 1, 1, true),
+    rockBump: asTiledTexture(rockBumpCanvas, 1, 1, false),
+    concreteMap: asTiledTexture(concreteCanvas, 1, 1, true),
+    cleanTileMap: asTiledTexture(tileCanvas, 1, 1, true),
+    panelMap: asTiledTexture(panelCanvas, 1, 1, true),
+    rustMetalMap: asTiledTexture(rustCanvas, 1, 1, true),
+    macroMap: asTiledTexture(macroCanvas, 1, 1, true),
     deckMap: asTiledTexture(deckCanvas, 1, 1, true),
     deckBump: asTiledTexture(bumpCanvas, 1, 1, false),
     wallMap: asTiledTexture(wallCanvas, 1, 1, true),
