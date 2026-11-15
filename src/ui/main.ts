@@ -6,6 +6,7 @@ import { ABILITY_3D } from '../engine/motion3d.ts';
 import { LIGHT } from '../game/light.ts';
 import { createBot3D, type Bot3D } from '../game3d/bot3d.ts';
 import type { DoorLockKind3D, WeaponSlot3D } from '../game3d/types3d.ts';
+import { hunterHud } from '../game3d/hunter3d.ts';
 import {
   emptyInput3D,
   getPlayerPose3D,
@@ -14,6 +15,7 @@ import {
   RAIL_CHARGE_TICKS,
   respawnPlayer3D,
   setAssist3D,
+  SNEAK_MOVE_SCALE_3D,
   stepWorld3D,
   WEAPON_META,
   type AssistOptions3D,
@@ -241,7 +243,9 @@ function currentAim3D(): { x: number; y: number } {
 }
 
 function buildInput(): InputState3D {
-  const moveX = (keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0);
+  // Hold Ctrl or Alt to sneak: a slow, silent walk (the Reclaimer only hears running, dashing, jumping and firing)
+  const sneak = keys.has('ControlLeft') || keys.has('AltLeft');
+  const moveX = ((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0)) * (sneak ? SNEAK_MOVE_SCALE_3D : 1);
   const toggleLight = lightQueued;
   lightQueued = false;
   const dash = dashQueued || keys.has('ShiftLeft') || keys.has('ShiftRight') || mouse.rightDown;
@@ -895,6 +899,19 @@ function hud(): void {
   ui.bootsPill.hidden = !p.abilities.thrusterBoots;
   $('scan-pill').classList.toggle('active', p.scanTicks > 0);
   $('scan-state').textContent = p.scanTicks > 0 ? 'ACTIVE' : p.scanCooldown > 0 ? `${(p.scanCooldown / 60).toFixed(0)}s` : 'READY';
+  {
+    const zone = world.level.hunterZone;
+    const hh = hunterHud(world.hunter, zone, world.currentRoom === zone.sector, p.body.x, p.body.y);
+    const pill = $('hunter-pill');
+    pill.hidden = !hh.show;
+    if (hh.show) {
+      pill.classList.toggle('alarm', hh.label === 'ALERT' || hh.label === 'PURSUIT' || hh.label === 'COUNTER');
+      pill.classList.toggle('exposed', hh.label === 'EXPOSED');
+      pill.classList.toggle('off', hh.disabled);
+      $('hunter-state').textContent = hh.label === 'COUNTER' ? 'COUNTER [X]' : hh.label;
+      $('hunter-noise').style.width = `${Math.min(100, (world.hunter.noiseNow / 16) * 100)}%`;
+    }
+  }
   ui.etankCount.textContent = `${p.energyTanks}/${world.level.upgrades.filter((u) => u.kind === 'energy_tank').length}`;
   drawMinimap();
 

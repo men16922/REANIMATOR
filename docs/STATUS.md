@@ -42,6 +42,12 @@
 - **R9-Abuse** (`r9/abuse`): 보안 데크 Vault Nook(기댐 열림 가짜 벽, 시크릿 5, 완료율 총 23), 픽업 자석, 묵직한 픽업 음. [R9_ABUSE](R9_ABUSE.md)
 - **R9-Parry** (`r9/parry`): 근접 카운터(`X`/`C`), 스캔 펄스(`Z`). 키 배정 결정과 병합 보강(스캔이 기댐 벽을 시크릿으로 표시)은 [R9_PARRY](R9_PARRY.md).
 
+- **R10-Hunter** (`r10/hunter`): Bio-Labs 동쪽 구역의 E.M.M.I.풍 사냥꾼 Reclaimer(소음 감지, 카운터 QTE, 일반 사격 면역, Rail 오버차지·열린 바이저·키 아이템 소지 이탈로 영구 비활성). HUD `HUNTER ZONE`, 붉은 색조·스팅, Ctrl/Alt 살금걸음. 봇 Normal 5533 ticks HP 95/160 57 kills(이전 5362/112/56). [R10_HUNTER](R10_HUNTER.md)
+
+## 검증 기준선 (R10 브랜치, 구현 에이전트 관찰)
+
+- `make check` exit 0: tsc 통과, node 테스트 493/493, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks, vite build, dist-guard PASS(13 files, 14,804,985 B). 봇 won 5533 ticks, HP 95/160, 57 kills, 사망 0. 봉인 파일 무변경. 브라우저 확인은 Chrome 불가로 unverified.
+
 ## 검증 기준선 (R9 병합 후, 통합 에이전트 관찰)
 
 - `make check` exit 0: tsc 통과, node 테스트 459/459, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks, vite build, dist-guard PASS(13 files, 14,790,497 B, 218 대조). 봇 완주 won 5362 ticks, HP 112/160, 56 kills(변동 없음). 봉인 파일 무변경.

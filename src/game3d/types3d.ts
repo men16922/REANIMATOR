@@ -1,6 +1,8 @@
 // Shared Metroidvania 3D type contracts for REANIMATOR (Full 3D Side-View Action Platformer).
 // Keeps module dependencies acyclic across engine, game3d, render3d, and ui layers.
 
+import type { HunterZoneDef3D } from './hunter3d.ts';
+
 export type WeaponSlot3D = 1 | 2 | 3 | 4 | 5 | 6;
 export type ActorAnimAction = 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'death';
 export type SoundEventType3D =
@@ -65,7 +67,14 @@ export type SoundEventType3D =
   // Round 10: Melee Counter landed on the Core Warden (value = phase)
   | 'boss_counter'
   // Round 9: Scan Pulse started
-  | 'scan';
+  | 'scan'
+  // Round 10: Reclaimer hunter. alert = noticed you (music sting), grab = catch windup (counter now), ping = bullet bounced off its plating,
+  // counter = you countered the catch, off = unit disabled (value 0 left the zone with the key, 1 Rail into the open visor, 2 Overcharge)
+  | 'hunter_alert'
+  | 'hunter_grab'
+  | 'hunter_ping'
+  | 'hunter_counter'
+  | 'hunter_off';
 
 export interface SoundEvent3D {
   type: SoundEventType3D;
@@ -391,6 +400,8 @@ export interface Level3D {
   tunnels: CrawlTunnel3D[];
   /** Round 9: loot placed inside secret pockets (ammo and medical packs). */
   caches: CachePickup3D[];
+  /** Round 10: the Reclaimer hunter zone (one bounded stretch of Bio-Labs). */
+  hunterZone: HunterZoneDef3D;
 }
 
 export interface PlayerPoseState3D {

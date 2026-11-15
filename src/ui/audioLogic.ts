@@ -37,6 +37,12 @@ export const EVENT_SOUND: Record<SoundEventType3D, string> = {
   parry_whiff: 'combat.parry_whiff',
   boss_counter: 'boss.counter',
   scan: 'world.scan',
+  // Round 10 Reclaimer: alert is the music sting, grab the catch windup roar, ping a bullet off the plating
+  hunter_alert: 'stinger.hunter',
+  hunter_grab: 'hunter.grab',
+  hunter_ping: 'hunter.ping',
+  hunter_counter: 'hunter.counter',
+  hunter_off: 'hunter.off',
   boss_telegraph: 'boss.tele.slam',
   boss_charge: 'boss.charge',
   boss_summon: 'boss.summon',

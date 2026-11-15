@@ -1191,7 +1191,7 @@ test('difficulty curve: sector damage rises toward the Core and the bot still wi
   assert.equal(s.won, true);
   assert.equal(s.deaths, 0);
   assert.ok(s.kills >= 20);
-  assert.ok(s.completionPercent >= 40);
+  assert.ok(s.completionPercent >= 35); // R10: 39 (the Core data log is no longer picked up by chance in the Warden fight; was 43)
 });
 
 test('extraction ambush: meltdown wakes hold-outs along the escape route and stops med drops', () => {

@@ -52,8 +52,8 @@ test('Normal is the identity preset and keeps the pinned bot result', () => {
   assert.deepEqual(DIFFICULTY_PARAMS_3D.normal, { damage: 1, enemyHp: 1, tempo: 1, heal: 1, generousDrops: false, nearRespawn: false });
   const { w, deaths } = botRun('normal');
   assert.equal(w.status, 'won');
-  assert.equal(w.tick, 5362);
-  assert.equal(w.player.hp, 112);
+  assert.equal(w.tick, 5533); // R10: was 5362 before the Reclaimer (the bot counters its catch, then leaves the zone west of the Rail)
+  assert.equal(w.player.hp, 95);
   assert.equal(deaths, 0);
   const d = newWorld3D();
   assert.equal(d.difficulty, 'normal');

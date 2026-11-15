@@ -513,6 +513,23 @@ export function buildFacilityMap3D(): Level3D {
     mapStations,
     tunnels,
     caches,
+    hunterZone: {
+      id: 'zone_reclaimer',
+      sector: 'biolabs',
+      name: 'RECLAIMER ZONE',
+      // East wing of Bio-Labs: floor, the low plate (2.2) with the Rail-Cannon pedestal and the upper grate (4.4). The grate sits out of claw reach.
+      minX: 58.6,
+      maxX: 69.4,
+      minY: -1.6,
+      maxY: 6.8,
+      floorY: 0,
+      homeX: 64.2,
+      keyWeapon: 4,
+      gates: [
+        { id: 'gate-west', x: 58.6, y: 0, axis: 'x', size: 3.6 },
+        { id: 'gate-hatch', x: 65, y: 6.8, axis: 'y', size: 5.6 },
+      ],
+    },
     dataLogs,
     secrets: [
       { id: 'secret_alcove', sector: 'airlock', name: 'Cryo Alcove', doorId: 'door_secret_alcove' },

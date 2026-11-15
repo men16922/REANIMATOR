@@ -5,6 +5,10 @@
 import { stepBody3D, spawnBody3D, floorHeightAt3D, resolveHorizontal3D, ABILITY_3D, type Body3D } from '../engine/motion3d.ts';
 import { newLight, tickLight, toggleLight, type Light } from '../game/light.ts';
 import { buildCollider3D, buildFacilityMap3D } from './map3d.ts';
+import {
+  HUNTER_CLAW_REACH, HUNTER_SNEAK_SCALE, counterHunter, hunterParams, hunterHitsPoint, inHunterZone, newHunter3D, pingHunter, railHitHunter,
+  hunterSnares, stepHunter3D, type HunterCtx, type HunterState3D,
+} from './hunter3d.ts';
 import { hazardDangerWithin, hazardHits, hazardIdleTicks, hazardPhase } from './hazards.ts';
 import type {
   ActorAnimAction,
@@ -366,7 +370,7 @@ export const HAZARD_WARN_SCALE = 1.2;
 
 export type DeathCauseKey3D =
   | 'crusher' | 'laser' | 'vent' | 'rubble' | 'acid' | 'stalker' | 'crawler' | 'spitter' | 'spit'
-  | 'warden' | 'plasma' | 'shockwave' | 'explosion' | 'meltdown' | 'unknown';
+  | 'warden' | 'plasma' | 'shockwave' | 'explosion' | 'meltdown' | 'hunter' | 'unknown';
 
 export interface DeathCause3D {
   key: DeathCauseKey3D;
@@ -389,6 +393,7 @@ export const DEATH_CAUSES_3D: Record<DeathCauseKey3D, { label: string; tip: stri
   shockwave: { label: 'Caught by a shockwave', tip: 'Shockwaves travel along the floor. Jump as the ring reaches you.' },
   explosion: { label: 'Caught in a blast', tip: 'Your own rockets and barrels hurt too. Keep your distance.' },
   meltdown: { label: 'Lost in the meltdown', tip: 'The reactor clock is 90 s and a clean route needs about 15. Do not stop to fight.' },
+  hunter: { label: 'Caught by the Reclaimer', tip: 'Walk quietly (hold Ctrl or Alt), stay above its claw reach, or press X as the grab winds up. A full Rail charge disables it.' },
   unknown: { label: 'Systems failure', tip: 'Heal at Save stations and keep your hull topped up.' },
 };
 
@@ -545,6 +550,8 @@ export interface WorldState3D {
   lastHurt: DeathCauseKey3D | null;
   /** Rolling safe spot used by Story to respawn close to where the player fell. */
   checkpoint: { x: number; y: number; tick: number } | null;
+  /** Round 10: the Reclaimer hunter that owns the Bio-Labs east wing. */
+  hunter: HunterState3D;
 }
 
 export const WEAPON_META: Record<WeaponSlot3D, { name: string; cooldown: number; initialAmmo: number }> = {
@@ -958,6 +965,7 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
     deathCause: null,
     lastHurt: null,
     checkpoint: null,
+    hunter: newHunter3D(level.hunterZone),
   };
 }
 
@@ -1564,6 +1572,14 @@ function fireWeapon3D(w: WorldState3D, railFrac = 0): void {
       const d2 = pointToSegmentDistSq(e.x, e.y + e.height * 0.5, ox, oy, ex, ey);
       if (d2 <= (e.radius + 0.45 + 0.5 * frac) ** 2) damageEnemy(w, e, 125 + 135 * frac, dx * (6 + 4 * frac), 30, 4);
     }
+    const hu = w.hunter;
+    if (hu.alive && pointToSegmentDistSq(hu.x, hu.y + hu.height * 0.5, ox, oy, ex, ey) <= (hu.radius + 0.45) ** 2) {
+      if (railHitHunter(hu, frac, hunterPush(w))) {
+        w.shakeTicks = Math.max(w.shakeTicks, 24);
+        w.shakeStrength = Math.max(w.shakeStrength, 0.42);
+        setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE');
+      }
+    }
     for (const h of w.hives) {
       if (!h.alive) continue;
       if (pointToSegmentDistSq(h.x, h.y + h.height * 0.5, ox, oy, ex, ey) <= (h.radius + 0.35 + 0.5 * frac) ** 2) damageHive(w, h, 125 + 135 * frac, 4);
@@ -1693,6 +1709,12 @@ function stepProjectiles3D(w: WorldState3D): void {
           consumed = true;
           break;
         }
+      }
+      // The Reclaimer is immune to normal fire: shots spark off its plating (explosives still detonate on it)
+      if (!consumed && hunterHitsPoint(w.hunter, pr.x, pr.y, pr.radius)) {
+        if (explosive(pr.kind)) blast(pr);
+        else pingHunter(w.hunter, hunterPush(w));
+        consumed = true;
       }
       if (!consumed) {
         for (const h of w.hives) {
@@ -2436,6 +2458,22 @@ function stepCounter3D(w: WorldState3D, pressed: boolean): void {
     best = e;
     bestD = d;
   }
+  // The Reclaimer's catch is the same counter with the same window (the grab windup opens it for its last ticks)
+  const hu = w.hunter;
+  const huD = Math.abs(hu.x - p.body.x);
+  const huDy = p.body.y - hu.y;
+  if (hu.alive && hu.parryOpen && huD <= PARRY_REACH && huDy >= -0.6 && huDy <= HUNTER_CLAW_REACH + 0.2 && huD < bestD) {
+    const dir: 1 | -1 = hu.x >= p.body.x ? 1 : -1;
+    counterHunter(hu, p.body.x, hunterParams(w.difficulty, w.assist.hazardWarn), hunterPush(w), w.level.hunterZone);
+    p.facing = dir;
+    p.hurtInvulnTicks = Math.max(p.hurtInvulnTicks, PARRY_INVULN_TICKS + 20);
+    p.body.dashCooldown = 0;
+    w.shakeTicks = Math.max(w.shakeTicks, 14);
+    w.shakeStrength = Math.max(w.shakeStrength, 0.34);
+    w.events.push({ type: 'parry', value: -1 });
+    setHint(w, 'COUNTER! ITS VISOR IS OPEN. FIRE THE RAIL-CANNON');
+    return;
+  }
   if (!best) {
     p.counterCooldown = PARRY_WHIFF_COOLDOWN;
     w.events.push({ type: 'parry_whiff' });
@@ -2481,6 +2519,55 @@ function stepCounter3D(w: WorldState3D, pressed: boolean): void {
     w.pickups.push({ id: `drop-${w.nextId++}`, kind: ammo ? 'ammo' : 'med', value: ammo ? 8 : 12, x: e.x, y: e.y, z: 0, taken: false });
   }
 }
+
+function hunterPush(w: WorldState3D): Pick<HunterCtx, 'push'> {
+  return { push: (type, value) => { w.events.push(value === undefined ? { type } : { type, value }); } };
+}
+
+/** Round 10: advance the Reclaimer. Reads only the player body, this tick's events and the preset (never the headlamp). */
+function stepHunter(w: WorldState3D): void {
+  const p = w.player;
+  const b = p.body;
+  const zone = w.level.hunterZone;
+  const fired = w.events.some((ev) => ev.type === 'pulse' || ev.type === 'scatter' || ev.type === 'grenade' || ev.type === 'rail' || ev.type === 'rocket' || ev.type === 'flamer');
+  const jumped = w.events.some((ev) => ev.type === 'jump' || ev.type === 'double_jump' || ev.type === 'wall_jump');
+  const ctx: HunterCtx = {
+    zone,
+    params: hunterParams(w.difficulty, w.assist.hazardWarn),
+    playerX: b.x,
+    playerY: b.y,
+    playerVx: b.vx,
+    playerGrounded: b.grounded,
+    playerDashing: b.dashTicks > 0,
+    playerFired: fired,
+    playerJumped: jumped,
+    hasKey: p.unlocked[zone.keyWeapon as WeaponSlot3D],
+    inSector: w.currentRoom === zone.sector,
+    hit: (damage, knockX) => {
+      const before = p.hp;
+      damagePlayer(w, damage, knockX, 'hunter');
+      if (p.hp < before) {
+        p.hurtInvulnTicks = Math.max(p.hurtInvulnTicks, 70);
+        w.shakeTicks = Math.max(w.shakeTicks, 18);
+        w.shakeStrength = Math.max(w.shakeStrength, 0.5);
+        return true;
+      }
+      return false;
+    },
+    push: (type, value) => { w.events.push(value === undefined ? { type } : { type, value }); },
+  };
+  const wasAlive = w.hunter.alive;
+  stepHunter3D(w.hunter, ctx);
+  if (wasAlive && !w.hunter.alive) setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE');
+}
+
+/** True while the player is inside the hunter zone volume (HUD, tests). */
+export function playerInHunterZone3D(w: Readonly<WorldState3D>): boolean {
+  return inHunterZone(w.level.hunterZone, w.player.body.x, w.player.body.y);
+}
+
+/** Held-sneak input scale (main.ts applies it to moveX; exported so the UI and the tests agree on the number). */
+export const SNEAK_MOVE_SCALE_3D = HUNTER_SNEAK_SCALE;
 
 /** Scan Pulse: edge press starts the reveal when the cooldown is over. Timers only; nothing else reads them. */
 function stepScan3D(w: WorldState3D, pressed: boolean): void {
@@ -2924,6 +3011,7 @@ export function respawnPlayer3D(w: WorldState3D): void {
   w.combo.ticksLeft = 0;
   w.projectiles = w.projectiles.filter((pr) => pr.fromPlayer);
   w.shockwaves = [];
+  resetHunterChase(w);
   // A dead escape run restarts the bridge script so the route can never be left broken
   for (const c of w.collapses) {
     for (const id of c.fallen) w.openDoors.delete(`collapse:${id}`);
@@ -2933,6 +3021,25 @@ export function respawnPlayer3D(w: WorldState3D): void {
   }
   if (w.meltdownTicks === 0) w.meltdownTicks = MELTDOWN_TICKS;
   w.status = 'playing';
+}
+
+/** A defeat sends the hunter back to its patrol (a retired unit stays retired). */
+function resetHunterChase(w: WorldState3D): void {
+  const h = w.hunter;
+  if (!h.alive) return;
+  h.state = 'patrol';
+  h.stateTicks = 0;
+  h.windupTicks = 0;
+  h.staggerTicks = 0;
+  h.exposedTicks = 0;
+  h.parryOpen = false;
+  h.lostTicks = 0;
+  h.alarmTicks = 0;
+  h.waitTicks = 60;
+  h.vx = 0;
+  h.deafTicks = 0;
+  h.x = w.level.hunterZone.homeX;
+  h.targetX = h.x;
 }
 
 /** Story auto checkpoint: record a calm, grounded spot on sector entry and every 3 s after, never inside a hazard column or next to a live foe. */
@@ -3015,6 +3122,11 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
     // Deterministic intro: movement/fire ignored, aim kept so the cursor still tracks
     w.bossIntroTicks--;
     input = { ...emptyInput3D(), aimX: rawInput.aimX, aimY: rawInput.aimY };
+  }
+
+  // Reclaimer claw: while the grab windup holds the player, movement, jump and dash are ignored (counter and fire still work)
+  if (hunterSnares(w.hunter, w.player.body.x, w.player.body.y)) {
+    input = { ...input, moveX: 0, jump: false, dash: false, dropDown: false };
   }
 
   const p = w.player;
@@ -3251,6 +3363,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   stepCollapse3D(w);
   stepHives3D(w);
   stepEnemies3D(w);
+  stepHunter(w);
   stepShockwaves3D(w);
 
   updateCompletion3D(w);
