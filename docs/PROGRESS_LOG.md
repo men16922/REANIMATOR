@@ -161,3 +161,10 @@
 - (b) White sphere in orange wireframe dome: most likely the Explosion mesh (wireframe icosahedron + white additive core sphere, bot fired near the barrel/crawlers). Core is now ex.color, radius 0.4, opacity 0.4. Unverified visually.
 - (a) Dark foreground box: not identified by code alone. Candidate: `airlock-crate` (full-lane solid, front face z=3.2). Crate render depth is now capped at z=1.2. Confirm with `__reanimatorPick(320, 650)`. Unverified visually.
 - `make check` exit 0.
+
+## 라운드4 FEAT-002: 픽 훅·적 렌더 텔레메트리·테스트 강화 (2026-11-15)
+- `Scene3DRenderer.pickAt(px,py,includePoints=false)`: `Points` 기본 제외, Sprite 포함. 적 루트 `enemy:<id>`·`userData{enemyId,kind,state}`(매 프레임 state 갱신), 리그 적에 invisible 박스 프록시. 히트 결과에 `enemy:{enemyId,kind,state}`.
+- `window.__reanimator().enemyRender`: 리그 적별 `{yaw, clip, timeScale, x, y, z}`(렌더 보간 위치·부드러운 yaw·현재 클립·timeScale).
+- 시뮬 정리 보류: crawler/stalker 추격의 `attackCooldown` 검사는 dead가 아니다. recover 진입 시 70/84로 설정되고 recover(30/40 tick) 후에도 약 40 tick 남아 re-windup 지연과 후퇴를 만든다(`crawler does not re-windup` 테스트가 보호). 제거하면 동작이 바뀌어 유지. 리뷰 문서의 "항상 0" 판단은 이후 코드와 불일치.
+- 테스트: 회전 지연은 flip tick === `ENEMY_TURN_DELAY_3D`(8)·turnTicks 증가·리셋 단언, homeX 복귀는 추격 과행 8.12 m, patrol 복귀 tick 200–260, 단조 감소, home 도달 ≤470 tick, 최종 순찰 범위 이내로 단언.
+- 브라우저 재확인(unverified): `__reanimatorAdvance([], {x:34,y:-7,boots:true,hp:999})`(e-shaft-2 stalker 근처) 후 `__reanimatorPick(435,620)` 결과에 `enemy.enemyId==='e-shaft-2'`가 있는지, 기본 호출에 `type:'Points'`가 없고 `__reanimatorPick(435,620,true)`에만 나오는지. `__reanimator().enemyRender['e-shaft-2']`의 yaw·clip(chase 중 run/walk, windup 중 attack)·timeScale(attack hold 0)·x,y 확인.

@@ -150,6 +150,8 @@ export class Scene3DRenderer {
   private trimMesh: THREE.InstancedMesh | null = null;
   private readonly muzzleGlows: THREE.Mesh[] = [];
   private readonly riggedEnemies = new Map<string, RiggedInstance>();
+  private readonly pickProxyMaterial = new THREE.MeshBasicMaterial({ visible: false });
+  private readonly enemyRenderInfo = new Map<string, { yaw: number; x: number; y: number; z: number }>();
   private readonly staticEnemies = new Map<string, StaticActorHandle>();
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
   private readonly pickupHandles = new Map<string, THREE.Group>();
@@ -351,8 +353,23 @@ export class Scene3DRenderer {
     }
     const enemyStates: Record<string, string> = {};
     for (const [id, st] of this.lastEnemyStates) enemyStates[id] = st;
+    const r3 = (n: number): number => Math.round(n * 1000) / 1000;
+    const enemyRender: Record<string, { yaw: number; clip: string; timeScale: number; x: number; y: number; z: number }> = {};
+    for (const [id, rig] of this.riggedEnemies) {
+      const info = this.enemyRenderInfo.get(id);
+      if (!info) continue;
+      enemyRender[id] = {
+        yaw: r3(info.yaw),
+        clip: rig.currentAnim,
+        timeScale: r3(rig.actions[rig.currentAnim]?.timeScale ?? 0),
+        x: r3(info.x),
+        y: r3(info.y),
+        z: r3(info.z),
+      };
+    }
     return {
       enemyStates,
+      enemyRender,
       modelsLoaded: this.modelsReady,
       loadedModels: getLoadedModelNames3D(),
       failedModels: getFailedModelNames3D(),
@@ -363,14 +380,18 @@ export class Scene3DRenderer {
     };
   }
 
-  /** Debug only: raycast from a CSS-pixel viewport point and list intersected meshes, nearest first. */
-  public pickAt(px: number, py: number): Array<Record<string, unknown>> {
+  /**
+   * Debug only: raycast from a CSS-pixel viewport point and list intersected meshes, nearest first.
+   * Atmosphere Points (dust, spores) are skipped unless includePoints is set; Sprites are included.
+   * Hits inside an enemy report `enemy: { enemyId, kind, state }`.
+   */
+  public pickAt(px: number, py: number, includePoints = false): Array<Record<string, unknown>> {
     const rect = this.renderer.domElement.getBoundingClientRect();
     const ndc = new THREE.Vector2(((px - rect.left) / rect.width) * 2 - 1, -(((py - rect.top) / rect.height) * 2 - 1));
     this.camera.updateMatrixWorld();
     const rc = new THREE.Raycaster();
     rc.setFromCamera(ndc, this.camera);
-    const hits = rc.intersectObjects(this.scene.children, true);
+    const hits = rc.intersectObjects(this.scene.children, true).filter((h) => includePoints || h.object.type !== 'Points');
     const hex = (c: unknown): string | null => (c instanceof THREE.Color ? `#${c.getHexString()}` : null);
     return hits.map((h) => {
       const o = h.object as THREE.Object3D & { material?: THREE.Material | THREE.Material[] };
@@ -379,10 +400,14 @@ export class Scene3DRenderer {
       };
       let named: THREE.Object3D | null = o;
       while (named && !named.name) named = named.parent;
+      let enemyNode: THREE.Object3D | null = o;
+      while (enemyNode && enemyNode.userData.enemyId === undefined) enemyNode = enemyNode.parent;
+      const ud = enemyNode?.userData;
       return {
-        name: o.name || named?.name || '',
+        name: enemyNode ? enemyNode.name : o.name || named?.name || '',
         type: o.type,
         userData: { ...o.userData, ...(named && named !== o ? { parentUserData: named.userData } : {}) },
+        enemy: ud ? { enemyId: ud.enemyId, kind: ud.kind, state: ud.state } : null,
         materialType: m?.type ?? null,
         color: hex(m?.color),
         emissive: hex(m?.emissive),
@@ -751,6 +776,7 @@ export class Scene3DRenderer {
     for (const st of this.staticEnemies.values()) this.scene.remove(st.root);
     this.staticEnemies.clear();
     this.enemyViz.clear();
+    this.enemyRenderInfo.clear();
     for (const b of this.barrelHandles.values()) this.scene.remove(b.root);
     this.barrelHandles.clear();
     if (this.coreModel) {
@@ -788,6 +814,16 @@ export class Scene3DRenderer {
         rig.root.position.set(e.x, e.y, e.z);
         rig.root.rotation.order = 'YXZ';
         tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, ENEMY_TINT_3D[e.kind]);
+        const bodyH = e.kind === 'warden' ? 3.15 : 1.78;
+        const bodyW = e.kind === 'warden' ? 1.8 : 0.9;
+        // Invisible pick proxy: skinned meshes can miss raycasts, the box keeps enemies pickable
+        const proxy = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyW), this.pickProxyMaterial);
+        proxy.name = `enemy-proxy:${e.id}`;
+        proxy.visible = false;
+        proxy.position.y = bodyH / 2;
+        rig.root.add(proxy);
+        rig.root.name = `enemy:${e.id}`;
+        rig.root.userData = { enemyId: e.id, kind: e.kind, state: 'dormant' };
         this.scene.add(rig.root);
         this.riggedEnemies.set(e.id, rig);
       } else {
@@ -797,6 +833,8 @@ export class Scene3DRenderer {
         st.root.position.set(e.x, e.y, e.z);
         st.root.rotation.order = 'YXZ';
         tuneEnemyMaterials3D(st.materials, st.baseEmissive, ENEMY_TINT_3D[e.kind]);
+        st.root.name = `enemy:${e.id}`;
+        st.root.userData = { enemyId: e.id, kind: e.kind, state: 'dormant' };
         this.scene.add(st.root);
         this.staticEnemies.set(e.id, { ...st, baseScale: h });
       }
@@ -1065,6 +1103,8 @@ export class Scene3DRenderer {
 
       const rig = this.riggedEnemies.get(e.id);
       if (rig) {
+        rig.root.userData.state = e.alive ? e.state : 'dead';
+        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0 });
         rig.root.position.set(ex, ey, 0);
         rig.root.rotation.set(-v.recoil * 0.12, v.yaw, v.lean);
         rig.root.scale.setScalar(1 + v.recoil * 0.05);
@@ -1102,6 +1142,7 @@ export class Scene3DRenderer {
       const st = this.staticEnemies.get(e.id);
       if (st) {
         const r = st.root;
+        r.userData.state = e.alive ? e.state : 'dead';
         let sx = 1;
         let sy = 1;
         let sz = 1;

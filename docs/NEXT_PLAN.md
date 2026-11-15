@@ -55,3 +55,8 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 - core: 붉은 톤, 보스 충격파와 Meltdown 경보 시 ambient가 붉게 전환, 종료 후 프리셋 색 복귀.
 - 방 전환 시 색·강도가 약 0.4초에 걸쳐 부드럽게 변하는지(깜빡임 없음).
 - 이후 `__reanimatorRunBot(4000)`으로 완주 유지 확인(시뮬 기준 3674 ticks).
+
+### 라운드4 FEAT-002 브라우저 재확인(unverified)
+
+- `__reanimatorAdvance([], {x:34,y:-7,boots:true,hp:999})` 후 `__reanimatorPick(435,620)`: 첫 항목 또는 목록에 `enemy.enemyId === 'e-shaft-2'`(stalker). 기본 호출에 `type:'Points'` 없음, 세 번째 인자 `true`일 때만 Points 포함.
+- `__reanimator().enemyRender`: 각 리그 적 `yaw`(rad), `clip`(idle/walk/run/attack/death), `timeScale`(걷기·달리기는 속도 비례, 공격 hold는 0), `x/y/z`. 시뮬 `x`와 보간 차이가 1 tick 이내인지 확인.

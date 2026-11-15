@@ -462,7 +462,7 @@ function buildSnapshot() {
   const warden = world.enemies.find((e) => e.kind === 'warden');
   const tel = scene3d
     ? scene3d.getTelemetry()
-    : { modelsLoaded: false, loadedModels: [], failedModels: [], riggedCount: 0, activeAnimations: {} };
+    : { modelsLoaded: false, loadedModels: [], failedModels: [], riggedCount: 0, activeAnimations: {}, enemyRender: {} as Record<string, { yaw: number; clip: string; timeScale: number; x: number; y: number; z: number }> };
   const b = world.player.body;
   return {
     lab: lab ? { id: lab.scenario.id, status: lab.status, mutation: lab.mutation } : null,
@@ -551,7 +551,7 @@ const wAny = window as unknown as {
   __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D) => ReturnType<typeof buildSnapshot>;
   __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => ReturnType<typeof buildSnapshot>;
   __reanimatorRunBot: (maxTicks: number, untilStep?: string) => ReturnType<typeof buildSnapshot>;
-  __reanimatorPick: (px: number, py: number) => Array<Record<string, unknown>>;
+  __reanimatorPick: (px: number, py: number, includePoints?: boolean) => Array<Record<string, unknown>>;
 };
 
 function enterManual(): void {
@@ -602,7 +602,7 @@ wAny.__reanimatorRunBot = (maxTicks, untilStep) => {
 };
 
 /** Debug only: list meshes under a CSS-pixel viewport point, nearest first. */
-wAny.__reanimatorPick = (px, py) => scene3d?.pickAt(px, py) ?? [];
+wAny.__reanimatorPick = (px, py, includePoints = false) => scene3d?.pickAt(px, py, includePoints) ?? [];
 
 show('title');
 requestAnimationFrame(frame);

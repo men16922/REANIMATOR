@@ -524,6 +524,8 @@ test('Reckless-input difficulty probe measures HP loss deterministically', () =>
 import {
   ENEMY_ACCEL_3D,
   ENEMY_BRAKE_MUL_3D,
+  ENEMY_PATROL_RANGE_3D,
+  ENEMY_TURN_DELAY_3D,
   type EnemyState3D,
 } from '../src/game3d/world3d.ts';
 
@@ -554,14 +556,19 @@ test('monster AI: facing does not flip in one tick when the player crosses over'
   w.player.hp = 100;
   stepWorld3D(w, emptyInput3D());
   assert.equal(e.facing, before, 'facing must not flip on the crossing tick');
+  assert.equal(e.state, 'chase');
+  assert.equal(e.turnTicks, 1, 'crossing tick starts the turn counter');
   let flipTick = -1;
-  for (let i = 1; i <= 30 && flipTick < 0; i++) {
+  for (let i = 2; i <= 30 && flipTick < 0; i++) {
     placePlayer(w, e.x + 3, e.y);
     w.player.hp = 100;
     stepWorld3D(w, emptyInput3D());
     if (e.facing !== before) flipTick = i;
+    else assert.equal(e.turnTicks, i, 'turn counter advances one per tick');
   }
-  assert.ok(flipTick >= 5 || e.state === 'windup' || e.state === 'attack', `flip delayed (tick ${flipTick})`);
+  assert.equal(flipTick, ENEMY_TURN_DELAY_3D, 'facing flips exactly at the turn delay');
+  assert.equal(e.facing, -before);
+  assert.equal(e.turnTicks, 0, 'turn counter resets after the flip');
 });
 
 test('monster AI: crawler windup is observable and damage only lands during the lunge', () => {
@@ -592,15 +599,33 @@ test('monster AI: enemy returns toward homeX after the player leaves', () => {
   e.x = home + 3.5;
   placePlayer(w, home + 60, e.y); // far away: beyond 26 m
   w.currentRoom = e.zone === 'core' ? 'airlock' : 'core';
-  const d0 = Math.abs(e.x - home);
+  let patrolStart = -1;
+  let distAtPatrolStart = 0;
+  let homeTick = -1;
   let maxDist = 0;
+  let prevDist = Infinity;
   for (let i = 0; i < 700; i++) {
     w.player.hp = 100;
     w.player.body.x = home + 60;
     stepWorld3D(w, emptyInput3D());
-    maxDist = Math.max(maxDist, Math.abs(e.x - home));
+    const d = Math.abs(e.x - home);
+    maxDist = Math.max(maxDist, d);
+    if (patrolStart < 0 && (e.state as string) === 'patrol') {
+      patrolStart = i;
+      distAtPatrolStart = d;
+    }
+    if (homeTick < 0 && patrolStart >= 0 && d < 0.5) homeTick = i;
+    if (patrolStart >= 0 && homeTick < 0) {
+      assert.ok(d <= prevDist + 1e-9, `distance must not grow while returning (tick ${i}: ${d} > ${prevDist})`);
+    }
+    prevDist = d;
   }
-    assert.ok(Math.abs(e.x - home) <= 4.6, `stays within patrol range (${Math.abs(e.x - home)}, start ${d0})`);
+  assert.ok(maxDist > 8 && maxDist < 8.3, `chase overshoot ${maxDist}`);
+  assert.ok(patrolStart >= 200 && patrolStart <= 260, `gave up chase at tick ${patrolStart}`);
+  assert.ok(distAtPatrolStart > 7, `returned from ${distAtPatrolStart}`);
+  assert.ok(homeTick > patrolStart + 150 && homeTick <= 470, `reached home at tick ${homeTick}`);
+  assert.equal(e.state, 'patrol');
+  assert.ok(Math.abs(e.x - home) <= ENEMY_PATROL_RANGE_3D + 0.6, `stays within patrol range (${Math.abs(e.x - home)})`);
 });
 
 test('monster AI: vx per-tick change is bounded by the accel limit', () => {

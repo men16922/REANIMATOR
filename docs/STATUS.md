@@ -32,3 +32,4 @@
 
 - 2026-11-15 몬스터·지형 전면 개선(FEAT-001~005) 완료: `make check` exit 0, 테스트 54/54, 봇 완주 3674 ticks HP 160, reach3d 52 wp 3431 ticks, dist-guard PASS(13 files 14,384,687 B). 렌더 draw call/triangles는 `__reanimator().drawCalls/triangles`로 읽도록 추가했으나 값 unverified. 시각·fps 전부 unverified.
 - 2026-11-15: 샤프트 문 emissive 단색 면 수정·ambient 상향 적용(`make check` exit 0). 브라우저 시각 재확인 unverified.
+- 2026-11-15 디버그·텔레메트리(라운드4 FEAT-002): `__reanimatorPick(px,py,includePoints?)`는 기본으로 대기 Points(먼지·포자)를 제외하고 Sprite를 포함한다. 적 루트는 `enemy:<id>` + `userData{enemyId,kind,state}`, 리그 적은 보이지 않는 박스 프록시(`enemy-proxy:<id>`)를 가져 히트에 `enemy` 필드가 붙는다. `__reanimator().enemyRender[id]`는 `{yaw, clip, timeScale, x, y, z}`(리그 적만). 몬스터 테스트(회전 지연 정확히 8 tick, homeX 복귀 구간)를 구체 값으로 강화. 브라우저 동작은 unverified.
