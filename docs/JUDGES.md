@@ -86,3 +86,4 @@ All are on `window` (declared in `src/ui/main.ts`). Every synchronous one cancel
 ## R12 additions
 
 - Bot respawn routing, shot dodging and counters, plus debug hook robustness (`continue` mode, supersede rule, `debug` and `layers` fields) and result screen copy. Details: [R12_ROBUST](R12_ROBUST.md). Browser behaviour unverified.
+- Integrated R12: diegetic extraction hatch and pickups ([R12_LOOK](R12_LOOK.md)), display-only enemy poses and bestiary view ([R12_MOTION](R12_MOTION.md)), softened first airlock encounter and always-resumable defeat ([R12_ONBOARD](R12_ONBOARD.md)). Bot Normal 5444 ticks HP 140.

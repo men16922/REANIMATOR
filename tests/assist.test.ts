@@ -52,10 +52,11 @@ test('Normal is the identity preset and keeps the pinned bot result', () => {
   assert.deepEqual(DIFFICULTY_PARAMS_3D.normal, { damage: 1, enemyHp: 1, tempo: 1, heal: 1, generousDrops: false, nearRespawn: false });
   const { w, deaths } = botRun('normal');
   assert.equal(w.status, 'won');
+  // R12 integrated (onboard softened first encounter + robust bot): 5444 / HP 140. Robust alone was 5708 / 126.
   // R12 robust bot (dodges hostile shots on the dash i-frames, counters open windows): 5708 / HP 126.
   // R12 enemy locomotion was 5522 / 95; R10 was 5533; 5362 before the Reclaimer
-  assert.equal(w.tick, 5708);
-  assert.equal(w.player.hp, 126);
+  assert.equal(w.tick, 5444);
+  assert.equal(w.player.hp, 140);
   assert.equal(deaths, 0);
   const d = newWorld3D();
   assert.equal(d.difficulty, 'normal');
@@ -82,7 +83,7 @@ test('Hard: reckless is harsher, bot still wins without dying', () => {
   const { w, deaths, minHp } = botRun('hard');
   assert.equal(w.status, 'won');
   assert.equal(deaths, 0);
-  assert.ok(minHp >= 80, `min HP ${minHp}`); // R12 robust bot: 100 (never under the base pool), was 48 with floor 40
+  assert.ok(minHp >= 80, `min HP ${minHp}`); // R12 integrated bot: 100 (never under the base pool), was 48 with floor 40
 });
 
 test('Story: bot wins and ends healthier than on Hard', () => {

@@ -2,6 +2,13 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R12 병합 후
+
+- [x] look, motion, onboard, robust 병합, `make check` 통과(568/568). 봇 Normal 5444/HP 140.
+- [ ] 브라우저 확인(unverified): 추출 해치·픽업·레티클·섹터 그레이딩, 베스티어리 포즈(`__reanimatorShowcase('bestiary')`), 에어록 튜토리얼 조우 체감, 세이브 없는 패배 후 Resume, `make smoke-local`, 쇼케이스 재촬영.
+- [ ] 리뷰 잔여: replan 레인 모호성(겹친 구역), 오래된 UiAudit continues no-op.
+- [ ] `/private/tmp/r12-*` worktree와 `r12/*` 브랜치는 사용자가 정리.
+
 ## R9–R11 세션 마감 후 (남은 항목)
 
 - [ ] **푸시 대기**: github.com DNS 실패로 `git push origin main`을 못 했다. 사용자가 직접 실행.

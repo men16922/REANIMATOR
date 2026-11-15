@@ -186,3 +186,4 @@ worktree `/private/tmp/r8-{leak,lab,assist,lore}`에서 4트랙을 돌리고 통
 
 - R12: delegated sub-agent made the game English-only and amplified single-mesh enemy locomotion; checked with Playwright telemetry and `make check`.
 - R12 enemy locomotion: delegated sub-agent diagnosed the stuck crawlers with headless sim traces, fixed `world3d.ts`/`bot3d.ts`/`scene3dFull.ts`, added `tests/enemy-ai.test.ts`, ran `make check` (exit 0) and sampled `__reanimator().enemyRender` with Playwright.
+- R12 integration: delegated sub-agent merged the four R12 branches, resolved the `main.ts` conflict (onboard resume rule over robust copy), re-measured and re-pinned the bot, retimed two showcase cuts, and ran `make check` (exit 0, 568/568).

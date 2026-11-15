@@ -75,3 +75,7 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 
 - R12: English-only text (lore KO tables, locale, language toggle removed). Crawler/spitter procedural gait amplified (yaw swing added) so single-mesh enemies visibly move; `tests/enemy-locomotion.test.ts` added; `make check` passed.
 - R12 enemy locomotion: airlock crawlers were stuck against `airlock-crate` (1.4 m) at x 11.02 with `vx` -8.8 (pose ran in place). Sim now hops low obstacles, gives up to patrol behind walls/doors, separates stalled foes, and drives pose from real displacement with hysteresis. Bot keeps its dash for Warden charges. Bot Normal 5522 ticks HP 95 (pin updated), Story 5606 HP 146, Hard 5633 HP 48. `make check` exit 0 (544/544). Playwright sampling in six sectors showed crawl/leap/land/idle with changing x.
+
+## 2026-11-15 — R12 integration
+
+- Status: merged r12/look, r12/motion, r12/onboard, r12/robust with `--no-ff`, no push, sealed files untouched. Onboard behaviour won the no-save resume conflict. `debug.stoppedOn` fixed. Re-pinned bot: Normal 5444 HP 140, Story 5812 HP 143, Hard 5121 HP 133 (min 100). SHOWCASE_REEL ticks 4750/5400. `make check` exit 0 (568/568, reach3d 52 waypoints 3432 ticks).
