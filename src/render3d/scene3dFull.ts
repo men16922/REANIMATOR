@@ -57,6 +57,7 @@ import { mergeStaticChildren } from './meshMerge.ts';
 import { buildHazards3D, type Hazards3D } from './hazards3d.ts';
 import { buildAmmoItem, buildMetroid3D, buildSlideItem, type Metroid3D } from './metroid3d.ts';
 import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
+import { buildVista3D, type Vista3D } from './vista3d.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
 /** Static scenery that is hidden while it is outside the camera window (render-only). */
@@ -365,6 +366,7 @@ export class Scene3DRenderer {
   private readonly pendingBatches = new Map<string, PendingBatch>();
   private readonly cullEntries: CullEntry[] = [];
   private decor: Decor3D | null = null;
+  private vista: Vista3D | null = null;
   private hazards3d: Hazards3D | null = null;
   private metroid3d: Metroid3D | null = null;
   private slideSquash = 0;
@@ -646,6 +648,7 @@ export class Scene3DRenderer {
       drawCalls: this.renderer.info.render.calls,
       triangles: this.renderer.info.render.triangles,
       perf: this.getPerfTelemetry(),
+      vista: this.vista ? this.vista.telemetry() : { sector: null, visible: false, drawCalls: 0 },
       fx: this.fx.telemetry(),
       player: this.heroFrame && this.heroGear
         ? {
@@ -746,6 +749,7 @@ export class Scene3DRenderer {
   public setViewMode(m: ViewMode): void {
     this.viewMode = m;
     this.mood?.setClassic(m === 'classic');
+    this.vista?.setClassic(m === 'classic');
     this.hazards3d?.setClassic(m === 'classic');
     this.applyClassicGlow();
     if (m === 'classic' && !this.classic) this.classic = new ClassicPipeline(this.renderer);
@@ -840,6 +844,9 @@ export class Scene3DRenderer {
     this.buildTrim();
     this.decor?.dispose();
     this.decor = buildDecor3D(this.scene, w.level, tex);
+    this.vista?.dispose();
+    this.vista = buildVista3D(this.scene, w.level);
+    this.vista.setClassic(this.viewMode === 'classic');
     this.mood?.dispose();
     this.mood = buildMood3D(this.scene, w.level);
     this.hazards3d?.dispose();
@@ -1294,6 +1301,7 @@ export class Scene3DRenderer {
     const vy1 = this.camFocus.y + halfH;
     for (const c of this.cullEntries) c.obj.visible = c.maxX >= vx0 && c.minX <= vx1 && c.maxY >= vy0 && c.minY <= vy1;
     this.decor?.setView(vx0, vx1, vy0, vy1);
+    this.vista?.setView(vx0, vx1, vy0, vy1);
     const out = (o: THREE.Object3D): boolean => {
       const p = o.position;
       return p.x < vx0 - 3 || p.x > vx1 + 3 || p.y < vy0 - 3 || p.y > vy1 + 3;
@@ -1814,6 +1822,7 @@ export class Scene3DRenderer {
     this.fogDensity += (fogTarget - this.fogDensity) * Math.min(1, dt * 2);
     (this.scene.fog as THREE.FogExp2).density = this.fogDensity;
     this.decor?.update(tSec, w.player.body.x, w.player.body.y, this.reduceMotion);
+    this.vista?.update(tSec, { playerX: w.player.body.x, playerY: w.player.body.y, reduce: this.reduceMotion, meltdown: inMeltdown });
     this.mood?.update(tSec, this.reduceMotion);
     this.hazards3d?.update(w, tSec, dt, this.fx.smoke, this.reduceMotion);
     this.metroid3d?.update(w, tSec, dt, this.reduceMotion);

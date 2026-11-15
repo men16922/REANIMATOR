@@ -180,3 +180,29 @@ test('front lift shader snippet targets camera-facing faces only', () => {
   assert.match(g, /smoothstep\(0\.45, 0\.95, normal\.z\)/);
   assert.match(g, /totalEmissiveRadiance \+=/);
 });
+
+test('vista meshes and materials stay within budget', async () => {
+  const { buildVista3D, VISTA_MAX_DRAWCALLS_PER_SECTOR } = await import('../src/render3d/vista3d.ts');
+  const scene = new THREE.Scene();
+  const vista = buildVista3D(scene, level);
+  const perSector = new Map<string, number>();
+  const mats = new Set<THREE.Material>();
+  scene.traverse((o) => {
+    const m = o as THREE.Mesh;
+    if (!m.isMesh) return;
+    const sector = o.parent?.name ?? '';
+    perSector.set(sector, (perSector.get(sector) ?? 0) + 1);
+    for (const mm of Array.isArray(m.material) ? m.material : [m.material]) mats.add(mm);
+  });
+  assert.equal(perSector.size, level.rooms.length);
+  for (const [name, n] of perSector) assert.ok(n <= Math.min(5, VISTA_MAX_DRAWCALLS_PER_SECTOR), `${name} vista meshes ${n}`);
+  assert.ok(mats.size <= 2 + level.rooms.length * 2, `vista materials ${mats.size}`);
+  const r0 = level.rooms[0];
+  vista.setView(r0.minX, r0.maxX, r0.minY, r0.maxY);
+  const t = vista.telemetry();
+  assert.ok(t.drawCalls <= VISTA_MAX_DRAWCALLS_PER_SECTOR * 2, `visible vista draw calls ${t.drawCalls}`);
+  vista.update(1, { playerX: (r0.minX + r0.maxX) / 2, playerY: r0.minY + 1, reduce: true, meltdown: false });
+  assert.equal(vista.telemetry().sector, r0.sector);
+  vista.dispose();
+  assert.equal(scene.children.length, 0);
+});
