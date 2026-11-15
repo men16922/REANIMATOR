@@ -8,7 +8,7 @@
 // Axis convention (verified against the GLB rest poses): the model faces +Z, its left is +X, bone rotations below are
 // about the rig X/Y/Z axes: +X = forward lean, +Y = turn toward +X, +Z = left arm outward.
 
-import { stepEnemyYaw, wrapAngle } from './enemyMotion.ts';
+import { latchHysteresis, runLean, stepEnemyYaw, wrapAngle } from './enemyMotion.ts';
 
 export type RigKind = 'stalker' | 'warden';
 
@@ -167,11 +167,6 @@ export function gaitCycleRate(kind: RigKind, speed: number): number {
   return speed / strideLength(kind, speed);
 }
 
-/** Forward spine lean (rad) for a running stalker: 0 at walk speed, up to 0.22 at a full chase. */
-export function runLean(speed: number): number {
-  return clamp((speed - 2.5) / 7, 0, 1) * 0.22;
-}
-
 /** Hip dip (m) twice per gait cycle, growing with speed. Zero at rest. */
 export function runBob(phase: number, speed: number): number {
   const amp = clamp((speed - 2) / 6, 0, 1) * 0.045;
@@ -249,7 +244,7 @@ export class EnemyRigDriver {
   private tuckK = 0;
   private windK = 0;
   private moveW = 0;
-  private wasMoving = false;
+  private moveLatch = false;
   private aimW = 0;
   private aimPitch = 0;
   private hitFront = 1;
@@ -331,8 +326,8 @@ export class EnemyRigDriver {
     // --- clip weights (smoothed crossfades, 0.12..0.25 s)
     // Windup keeps walking while the sim's slide decays so the feet never skate across the floor
     // R13: hysteresis (start above 0.5, stop below 0.25) so a speed hovering near the threshold never flickers idle/run
-    this.wasMoving = speed > (this.wasMoving ? 0.25 : 0.5);
-    const moving = alive && !staggered && !striking && this.wasMoving;
+    this.moveLatch = latchHysteresis(this.moveLatch, speed, 0.5, 0.25);
+    const moving = alive && !staggered && !striking && this.moveLatch;
     this.moveW += ((moving ? 1 : 0) - this.moveW) * expK(moving ? 40 : 18, dt);
     const rb = runBlend(kind, speed);
     const t: ClipWeights = { idle: 0, walk: 0, run: 0, attack: 0, death: 0 };
@@ -397,14 +392,16 @@ export class EnemyRigDriver {
     tgt.armUpL += this.recoil.x * 0.8;
     tgt.armUpR += this.recoil.x * 0.8;
 
-    // R13 run posture: lean into the sprint and bob the hips twice per cycle (one dip per footfall)
-    if (!warden && alive && !striking && !winding && this.moveW > 0.05) {
-      const lean = runLean(speed) * this.moveW;
+    // R13 run posture: lean into the sprint (stalker leans harder than the warden) and bob the hips once per footfall
+    if (!winding && !striking && this.moveW > 0.05) {
+      const lean = runLean(kind, speed, this.moveW);
       tgt.spine += lean;
-      tgt.headPitch += -lean * 0.8;
-      tgt.hipsDrop += runBob(this.gaitPhase, speed) * this.moveW;
-      tgt.armUpL += lean * 0.5;
-      tgt.armUpR += lean * 0.5;
+      if (!warden) {
+        tgt.headPitch += -lean * 0.8;
+        tgt.hipsDrop += runBob(this.gaitPhase, speed) * this.moveW;
+        tgt.armUpL += lean * 0.5;
+        tgt.armUpR += lean * 0.5;
+      }
     }
 
     // lateral acceleration sway (secondary spring on the upper body)

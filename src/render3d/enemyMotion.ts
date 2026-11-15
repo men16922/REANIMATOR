@@ -90,16 +90,45 @@ export interface ProcPose {
 
 export const CRAWLER_REF_SPEED = 5;
 
-/** Metres the crawler covers per full scuttle cycle. Constant, so body swing is locked to ground travel at every speed. */
-export const CRAWLER_STRIDE = 0.95;
+/** Metres of ground covered per crawler stride (one full sin cycle of the gait phase). Longer at speed, like a real gait. */
+export function crawlerStride(speed: number): number {
+  return 0.7 + 0.18 * Math.max(0, speed);
+}
 
 /**
- * Gait rate in rad/s. Crawler: speed / stride, so cadence is proportional to ground speed (R13: the old 6 rad/s
- * offset made slow crawlers scuttle in place at 0.33 m per cycle). Capped at 6.5 Hz.
+ * Gait rate in rad/s, stride-locked: rate = 2*pi*speed/stride, so the displayed foot travel equals the ground speed.
+ * (R13: the old curve 6 + 28*speed/5 rad/s hit its 6.5 Hz cap at 6 m/s, so bob and roll buzzed at about 13 Hz.)
  */
 export function gaitStep(kind: 'crawler' | 'spitter', speed: number): number {
   if (kind === 'spitter') return 2.2;
-  return Math.min(2 * Math.PI * 6.5, (2 * Math.PI * Math.max(0, speed)) / CRAWLER_STRIDE);
+  const v = Math.max(0.3, speed);
+  return Math.min(2 * Math.PI * 6.5, (2 * Math.PI * v) / crawlerStride(v));
+}
+
+/** Foot travel (m/s) implied by gaitStep for a crawler: equals the ground speed whenever the cap is not hit. */
+export function crawlerFootSpeed(speed: number): number {
+  const v = Math.max(0.3, speed);
+  return (gaitStep('crawler', v) / (2 * Math.PI)) * crawlerStride(v);
+}
+
+/** Display speed filter: follows the sim speed with ~0.1 s lag so the gait never snaps (rate 12/s up, 9/s down). */
+export function smoothDisplaySpeed(prev: number, target: number, dt: number): number {
+  const h = Math.min(Math.max(dt, 0), ENEMY_DT_CLAMP);
+  const rate = target > prev ? 12 : 9;
+  const v = prev + (target - prev) * (1 - Math.exp(-rate * h));
+  return Math.abs(v) < 1e-3 ? 0 : v;
+}
+
+/** Schmitt trigger for the walking state: turns on above `on`, off below `off`, holds in between. */
+export function latchHysteresis(prev: boolean, value: number, on: number, off: number): boolean {
+  return prev ? value > off : value > on;
+}
+
+/** Forward body lean (rad) for rigged biped foes at a ground speed: none at rest, leaning into the run. */
+export function runLean(kind: 'stalker' | 'warden', speed: number, moveW = 1): number {
+  const full = kind === 'stalker' ? 0.17 : 0.06;
+  const k = Math.min(1, Math.max(0, speed / 5.5));
+  return full * k * k * (3 - 2 * k) * Math.min(1, Math.max(0, moveW));
 }
 
 /** Speed along the surface the enemy actually travels on: floor uses the sim's achieved speed, walls and ceilings use |v|. */
@@ -108,6 +137,7 @@ export function enemyTravelSpeed(e: { surface: string; dropping?: boolean; state
   if (e.surface !== 'floor' && !e.dropping) return Math.hypot(e.vx, e.vy);
   return Math.abs(e.vx);
 }
+
 
 // ---- R12 pure motion helpers (display only) ----
 
@@ -284,7 +314,7 @@ export function proceduralEnemyPose(p: ProcPoseInput): ProcPose {
       // yaw swing (once per stride), nose dip and a stretch/squash surge, all scaled by ground speed.
       const g = Math.sin(p.gait);
       const g2 = Math.sin(p.gait * 2);
-      const k = Math.max(0.5, run);
+      const k = 0.3 + 0.7 * run;
       lift = Math.abs(g) * 0.13 * k;
       pitch = 0.14 * k + g2 * 0.09 * k;
       roll += g * 0.13 * k;
@@ -459,4 +489,25 @@ export function analyzeEnemyTrace(frames: EnemyTraceFrame[], opts: EnemyTraceOpt
     transitions,
     maxTransitionJump,
   };
+}
+
+export const GLIDE_WINDOW = 0.5; // s a glide stays armed after a position pop
+export const GLIDE_RATE = 9; // 1/s low-pass rate while armed
+export const GLIDE_RELEASE_RATE = 90; // 1/s rate the filter ramps to over the last GLIDE_RAMP seconds
+export const GLIDE_RAMP = 0.15;
+export const GLIDE_END_GAP = 0.1; // m: the glide ends only once display and sim are this close
+
+/**
+ * Display x low-pass after a sim position pop. The rate ramps up as the window expires, and the glide only ends
+ * (active=false) when the gap is small, so releasing it never produces a visible hop.
+ */
+export function stepGlide(disp: number, raw: number, snap: number, dt: number): { x: number; snap: number; active: boolean } {
+  const h = Math.min(Math.max(dt, 0), ENEMY_DT_CLAMP);
+  const left = Math.max(0, snap - h);
+  if (Math.abs(disp - raw) > 2) return { x: raw, snap: 0, active: false };
+  const ramp = left >= GLIDE_RAMP ? 0 : 1 - left / GLIDE_RAMP;
+  const rate = GLIDE_RATE + (GLIDE_RELEASE_RATE - GLIDE_RATE) * ramp;
+  const x = disp + (raw - disp) * (1 - Math.exp(-rate * h));
+  if (left === 0 && Math.abs(x - raw) < GLIDE_END_GAP) return { x: raw, snap: 0, active: false };
+  return { x, snap: left, active: true };
 }

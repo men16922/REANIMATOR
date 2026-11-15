@@ -7,6 +7,8 @@ import { stackedPopupY } from './vfxStyle3d.ts';
 export const POPUP_GLYPHS = '0123456789x';
 export const POPUP_CAPACITY = 40;
 export const POPUP_MAX_CHARS = 5;
+/** A merged popup stops absorbing hits at this count, so sustained fire starts a fresh number at the hit point. */
+export const POPUP_MERGE_MAX = 5;
 export const GLYPH_CAPACITY = POPUP_CAPACITY * POPUP_MAX_CHARS;
 
 export interface PopupOpts {
@@ -21,6 +23,19 @@ export interface PopupOpts {
   punch?: number;
   /** Push above any live popup this one would overlap. */
   stack?: boolean;
+  /** Merge into a live, recent popup of the same kind near x: "14", then "14x2", "14x3" (or the summed value when it will not fit). */
+  merge?: number;
+}
+
+/** World-y at which the z = 0 lane reaches NDC y = ceil, given projected NDC y at world y = 0 (a) and y = 10 (b). Infinity when the projection is degenerate. */
+export function popupCeilWorldY(a: number, b: number, ceilNdc: number): number {
+  return b > a ? ((ceilNdc - a) / (b - a)) * 10 : Infinity;
+}
+
+/** Text for a merged damage popup. Glyph atlas has digits and 'x' only; POPUP_MAX_CHARS bounds the length. */
+export function mergedPopupText(value: number, hits: number): string {
+  const t = `${value}x${hits}`;
+  return t.length <= POPUP_MAX_CHARS ? t : String(value * hits);
 }
 
 /** Fixed-capacity pool. Oldest popup is recycled when full. No allocation after construction. */
@@ -37,6 +52,9 @@ export class PopupPool {
   readonly life = new Float32Array(POPUP_CAPACITY);
   readonly size = new Float32Array(POPUP_CAPACITY);
   readonly punch = new Float32Array(POPUP_CAPACITY);
+  /** Merge key (damage value, 0 = not mergeable) and hit count per slot. */
+  readonly mergeVal = new Float32Array(POPUP_CAPACITY);
+  readonly hits = new Float32Array(POPUP_CAPACITY);
   readonly col = new Float32Array(POPUP_CAPACITY * 3);
   // GPU-facing instance data
   readonly aPos = new Float32Array(GLYPH_CAPACITY * 4);
@@ -44,6 +62,17 @@ export class PopupPool {
   readonly aCol = new Float32Array(GLYPH_CAPACITY * 4);
 
   spawn(text: string, x: number, y: number, o: PopupOpts): void {
+    if (o.merge) {
+      for (let k = 0; k < this.count; k++) {
+        if (this.mergeVal[k] === o.merge && this.age[k] < 0.4 && Math.abs(this.x[k] - x) < 0.9 && Math.abs(this.y[k] - y) < 0.9 && this.hits[k] < POPUP_MERGE_MAX && Math.abs(this.size[k] - o.size) < 1e-6) {
+          this.hits[k]++;
+          this.text[k] = mergedPopupText(o.merge, this.hits[k]);
+          this.age[k] = Math.min(this.age[k], 0.12);
+          this.spawned++;
+          return;
+        }
+      }
+    }
     if (o.stack) y = stackedPopupY(x, y, o.size, this.count, this.x, this.y, this.size, this.age);
     let i: number;
     if (this.count < POPUP_CAPACITY) {
@@ -60,6 +89,8 @@ export class PopupPool {
     this.life[i] = o.life;
     this.size[i] = o.size;
     this.punch[i] = o.punch ?? 0.5;
+    this.mergeVal[i] = o.merge ?? 0;
+    this.hits[i] = 1;
     this.col[i * 3] = o.r;
     this.col[i * 3 + 1] = o.g;
     this.col[i * 3 + 2] = o.b;
@@ -82,7 +113,7 @@ export class PopupPool {
     const l = --this.count;
     if (i === l) return;
     this.text[i] = this.text[l];
-    for (const a of [this.x, this.y, this.vy, this.age, this.life, this.size, this.punch]) a[i] = a[l];
+    for (const a of [this.x, this.y, this.vy, this.age, this.life, this.size, this.punch, this.mergeVal, this.hits]) a[i] = a[l];
     for (let k = 0; k < 3; k++) this.col[i * 3 + k] = this.col[l * 3 + k];
   }
 
@@ -94,7 +125,7 @@ export class PopupPool {
   }
 
   /** Pack glyph quads. Returns the instance count. */
-  write(z: number): number {
+  write(z: number, maxY = Infinity): number {
     let n = 0;
     for (let i = 0; i < this.count; i++) {
       const t = this.age[i] / this.life[i];
@@ -108,7 +139,7 @@ export class PopupPool {
         if (gi < 0) continue;
         const o = n * 4;
         this.aPos[o] = x0 + c * adv;
-        this.aPos[o + 1] = this.y[i];
+        this.aPos[o + 1] = Math.min(this.y[i], maxY - s * 0.7);
         this.aPos[o + 2] = z;
         this.aPos[o + 3] = s;
         // atlas: 4 columns x 3 rows
@@ -220,8 +251,11 @@ export class PopupLayer {
     this.mesh.visible = false;
   }
 
+  /** World-y ceiling for popup baselines (set by the scene from the screen-space limit under the boss bar). */
+  maxY = Infinity;
+
   sync(): void {
-    const n = this.pool.write(1.2);
+    const n = this.pool.write(1.2, this.maxY);
     this.geo.instanceCount = n;
     this.mesh.visible = n > 0;
     this.aPos.needsUpdate = true;

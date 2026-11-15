@@ -748,7 +748,7 @@ export class FxDirector {
     const x = e.x + this.rr(-0.35, 0.35);
     const y = e.y + e.height + 0.35;
     const t = popupTier(n, boss, exposed);
-    this.popups.spawn(String(n), x, y, { size: t.size, life: t.life, r: t.rgb[0], g: t.rgb[1], b: t.rgb[2], rise: t.rise, punch: t.punch, stack: true });
+    this.popups.spawn(String(n), x, y, { size: t.size, life: t.life, r: t.rgb[0], g: t.rgb[1], b: t.rgb[2], rise: t.rise, punch: t.punch, stack: true, merge: n });
   }
 
   private onBossPhase(w: WorldState3D, ph: number): void {

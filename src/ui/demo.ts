@@ -32,6 +32,9 @@ export function applyDebugSetup(w: WorldState3D, o: DebugSetup3D): void {
   const p = w.player;
   if (o.x !== undefined || o.y !== undefined) {
     p.body = spawnBody3D(o.x ?? p.body.x, o.y ?? p.body.y, 0);
+    w.hint = '';
+    w.hintTicks = 0;
+    w.hintSector = '';
   }
   if (o.boots) p.abilities.thrusterBoots = true;
   if (o.slide) p.abilities.crawlSlide = true;

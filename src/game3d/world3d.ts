@@ -516,6 +516,8 @@ export interface WorldState3D {
   saveCooldown: number;
   hint: string;
   hintTicks: number;
+  /** Sector the hint belongs to ('' = global). The HUD shows a scoped hint only while the player is in that sector. */
+  hintSector: SectorId3D | '';
   light: Light; // STRICT R3.3: Never read outside HUD/renderer!
   enemies: EnemyState3D[];
   hives: HiveState3D[];
@@ -943,6 +945,7 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
     saveCooldown: 0,
     hint: '',
     hintTicks: 0,
+    hintSector: '',
     light: newLight(),
     enemies,
     hives,
@@ -1054,15 +1057,27 @@ function pointToSegmentDistSq(px: number, py: number, ax: number, ay: number, bx
   return (px - (ax + vx * t)) ** 2 + (py - (ay + vy * t)) ** 2;
 }
 
-function setHint(w: WorldState3D, text: string): void {
-  if (w.hint === text && w.hintTicks > 0) return;
+/** Hints are global by default (pickups, saves, logs name the player, not the place). Location-bound callers pass a sector (see roomHint). */
+export function setHint(w: WorldState3D, text: string, sector: SectorId3D | '' = ''): void {
+  if (w.hint === text && w.hintTicks > 0 && w.hintSector === sector) return;
   w.hint = text;
+  w.hintSector = sector;
   w.hintTicks = 150;
+}
+
+/** Hint tied to where the player stands: hidden if they leave the sector before it expires. */
+function roomHint(w: WorldState3D, text: string): void {
+  setHint(w, text, w.currentRoom);
 }
 
 /** Cracked Bio-Wall between the Central Shaft and Bio-Labs (yellow lock, needs the Grenade Launcher). */
 export const SHAFT_CRACKED_WALL_ID = 'door-shaft-biolabs';
 export const CRACKED_WALL_PROMPT = 'CRACKED WALL — GRENADE REQUIRED';
+
+/** The hint line to show now, or '' when none is live or it belongs to another sector (pure; HUD only). */
+export function visibleHint(w: Pick<WorldState3D, 'hint' | 'hintTicks' | 'hintSector' | 'currentRoom'>): string {
+  return w.hintTicks > 0 && (!w.hintSector || w.hintSector === w.currentRoom) ? w.hint : '';
+}
 
 /** Contextual prompt while the player stands near the sealed shaft wall without the Grenade. Pure on state; sets only the hint. */
 export function updateCrackedWallPrompt3D(w: WorldState3D): void {
@@ -1074,6 +1089,7 @@ export function updateCrackedWallPrompt3D(w: WorldState3D): void {
   if (dx > 3.5 || p.body.y < wall.minY - 1 || p.body.y > wall.maxY) return;
   if (w.hintTicks > 0 && w.hint !== CRACKED_WALL_PROMPT) return;
   w.hint = CRACKED_WALL_PROMPT;
+  w.hintSector = '';
   w.hintTicks = Math.max(w.hintTicks, 2);
 }
 
@@ -1082,7 +1098,7 @@ export function tryOpenDoor3D(w: WorldState3D, s: MapSolid3D, weapon: WeaponSlot
   if (!s.doorId || !s.doorLock || w.openDoors.has(s.doorId)) return false;
   const lock = s.doorLock;
   if (lock === 'escape') {
-    if (weapon !== 0) setHint(w, 'EXTRACTION HATCH SEALED UNTIL REACTOR MELTDOWN');
+    if (weapon !== 0) roomHint(w, 'EXTRACTION HATCH SEALED UNTIL REACTOR MELTDOWN');
     return false;
   }
   if (lock === 'console') {
@@ -1090,11 +1106,11 @@ export function tryOpenDoor3D(w: WorldState3D, s: MapSolid3D, weapon: WeaponSlot
   } else {
     const need = DOOR_REQUIRED_WEAPON[lock];
     if (weapon !== need) {
-      setHint(w, `${lock.toUpperCase()} LOCK NEEDS ${WEAPON_META[need as WeaponSlot3D].name}`);
+      roomHint(w, `${lock.toUpperCase()} LOCK NEEDS ${WEAPON_META[need as WeaponSlot3D].name}`);
       return false;
     }
     if (lock === 'red' && !w.consoleUnlocked) {
-      setHint(w, 'SECURITY CONSOLE OFFLINE');
+      roomHint(w, 'SECURITY CONSOLE OFFLINE');
       return false;
     }
   }
@@ -1287,7 +1303,7 @@ function damageHive(w: WorldState3D, h: HiveState3D, rawDmg: number, weapon: Wea
   w.shakeStrength = Math.max(w.shakeStrength, 0.5);
   registerKill(w, { kind: 'stalker' }, 200);
   w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'ammo', value: w.diff.generousDrops ? 20 : 12, x: h.x, y: h.y, z: 0, taken: false });
-  setHint(w, 'HIVE DESTROYED. BROOD CUT OFF');
+  roomHint(w, 'HIVE DESTROYED. BROOD CUT OFF');
 }
 
 function damageCore(w: WorldState3D, dmg: number): void {
@@ -1625,7 +1641,7 @@ function fireWeapon3D(w: WorldState3D, railFrac = 0): void {
       if (railHitHunter(hu, frac, hunterPush(w))) {
         w.shakeTicks = Math.max(w.shakeTicks, 24);
         w.shakeStrength = Math.max(w.shakeStrength, 0.42);
-        setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE');
+        setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE', w.level.hunterZone.sector);
       }
     }
     for (const h of w.hives) {
@@ -2611,7 +2627,7 @@ function stepCounter3D(w: WorldState3D, pressed: boolean): void {
     w.shakeTicks = Math.max(w.shakeTicks, 14);
     w.shakeStrength = Math.max(w.shakeStrength, 0.34);
     w.events.push({ type: 'parry', value: -1 });
-    setHint(w, 'COUNTER! ITS VISOR IS OPEN. FIRE THE RAIL-CANNON');
+    roomHint(w, 'COUNTER! ITS VISOR IS OPEN. FIRE THE RAIL-CANNON');
     return;
   }
   if (!best) {
@@ -2698,7 +2714,7 @@ function stepHunter(w: WorldState3D): void {
   };
   const wasAlive = w.hunter.alive;
   stepHunter3D(w.hunter, ctx);
-  if (wasAlive && !w.hunter.alive) setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE');
+  if (wasAlive && !w.hunter.alive) setHint(w, 'RECLAIMER OFFLINE. THE ZONE IS SAFE', w.level.hunterZone.sector);
 }
 
 /** True while the player is inside the hunter zone volume (HUD, tests). */
@@ -2913,7 +2929,7 @@ function stepElevators3D(w: WorldState3D): void {
           m.attackCooldown = 40;
           setEnemyState(m, 'chase', 0);
         }
-        setHint(w, 'AMBUSH ON THE CARGO LIFT');
+        roomHint(w, 'AMBUSH ON THE CARGO LIFT');
       }
       if (st.y >= sp.topY) {
         st.phase = 'top';
@@ -2957,7 +2973,7 @@ function stepSwitches3D(w: WorldState3D, interact: boolean): void {
     st.flashTicks = 30;
     w.openDoors.add(sp.opens);
     w.events.push({ type: 'switch_on' });
-    setHint(w, `${sp.label} ONLINE`);
+    roomHint(w, `${sp.label} ONLINE`);
   }
 }
 
@@ -3011,7 +3027,7 @@ function stepCollapse3D(w: WorldState3D): void {
       if (w.meltdownTicks >= 0 && w.coreDestroyed && pb.x < sp.triggerX && pb.y > sp.triggerMinY && w.currentRoom === sp.sector) {
         st.startTick = w.tick;
         w.events.push({ type: 'collapse', value: 0 });
-        setHint(w, 'THE BRIDGE IS COLLAPSING. RUN');
+        roomHint(w, 'THE BRIDGE IS COLLAPSING. RUN');
       }
       continue;
     }
@@ -3118,7 +3134,7 @@ export function breakBlock3D(w: WorldState3D, s: MapSolid3D): boolean {
     w.run.score += 500;
     setHint(w, `SECRET FOUND: ${secret.name.toUpperCase()}`);
   } else {
-    setHint(w, s.breakBy === 'rail' ? 'PLATE SHATTERED' : s.breakBy === 'lean' ? 'THE WALL GIVES WAY' : 'FLOOR BROKE');
+    roomHint(w, s.breakBy === 'rail' ? 'PLATE SHATTERED' : s.breakBy === 'lean' ? 'THE WALL GIVES WAY' : 'FLOOR BROKE');
   }
   return true;
 }
@@ -3245,6 +3261,7 @@ function stepEscapeBeats3D(w: WorldState3D): void {
     if (w.meltdownTicks === b.at) {
       w.events.push({ type: 'seal_warn', value: b.index });
       w.hint = b.text;
+      w.hintSector = '';
       w.hintTicks = 150;
       w.shakeTicks = Math.max(w.shakeTicks, 10);
       w.shakeStrength = Math.max(w.shakeStrength, b.index === 4 ? 0.34 : 0.18);
@@ -3255,6 +3272,7 @@ function stepEscapeBeats3D(w: WorldState3D): void {
     w.openDoors.add(SEAL_FINAL_ID);
     w.events.push({ type: 'seal_close' });
     w.hint = 'HATCH SHUT';
+    w.hintSector = '';
     w.hintTicks = 120;
     w.shakeTicks = Math.max(w.shakeTicks, 16);
     w.shakeStrength = Math.max(w.shakeStrength, 0.4);
@@ -3299,7 +3317,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   if (p.hurtFlashTicks > 0) p.hurtFlashTicks--;
   if (p.acidCooldown > 0) p.acidCooldown--;
   if (w.saveCooldown > 0) w.saveCooldown--;
-  if (w.hintTicks > 0 && --w.hintTicks === 0) w.hint = '';
+  if (w.hintTicks > 0 && --w.hintTicks === 0) { w.hint = ''; w.hintSector = ''; }
   updateCrackedWallPrompt3D(w);
   if (w.shakeTicks > 0) {
     w.shakeTicks--;

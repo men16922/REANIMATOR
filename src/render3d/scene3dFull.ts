@@ -17,7 +17,7 @@ import { BossTelegraph3D } from './bossTelegraph3d.ts';
 import { BossSetPieces3D } from './bossSetPieces3d.ts';
 import { meltdownIntensity, vignetteAlpha } from './setpieces3d.ts';
 import { BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
-import { PopupLayer } from './popups3d.ts';
+import { PopupLayer, popupCeilWorldY } from './popups3d.ts';
 import { CLASSIC_GLOW_SPRITE_SCALE, ClassicPipeline, classicOrthoHalf, gateStrobe, remapNdcToClassic, type ViewMode } from './classicView.ts';
 import { buildBootsItem, buildEnergyTankItem, buildSaveStation, createHoloMaterial, createShieldMaterial, type SaveStationProps } from './propsGfx.ts';
 import { applyPostParams, createFireballMaterial, createGroundWaveMaterial, createPostPass, createShockRingMaterial, ParticleLayer } from './fx3dGfx.ts';
@@ -50,8 +50,10 @@ import { WARDEN_RIM_HEX, WARDEN_RIM_STRENGTH, wardenLook } from './wardenLook3d.
 import { WardenHalo3D } from './wardenLookGfx3d.ts';
 import { EnemyRigDriver, ProcSecondary, type EnemyRigFrame } from './enemyRig3d.ts';
 import {
+  crawlerFootSpeed,
   gaitStep,
   enemyTravelSpeed,
+  smoothDisplaySpeed,
   proceduralEnemyPose,
   flinchStep,
   flinchPose,
@@ -59,6 +61,8 @@ import {
   stepEnemyYaw,
   type Flinch,
   type EnemyRenderTelemetry,
+  GLIDE_WINDOW,
+  stepGlide,
 } from './enemyMotion.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
 import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
@@ -192,6 +196,13 @@ interface EnemyViz {
   flinch: Flinch;
   /** Turn-around error (rad) before this frame's yaw step */
   turnErr: number;
+  /** Seconds of position glide left after a one-tick position pop, and the last displayed x */
+  snap: number;
+  dispX: number;
+  gliding: boolean;
+  snapTick: number;
+  /** R13: smoothed display speed (m/s) driving the single-mesh gait */
+  dispSpeed?: number;
 }
 
 const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
@@ -338,6 +349,8 @@ export class Scene3DRenderer {
   private readonly wardenHalo = new WardenHalo3D();
   private readonly wardenLooks = new Map<string, WardenLookUniforms3D>();
   private readonly popupLayer: PopupLayer;
+  /** Highest NDC y a damage popup may reach (main.ts lowers it below the boss bar). */
+  popupCeilNdc = 0.86;
   private readonly introOverlay = new BossIntroOverlay(() => this.renderer.domElement.parentElement);
   private introSkipPending = false;
   /** Display-side intro countdown (see nextIntroDisplayTicks): keeps the cinematic playing while the world is frozen. */
@@ -2122,16 +2135,31 @@ export class Scene3DRenderer {
     for (const e of w.enemies) {
       const pe = this.prevEnemies.get(e.id) ?? { x: e.x, y: e.y };
       const ce = this.curEnemies.get(e.id) ?? { x: e.x, y: e.y };
-      const ex = Math.abs(ce.x - pe.x) > 4 ? ce.x : pe.x + (ce.x - pe.x) * a;
+      const exRaw = Math.abs(ce.x - pe.x) > 4 ? ce.x : pe.x + (ce.x - pe.x) * a;
       const ey = Math.abs(ce.y - pe.y) > 4 ? ce.y : pe.y + (ce.y - pe.y) * a;
       this.lastEnemyStates.set(e.id, e.alive ? e.state : 'dead');
-      if (e.kind === 'warden' && !e.minion) { wardenE = e; wardenX = ex; wardenY = ey; }
-
       let v = this.enemyViz.get(e.id);
       if (!v) {
-        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0, flinch: { amp: 0, kb: 0 }, turnErr: 0 };
+        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0, flinch: { amp: 0, kb: 0 }, turnErr: 0, snap: 0, snapTick: -1, dispX: exRaw, gliding: false };
         this.enemyViz.set(e.id, v);
       }
+      // R13: queueing or wall ejection can pop a runner 0.7 m in one tick, repeatedly. After such a pop the display x
+      // low-passes (~0.1 s) toward the sim x for 0.5 s, so the body glides through the sawtooth instead of teleporting.
+      // Knockback and lunges (stagger/attack) stay crisp.
+      if (v.snapTick !== w.tick) {
+        v.snapTick = w.tick;
+        const jump = ce.x - pe.x;
+        if (e.alive && e.surface === 'floor' && e.state !== 'stagger' && e.state !== 'attack' && e.attackAnimTicks === 0 && Math.abs(jump) > 0.4 && Math.abs(jump) < 2) v.snap = GLIDE_WINDOW;
+      }
+      let ex = exRaw;
+      if (v.snap > 0 || v.gliding) {
+        const g = stepGlide(v.dispX, exRaw, v.snap, dt);
+        ex = g.x;
+        v.snap = g.snap;
+        v.gliding = g.active;
+      }
+      v.dispX = ex;
+      if (e.kind === 'warden' && !e.minion) { wardenE = e; wardenX = ex; wardenY = ey; }
       // Smooth turn (rate ~7) with a lean into the turn
       const yawDiff = wrapAngle(e.yaw - v.yaw);
       v.turnErr = yawDiff;
@@ -2255,9 +2283,12 @@ export class Scene3DRenderer {
       if (st) {
         const r = st.root;
         r.userData.state = e.alive ? e.state : 'dead';
-        // Wall/ceiling crawlers move along the surface (vy is crawl speed there, not a fall)
+        // Wall/ceiling crawlers move along the surface (vy is crawl speed there, not a fall): enemyTravelSpeed covers it
         const onSurface = e.surface !== 'floor' && !e.dropping;
-        const surfSpeed = onSurface ? Math.hypot(e.vx, e.vy) : speed;
+        const surfTarget = speed;
+        // Smoothed display speed drives the gait so the legs never snap when the sim speed steps
+        v.dispSpeed = smoothDisplaySpeed(v.dispSpeed ?? 0, surfTarget, dt);
+        const surfSpeed = v.dispSpeed;
         const proc = proceduralEnemyPose({
           kind: e.kind === 'spitter' ? 'spitter' : 'crawler',
           alive: e.alive,
@@ -2280,7 +2311,7 @@ export class Scene3DRenderer {
           dropping: e.dropping,
           heavy: e.variant === 'dropper',
         });
-        if (e.alive) v.gait += dt * gaitStep(e.kind === 'spitter' ? 'spitter' : 'crawler', speed);
+        if (e.alive) v.gait += dt * gaitStep(e.kind === 'spitter' ? 'spitter' : 'crawler', surfSpeed);
         const sec = (v.sec ??= new ProcSecondary(e.surfaceAngle));
         const sc = sec.step(
           {
@@ -2309,7 +2340,7 @@ export class Scene3DRenderer {
         r.visible = proc.visible;
         const inner = r.children[0];
         if (inner) inner.rotation.set(sc.innerPitch, 0, sc.innerRoll);
-        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: proc.clip, timeScale: proc.timeScale, poseState: proc.clip });
+        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: proc.clip, timeScale: proc.timeScale, poseState: proc.clip, footSpeed: e.kind === 'crawler' && proc.clip === 'crawl' ? crawlerFootSpeed(surfSpeed) : undefined });
         const pulse = e.alive ? 1 + v.recoil * 0.06 : 1;
         // Wall/ceiling crawling: rotate the body about the world Z axis around its box centre (sim exposes surfaceAngle)
         const sa = sc.surf;
@@ -2535,6 +2566,14 @@ export class Scene3DRenderer {
     this.fxSmoke.sync();
     this.goreChunks.sync();
     this.goreDecals.sync();
+    {
+      // Keep damage popups under the top HUD (boss bar): convert the NDC ceiling to a world-y ceiling on the z = 0 lane.
+      this.camera.updateMatrixWorld();
+      const cx = this.camera.position.x;
+      const a = this.camProbe.set(cx, 0, 1.2).project(this.camera).y;
+      const b = this.camProbe.set(cx, 10, 1.2).project(this.camera).y;
+      this.popupLayer.maxY = popupCeilWorldY(a, b, this.popupCeilNdc);
+    }
     this.popupLayer.sync();
     stepPostParams(this.postParams, w.currentRoom, dt, tSec, p.hp / Math.max(1, p.maxHp), this.fx.chroma, this.reduceMotion);
     {

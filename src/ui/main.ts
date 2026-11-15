@@ -17,6 +17,7 @@ import {
   setAssist3D,
   SNEAK_MOVE_SCALE_3D,
   stepWorld3D,
+  visibleHint,
   WEAPON_META,
   type AssistOptions3D,
   type Difficulty3D,
@@ -27,7 +28,7 @@ import { assistAim, difficultyNote, displayClock, parseAssist, parseDifficulty, 
 import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2d.ts';
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
 import { parseCrt, parseViewMode, PixelTransition, toggleViewMode, transitionPlan, VIEW_STORE, viewLabel, type ViewMode } from '../render3d/classicView.ts';
-import { ClassicHud } from './classicHud.ts';
+import { ClassicHud, classicStatusText } from './classicHud.ts';
 import { getAudioDebug, play as playSound, playFanfare, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
 import { rankPitch } from './audioLogic.ts';
 import { AudioDirector, snapshotPre } from './audioDirector.ts';
@@ -900,6 +901,20 @@ function hud(): void {
 
   const zm = zoneMeta();
   ui.sector.textContent = zm.name;
+  {
+    const cs = $('classic-status');
+    cs.hidden = viewMode !== 'classic';
+    if (viewMode === 'classic') {
+      const t = classicStatusText({
+        dashPct,
+        lightOn: world.light.on,
+        batteryPct: (world.light.battery / LIGHT.max) * 100,
+        scan: p.scanTicks > 0 ? 'ACTIVE' : p.scanCooldown > 0 ? `${(p.scanCooldown / 60).toFixed(0)}S` : 'READY',
+        boots: p.abilities.thrusterBoots,
+      });
+      if (cs.textContent !== t) cs.textContent = t;
+    }
+  }
   if (viewMode === 'classic') {
     classicHud.update({
       hp: p.hp,
@@ -912,7 +927,7 @@ function hud(): void {
       sector: zm.name,
     });
   }
-  ui.sectorHint.textContent = world.hintTicks > 0 ? world.hint : zm.hint;
+  ui.sectorHint.textContent = visibleHint(world) || zm.hint;
   const cb = world.combo;
   $('combo-pill').hidden = cb.count < 2;
   if (cb.count >= 2) $('combo-count').textContent = `x${cb.count}`;
@@ -941,6 +956,12 @@ function hud(): void {
   const warden = world.enemies.find((e) => e.kind === 'warden');
   const showBoss = Boolean(warden && warden.alive && world.currentRoom === 'core');
   ui.wardenHud.hidden = !showBoss;
+  if (scene3d) {
+    // Damage popups stay under the boss bar (NDC ceiling from its on-screen bottom edge).
+    const cr = canvas.getBoundingClientRect();
+    const br = ui.wardenHud.getBoundingClientRect();
+    scene3d.popupCeilNdc = showBoss && cr.height > 0 ? Math.max(0.2, 1 - 2 * ((br.bottom - cr.top + 6) / cr.height)) : 0.86;
+  }
   if (showBoss && warden) {
     ui.wardenHp.style.width = `${Math.max(0, Math.min(100, (warden.hp / warden.maxHp) * 100))}%`;
     $('warden-exposed').hidden = warden.exposedTicks <= 0;
@@ -1471,6 +1492,14 @@ $('revived-close').addEventListener('click', () => {
 const labCtl = initLab();
 $('lab-open').addEventListener('click', () => labCtl.open());
 
+/** True when the element is really painted (not just missing the hidden attribute): computed display, visibility, opacity and size. */
+function onScreen(el: HTMLElement): boolean {
+  if (el.hidden || !el.isConnected) return false;
+  const cs = getComputedStyle(el);
+  if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) < 0.02) return false;
+  return el.offsetWidth > 0 && el.offsetHeight > 0;
+}
+
 function buildSnapshot() {
   const warden = world.enemies.find((e) => e.kind === 'warden');
   const tel = scene3d
@@ -1529,7 +1558,7 @@ function buildSnapshot() {
     startY: world.level.spawn.y,
     rendererMode,
     viewMode,
-    layers: readLayers({ mode, titleHidden: !!ui.title.hidden, loadingHidden: !!$('loading').hidden, introHidden: !!ui.intro.hidden }),
+    layers: readLayers({ mode, titleHidden: !onScreen(ui.title), loadingHidden: !onScreen($('loading')), introHidden: !onScreen(ui.intro) }),
     worldSerial,
     crt: crtOn,
     frame: framePerfOn ? { ...framePerf } : null,
