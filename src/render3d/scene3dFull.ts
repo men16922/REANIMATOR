@@ -11,6 +11,8 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { BOSS_PHASE_COLORS, createPostParams, FxDirector, stepPostParams } from './fx3d.ts';
+import { getPickupGlowTexture, getPickupPadTexture, getReticleTexture } from './pickupGfx3d.ts';
+import { createExtractionHatch, type ExtractionHatch } from './hatch3d.ts';
 import { BossTelegraph3D } from './bossTelegraph3d.ts';
 import { BossSetPieces3D } from './bossSetPieces3d.ts';
 import { meltdownIntensity, vignetteAlpha } from './setpieces3d.ts';
@@ -273,11 +275,11 @@ const HEADLAMP_INTENSITY = 90;
 const SECTOR_LIGHT: Record<SectorId3D, { sky: THREE.Color; sun: THREE.Color; ambient: number; sunI: number; bloom: number }> = {
   // Round 3 mood pass: lower ambient and sun for deep shadow, rust / drab-green tints. `ambient` is the headlamp-on
   // level; LAMP_OFF_DIM scales it down when the lamp is off (render only, R3.3).
-  airlock: { sky: new THREE.Color(0x748ea0), sun: new THREE.Color(0xcfdbe2), ambient: 0.98, sunI: 1.3, bloom: 0.32 },
-  shaft: { sky: new THREE.Color(0x85725c), sun: new THREE.Color(0xe6caa0), ambient: 0.95, sunI: 1.3, bloom: 0.3 },
+  airlock: { sky: new THREE.Color(0x748ea0), sun: new THREE.Color(0xcfdbe2), ambient: 0.98, sunI: 1.3, bloom: 0.36 },
+  shaft: { sky: new THREE.Color(0x85725c), sun: new THREE.Color(0xe6caa0), ambient: 0.95, sunI: 1.3, bloom: 0.33 },
   mines: { sky: new THREE.Color(0x76593a), sun: new THREE.Color(0xffb870), ambient: 0.88, sunI: 1.2, bloom: 0.38 },
   biolabs: { sky: new THREE.Color(0x628560), sun: new THREE.Color(0xc4e2a8), ambient: 0.92, sunI: 1.25, bloom: 0.4 },
-  security: { sky: new THREE.Color(0x66708a), sun: new THREE.Color(0xd2d8ee), ambient: 0.95, sunI: 1.3, bloom: 0.34 },
+  security: { sky: new THREE.Color(0x66708a), sun: new THREE.Color(0xd2d8ee), ambient: 0.95, sunI: 1.3, bloom: 0.37 },
   core: { sky: new THREE.Color(0x854636), sun: new THREE.Color(0xff9a70), ambient: 0.9, sunI: 1.25, bloom: 0.42 },
 };
 
@@ -397,7 +399,10 @@ export class Scene3DRenderer {
   private coreModel: THREE.Group | null = null;
   private coreShield: THREE.Mesh | null = null;
   private exitModel: THREE.Group | null = null;
-  private exitPortalRing: THREE.Mesh | null = null;
+  private exitPortalRing: THREE.Group | null = null;
+  private exitHatch: ExtractionHatch | null = null;
+  /** Soft cool halo behind the operative so the silhouette separates from dark walls (display only). */
+  private playerHalo: THREE.Sprite | null = null;
   private consoleRing: THREE.Mesh | null = null;
   private acidMeshes: THREE.Mesh[] = [];
   private builtLevelRef: WorldState3D['level'] | null = null;
@@ -466,7 +471,7 @@ export class Scene3DRenderer {
     this.scene.add(this.sun);
     this.scene.add(this.sun.target);
 
-    const rimLight = new THREE.DirectionalLight(0x4fd8e8, 1.25);
+    const rimLight = new THREE.DirectionalLight(0x4fd8e8, 1.7);
     rimLight.position.set(-10, 8, -10);
     this.scene.add(rimLight);
 
@@ -512,14 +517,21 @@ export class Scene3DRenderer {
     this.scene.add(this.laserLine);
 
     const outerRet = new THREE.Mesh(
-      new THREE.RingGeometry(0.32, 0.42, 24),
-      new THREE.MeshBasicMaterial({ color: 0x2bf0ff, side: THREE.DoubleSide, transparent: true, opacity: 0.9 }),
+      new THREE.PlaneGeometry(0.9, 0.9),
+      new THREE.MeshBasicMaterial({ map: getReticleTexture(), color: 0x7ff6ff, transparent: true, opacity: 0.9, depthWrite: false }),
     );
     const innerRet = new THREE.Mesh(
-      new THREE.CircleGeometry(0.1, 16),
-      new THREE.MeshBasicMaterial({ color: 0xff6b3d, side: THREE.DoubleSide }),
+      new THREE.CircleGeometry(0.035, 10),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.95, depthWrite: false }),
     );
+    innerRet.visible = false;
     this.reticleGroup.add(outerRet, innerRet);
+    this.playerHalo = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: getPickupGlowTexture(), color: 0x6fd8ff, transparent: true, opacity: 0.2, depthWrite: false, blending: THREE.AdditiveBlending }),
+    );
+    this.playerHalo.scale.set(3.4, 3.8, 1);
+    this.playerHalo.renderOrder = -1;
+    this.scene.add(this.playerHalo);
     this.scene.add(this.reticleGroup);
 
     this.wardenTelegraphRing = new THREE.Mesh(
@@ -1569,7 +1581,8 @@ export class Scene3DRenderer {
     }
     if (this.exitPortalRing) {
       this.scene.remove(this.exitPortalRing);
-      this.disposeTree(this.exitPortalRing);
+      this.exitHatch?.dispose();
+      this.exitHatch = null;
       this.exitPortalRing = null;
     }
     for (const pk of this.pickupHandles.values()) {
@@ -1585,7 +1598,7 @@ export class Scene3DRenderer {
     // the darker R3 mood without adding lights.
     this.heroGear = this.operativeRig.riflePivot ? new HeroGear(this.operativeRig) : null;
     this.heroCtl.reset(1);
-    applyEnemyRim3D(this.operativeRig.materials, 0x8fdcff, 0.42, 0.06);
+    applyEnemyRim3D(this.operativeRig.materials, 0x8fdcff, 0.7, 0.1);
     if (this.heroGear) applyEnemyRim3D(this.heroGear.materials, 0x8fdcff, 0.3, 0.04);
 
     // Enemies
@@ -1687,10 +1700,8 @@ export class Scene3DRenderer {
     this.exitModel = exit.root;
     this.scene.add(this.exitModel);
 
-    this.exitPortalRing = new THREE.Mesh(
-      new THREE.TorusGeometry(1.5, 0.08, 10, 32),
-      new THREE.MeshStandardMaterial({ color: 0x3dff9e, emissive: 0x3dff9e, emissiveIntensity: 1.3 }),
-    );
+    this.exitHatch = createExtractionHatch();
+    this.exitPortalRing = this.exitHatch.group;
     this.exitPortalRing.position.set(w.level.exitPos.x, w.level.exitPos.y + 2.05, 0.3);
     this.scene.add(this.exitPortalRing);
   }
@@ -1702,13 +1713,22 @@ export class Scene3DRenderer {
     const color =
       kind === 'log' ? 0xc9a8ff : kind === 'med' ? 0x3dff88 : kind === 'ammo' ? 0xf5b942 : weapon === 6 ? 0xffc23a : weapon === 5 ? 0xff5a14 : weapon === 4 ? 0xd946ef : weapon === 3 ? 0xff7b2f : 0x2bf0ff;
 
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.45, 0.6, 20),
-      new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, transparent: true, opacity: 0.75 }),
+    // child[0]: projector base (holo pad + soft ground decal). Children [1..] keep their animation indices.
+    const base = new THREE.Group();
+    const padMesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(1.25, 1.25),
+      new THREE.MeshBasicMaterial({ map: getPickupPadTexture(), color, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }),
     );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.05;
-    grp.add(ring);
+    padMesh.rotation.x = -Math.PI / 2;
+    padMesh.position.y = 0.04;
+    const decal = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.6, 2.6),
+      new THREE.MeshBasicMaterial({ map: getPickupGlowTexture(), color, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending }),
+    );
+    decal.rotation.x = -Math.PI / 2;
+    decal.position.y = 0.03;
+    base.add(decal, padMesh);
+    grp.add(base);
 
     if (kind === 'weapon') {
       const gun = instantiateStaticModel3D('pulse-rifle', 0.9, false);
@@ -1742,6 +1762,13 @@ export class Scene3DRenderer {
         grp.add(wire, cone);
       }
     }
+
+    const halo = new THREE.Sprite(
+      new THREE.SpriteMaterial({ map: getPickupGlowTexture(), color, transparent: true, opacity: 0.55, depthWrite: false, blending: THREE.AdditiveBlending }),
+    );
+    halo.scale.set(1.5, 1.5, 1);
+    halo.position.y = 0.75;
+    grp.add(halo);
 
     grp.name = `pickup:${id}`;
     this.scene.add(grp);
@@ -2029,8 +2056,12 @@ export class Scene3DRenderer {
       this.fx.muzzleWorld.y = muzzlePos.y;
       this.fx.muzzleWorld.valid = p.hp > 0;
 
+      if (this.playerHalo) {
+        this.playerHalo.visible = !cl && p.hp > 0;
+        this.playerHalo.position.set(px, py + 0.95, -0.6);
+      }
       this.reticleGroup.position.set(p.aimX, p.aimY, 0.3);
-      this.reticleGroup.rotation.z = tSec * 3.2;
+      this.reticleGroup.rotation.z = this.reduceMotion ? 0 : tSec * 0.9;
 
       this.fillLight.position.set(px, py + 1.8, 4.2);
       // Classic: the palette pass crushes the dim suit to near-black grey; a stronger, cooler fill keeps the teal and grey
@@ -2319,10 +2350,7 @@ export class Scene3DRenderer {
       this.coreShield.rotation.y = -tSec * 0.9;
     }
     if (this.exitPortalRing) {
-      const mat = this.exitPortalRing.material as THREE.MeshStandardMaterial;
-      mat.color.setHex(w.coreDestroyed ? 0x3dff9e : 0xff6b3d);
-      mat.emissive.setHex(w.coreDestroyed ? 0x3dff9e : 0xff6b3d);
-      this.exitPortalRing.rotation.z = tSec * (w.coreDestroyed ? 2.4 : 0.4);
+      this.exitHatch?.update(w.coreDestroyed, tSec, dt);
     }
 
     for (const pk of w.pickups) {
@@ -2334,6 +2362,7 @@ export class Scene3DRenderer {
       const g = this.getOrCreatePickupGroup(pk.id, pk.kind, pk.weapon);
       g.visible = true;
       g.position.set(pk.x, pk.y, 0.2);
+      if (g.children[0]) g.children[0].rotation.y = tSec * 0.6;
       if (g.children[1]) {
         g.children[1].rotation.y = tSec * 2.1;
         g.children[1].position.y = (pk.kind === 'weapon' ? 0.95 : 0.65) + Math.sin(tSec * 3.4) * 0.12;
@@ -2352,6 +2381,7 @@ export class Scene3DRenderer {
       const g = this.getOrCreatePickupGroup(id, 'log');
       g.visible = true;
       g.position.set(lg.x, lg.y, 0.2);
+      if (g.children[0]) g.children[0].rotation.y = tSec * 0.6;
       if (g.children[1]) {
         g.children[1].rotation.y = tSec * 2.1;
         g.children[1].position.y = 0.65 + Math.sin(tSec * 3.4 + i) * 0.12;

@@ -82,6 +82,44 @@ function asTiledTexture(canvas: HTMLCanvasElement, rx: number, ry: number, srgb 
   return tex;
 }
 
+/** Material breakup: soft grime, drip streaks, edge scratches and a stencilled service mark. Deterministic per seed. */
+function weather(ctx: CanvasRenderingContext2D, w: number, h: number, seed: number, mark: string | null): void {
+  const rnd = mulberry32(seed);
+  blotches(ctx, w, h, seed + 1, 14, '4,6,9', 0.55);
+  blotches(ctx, w, h, seed + 2, 6, '110,84,52', 0.14);
+  // vertical drip streaks (grime runs down panel seams)
+  for (let i = 0; i < 7; i++) {
+    const x = rnd() * w;
+    const y0 = rnd() * h * 0.6;
+    const len = 20 + rnd() * h * 0.4;
+    const g = ctx.createLinearGradient(0, y0, 0, y0 + len);
+    g.addColorStop(0, 'rgba(0,0,0,0.0)');
+    g.addColorStop(0.2, 'rgba(0,0,0,0.28)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y0, 1 + rnd() * 2.5, len);
+  }
+  // edge wear: bright scratches near the tile border
+  ctx.strokeStyle = 'rgba(170,190,205,0.16)';
+  ctx.lineWidth = 1;
+  for (let i = 0; i < 16; i++) {
+    const x = rnd() * w;
+    const y = rnd() < 0.5 ? 2 + rnd() * 4 : h - 2 - rnd() * 4;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + 6 + rnd() * 18, y + (rnd() - 0.5) * 3);
+    ctx.stroke();
+  }
+  if (mark) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(226,170,70,0.34)';
+    ctx.font = `bold ${Math.round(w / 14)}px monospace`;
+    ctx.fillText(mark, w * 0.08, h * 0.2);
+    ctx.fillRect(w * 0.08, h * 0.23, w * 0.22, 2);
+    ctx.restore();
+  }
+}
+
 export function getFacilityTextures3D(): FacilityTextures3D {
   if (cached) return cached;
 
@@ -114,6 +152,7 @@ export function getFacilityTextures3D(): FacilityTextures3D {
     }
     ctx.fillStyle = 'rgba(43, 240, 255, 0.045)';
     ctx.fillRect(0, 126, w, 4);
+    weather(ctx, w, h, 0x0dec, 'DK-07');
   });
 
   const bumpCanvas = makeCanvas(256, 256, (ctx, w, h) => {
@@ -153,6 +192,7 @@ export function getFacilityTextures3D(): FacilityTextures3D {
     ctx.fillStyle = '#2bf0ff';
     ctx.fillRect(10, 122, 44, 3);
     ctx.fillRect(138, 122, 44, 3);
+    weather(ctx, w, h, 0x7a11, 'SEC-B');
   });
 
   const grateCanvas = makeCanvas(128, 128, (ctx, w, h) => {
