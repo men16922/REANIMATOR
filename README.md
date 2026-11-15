@@ -79,6 +79,7 @@ Walls slow your fall when you press into them in the air, and wall jump needs th
 - **Sector vistas (R7).** Each sector has openings in the back wall with its own distant scene: a cryo hall, a vertical shaft, a drill machine and cave, giant specimen tanks, a skyline with searchlights, and the reactor core. About four extra draw calls per sector. See [`docs/plans/R7_SOAK.md`](docs/plans/R7_SOAK.md) for the stability pass.
 - **Camera framing (R7).** The camera clamps to the current room, keeps the player near 42% of screen height, applies per-sector hints, and zooms 0.92 to 1.28 with nearby threats. It widens for the boss fight.
 - **UI layers (R7).** A z-index scale and a panel stack contract keep Extras, Lab and Revived above the title. `await __reanimatorUiAudit()` checks every panel's controls with `elementFromPoint`.
+- **R11.** Hunter armour on rig bones, opening HUD fade-in with letterbox and title card, showcase and pause fixes, English UI chrome. See [`docs/R10_HUNTER.md`](docs/R10_HUNTER.md) and [`docs/R10_OPENING.md`](docs/R10_OPENING.md).
 - **R10.** Cinematic opening, Classic View audit and CRT transition, Warden counter and escape set pieces, Bio-Labs Hunter zone. See [`docs/R10_HUNTER.md`](docs/R10_HUNTER.md).
 - **R9.** Melee Counter (`X`/`C`) and Scan Pulse (`Z`), a lean-to-open fake wall with a Vault Nook secret, magnetised chunky pickups, per-sector set dressing and a draw-call budget. See [`docs/R9_PARRY.md`](docs/R9_PARRY.md).
 - **R8.** Restoration Lab redesign (scenario cards, split view, overlay, step controls, match heatmap). Story/Normal/Hard difficulty with assist options and a death-cause line. Six data logs (EN/KO), three endings and a credits roll. Per-actor GPU resource disposal. See [`docs/R8_ASSIST.md`](docs/R8_ASSIST.md).
@@ -139,7 +140,7 @@ make smoke-local                 # build, then headless Chrome smoke test (tools
 node tools/game/playthrough.ts   # deterministic bot plays the whole game to the escape
 ```
 
-Observed on `main` after the R9 merges (test count below is R9):
+Observed on `main` at `3c8e7a0` (R11): `make check` exit 0, 534 of 534 node tests, `reach3d` 52 waypoints (3,432 ticks). The figures in the next list are older (R8). Push to the remote and `make smoke-local` in a real Chrome are still pending.
 
 - `make check` exit 0, 427 of 427 node tests, `reference-verify` 3 of 3 scenarios, `reach3d` 52 waypoints (3,432 ticks), `dist-guard` PASS on 13 files (14,775,872 B). The bot run and draw-call figures below predate R7 and are not re-measured.
 - Bot run: won in 4,901 ticks with 126 of 160 HP and 50 kills.
@@ -180,5 +181,5 @@ REANIMATOR는 1996년 DOS 게임 *Abuse* 셰어웨어 1.05의 이동 물리를 �
 - **실행**: `npm install` 후 `npm run dev`. `V`로 1996풍 Classic View, `Tab` 맵, `E` 헤드램프, `Shift` 대시, 공중 `Shift+S` 스톰프. 타이틀의 Extras에서 Restoration Lab을 열 수 있다.
 - **R7**: 섹터별 원경, 룸 클램프 카메라 구도, UI 레이어 계약(EXTRAS·Lab 가림 버그 수정), 레벨 교체 누수 제거와 soak 하네스.
 - **R8**: Restoration Lab 재설계, 난이도 Story/Normal/Hard와 접근성 보조, 데이터 로그 서사와 엔딩 3단·크레딧, 액터 GPU 자원 누수 수정.
-- **검증**: `make check`(R10 병합 기준 exit 0, 테스트 519/519, reference-verify 3/3, reach3d 52 waypoints), `make reference-holdout`, `make smoke-local`.
+- **검증**: `make check`(R11 기준 exit 0, 테스트 534/534, reference-verify 3/3, reach3d 52 waypoints), `make reference-holdout`, `make smoke-local`.
 - **Kiro 활용**: spec 5종, steering, hook, 병렬 worktree 서브에이전트 4라운드, Playwright 브라우저 검증. 상세는 [`docs/KIRO_USAGE.md`](docs/KIRO_USAGE.md), 심사위원용 3분 데모는 [`docs/JUDGES.md`](docs/JUDGES.md).

@@ -57,3 +57,9 @@ Not verified: human play-through difficulty, and `make smoke-local` on the newes
 ## R10 additions
 
 - A 9.8 s cinematic opening, Classic View CRT transition, a Metroid Dread style Warden counter with escape set pieces, and a Bio-Labs Hunter zone with stealth (sneak with Ctrl/Alt). Details: [R10_OPENING](R10_OPENING.md), [R10_CLASSIC](R10_CLASSIC.md), [R10_BOSS](R10_BOSS.md), [R10_HUNTER](R10_HUNTER.md). Browser behaviour unverified.
+
+## R11 additions and verification status
+
+- Hunter armour fitted to the rig bones, opening HUD fade-in with letterbox and title card, showcase hold exit, Escape resume in the pause menu, English UI chrome.
+- Observed in Chrome by the orchestrator: the R9 UI audit passes in 12 scenarios, Scan Pulse outlines show, the Vault Nook secret is found with the camera following into it, and there are no console warnings. The opening renders with letterbox and no HUD. The HUD fits one row with the HUNTER pill.
+- Not yet verified: the final `3c8e7a0` hunter look, the feel of the counter window, a human playtest (G5), and `make smoke-local` (needs a real Chrome).

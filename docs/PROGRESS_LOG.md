@@ -65,3 +65,10 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 
 - Status: 1 commit on main, no push. Sealed files untouched. Hunter steel/plates root-caused and fixed, showcase hold exit, pause Escape resume, English chrome. 7 new tests. `make check` exit 0 (534/534, bot Normal 5533 ticks HP 95/160 57 kills, reach3d 52 waypoints 3432 ticks, dist-guard PASS). Playwright check done on the dev server.
 - Note: the "first showcase call ignored" report matched the loading screen (logo over the scene) still fading out after the first call resolved. A Vite dependency-reload a few seconds after first load can also replace the page; that is dev-server behaviour, not game code.
+
+## 2026-11-15 — R9–R11 세션 마감
+
+- Status: 문서 마감 커밋, 푸시 없음(github.com DNS 실패, 사용자가 `git push origin main` 실행). 봉인 파일 무변경.
+- 오케스트레이터 Playwright 관찰: R9 uiAudit 12개 시나리오 ok, 스캔 윤곽, Vault Nook 발견과 카메라 추적(`8376998`), 콘솔 경고 0. R10/R11 오프닝(레터박스, HUD 없음, 무릎 꿇은 operative, 1996), HUD 한 줄 HUNTER pill, 헌터 외형 개선. `3c8e7a0` 최종 외형은 재확인 전.
+- `__reanimatorAdvance` 후 타이틀 재출현 보고: 실제 Chrome에서 재현 불가(상세 STATUS). 유력 원인은 동시 편집에 의한 Vite 리로드. 코드 변경 없음.
+- Unverified: 패리/카운터 창 체감, G5 사람 플레이, `make smoke-local`(실제 Chrome 필요).

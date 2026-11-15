@@ -2,6 +2,16 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R9–R11 세션 마감 후 (남은 항목)
+
+- [ ] **푸시 대기**: github.com DNS 실패로 `git push origin main`을 못 했다. 사용자가 직접 실행.
+- [ ] G5 사람 플레이(감각, 난이도, 탐험 흐름)를 [EVALUATION.md](EVALUATION.md)에 기록.
+- [ ] `make smoke-local`은 실제 Chrome에서 실행해야 한다(에이전트 샌드박스는 브라우저 실행 불가). 쇼케이스 재촬영 포함.
+- [ ] 패리/Warden 카운터 창(8틱)의 체감은 플레이 검증 전(unverified).
+- [ ] `3c8e7a0`의 헌터 외형 재확인, `__reanimatorAdvance` 재현 불가 건은 dev 서버 재시작 후 재확인.
+- [ ] `/private/tmp`의 worktree·브랜치(`r8-*`, `r9/*`, `r10/*` 등)는 사용자가 정리(`git worktree list`, `git worktree remove`).
+- [x] Abuse·Metroid 보강 방안은 R4_METROID_GAPS 이후 R9 Vault Nook, R10 Warden 카운터·스캔·Classic View로 구현. 남은 Metroid 후속은 R4_METROID_GAPS 참조.
+
 ## R10 병합 후
 
 - [x] classic → opening → boss → hunter 병합, `make check` 통과(519/519). 충돌: `tests/audio.test.ts`(사운드 59), `scene3dFull.ts`(vignette와 hunter-alarm 둘 다 유지).
