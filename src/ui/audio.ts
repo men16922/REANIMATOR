@@ -941,6 +941,7 @@ export function getAudioDebug() {
     escape: { ticks: escapeTicks, stage: escapeStage },
     loops: [...loopVoices.keys()],
     activeVoices: ctx ? voices.filter((v) => v.endsAt > ctx!.currentTime).length : 0,
+    trackedVoices: voices.length,
     maxVoices: MAX_VOICES,
     counters: { ...counters },
     recent: recent.slice(),

@@ -69,6 +69,33 @@ try {
   scene3d = null;
 }
 const rendererMode: 'webgl-3d' | 'canvas-2d' = scene3d ? 'webgl-3d' : 'canvas-2d';
+
+// WebGL context loss: the renderer pauses drawing and the browser usually restores the context within a moment.
+// A canvas that already has a WebGL context cannot switch to 2D, so if it stays lost we ask for a reload.
+const gpuNotice = document.createElement('div');
+gpuNotice.id = 'gpu-notice';
+gpuNotice.setAttribute('role', 'alert');
+gpuNotice.hidden = true;
+gpuNotice.style.cssText = 'position:fixed;left:50%;top:14%;transform:translateX(-50%);z-index:60;padding:10px 18px;background:rgba(10,14,20,.92);color:#ffd9a0;border:1px solid #ff9d2e;font:600 14px/1.4 system-ui,sans-serif;text-align:center;pointer-events:none';
+document.body.appendChild(gpuNotice);
+let gpuTimer = 0;
+if (scene3d) {
+  scene3d.onContextChange = (lost) => {
+    window.clearTimeout(gpuTimer);
+    gpuNotice.hidden = !lost;
+    if (lost) {
+      gpuNotice.textContent = 'Graphics context lost. Restoring…';
+      gpuTimer = window.setTimeout(() => {
+        gpuNotice.textContent = 'Graphics context was not restored. Reload the page to continue.';
+      }, 5000);
+    }
+  };
+}
+
+// Frame budget telemetry (localhost or ?perf): CPU milliseconds for simulation, fx, draw submission, and the whole frame.
+const framePerfOn = /[?&]perf\b/.test(location.search) || ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+const framePerf = { simMs: 0, fxMs: 0, drawMs: 0, totalMs: 0, avgTotalMs: 0, maxTotalMs: 0, frames: 0, errors: 0, lastError: '' };
+let frameErrorLogged = false;
 if (!scene3d) {
   canvas.classList.add('fallback2d');
 }
@@ -667,6 +694,33 @@ function showResult(): void {
 }
 
 function frame(t: number): void {
+  const t0 = performance.now();
+  try {
+    frameBody(t);
+  } catch (err) {
+    // One bad frame must not kill the loop: log the first error, count the rest, keep going.
+    framePerf.errors++;
+    framePerf.lastError = err instanceof Error ? err.message : String(err);
+    if (!frameErrorLogged) {
+      frameErrorLogged = true;
+      console.error('[reanimator] frame error (loop continues):', err);
+    }
+  }
+  if (framePerfOn) {
+    const tot = performance.now() - t0;
+    framePerf.totalMs = tot;
+    framePerf.frames++;
+    framePerf.avgTotalMs += (tot - framePerf.avgTotalMs) * 0.05;
+    if (tot > framePerf.maxTotalMs) framePerf.maxTotalMs = tot;
+    if (scene3d) {
+      framePerf.fxMs = scene3d.frameMs.fx;
+      framePerf.drawMs = scene3d.frameMs.draw;
+    }
+  }
+  requestAnimationFrame(frame);
+}
+
+function frameBody(t: number): void {
   const dt = Math.min(0.1, (t - last) / 1000 || 1 / 60);
   last = t;
   const fx = scene3d?.fx;
@@ -682,6 +736,7 @@ function frame(t: number): void {
     if (!frozen) acc += dt * clock;
     const stepDt = 1 / SIM_HZ_3D;
     let steps = 0;
+    const simT0 = performance.now();
     while (acc >= stepDt && steps < 4) {
       const pre = snapshotPre(world);
       world = stepWorld3D(world, buildInput());
@@ -693,6 +748,7 @@ function frame(t: number): void {
         break;
       }
     }
+    framePerf.simMs = performance.now() - simT0;
     if (!frozen) flash = Math.max(0, flash - dt * 3.2);
   }
   if (scene3d) {
@@ -725,7 +781,6 @@ function frame(t: number): void {
     observeWorld();
     updateCoach();
   }
-  requestAnimationFrame(frame);
 }
 
 // ---- EXTRAS > WATCH SHOWCASE: one-minute captioned autoplay, any key exits ----
@@ -1145,6 +1200,7 @@ function buildSnapshot() {
     rendererMode,
     viewMode,
     crt: crtOn,
+    frame: framePerfOn ? { ...framePerf } : null,
     ...tel,
   };
 }
@@ -1164,6 +1220,7 @@ const wAny = window as unknown as {
   __reanimatorPick: (px: number, py: number, includePoints?: boolean) => Array<Record<string, unknown>>;
   __reanimatorShowcase: (name: string) => Promise<ReturnType<typeof buildSnapshot>>;
   __reanimatorDemo: (id: string) => ReturnType<typeof buildSnapshot>;
+  __reanimatorSoak: (n?: number, opts?: SoakOptions) => Promise<SoakReport>;
 };
 
 function enterManual(): void {
@@ -1320,6 +1377,129 @@ wAny.__reanimatorDemo = (id) => {
   exitShowcase();
   start(false, stop);
   return buildSnapshot();
+};
+
+interface SoakOptions {
+  /** Skip the 10 showcase scenes (they wait on real frames and make the run slow). */
+  showcase?: boolean;
+  /** Simulation ticks advanced after every state change. Default 60. */
+  stepTicks?: number;
+}
+interface SoakSample {
+  iter: number;
+  geometries: number;
+  textures: number;
+  programs: number;
+  drawCalls: number;
+  sceneChildren: number;
+  sceneObjects: number;
+  particles: number;
+  smoke: number;
+  goreChunks: number;
+  goreDecals: number;
+  popups: number;
+  audioTracked: number;
+  audioActive: number;
+  audioLoops: number;
+  jsHeapMB: number | null;
+  frameErrors: number;
+}
+interface SoakReport {
+  iterations: number;
+  samples: SoakSample[];
+  /** Metrics that kept rising after the warm-up iteration (a leak candidate). Empty means stable. */
+  leaks: Array<{ metric: string; baseline: number; last: number }>;
+  /** Bounded pools: reported for inspection, never flagged. */
+  pooled: string[];
+  ok: boolean;
+  steps: number;
+  ms: number;
+}
+
+/** Metrics that must be flat once the first iteration has compiled shaders and loaded models. */
+const SOAK_STABLE: ReadonlyArray<keyof SoakSample> = ['geometries', 'textures', 'programs', 'sceneChildren', 'sceneObjects', 'audioTracked', 'audioLoops', 'frameErrors'];
+const SOAK_POOLED: ReadonlyArray<keyof SoakSample> = ['drawCalls', 'particles', 'smoke', 'goreChunks', 'goreDecals', 'popups', 'audioActive', 'jsHeapMB'];
+
+function soakSample(iter: number): SoakSample {
+  const snap = buildSnapshot();
+  const perf = (snap as { perf?: { geometries: number; textures: number; programs: number; drawCalls: number; sceneChildren: number; sceneObjects: number } }).perf;
+  const fx = (snap as { fx?: { activeParticles: number; smoke: number; goreChunks: number; goreDecals: number; popups: number } | null }).fx;
+  const a = getAudioDebug();
+  const mem = (performance as unknown as { memory?: { usedJSHeapSize: number } }).memory;
+  return {
+    iter,
+    geometries: perf?.geometries ?? 0,
+    textures: perf?.textures ?? 0,
+    programs: perf?.programs ?? 0,
+    drawCalls: perf?.drawCalls ?? 0,
+    sceneChildren: perf?.sceneChildren ?? 0,
+    sceneObjects: perf?.sceneObjects ?? 0,
+    particles: fx?.activeParticles ?? 0,
+    smoke: fx?.smoke ?? 0,
+    goreChunks: fx?.goreChunks ?? 0,
+    goreDecals: fx?.goreDecals ?? 0,
+    popups: fx?.popups ?? 0,
+    audioTracked: a.trackedVoices,
+    audioActive: a.activeVoices,
+    audioLoops: a.loops.length,
+    jsHeapMB: mem ? Math.round((mem.usedJSHeapSize / 1048576) * 10) / 10 : null,
+    frameErrors: framePerf.errors,
+  };
+}
+
+/**
+ * Leak harness. Each iteration visits all DEMO checkpoints, all showcase scenes, a Classic toggle and a restart,
+ * advancing `stepTicks` simulation ticks after each, then samples renderer, fx and audio counters in an identical end
+ * state (modern view, fresh run, +stepTicks). Iteration 0 is warm-up (shader compile, model load); a stable metric
+ * that is higher at the end than at iteration 1 is reported in `leaks`.
+ */
+wAny.__reanimatorSoak = async (n = 3, opts = {}) => {
+  const t0 = performance.now();
+  const stepTicks = opts.stepTicks ?? 60;
+  const withShowcase = opts.showcase !== false;
+  const idle = Array.from({ length: stepTicks }, () => ({}) as Partial<InputState3D>);
+  let steps = 0;
+  const step = (): void => {
+    wAny.__reanimatorStep(idle);
+    steps++;
+  };
+  const samples: SoakSample[] = [];
+  for (let iter = 0; iter < n; iter++) {
+    // A debug world builds its own Level3D object: forces the renderer to tear down and rebuild the static level.
+    wAny.__reanimatorAdvance(idle);
+    steps++;
+    for (const stop of DEMO_STOPS) {
+      wAny.__reanimatorDemo(stop.id);
+      step();
+    }
+    if (withShowcase) {
+      for (const name of SHOWCASE_NAMES) {
+        await wAny.__reanimatorShowcase(name);
+        if (SHOWCASE_SCENES[name].kind === 'world') step();
+      }
+    }
+    applyView('classic', false);
+    step();
+    applyView('modern', false);
+    step();
+    exitShowcase();
+    start(false);
+    enterManual();
+    step();
+    await settleFrames(2);
+    samples.push(soakSample(iter));
+  }
+  const base = samples[Math.min(1, samples.length - 1)];
+  const last = samples[samples.length - 1];
+  const leaks: SoakReport['leaks'] = [];
+  if (samples.length > 1) {
+    for (const k of SOAK_STABLE) {
+      const b = base[k] as number;
+      const l = last[k] as number;
+      if (l > b) leaks.push({ metric: k, baseline: b, last: l });
+    }
+  }
+  return { iterations: n, samples, leaks, pooled: SOAK_POOLED.map(String), ok: leaks.length === 0, steps, ms: Math.round(performance.now() - t0) };
 };
 
 show('title');

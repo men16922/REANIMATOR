@@ -395,6 +395,18 @@ export class Scene3DRenderer {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     this.renderer.info.autoReset = false;
     this.renderer.setSize(canvas.width, canvas.height, false);
+    // GPU context loss: stop drawing, let the browser restore (preventDefault), and tell the UI. three.js re-uploads
+    // buffers and textures lazily after restore. A canvas that already holds a WebGL context cannot switch to 2D.
+    canvas.addEventListener('webglcontextlost', (ev) => {
+      ev.preventDefault();
+      this.contextLost = true;
+      this.onContextChange?.(true);
+    });
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.contextLost = false;
+      this.lastRenderMs = performance.now();
+      this.onContextChange?.(false);
+    });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -559,6 +571,12 @@ export class Scene3DRenderer {
       }
     });
   }
+
+  /** True between webglcontextlost and webglcontextrestored; render() is a no-op meanwhile. */
+  public contextLost = false;
+  public onContextChange: ((lost: boolean) => void) | null = null;
+  /** Last frame's CPU milliseconds inside render(): particle/fx update, and the draw submission (composer or classic). */
+  public readonly frameMs = { fx: 0, draw: 0 };
 
   /** Mirrors the HUD "Reduce flashing" option: damps shake and chromatic kick, steadies the low-HP tint. */
   public reduceMotion = false;
@@ -796,7 +814,9 @@ export class Scene3DRenderer {
   private ensureWorldBuilt(w: WorldState3D): void {
     this.lastWorldRef = w;
     if (this.builtLevelRef === w.level) return;
+    if (this.builtLevelRef) this.teardownLevel();
     this.builtLevelRef = w.level;
+    const sceneBefore = new Set<THREE.Object3D>(this.scene.children);
 
     const tex = getFacilityTextures3D();
 
@@ -972,7 +992,76 @@ export class Scene3DRenderer {
       this.addCullPoint(ring, up.x, up.y, 2);
     }
 
+    // Everything added above is owned by this level; teardownLevel() removes and frees it when the level object changes.
+    this.levelRoots = this.scene.children.filter((c) => !sceneBefore.has(c));
     this.rebuildActorInstances(w);
+  }
+
+  /** Static roots added by ensureWorldBuilt, and the per-batch texture clones that nothing else owns. */
+  private levelRoots: THREE.Object3D[] = [];
+  private levelTextures: THREE.Texture[] = [];
+
+  /**
+   * Frees every static mesh, material and cloned texture built for the previous Level3D, so replacing the level
+   * (debug entry points, a new map) never stacks geometry. Shared facility textures and glTF geometry are not touched.
+   */
+  private teardownLevel(): void {
+    this.decor?.dispose();
+    this.decor = null;
+    this.mood?.dispose();
+    this.mood = null;
+    this.hazards3d?.dispose();
+    this.hazards3d = null;
+    this.metroid3d?.dispose();
+    this.metroid3d = null;
+    // Textures on level materials (tiled clones, cracked-wall canvases, shield maps) belong to the level unless they
+    // are the shared facility atlas.
+    const shared = new Set<unknown>(Object.values(getFacilityTextures3D()));
+    const owned = new Set<THREE.Texture>(this.levelTextures);
+    for (const root of this.levelRoots) {
+      this.scene.remove(root);
+      root.traverse((o) => {
+        const m = o as THREE.Mesh;
+        m.geometry?.dispose();
+        const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+        for (const x of Array.isArray(mat) ? mat : mat ? [mat] : []) {
+          for (const v of Object.values(x as unknown as Record<string, unknown>)) if (v instanceof THREE.Texture && !shared.has(v)) owned.add(v);
+          x.dispose();
+        }
+        if ((o as THREE.InstancedMesh).isInstancedMesh) (o as THREE.InstancedMesh).dispose();
+      });
+    }
+    this.levelRoots = [];
+    for (const t of owned) t.dispose();
+    this.levelTextures = [];
+    this.trimMesh = null;
+    this.doorLamps = null;
+    this.consoleRing = null;
+    this.occludables.length = 0;
+    this.cullEntries.length = 0;
+    this.acidMeshes.length = 0;
+    this.savePads.length = 0;
+    this.saveMachines.length = 0;
+    this.upgradeMeshes.clear();
+    this.doorMeshes.clear();
+    this.doorLampIdx.clear();
+    this.pendingBatches.clear();
+    this.trimSpecs.length = 0;
+    this.logHolo?.dispose();
+    this.logHolo = null;
+    this.holoMats.length = 0;
+    if (this.shieldMat) this.holoMats.push(this.shieldMat);
+  }
+
+  /** Frees geometry and materials of a subtree that only this renderer owns (never glTF-shared geometry). */
+  private disposeTree(root: THREE.Object3D): void {
+    root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      m.geometry?.dispose();
+      const mat = m.material as THREE.Material | THREE.Material[] | undefined;
+      if (Array.isArray(mat)) for (const x of mat) x.dispose();
+      else mat?.dispose();
+    });
   }
 
   private addSolidMesh(s: MapSolid3D, tex: ReturnType<typeof getFacilityTextures3D>): void {
@@ -1145,6 +1234,7 @@ export class Scene3DRenderer {
       t.repeat.set(1, 1);
       t.offset.set(0, 0);
       t.needsUpdate = true;
+      this.levelTextures.push(t);
       return t;
     };
     for (const [key, b] of this.pendingBatches) {
@@ -1212,6 +1302,10 @@ export class Scene3DRenderer {
     let shadowCasters = 0;
     // Visible meshes by scene-root child (name prefix, else type) plus geometry type: where the draw calls come from.
     const byGroup: Record<string, number> = {};
+    let sceneObjects = 0;
+    this.scene.traverse(() => {
+      sceneObjects++;
+    });
     this.scene.traverseVisible((o) => {
       const m = o as THREE.Mesh;
       if (!m.isMesh) return;
@@ -1223,6 +1317,10 @@ export class Scene3DRenderer {
     });
     return {
       byGroup,
+      sceneChildren: this.scene.children.length,
+      sceneObjects,
+      contextLost: this.contextLost,
+      frameMs: { fx: Math.round(this.frameMs.fx * 100) / 100, draw: Math.round(this.frameMs.draw * 100) / 100 },
       drawCalls: info.render.calls,
       triangles: info.render.triangles,
       programs: info.programs?.length ?? 0,
@@ -1359,23 +1457,43 @@ export class Scene3DRenderer {
   }
 
   private rebuildActorInstances(w: WorldState3D | { level: WorldState3D['level']; enemies?: WorldState3D['enemies']; barrels?: WorldState3D['barrels']; pickups?: WorldState3D['pickups'] }): void {
-    // Clear existing model nodes cleanly on model load finish
+    // Clear existing model nodes cleanly on model load finish. Cloned materials are ours to free; geometry is shared with the glTF cache.
+    const freeMats = (mats: readonly THREE.Material[] | undefined): void => {
+      if (mats) for (const m of mats) m.dispose();
+    };
     if (this.operativeRig) {
       this.scene.remove(this.operativeRig.root);
+      freeMats(this.operativeRig.materials);
+      if (this.heroGear) freeMats(this.heroGear.materials);
       this.operativeRig = null;
       this.heroGear = null;
       this.heroFrame = null;
       this.fx.muzzleWorld.valid = false;
     }
-    for (const r of this.riggedEnemies.values()) this.scene.remove(r.root);
+    for (const r of this.riggedEnemies.values()) {
+      this.scene.remove(r.root);
+      freeMats(r.materials);
+      r.root.traverse((o) => {
+        if ((o as THREE.Mesh).name.startsWith('enemy-proxy:')) (o as THREE.Mesh).geometry.dispose();
+      });
+    }
     this.riggedEnemies.clear();
-    for (const st of this.staticEnemies.values()) this.scene.remove(st.root);
+    for (const st of this.staticEnemies.values()) {
+      this.scene.remove(st.root);
+      freeMats(st.materials);
+    }
     this.staticEnemies.clear();
     this.enemyViz.clear();
     this.enemyRenderInfo.clear();
-    for (const b of this.barrelHandles.values()) this.scene.remove(b.root);
+    for (const b of this.barrelHandles.values()) {
+      this.scene.remove(b.root);
+      freeMats(b.materials);
+    }
     this.barrelHandles.clear();
-    for (const h of this.hiveHandles.values()) this.scene.remove(h.root);
+    for (const h of this.hiveHandles.values()) {
+      this.scene.remove(h.root);
+      this.disposeTree(h.root);
+    }
     this.hiveHandles.clear();
     if (this.coreModel) {
       this.scene.remove(this.coreModel);
@@ -1383,6 +1501,7 @@ export class Scene3DRenderer {
     }
     if (this.coreShield) {
       this.scene.remove(this.coreShield);
+      this.coreShield.geometry.dispose();
       this.coreShield = null;
     }
     if (this.exitModel) {
@@ -1391,9 +1510,13 @@ export class Scene3DRenderer {
     }
     if (this.exitPortalRing) {
       this.scene.remove(this.exitPortalRing);
+      this.disposeTree(this.exitPortalRing);
       this.exitPortalRing = null;
     }
-    for (const pk of this.pickupHandles.values()) this.scene.remove(pk);
+    for (const pk of this.pickupHandles.values()) {
+      this.scene.remove(pk);
+      this.disposeTree(pk);
+    }
     this.pickupHandles.clear();
 
     // Operative with attached Pulse Rifle on RightHand
@@ -1586,6 +1709,7 @@ export class Scene3DRenderer {
 
   /** alpha in [0,1]: fraction of the next 60 Hz tick elapsed since the last simulated tick. */
   public render(w: WorldState3D, alpha = 1): void {
+    if (this.contextLost) return;
     const now = performance.now();
     const dt = Math.min(0.05, Math.max(0.001, (now - this.lastRenderMs) / 1000));
     this.lastRenderMs = now;
@@ -2132,7 +2256,9 @@ export class Scene3DRenderer {
 
     // 8. Side-view camera: smoothed look-ahead (aim + velocity), dead zone, per-room vertical clamp, trauma shake
     this.fx.reduce = this.reduceMotion;
+    const fxT0 = performance.now();
     this.fx.update(dt * this.fxTimeScale, w);
+    this.frameMs.fx = performance.now() - fxT0;
     let anchorY = py + 1.45;
     if (room) {
       const halfH = 5.2;
@@ -2211,6 +2337,7 @@ export class Scene3DRenderer {
 
     this.applyViewCulling(w);
     this.renderer.info.reset();
+    const drawT0 = performance.now();
     if (this.viewMode === 'classic' && this.classic) {
       this.syncOrtho();
       const hurt = this.postParams.lowHp * this.postParams.pulse;
@@ -2218,6 +2345,7 @@ export class Scene3DRenderer {
     } else {
       this.composer.render();
     }
+    this.frameMs.draw = performance.now() - drawT0;
   }
 
   private syncDynamicFX(w: WorldState3D, _dt: number): void {
