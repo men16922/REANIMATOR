@@ -51,3 +51,22 @@ test('decor prop count stays within budget', () => {
   }
   assert.ok(total <= 1200, `total props ${total}`);
 });
+
+test('foreground silhouettes stay at the ceiling, in front of the lane', () => {
+  for (const room of level.rooms) {
+    const fg = layoutRoomDecor(room).props.filter((p) => p.kind === 'fg');
+    assert.ok(fg.length > 0, `${room.id} has foreground silhouettes`);
+    for (const p of fg) {
+      assert.ok(p.z >= LANE_FRONT_Z, `${room.id} fg z=${p.z}`);
+      assert.ok(propBounds(p).minY >= room.maxY - 1.0, `${room.id} fg hangs at most 1 m from the ceiling`);
+    }
+  }
+});
+
+test('rotated braces report rotated bounds and stay in the room', () => {
+  const p = { kind: 'box' as const, x: 0, y: 0, z: -1.8, sx: 4, sy: 0.1, sz: 0.1, color: 0, rz: Math.PI / 4 };
+  const b = propBounds(p);
+  assert.ok(b.maxY > 1.4 && b.maxX < 2.1);
+  const braced = level.rooms.filter((r) => r.sector !== 'mines').map((r) => layoutRoomDecor(r).props.filter((q) => q.rz));
+  for (const list of braced) assert.ok(list.length > 0, 'gantry diagonals present');
+});

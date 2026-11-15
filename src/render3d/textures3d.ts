@@ -17,6 +17,14 @@ export interface FacilityTextures3D {
   rustMetalMap: THREE.CanvasTexture;
   macroMap: THREE.CanvasTexture;
   crateMap: THREE.CanvasTexture;
+  /** Dark vented housing for light fixtures. */
+  grilleMap: THREE.CanvasTexture;
+  /** Bright slatted lamp face (tinted per instance). */
+  lampMap: THREE.CanvasTexture;
+  /** Hex energy lattice for door shields (tinted by emissive). */
+  shieldMap: THREE.CanvasTexture;
+  /** Door sign plate: chevrons on a dark plate (tinted per instance). */
+  signMap: THREE.CanvasTexture;
 }
 
 /** Deterministic PRNG (no Math.random) shared by textures and decor layout. */
@@ -309,7 +317,94 @@ export function getFacilityTextures3D(): FacilityTextures3D {
     speckle(ctx, w, h, 91, 120, '#8a96a4', '#3a424c');
   });
 
+  const grilleCanvas = makeCanvas(64, 64, (ctx, w, h) => {
+    ctx.fillStyle = '#2b333d';
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = '#4a5666';
+    ctx.fillRect(0, 0, w, 3);
+    ctx.fillRect(0, 0, 3, h);
+    ctx.fillStyle = '#10151b';
+    ctx.fillRect(0, h - 3, w, 3);
+    ctx.fillRect(w - 3, 0, 3, h);
+    for (let y = 8; y < h - 6; y += 8) {
+      ctx.fillStyle = '#0b0f14';
+      ctx.fillRect(7, y, w - 14, 4);
+      ctx.fillStyle = '#3c4858';
+      ctx.fillRect(7, y + 4, w - 14, 1);
+    }
+    ctx.fillStyle = '#6a7686';
+    for (const [x, y] of [[5, 5], [w - 5, 5], [5, h - 5], [w - 5, h - 5]]) ctx.fillRect(x - 1, y - 1, 2, 2);
+  });
+  const lampCanvas = makeCanvas(64, 32, (ctx, w, h) => {
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, '#9a9a9a');
+    g.addColorStop(0.5, '#ffffff');
+    g.addColorStop(1, '#a0a0a0');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(0,0,0,0.38)';
+    for (let x = 6; x < w; x += 8) ctx.fillRect(x, 0, 2, h);
+    const e = ctx.createLinearGradient(0, 0, w, 0);
+    e.addColorStop(0, 'rgba(0,0,0,0.55)');
+    e.addColorStop(0.12, 'rgba(0,0,0,0)');
+    e.addColorStop(0.88, 'rgba(0,0,0,0)');
+    e.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = e;
+    ctx.fillRect(0, 0, w, h);
+  });
+  const shieldCanvas = makeCanvas(128, 128, (ctx, w, h) => {
+    ctx.fillStyle = '#242424';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#d8d8d8';
+    ctx.lineWidth = 2;
+    const r = 16;
+    const dx = r * 1.5;
+    const dy = r * Math.sqrt(3);
+    for (let col = -1; col * dx < w + r; col++) {
+      for (let row = -1; row * dy < h + dy; row++) {
+        const cx = col * dx;
+        const cy = row * dy + (col % 2 === 0 ? 0 : dy / 2);
+        ctx.beginPath();
+        for (let k = 0; k < 6; k++) {
+          const a = (Math.PI / 3) * k;
+          const px = cx + Math.cos(a) * (r - 1);
+          const py = cy + Math.sin(a) * (r - 1);
+          if (k === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    for (let y = 0; y < h; y += 4) ctx.fillRect(0, y, w, 1);
+  });
+  const signCanvas = makeCanvas(128, 64, (ctx, w, h) => {
+    ctx.fillStyle = '#20262e';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#8a96a6';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(3, 3, w - 6, h - 6);
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 4; i++) {
+      const x = 22 + i * 24;
+      ctx.beginPath();
+      ctx.moveTo(x, 14);
+      ctx.lineTo(x + 14, h / 2);
+      ctx.lineTo(x, h - 14);
+      ctx.lineTo(x + 6, h - 14);
+      ctx.lineTo(x + 20, h / 2);
+      ctx.lineTo(x + 6, 14);
+      ctx.closePath();
+      ctx.fill();
+    }
+  });
+
   cached = {
+    grilleMap: asTiledTexture(grilleCanvas, 1, 1, true),
+    lampMap: asTiledTexture(lampCanvas, 1, 1, true),
+    shieldMap: asTiledTexture(shieldCanvas, 1, 2, true),
+    signMap: asTiledTexture(signCanvas, 1, 1, true),
     crateMap: asTiledTexture(crateCanvas, 1, 1, true),
     rockMap: asTiledTexture(rockCanvas, 1, 1, true),
     rockBump: asTiledTexture(rockBumpCanvas, 1, 1, false),
