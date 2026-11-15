@@ -60,6 +60,11 @@ export const EVENT_SOUND: Record<SoundEventType3D, string> = {
   map_reveal: 'world.unlock',
   seal_warn: 'stinger.meltdown',
   seal_close: 'world.door_blast',
+  // Round 6 arms (borrowed recipes; cueForEvent retunes them, a dedicated recipe can replace each id later)
+  flamer: 'weapon.scatter',
+  rocket: 'weapon.grenade',
+  burn: 'weapon.hit',
+  rocket_jump: 'player.stomp',
 };
 
 export function soundIdForEvent(type: SoundEventType3D): string {
@@ -125,6 +130,19 @@ export function cueForEvent(ev: { type: SoundEventType3D; value?: number }, boss
   } else if (ev.type === 'seal_close') {
     pitch = 0.6;
     gain = 1.15;
+  } else if (ev.type === 'flamer') {
+    // value 1 = ignition whoosh, 0 = sustain tick
+    pitch = ev.value === 1 ? 0.55 : 0.7;
+    gain = ev.value === 1 ? 0.7 : 0.4;
+  } else if (ev.type === 'rocket') {
+    pitch = 0.7;
+    gain = 0.95;
+  } else if (ev.type === 'burn') {
+    pitch = 1.7;
+    gain = 0.3;
+  } else if (ev.type === 'rocket_jump') {
+    pitch = 1.25;
+    gain = 0.75;
   }
   return { id, pitch, gain };
 }

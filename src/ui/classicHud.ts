@@ -1,4 +1,4 @@
-// Classic View status bar: a 320x24 pixel strip along the bottom edge (health, four weapon slots, ammo, kills, sector).
+// Classic View status bar: a 320x24 pixel strip along the bottom edge (health, six weapon slots, ammo, kills, sector).
 // Layout, colours and icons are an original design that uses the new Classic palette (see render3d/classicLogic.ts).
 
 import { buildPalette, RAMP_STEPS } from '../render3d/classicLogic.ts';
@@ -6,6 +6,11 @@ import { drawPixelText, hasGlyph, textWidth } from './pixelFont.ts';
 
 export const HUD_W = 320;
 export const HUD_H = 24;
+/** Six weapon slots between the health block and the kills block (x 74..230). */
+export const WEAPON_SLOTS = 6;
+export const SLOT_X0 = 74;
+export const SLOT_W = 25;
+export const SLOT_PITCH = 26;
 /** Characters that fit between x=232 and the right edge (6 px advance). */
 export const SECTOR_CHARS = 14;
 
@@ -13,10 +18,10 @@ export interface ClassicHudState {
   hp: number;
   maxHp: number;
   energyTanks: number;
-  weapon: 1 | 2 | 3 | 4;
-  unlocked: readonly [boolean, boolean, boolean, boolean];
+  weapon: 1 | 2 | 3 | 4 | 5 | 6;
+  unlocked: readonly [boolean, boolean, boolean, boolean, boolean, boolean];
   /** Ammo per slot; a negative value means unlimited. */
-  ammo: readonly [number, number, number, number];
+  ammo: readonly [number, number, number, number, number, number];
   kills: number;
   sector: string;
 }
@@ -76,6 +81,9 @@ const ICONS: Record<number, string[]> = {
   2: ['.#.#.#.', '.......', '.#.#.#.', '.......', '.#.#.#.', '.......', '.......'],
   3: ['...##..', '...#...', '.#####.', '#######', '#######', '#######', '.#####.'],
   4: ['.......', '.#.....', '#######', '#######', '.#.....', '.......', '.......'],
+  // Flamer: a teardrop flame. Rocket: a missile pointing right.
+  5: ['...#...', '..##...', '..###..', '.#####.', '.##.##.', '.#####.', '..###..'],
+  6: ['.......', '.#.....', '.####..', '#######', '.####..', '.#.....', '.......'],
 };
 
 function drawIcon(ctx: CanvasRenderingContext2D, rows: string[], x: number, y: number, color: string): void {
@@ -117,19 +125,19 @@ export function drawClassicHud(ctx: CanvasRenderingContext2D, s: ClassicHudState
   }
 
   // Weapon slots
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < WEAPON_SLOTS; i++) {
     const slot = i + 1;
-    const x = 74 + i * 38;
+    const x = SLOT_X0 + i * SLOT_PITCH;
     const on = s.weapon === slot;
     const open = s.unlocked[i];
     ctx.fillStyle = on ? edgeLight : edgeDark;
-    ctx.fillRect(x, 4, 36, 18);
+    ctx.fillRect(x, 4, SLOT_W, 18);
     ctx.fillStyle = on ? paletteHex(1, 3) : paletteHex(1, 0);
-    ctx.fillRect(x + 1, 5, 34, 16);
+    ctx.fillRect(x + 1, 5, SLOT_W - 2, 16);
     drawPixelText(ctx, String(slot), x + 3, 6, open ? label : dim);
-    drawIcon(ctx, ICONS[slot], x + 11, 6, open ? (on ? paletteHex(4, 13) : text) : dim);
+    drawIcon(ctx, ICONS[slot], x + 12, 6, open ? (on ? paletteHex(4, 13) : text) : dim);
     const a = ammoText(slot, s.ammo[i], open);
-    drawPixelText(ctx, a, x + 35 - textWidth(a) - 1, 14, open ? text : dim);
+    drawPixelText(ctx, a, x + SLOT_W - 1 - textWidth(a), 14, open ? text : dim);
   }
 
   // Kills and sector

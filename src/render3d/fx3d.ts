@@ -519,6 +519,7 @@ export class FxDirector {
         if (pr.kind === 'pulse' && !flashedPulse) { flashedPulse = true; this.muzzle('pulse', pr.x, pr.y, pr.vx, pr.vy, px); }
         else if (pr.kind === 'scatter' && !flashedScatter) { flashedScatter = true; this.muzzle('scatter', pr.x, pr.y, pr.vx, pr.vy, px); }
         else if (pr.kind === 'grenade' && !flashedGrenade) { flashedGrenade = true; this.muzzle('grenade', pr.x, pr.y, pr.vx, pr.vy, px); }
+        else if (pr.kind === 'rocket') this.muzzle('rocket', pr.x, pr.y, pr.vx, pr.vy, px);
       }
       for (const bm of w.beams) {
         if (bm.id >= this.prevNextId) {
@@ -563,6 +564,9 @@ export class FxDirector {
           case 'scatter': this.trauma.add(0.2); this.rig.punch(-0.5); break;
           case 'grenade': this.trauma.add(0.16); this.rig.punch(-0.35); break;
           case 'rail': this.trauma.add(0.4); this.rig.punch(-1.1); this.chroma = Math.max(this.chroma, 0.5); break;
+          case 'flamer': if (ev.value === 1) { this.trauma.add(0.05); this.rig.punch(-0.2); } break;
+          case 'rocket': this.trauma.add(0.22); this.rig.punch(-0.9); break;
+          case 'rocket_jump': this.trauma.add(0.28); this.chroma = Math.max(this.chroma, 0.3); this.ring(px, py + 0.6, 0.9, 1.0, 0.7, 0.3); this.dustAt(px, py + 0.1, 8, 5, 0); this.burst(px, py + 0.5, 1, 0.65, 0.2, 0.9, 16, 7); break;
           case 'slam': this.trauma.add(0.7); this.chroma = Math.max(this.chroma, 0.45); this.hitstop.request(3, true); break;
           case 'door_blast': this.trauma.add(0.45); break;
           case 'meltdown': this.trauma.add(0.9); this.chroma = Math.max(this.chroma, 0.7); break;
@@ -643,6 +647,7 @@ export class FxDirector {
     this.tClock += dt;
     for (const pr of w.projectiles) this.projectileGlow(pr, emitTrail);
     this.frameEmitters(dt, w);
+    this.armsEmitters(dt, w);
     this.gore.update(dt);
     this.smokeEmitters(dt);
     this.phaseFlash = Math.max(0, this.phaseFlash - dt * 2.4);
@@ -965,6 +970,13 @@ export class FxDirector {
     } else if (pr.kind === 'grenade') {
       this.alpha.emit(pr.x, pr.y, 0.2, this.rr(-0.3, 0.3), this.rr(0.3, 0.9), 0, 0.7, 0.2, 0.55, 0.18, 0.16, 0.15, 0.4, -0.4, 1.2, 1);
       this.add.emit(pr.x, pr.y, 0.25, this.rr(-0.4, 0.4), this.rr(0.2, 0.8), 0, 0.5, 0.18, 0.45, 1.0, 0.45, 0.12, 0.55, 0, 1.5, 1);
+    } else if (pr.kind === 'rocket') {
+      // Exhaust flame and a grey smoke trail that lingers behind the rocket
+      const sp = Math.hypot(pr.vx, pr.vy) || 1;
+      const bx = -pr.vx / sp;
+      const by = -pr.vy / sp;
+      this.add.emit(pr.x + bx * 0.2, pr.y + by * 0.2, 0.3, bx * 3 + this.rr(-0.5, 0.5), by * 3 + this.rr(-0.5, 0.5), 0, this.rr(0.12, 0.22), 0.3, 0.04, 1.6, 0.8, 0.22, 0.85, 0, 2, 1);
+      this.smoke.emit(pr.x + bx * 0.4, pr.y + by * 0.4, 0.3, bx * 0.8 + this.rr(-0.3, 0.3), by * 0.8 + this.rr(0.1, 0.5), this.rr(-0.2, 0.2), this.rr(0.8, 1.3), 0.14, this.rr(0.5, 0.8), 0.5, 0.48, 0.46, 0.4, -0.3, 1.4, 1, this.rr(0, 6), this.rr(-1, 1));
     } else if (pr.kind === 'enemy_acid') {
       this.add.emit(pr.x, pr.y, 0.3, this.rr(-0.3, 0.3), this.rr(-0.6, 0), 0, 0.3, 0.16, 0.03, 0.35, 1.0, 0.2, 0.6, 2.5, 0, 1);
     } else if (pr.kind === 'boss_plasma') {
@@ -1069,7 +1081,7 @@ export class FxDirector {
     this.dustAt(x, y - 0.5, 3, 3, dir);
   }
 
-  private muzzle(kind: 'pulse' | 'scatter' | 'grenade', sx: number, sy: number, vx: number, vy: number, px: number): void {
+  private muzzle(kind: 'pulse' | 'scatter' | 'grenade' | 'rocket', sx: number, sy: number, vx: number, vy: number, px: number): void {
     const mz = chooseMuzzle(this.muzzleWorld, sx, sy);
     const x = mz.x;
     const y = mz.y;
@@ -1097,10 +1109,72 @@ export class FxDirector {
         this.alpha.emit(x, y, 0.4, dx * this.rr(1, 4) + this.rr(-0.4, 0.4), dy * this.rr(1, 4) + this.rr(0.2, 0.9), 0, this.rr(0.4, 0.7), 0.15, 0.5, 0.45, 0.42, 0.4, 0.5, -0.6, 1.5, 1);
       }
       this.casing(px, y, dir, 1.4);
+    } else if (kind === 'rocket') {
+      // Launch flash plus a backblast of smoke and sparks thrown the opposite way
+      this.add.emit(x, y, 0.5, dx, dy, 0, 0.12, 0.7, 0.2, 1.7, 0.9, 0.3, 0.85, 0, 0, 1);
+      for (let i = 0; i < 10; i++) {
+        const a = Math.atan2(-dy, -dx) + this.rr(-0.5, 0.5);
+        const sp = this.rr(4, 12);
+        this.add.emit(x, y, 0.45, Math.cos(a) * sp, Math.sin(a) * sp, 0, this.rr(0.12, 0.3), 0.16, 0.02, 1.6, 0.8, 0.25, 0.9, 4, 2.4, 4);
+      }
+      for (let i = 0; i < 6; i++) {
+        this.smoke.emit(x - dx * 0.5, y - dy * 0.5, 0.4, -dx * this.rr(1, 4) + this.rr(-0.6, 0.6), -dy * this.rr(1, 4) + this.rr(0, 0.8), 0, this.rr(0.8, 1.3), 0.2, 0.8, 0.55, 0.52, 0.5, 0.45, -0.5, 1.6, 1, this.rr(0, 6), this.rr(-1, 1));
+      }
     } else {
       this.add.emit(x, y, 0.5, dx, dy, 0, 0.1, 0.42, 0.12, 1.0, 0.55, 0.15, 0.8, 0, 0, 1);
       for (let i = 0; i < 6; i++) {
         this.alpha.emit(x, y, 0.4, dx * this.rr(1, 5), dy * this.rr(1, 5) + this.rr(0, 1), 0, this.rr(0.5, 0.9), 0.2, 0.7, 0.4, 0.38, 0.36, 0.55, -0.4, 1.5, 1);
+      }
+    }
+  }
+
+  /**
+   * Round 6 arms, per display frame (render-only, reads the sim): the Flamer stream from the muzzle, flames on burning enemies,
+   * glowing floor embers (decals) and steam where embers lie over acid. Uses the existing particle pools.
+   */
+  private armsEmitters(dt: number, w: WorldState3D): void {
+    const p = w.player;
+    const b = p.body;
+    const k = this.reduce ? 0.5 : 1;
+    if (p.weapon === 5 && p.muzzleFlashTicks > 0 && p.hp > 0 && w.status === 'playing') {
+      const cx = b.x;
+      const cy = b.y + 1.12;
+      const ax = p.aimX - cx;
+      const ay = p.aimY - cy;
+      const al = Math.hypot(ax, ay) || 1;
+      const dx = ax / al;
+      const dy = ay / al;
+      const mz = chooseMuzzle(this.muzzleWorld, cx + dx * 0.72, cy + dy * 0.72);
+      const n = Math.round(dt * 150 * k + this.rnd());
+      for (let i = 0; i < n; i++) {
+        const a = Math.atan2(dy, dx) + this.rr(-0.26, 0.26);
+        const sp = this.rr(9, 15);
+        // hot core, orange body, then dark smoke at the tip of the cone
+        this.add.emit(mz.x, mz.y, 0.45, Math.cos(a) * sp, Math.sin(a) * sp + 0.6, this.rr(-0.4, 0.4), this.rr(0.18, 0.3), 0.14, this.rr(0.5, 0.8), 1.8, this.rr(0.55, 0.9), 0.15, 0.7, -1.5, 1.2, 1);
+        if (this.rnd() < 0.5) this.add.emit(mz.x, mz.y, 0.4, Math.cos(a) * sp * 0.8, Math.sin(a) * sp * 0.8 + 0.8, 0, this.rr(0.12, 0.2), 0.08, 0.3, 1.9, 1.6, 0.8, 0.9, 0, 1.6, 1);
+      }
+      if (this.rnd() < dt * 20 * k) {
+        this.smoke.emit(mz.x + dx * 3.2, mz.y + dy * 3.2, 0.42, dx * 1.2 + this.rr(-0.4, 0.4), 1.2 + this.rr(0, 0.8), 0, this.rr(0.8, 1.3), 0.3, 1.0, 0.18, 0.17, 0.16, 0.4, -0.6, 1.2, 1, this.rr(0, 6), this.rr(-1, 1));
+      }
+    }
+    for (const e of w.enemies) {
+      if (e.burnTicks <= 0 || !e.alive) continue;
+      if (this.rnd() < dt * 46 * k) {
+        this.add.emit(e.x + this.rr(-e.radius, e.radius), e.y + this.rr(0.1, e.height), 0.45, this.rr(-0.5, 0.5), this.rr(1.8, 3.6), 0, this.rr(0.25, 0.45), 0.3, 0.04, 1.7, this.rr(0.5, 0.85), 0.15, 0.85, -1.2, 0.8, 1);
+      }
+      if (this.rnd() < dt * 9 * k) {
+        this.smoke.emit(e.x, e.y + e.height, 0.4, this.rr(-0.3, 0.3), this.rr(0.8, 1.6), 0, this.rr(0.8, 1.2), 0.18, 0.7, 0.22, 0.2, 0.19, 0.4, -0.6, 1, 1, this.rr(0, 6), this.rr(-1, 1));
+      }
+    }
+    for (const m of w.embers) {
+      const fade = m.ticksLeft / m.maxTicks;
+      // the decal: a flat glow strip re-emitted every frame so it never blinks
+      this.add.emit(m.x, m.y + 0.04, 0.35, 0.001, 0, 0, 0.034, 0.9, 0.9, 1.3 * fade + 0.2, 0.42 * fade + 0.05, 0.08, 0.5 * fade + 0.1, 0, 0, 2.6);
+      if (this.rnd() < dt * 7 * fade * k) {
+        this.add.emit(m.x + this.rr(-0.4, 0.4), m.y + 0.08, 0.4, this.rr(-0.2, 0.2), this.rr(0.8, 2.2), 0, this.rr(0.4, 0.8), 0.08, 0.01, 1.5, 0.6, 0.15, 0.9, -0.5, 0.5, 1);
+      }
+      if (m.steam && this.rnd() < dt * 14 * k) {
+        this.smoke.emit(m.x + this.rr(-0.4, 0.4), m.y + 0.1, 0.4, this.rr(-0.3, 0.3), this.rr(1.0, 2.2), 0, this.rr(1.0, 1.6), 0.25, 0.9, 0.78, 0.82, 0.8, 0.4, -0.5, 1, 1, this.rr(0, 6), this.rr(-1, 1));
       }
     }
   }
@@ -1133,7 +1207,7 @@ export class FxDirector {
   }
 
   /** Gun smoke: a soft puff that spreads from the muzzle, plus wisps that keep rising from the barrel for a moment. */
-  private muzzleSmoke(kind: 'pulse' | 'scatter' | 'grenade', x: number, y: number, dx: number, dy: number): void {
+  private muzzleSmoke(kind: 'pulse' | 'scatter' | 'grenade' | 'rocket', x: number, y: number, dx: number, dy: number): void {
     const heavy = kind !== 'pulse';
     const n = kind === 'scatter' ? 5 : kind === 'grenade' ? 4 : 2;
     for (let i = 0; i < n; i++) {

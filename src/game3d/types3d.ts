@@ -1,7 +1,7 @@
 // Shared Metroidvania 3D type contracts for REANIMATOR (Full 3D Side-View Action Platformer).
 // Keeps module dependencies acyclic across engine, game3d, render3d, and ui layers.
 
-export type WeaponSlot3D = 1 | 2 | 3 | 4;
+export type WeaponSlot3D = 1 | 2 | 3 | 4 | 5 | 6;
 export type ActorAnimAction = 'idle' | 'walk' | 'run' | 'jump' | 'attack' | 'death';
 export type SoundEventType3D =
   | 'pulse'
@@ -53,7 +53,12 @@ export type SoundEventType3D =
   | 'block_break'
   | 'map_reveal'
   | 'seal_warn'
-  | 'seal_close';
+  | 'seal_close'
+  // Round 6 arms: Flamer (5) and Rocket launcher (6). burn = a burn tick landed, rocket_jump = the player rode their own blast
+  | 'flamer'
+  | 'rocket'
+  | 'burn'
+  | 'rocket_jump';
 
 export interface SoundEvent3D {
   type: SoundEventType3D;

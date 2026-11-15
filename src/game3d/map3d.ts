@@ -350,6 +350,9 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'ped-scatter', weapon: 2, x: 38.5, y: -11.0, z: 0 },
     { id: 'ped-grenade', weapon: 3, x: 8.5, y: -8.6, z: 0 },
     { id: 'ped-rail', weapon: 4, x: 65.5, y: 2.2, z: 0 },
+    // Round 6 arms. Flamer: optional ledge above the Bio-Labs west floor (one jump from the first gantry). Rocket: Security Deck, past the console.
+    { id: 'ped-flamer', weapon: 5, x: 43.8, y: 4.4, z: 0 },
+    { id: 'ped-rocket', weapon: 6, x: 51.5, y: 8.8, z: 0 },
   ];
 
   const barrels: BarrelSpawn3D[] = [

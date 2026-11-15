@@ -164,7 +164,7 @@ let interactQueued = false;
 let weaponQueue: WeaponSlot3D | 0 = 0;
 
 function cycleWeapon(dir: 1 | -1): void {
-  const unlocked = ([1, 2, 3, 4] as WeaponSlot3D[]).filter((s) => world.player.unlocked[s]);
+  const unlocked = ([1, 2, 3, 4, 5, 6] as WeaponSlot3D[]).filter((s) => world.player.unlocked[s]);
   if (unlocked.length <= 1) return;
   const idx = unlocked.indexOf(world.player.weapon);
   const nextIdx = (idx + dir + unlocked.length) % unlocked.length;
@@ -392,6 +392,8 @@ const WEAPON_BANNER: Record<number, { title: string; desc: string }> = {
   2: { title: 'SCATTERGUN', desc: 'Wide spread. Opens green locks. Press 2 to equip.' },
   3: { title: 'GRENADE LAUNCHER', desc: 'Splash damage. Opens yellow locks and Cracked Bio-Walls. Press 3 to equip.' },
   4: { title: 'RAIL-CANNON', desc: 'Heavy shot. Opens red locks once the Security Console is armed. Press 4 to equip.' },
+  5: { title: 'FLAMER', desc: 'Short cone of fire that sets enemies burning. Strong on crawlers and nests, weak on the Warden. Press 5 to equip.' },
+  6: { title: 'ROCKET LAUNCHER', desc: 'Slow, accelerating rocket with a big blast. Fire it near your feet for a small rocket jump. Press 6 to equip.' },
 };
 const UPGRADE_BANNER: Record<string, { title: string; desc: string }> = {
   thruster_boots: { title: 'THRUSTER BOOTS', desc: 'Press jump again in mid-air for a second jump. Reach the high ledge in the Central Shaft.' },
@@ -413,7 +415,7 @@ function showPickupBanner(b: { title: string; desc: string }): void {
 /** Detects sector changes, new pickups and weapon switches by diffing against the last frame. */
 function observeWorld(): void {
   const p = world.player;
-  const unlocked = ([1, 2, 3, 4] as const).map((s) => (p.unlocked[s] ? '1' : '0')).join('');
+  const unlocked = ([1, 2, 3, 4, 5, 6] as const).map((s) => (p.unlocked[s] ? '1' : '0')).join('');
   if (seen.world !== world) {
     seen.world = world;
     seen.room = '';
@@ -457,7 +459,7 @@ function observeWorld(): void {
     seen.secrets = world.secretsFound.length;
   }
   if (unlocked !== seen.unlocked) {
-    for (const s of [2, 3, 4] as const) {
+    for (const s of [2, 3, 4, 5, 6] as const) {
       if (unlocked[s - 1] === '1' && seen.unlocked[s - 1] === '0') showPickupBanner(WEAPON_BANNER[s]);
     }
     seen.unlocked = unlocked;
@@ -555,8 +557,8 @@ function hud(): void {
     ui.meltdown.hidden = true;
   }
 
-  // 4-Weapon Hotbar
-  for (const s of [1, 2, 3, 4] as WeaponSlot3D[]) {
+  // 6-Weapon Hotbar
+  for (const s of [1, 2, 3, 4, 5, 6] as WeaponSlot3D[]) {
     const el = $(`wpn-${s}`);
     const ammoEl = $(`ammo-${s}`);
     const unlocked = p.unlocked[s];
@@ -573,8 +575,8 @@ function hud(): void {
       maxHp: p.maxHp,
       energyTanks: p.energyTanks,
       weapon: p.weapon,
-      unlocked: [p.unlocked[1], p.unlocked[2], p.unlocked[3], p.unlocked[4]],
-      ammo: [-1, p.ammo[2], p.ammo[3], p.ammo[4]],
+      unlocked: [p.unlocked[1], p.unlocked[2], p.unlocked[3], p.unlocked[4], p.unlocked[5], p.unlocked[6]],
+      ammo: [-1, p.ammo[2], p.ammo[3], p.ammo[4], p.ammo[5], p.ammo[6]],
       kills: p.kills,
       sector: zm.name,
     });
@@ -817,6 +819,8 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Digit2' && !e.repeat) weaponQueue = 2;
   if (e.code === 'Digit3' && !e.repeat) weaponQueue = 3;
   if (e.code === 'Digit4' && !e.repeat) weaponQueue = 4;
+  if (e.code === 'Digit5' && !e.repeat) weaponQueue = 5;
+  if (e.code === 'Digit6' && !e.repeat) weaponQueue = 6;
   if (e.code === 'KeyQ' && !e.repeat) cycleWeapon(1);
   if (e.code === 'KeyR' && !e.repeat) start();
   if (e.code === 'KeyM' && !e.repeat) mapMarkers = !mapMarkers;
@@ -1104,7 +1108,7 @@ function applyDebugSetup(w: WorldState3D, o: DebugSetup3D): void {
   }
   for (const s of o.weapons ?? []) {
     p.unlocked[s] = true;
-    if (s !== 1) p.ammo[s as 2 | 3 | 4] = WEAPON_META[s].initialAmmo;
+    if (s !== 1) p.ammo[s as 2 | 3 | 4 | 5 | 6] = WEAPON_META[s].initialAmmo;
   }
   for (const d of o.openDoors ?? []) w.openDoors.add(d);
   if (o.console) w.consoleUnlocked = true;
