@@ -60,3 +60,7 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 
 - `__reanimatorAdvance([], {x:34,y:-7,boots:true,hp:999})` 후 `__reanimatorPick(435,620)`: 첫 항목 또는 목록에 `enemy.enemyId === 'e-shaft-2'`(stalker). 기본 호출에 `type:'Points'` 없음, 세 번째 인자 `true`일 때만 Points 포함.
 - `__reanimator().enemyRender`: 각 리그 적 `yaw`(rad), `clip`(idle/walk/run/attack/death), `timeScale`(걷기·달리기는 속도 비례, 공격 hold는 0), `x/y/z`. 시뮬 `x`와 보간 차이가 1 tick 이내인지 확인.
+
+## 병렬 3트랙 통합 후 확인(unverified, 오케스트레이터)
+- Playwright로 적 alert/사망 연출·yaw 캡, 섹터별 지형·문 시각, `window.__reanimatorAudio`·슬라이더·BGM 전환 확인.
+- 확인 후 /private/tmp/Kiroween2026-wt-{monsters,terrain,audio} worktree와 improve/* 브랜치 정리 여부 결정. 푸시는 DNS 복구 후.
