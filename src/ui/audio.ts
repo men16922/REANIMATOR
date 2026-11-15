@@ -161,3 +161,55 @@ export function ambient(on: boolean, meltdown = false) {
     humGain = null;
   }
 }
+
+// ---- Procedural BGM (synthesised, no files): slow minor pad + sparse arpeggio, faster and darker in Meltdown. ----
+let bgmTimer: ReturnType<typeof setInterval> | null = null;
+let bgmNext = 0;
+let bgmStep = 0;
+let bgmMeltdown = false;
+const BGM_ROOTS = [55, 55, 49, 52]; // A1, A1, G1, Ab1-ish drone progression (per bar)
+const BGM_ARP = [0, 7, 12, 15, 12, 7, 3, 7]; // semitone offsets over the root (minor feel)
+
+function bgmNote(freq: number, start: number, dur: number, type: OscillatorType, gain: number): void {
+  if (!ctx || !master) return;
+  const o = ctx.createOscillator();
+  const g = ctx.createGain();
+  o.type = type;
+  o.frequency.setValueAtTime(freq, start);
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.linearRampToValueAtTime(gain, start + dur * 0.2);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  o.connect(g).connect(master);
+  o.start(start);
+  o.stop(start + dur + 0.05);
+}
+
+function bgmSchedule(): void {
+  if (!ctx || !master) return;
+  const stepDur = bgmMeltdown ? 0.2 : 0.38;
+  while (bgmNext < ctx.currentTime + 0.4) {
+    const bar = Math.floor(bgmStep / 8) % BGM_ROOTS.length;
+    const i = bgmStep % 8;
+    const root = BGM_ROOTS[bar] * (bgmMeltdown ? 1.19 : 1);
+    if (i === 0) bgmNote(root, bgmNext, stepDur * 8, 'sawtooth', 0.025);
+    if (i % 2 === 0 || bgmMeltdown) bgmNote(root * 4 * Math.pow(2, BGM_ARP[i] / 12), bgmNext, stepDur * 1.6, 'triangle', bgmMeltdown ? 0.035 : 0.022);
+    if (bgmMeltdown && i % 4 === 0) bgmNote(root, bgmNext, 0.12, 'square', 0.05);
+    bgmNext += stepDur;
+    bgmStep++;
+  }
+}
+
+/** Starts or stops the background music; safe to call every frame. */
+export function bgm(on: boolean, meltdown = false): void {
+  if (!on) {
+    if (bgmTimer) clearInterval(bgmTimer);
+    bgmTimer = null;
+    return;
+  }
+  const c = ensure();
+  if (!c || !master) return;
+  bgmMeltdown = meltdown;
+  if (bgmTimer) return;
+  bgmNext = c.currentTime + 0.05;
+  bgmTimer = setInterval(bgmSchedule, 120);
+}

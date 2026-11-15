@@ -18,7 +18,7 @@ import {
 } from '../game3d/world3d.ts';
 import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2d.ts';
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
-import { ambient, playSoundEvent3D, setVolume, sfx } from './audio.ts';
+import { ambient, bgm, playSoundEvent3D, setVolume, sfx } from './audio.ts';
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
 import { renderMinimap } from './minimap.ts';
 
@@ -146,6 +146,7 @@ function show(m: Mode): void {
   ui.revived.hidden = true;
   $('lab').hidden = true;
   ambient(m === 'playing', world.meltdownTicks >= 0);
+  bgm(m === 'playing', world.meltdownTicks >= 0);
   if (m === 'playing') canvas.focus();
 }
 
