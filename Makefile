@@ -3,7 +3,7 @@ NODE_BIN := $(CURDIR)/.tools/node-v26.13.1-darwin-arm64/bin
 NODE := $(NODE_BIN)/node
 # GNU Make 3.81 execs simple commands without the shell, so an exported PATH is not applied: use $(NODE) explicitly.
 
-.PHONY: check typecheck test-engine reference-verify reference-holdout reach difficulty build dist-guard smoke-local meshy-terrain
+.PHONY: check typecheck test-engine reference-verify reference-holdout reach difficulty build dist-guard smoke-local meshy-terrain release
 
 # Required gate: unit/boundary tests + development scenarios against original-run references.
 # A missing/empty/corrupt reference is NOT RUN/ERROR and fails the gate (never a vacuous PASS).
@@ -43,3 +43,16 @@ smoke-local: build
 # Needs network + MESHY_API_KEY in .env. Resumable. Add ARGS=--dry-run to preview.
 meshy-terrain:
 	$(NODE) tools/meshy/terrain-kit.ts $(ARGS)
+
+# Player-facing web build: gate, then zip dist/ with a player README, licences and changelog.
+VERSION := $(shell $(NODE) -p "require('./package.json').version" 2>/dev/null)
+release: check
+	rm -rf release/stage && mkdir -p release/stage
+	cp -R dist/. release/stage/
+	cp tools/release/pack/PLAYER_README.txt release/stage/README.txt
+	cp tools/release/pack/LICENSES.txt release/stage/LICENSES.txt
+	cp CHANGELOG.md release/stage/CHANGELOG.md
+	rm -f release/reanimator-$(VERSION)-web.zip
+	cd release/stage && zip -qr ../reanimator-$(VERSION)-web.zip .
+	rm -rf release/stage
+	@ls -l release/reanimator-$(VERSION)-web.zip

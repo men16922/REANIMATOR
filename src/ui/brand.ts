@@ -4,7 +4,7 @@
 export const BRAND = {
   name: 'REANIMATOR',
   tagline: 'The reactor still burns. Reach the core. Get out.',
-  pitch: '1996 DOS physics, verified frame-exact · reborn in full 3D',
+  pitch: 'A 3D side-view sci-fi metroidvania',
   credit: 'WEBGL2 · KEYBOARD + MOUSE',
 } as const;
 

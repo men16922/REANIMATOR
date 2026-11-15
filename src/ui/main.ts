@@ -222,8 +222,10 @@ function saveTutorial(): void {
   try { localStorage.setItem(TUTORIAL_STORE_KEY, j); } catch { /* storage unavailable */ }
 }
 function syncTutorialButton(): void {
-  const b = document.getElementById('tutorial-toggle');
-  if (b) b.textContent = tutorial.on ? 'Tutorial: ON (skip)' : 'Tutorial: OFF (replay)';
+  for (const id of ['tutorial-toggle', 'tutorial-toggle-p']) {
+    const b = document.getElementById(id);
+    if (b) b.textContent = tutorial.on ? 'Tutorial: ON (skip)' : 'Tutorial: OFF (replay)';
+  }
 }
 /** Per-world observation for sector cards, pickup banners and weapon-switch animation. */
 const seen = { world: null as WorldState3D | null, room: '' as string, logs: 0, secrets: 0, collected: 0, unlocked: '', weapon: 0 as number };
@@ -1469,12 +1471,14 @@ document.addEventListener('click', (e) => {
   playSound(/close|resume$|^resume$/.test(b.id) ? 'ui.back' : 'ui.select');
 });
 $('play').addEventListener('click', () => start());
-$('tutorial-toggle').addEventListener('click', () => {
-  if (tutorial.on) tutorial.skip();
-  else tutorial.replay();
-  saveTutorial();
-  syncTutorialButton();
-});
+for (const id of ['tutorial-toggle', 'tutorial-toggle-p']) {
+  $(id).addEventListener('click', () => {
+    if (tutorial.on) tutorial.skip();
+    else tutorial.replay();
+    saveTutorial();
+    syncTutorialButton();
+  });
+}
 syncTutorialButton();
 $('intro-skip').addEventListener('click', hideIntro);
 window.addEventListener('pointerdown', () => {
@@ -1691,8 +1695,10 @@ function debugRun(kind: 'fresh' | 'continued', ticksRun: number, _requested: num
   return { ...snap, debug: { world: kind, worldSerial, ticksRun, stoppedOn: world.status !== 'playing' ? 'status' : 'inputs', layers: snap.layers } };
 }
 
-// Read-only test & showcase inspection hooks
-const wAny = window as unknown as {
+// Read-only test & showcase inspection hooks. Players never get them: they exist only in dev builds or with ?debug=1.
+const DEBUG_HOOKS = import.meta.env.DEV || /[?&]debug\b/.test(location.search);
+if (DEBUG_HOOKS) document.querySelectorAll<HTMLElement>('[data-debug]').forEach((el) => { el.hidden = false; });
+const wAny = (DEBUG_HOOKS ? window : {}) as unknown as {
   __reanimator: () => ReturnType<typeof buildSnapshot>;
   __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D, opts?: { continue?: boolean }) => DebugRunSnapshot;
   __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => DebugRunSnapshot;
@@ -2178,9 +2184,13 @@ wAny.__reanimatorUiAudit = async () => {
   });
 };
 
+for (const id of ['app-version', 'app-version-credits']) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = `v${__APP_VERSION__}`;
+}
 show('title');
 requestAnimationFrame(frame);
-if (/[?&]reel\b/.test(location.search)) {
+if (DEBUG_HOOKS && /[?&]reel\b/.test(location.search)) {
   // Wait (bounded) for the models, then play the Judge Reel over the loading screen's place.
   const t0 = performance.now();
   const go = (): void => (scene3d && !scene3d.getTelemetry().modelsLoaded && performance.now() - t0 < 12000 ? void window.setTimeout(go, 100) : startReel());

@@ -40,7 +40,7 @@ const NAMES = ['title', 'classic', 'combat', 'boss', 'mines', 'biolabs', 'lab'];
 if (process.env.SHOWCASE_EXTRA) NAMES.push('security', 'slide', 'escape');
 
 try {
-  await page.goto('http://reanimator.test/');
+  await page.goto('http://reanimator.test/?debug=1');
   await page.waitForFunction(
     () => {
       const fn = (window as unknown as { __reanimator?: () => { loadedModels: string[]; riggedCount: number } }).__reanimator;

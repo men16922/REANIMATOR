@@ -11,7 +11,7 @@ const manifest = JSON.parse(readFileSync(join(root, 'reference/manifests/abuse-s
 };
 const originalHashes = new Set(manifest.allFiles.map((f) => f.sha256));
 const originalNames = new Set(manifest.allFiles.map((f) => basename(f.path).toLowerCase()));
-const allowedExt = new Set(['.html', '.js', '.css', '.svg', '.ico', '.json', '.txt', '.glb', '.png', '.webp']);
+const allowedExt = new Set(['.html', '.js', '.css', '.svg', '.ico', '.json', '.txt', '.glb', '.png', '.webp', '.webmanifest']);
 
 if (!existsSync(dist)) { console.log(JSON.stringify({ status: 'NOT RUN', reason: 'dist missing' })); process.exit(2); }
 

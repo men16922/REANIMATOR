@@ -92,7 +92,7 @@ const snap = () => page.evaluate(() => (window as unknown as { __reanimator: () 
 const wait = (ms: number) => page.waitForTimeout(ms);
 
 try {
-  await page.goto('http://reanimator.test/');
+  await page.goto('http://reanimator.test/?debug=1');
   await page.waitForFunction(
     () => {
       const fn = (window as unknown as { __reanimator?: () => Snap }).__reanimator;

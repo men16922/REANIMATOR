@@ -14,11 +14,12 @@ const scen = (name: string, checked: number, failures = 0): UiAuditScenario => (
   failures: Array.from({ length: failures }, () => ({ id: 'x', reason: 'covered' as const, detail: '' })),
 });
 
-test('pitch year is 1996 everywhere user-facing', () => {
-  assert.ok(BRAND.pitch.startsWith('1996 '));
+test('player-facing copy has no dev or judge wording', () => {
+  assert.ok(BRAND.pitch.includes('metroidvania'));
   const html = readFileSync('index.html', 'utf8');
   assert.ok(!html.includes('1995'), 'index.html has no 1995');
-  assert.ok(html.includes('1996 DOS physics, verified frame-exact'));
+  assert.ok(html.includes(BRAND.pitch));
+  assert.ok(!/kiro|hackathon|judge|holdout|PASS with|github\.com/i.test(html), 'no dev wording in index.html');
 });
 
 test('ui audit reports a reason when a scenario measured nothing', () => {

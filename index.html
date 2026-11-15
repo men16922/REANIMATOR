@@ -3,13 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>REANIMATOR — Full 3D Side-View Metroidvania</title>
-    <meta name="description" content="1996 DOS physics, verified frame-exact, reborn as a full 3D side-view metroidvania." />
+    <title>REANIMATOR</title>
+    <meta name="description" content="Wake in a sealed station. Reach the burning core, break it, and get out. A 3D side-view sci-fi metroidvania that runs in your browser." />
     <meta name="theme-color" content="#05080d" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="REANIMATOR: a 1996 DOS shooter, reborn in full 3D" />
-    <meta property="og:description" content="Movement physics restored frame-exact from a 1996 DOS classic, then rebuilt as a full 3D side-view metroidvania." />
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:title" content="REANIMATOR" />
+    <meta property="og:description" content="A 3D side-view sci-fi metroidvania. Reach the core, break it, get out." />
+    <meta property="og:image" content="/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/og-image.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Cpolygon%20points='32%2C3%2058%2C18%2058%2C46%2032%2C61%206%2C46%206%2C18'%20fill='%230a0f16'%20stroke='%239aa4ae'%20stroke-width='4'/%3E%3Cpath%20d='M32%2047C16%2036%2014%2027%2014%2024C14%2016%2025%2014%2032%2024C39%2014%2050%2016%2050%2024C50%2027%2048%2036%2032%2047Z'%20fill='%23e8501a'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/src/ui/style.css" />
     <link rel="stylesheet" href="/src/ui/demo.css" />
@@ -26,7 +31,7 @@
         <div id="reel-end" hidden aria-live="polite">
           <h2 id="reel-end-title">REANIMATOR</h2>
           <p id="reel-end-sub"></p>
-          <ul><li>Restoration Lab: 11 fields, 4/4 PASS with a sealed holdout</li><li>Six-sector 3D metroidvania on a deterministic 60 Hz sim</li><li>Classic View 1996 mode, Core Warden counter, Meltdown escape</li><li>github.com/men16922/REANIMATOR</li></ul>
+          <ul><li>Six sectors, locked doors and ability gates</li><li>Six weapons and the Core Warden</li><li>Classic View, Meltdown escape</li></ul>
           <em>PRESS ANY KEY TO PLAY</em>
         </div>
         <div id="coach" hidden aria-live="polite"><span id="coach-keys"></span><span id="coach-text"></span><span id="coach-skip" hidden><kbd>T</kbd> skip tutorial</span></div>
@@ -108,11 +113,12 @@
               <button id="settings-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Settings</button>
               <button id="extras-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Extras</button>
             </nav>
-            <p class="hint-line"><kbd>&uarr;</kbd><kbd>&darr;</kbd> select <kbd>ENTER</kbd> confirm <kbd>ESC</kbd> back &middot; keyboard and mouse on a PC required</p>
+            <p class="hint-line"><kbd>&uarr;</kbd><kbd>&darr;</kbd> select <kbd>ENTER</kbd> confirm <kbd>ESC</kbd> back &middot; keyboard and mouse required</p>
           </div>
           <footer class="credits">
             <span class="credit-badge">WEBGL2 &middot; KEYBOARD + MOUSE</span>
-            <span class="pitch">1996 DOS physics, verified frame-exact &middot; reborn in full 3D</span>
+            <span class="pitch">A 3D side-view sci-fi metroidvania</span>
+            <span class="app-version" id="app-version"></span>
           </footer>
           <div id="settings-panel" class="tpanel" hidden>
             <h2>Settings</h2>
@@ -138,11 +144,11 @@
             <h2>Extras</h2>
             <div class="plate menu-list">
               <button id="demo-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Demo tour</button>
-              <button id="showcase-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Watch showcase</button>
-              <button id="reel-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Trailer reel</button>
+              <button id="showcase-open" class="mi" hidden data-debug><span class="mi-mark" aria-hidden="true"></span>Watch showcase</button>
+              <button id="reel-open" class="mi" hidden data-debug><span class="mi-mark" aria-hidden="true"></span>Trailer reel</button>
               <button id="title-controls-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Controls</button>
-              <button id="revived-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>How it was revived</button>
-              <button id="lab-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Restoration Lab</button>
+              <button id="revived-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>About the game</button>
+              <button id="lab-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Physics lab</button>
               <button id="tutorial-toggle" class="mi"><span class="mi-mark" aria-hidden="true"></span>Tutorial</button>
               <button id="intro-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Watch intro</button>
               <button id="credits-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Credits</button>
@@ -158,9 +164,9 @@
           <div id="title-credits" class="tpanel" hidden>
             <h2>Credits</h2>
             <div class="plate credits-body">
-              <p><b>Technology.</b> Deterministic 60 Hz simulation, tested against recorded runs and bot playthroughs, and browser-driven verification.</p>
-              <p><b>Stack.</b> TypeScript, Three.js (WebGL2), Vite, WebAudio procedural music and effects, Meshy-generated rigged models. No game engine.</p>
-              <p><b>What was restored.</b> Only the movement physics of the 1996 DOS shareware <i>Abuse</i> 1.05, checked field by field against original run logs. Everything else, including the 3D side-view metroidvania, is new design. No original Abuse assets are included.</p>
+              <p><b>REANIMATOR</b> <span class="app-version" id="app-version-credits"></span></p>
+              <p><b>Made with.</b> TypeScript, Three.js (WebGL2), Vite and procedural WebAudio music and effects. Character and prop models were generated with Meshy. No game engine.</p>
+              <p><b>Inspiration.</b> The run-and-gun feel nods to <i>Abuse</i> (1996). All art, audio, levels and code in this game are original. Three.js is MIT licensed.</p>
             </div>
             <button id="credits-close" class="mi back">Back</button>
           </div>
@@ -193,6 +199,7 @@
             <button id="restart-p">Restart</button>
             <button id="controls-open">Controls</button>
             <button id="logs-open">Logs</button>
+            <button id="tutorial-toggle-p">Tutorial</button>
           </div>
           <div class="settings">
             <span class="settings-h">SETTINGS</span>
@@ -248,15 +255,14 @@
           <button id="restart">Play again</button>
         </section>
         <section id="revived" class="overlay panel" hidden>
-          <h2>How it was revived</h2>
+          <h2>About the game</h2>
           <p>
-            Only the player's core 2D movement physics were reconstructed from the 1996 DOS shareware
-            <i>Abuse</i> (v1.05). The Full 3D Side-View Metroidvania game layer (interconnected rooms, locked doors, upgrades, save stations, sector minimap), rigged character models, weapons, bosses, levels, lighting rules, and audio are all original <b>new-design</b> works.
+            REANIMATOR is a 3D side-view metroidvania. Wake in a sealed cryo station, work through six connected sectors, and break the reactor core before the meltdown.
           </p>
           <ul>
-            <li><b>Verified DOS Restoration (<code>src/engine/motion.ts</code>)</b>: Analyzed <code>ABUSE.EXE</code> (DOS/4GW LE -> ELF) with REA + Ghidra along <code>cop_mover 0x14760</code> &rarr; <code>mover 0x3a1d8</code> &rarr; <code>0x38704</code> &rarr; <code>try_move 0x37e82</code> &rarr; <code>0x558e5</code>. Compared field by field with zero tolerance in the <b>Restoration Lab</b> at the 15 Hz design tick (the original tick rate was not measured; zero original DOS art/audio/map bytes ship).</li>
-            <li><b>New-Design 60 Hz Full 3D Side-View Simulation (<code>src/engine/motion3d.ts</code>, <code>src/game3d/</code>)</b>: Side-view run, jump and double jump (Thruster Boots), drop-through grates, Jet-Dash i-frames, 360&deg; mouse aim, 4-weapon arsenal, color-coded lock doors, save stations, E-Tanks, boss shockwaves, and strict <code>R3.3</code> visual-only headlamp isolation.</li>
-            <li><b>Rigged Meshy 3D Layer with Split-Body IK (<code>src/render3d/</code>)</b>: Rigged Meshy <code>.glb</code> bipeds (<code>operative</code> with hand-socketed <code>pulse-rifle</code>, <code>warden</code>, <code>bio-stalker</code>) animated by Three.js <code>AnimationMixer</code>. Split-Body IK keeps legs on the run/jump clip while the torso and arms aim at the mouse.</li>
+            <li><b>Explore.</b> Locked doors, hidden walls and ability gates. Thruster Boots, Blast Core, Scan Lens and Thermal Plating open new routes. Energy Tanks raise your health.</li>
+            <li><b>Fight.</b> Six weapons, a dash with brief invulnerability, a counter, and the three-phase Core Warden.</li>
+            <li><b>Look back.</b> Press V for Classic View, a 320x200 dithered look that nods to 1996 shooters. The Physics lab replays the recorded movement tests that the run and jump feel was tuned against.</li>
           </ul>
           <button id="revived-close">Back</button>
         </section>
@@ -287,9 +293,9 @@
           <div id="credits-lines" class="roll-lines"></div>
           <span class="scan-hint">Press any key to skip</span>
         </section>
-        <section id="lab" class="overlay panel" hidden aria-label="Restoration Lab">
+        <section id="lab" class="overlay panel" hidden aria-label="Physics lab">
           <header class="lab-head">
-            <h2>Restoration Lab — 1996 vs 2026</h2>
+            <h2>Physics lab</h2>
             <b id="lab-status" role="status" aria-live="polite"></b>
             <button id="lab-close">Back</button>
           </header>
@@ -302,8 +308,8 @@
           <div class="lab-main">
             <div class="lab-left">
               <div class="lab-split">
-                <figure class="lab-fig lab-orig"><figcaption><i></i>ORIGINAL <small>(ABUSE.EXE log)</small></figcaption><canvas id="lab-orig" width="320" height="200"></canvas></figure>
-                <figure class="lab-fig lab-new"><figcaption><i></i>REANIMATED <small>(motion.ts)</small></figcaption><canvas id="lab-new" width="320" height="200"></canvas></figure>
+                <figure class="lab-fig lab-orig"><figcaption><i></i>RECORDED <small>(1996 run log)</small></figcaption><canvas id="lab-orig" width="320" height="200"></canvas></figure>
+                <figure class="lab-fig lab-new"><figcaption><i></i>REPLAYED <small>(this game)</small></figcaption><canvas id="lab-new" width="320" height="200"></canvas></figure>
               </div>
               <figure class="lab-fig lab-over"><figcaption>OVERLAY <small>orange: logged · cyan: replayed</small><span id="lab-note"></span></figcaption><canvas id="lab-plot" width="800" height="130"></canvas></figure>
               <div class="lab-transport">
@@ -326,14 +332,13 @@
             <aside class="lab-right">
               <table id="lab-table"></table>
               <div class="lab-trust" id="lab-trust">
-                <h3>How this is verified</h3>
+                <h3>How the test works</h3>
                 <ol>
                   <li><b>Recorded.</b> The original DOS <i>Abuse</i> 1.05 executable ran each scripted input in an emulator while a harness logged 11 state fields every tick.</li>
                   <li><b>Compared.</b> <code>motion.ts</code> starts from the first logged row only, replays the same inputs, and must match every field exactly (tolerance 0, fixed before the first run).</li>
-                  <li><b>Held out.</b> M05 was sealed. It is judged once per engine revision and never used for tuning.</li>
+                  <li><b>Held out.</b> One scenario was kept aside and never used for tuning.</li>
                 </ol>
-                <p class="lab-caveat"><b>15 Hz is a design value.</b> The original tick rate was not measured. Scope: movement physics only. Sprites here are new pixel art; no original art or data ships.</p>
-                <a href="https://github.com/men16922/REANIMATOR/blob/main/docs/reference/VERIFICATION_CONTRACT.md" target="_blank" rel="noopener">docs/reference/VERIFICATION_CONTRACT.md</a>
+                <p class="lab-caveat"><b>15 Hz is a design value.</b> Scope: movement physics only. All art in this game is original.</p>
               </div>
             </aside>
           </div>

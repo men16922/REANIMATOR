@@ -67,7 +67,7 @@ export function initLab(): LabController {
   for (const s of scenarios) {
     const o = document.createElement('option');
     o.value = s.id;
-    o.textContent = `${s.id}${s.holdout ? ' (holdout, judged once)' : ''}`;
+    o.textContent = `${s.id}${s.holdout ? ' (held out)' : ''}`;
     sel.append(o);
   }
   const cardsEl = byId('lab-cards');
@@ -78,7 +78,7 @@ export function initLab(): LabController {
     btn.type = 'button';
     btn.className = 'lab-card';
     btn.dataset.id = s.id;
-    btn.innerHTML = `<span class="lc-code">${code}${s.holdout ? '<em>HOLDOUT</em>' : ''}</span><span class="lc-name">${name}</span><span class="lc-ticks">${s.endN - s.startN + 1} ticks · n=${s.startN}..${s.endN}</span><span class="lc-badge">…</span>`;
+    btn.innerHTML = `<span class="lc-code">${code}${s.holdout ? '<em>HELD OUT</em>' : ''}</span><span class="lc-name">${name}</span><span class="lc-ticks">${s.endN - s.startN + 1} ticks · n=${s.startN}..${s.endN}</span><span class="lc-badge">…</span>`;
     btn.addEventListener('click', () => { sel.value = s.id; run(); });
     cardsEl.append(btn);
     cards.set(s.id, { btn, badge: btn.querySelector('.lc-badge') as HTMLElement });

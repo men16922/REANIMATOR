@@ -29,7 +29,7 @@ await page.route('http://reanimator.test/**', async (route) => {
   if (!existsSync(root + file)) return route.fulfill({ status: 404, body: '' });
   return route.fulfill({ path: root + file, contentType: mime[file.slice(file.lastIndexOf('.')).toLowerCase()] ?? 'application/octet-stream' });
 });
-await page.goto('http://reanimator.test/');
+await page.goto('http://reanimator.test/?debug=1');
 await page.waitForFunction(() => {
   const fn = (window as unknown as { __reanimator?: () => { loadedModels: string[]; failedModels: string[] } }).__reanimator;
   if (!fn) return false;

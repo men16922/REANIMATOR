@@ -38,3 +38,6 @@ docs/evidence/g3/c01_attempts/**/*.png
 
 # Workspace MCP config may hold the Meshy key
 .kiro/settings/mcp.json
+
+# Release archives
+release/
