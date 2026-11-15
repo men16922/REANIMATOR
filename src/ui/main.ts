@@ -393,6 +393,8 @@ function start(forceIntro = false, stop: DemoStop | null = null): void {
 function showIntro(): void {
   store(STORE.intro, '1');
   introActive = true;
+  document.body.classList.remove('opening-snap');
+  document.body.classList.add('opening-on');
   ui.intro.hidden = false;
   // Re-trigger the CSS timeline: clone the node's animation by toggling a reflow.
   ui.intro.style.animation = 'none';
@@ -426,6 +428,8 @@ function tickOpening(dt: number): void {
   el.style.setProperty('--op-alarm', st.alarm.toFixed(3));
   el.style.setProperty('--op-sweep', `${(50 + 50 * Math.sin(st.sweep)).toFixed(1)}%`);
   el.style.setProperty('--op-flash', st.burstFlash.toFixed(3));
+  el.style.setProperty('--op-bars', st.bars.toFixed(3));
+  el.style.setProperty('--op-title', st.title.toFixed(3));
   const status = $('op-status');
   if (status.textContent !== st.status) status.textContent = st.status;
   if (scene3d) scene3d.opening = openingView(st);
@@ -461,6 +465,8 @@ function hideIntro(): void {
   openingFrozen = false;
   if (scene3d) scene3d.opening = null;
   ui.intro.hidden = true;
+  // HUD and minimap fade back in (CSS transition); every exit path (finish, skip, showcase exit) lands here
+  document.body.classList.remove('opening-on');
   seen.room = ''; // let the sector card appear now that the intro is gone
 }
 
@@ -1911,6 +1917,7 @@ wAny.__reanimatorUiAudit = async () => {
   // An opening or showcase in progress covers the title and menus; end it and let the UI settle so the audit measures the real UI.
   exitShowcase();
   hideIntro();
+  document.body.classList.add('opening-snap');
   show('title');
   await settleFrames(6);
   // The title menu fades in on wall time (2.9 s delay) whenever it is shown again; hold it opaque while measuring.
@@ -1931,6 +1938,7 @@ wAny.__reanimatorUiAudit = async () => {
     world = freshWorld();
     show('title');
     menu.style.animation = '';
+    document.body.classList.remove('opening-snap');
     return r;
   });
 };

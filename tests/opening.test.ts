@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { newWorld3D, stepWorld3D, emptyInput3D } from '../src/game3d/world3d.ts';
-import { OPENING_BEATS, OPENING_ENEMY_ID, OPENING_SECONDS, OPENING_VENT, OpeningClock, openingState, openingView } from '../src/ui/opening.ts';
+import { OPENING_BARS, OPENING_TITLE, OPENING_WAKE, OPENING_BEATS, OPENING_ENEMY_ID, OPENING_SECONDS, OPENING_VENT, OpeningClock, openingState, openingView } from '../src/ui/opening.ts';
 import { SHOWCASE_SCENES } from '../src/ui/demo.ts';
 
 test('timeline: beats are ordered and the whole piece stays under 11 s', () => {
@@ -97,4 +97,50 @@ test('showcase scenes for the opening exist and use the airlock', () => {
     assert.ok(sc && sc.kind === 'world' && sc.sector === 'airlock' && sc.openingAt !== undefined, n);
   }
   assert.ok(SHOWCASE_SCENES.opening.openingAt! > OPENING_BEATS.burst);
+});
+
+test('R11: wake pose rises from a kneel to standing by about 5 s, quicker with Reduce flashing, and never exceeds 0..1', () => {
+  assert.equal(openingState(0).wake, 1);
+  assert.ok(openingState(OPENING_WAKE.start - 0.01).wake > 0.99);
+  assert.ok(openingState(OPENING_WAKE.standBy).wake < 0.001);
+  assert.ok(openingState(OPENING_WAKE.standByReduced, true).wake < 0.001);
+  let prev = 1;
+  for (let t = 0; t <= OPENING_SECONDS; t += 1 / 30) {
+    const w = openingState(t).wake;
+    assert.ok(w >= 0 && w <= 1 && w <= prev + 1e-9, `wake monotone at ${t}`);
+    prev = w;
+  }
+  assert.equal(openingView(openingState(1)).wake, 1);
+});
+
+test('R11: letterbox bars stay in until they retract into the handoff, the title card fades in and out, HUD held until handoff', () => {
+  assert.equal(openingState(OPENING_BARS.retractFrom - 0.01).bars, 1);
+  assert.ok(openingState(OPENING_SECONDS).bars < 0.001);
+  assert.equal(openingState(0).title, 0);
+  assert.ok(openingState(OPENING_TITLE.in + 1).title > 0.99);
+  assert.ok(openingState(OPENING_TITLE.out + 0.1).title < 0.01);
+  assert.ok(OPENING_TITLE.text.includes('CRYO AIRLOCK') && OPENING_TITLE.text.includes('03:12 AFTER BREACH'));
+  assert.equal(openingState(OPENING_BEATS.handoff - 0.01).hudHidden, true);
+  assert.equal(openingState(OPENING_BEATS.handoff).hudHidden, false);
+});
+
+test('R11: HUD hiding is one body class, removed on every exit path (finish, skip, showcase exit, audit)', () => {
+  const main = readFileSync(new URL('../src/ui/main.ts', import.meta.url), 'utf8');
+  const hide = main.slice(main.indexOf('function hideIntro'), main.indexOf('// ---- story language'));
+  assert.ok(hide.includes("classList.remove('opening-on')"), 'hideIntro restores the HUD');
+  assert.ok(main.slice(main.indexOf('function showIntro')).includes("classList.add('opening-on')"));
+  // finish and skip both go through hideIntro; the audit and showcase exit call it before measuring
+  assert.ok(/openingClock\.finished\) hideIntro\(\)/.test(main));
+  assert.ok(/'intro-skip'\)\.addEventListener\('click', hideIntro\)/.test(main));
+  const audit = main.slice(main.indexOf('wAny.__reanimatorUiAudit'));
+  assert.ok(audit.indexOf('hideIntro()') > 0 && audit.indexOf('hideIntro()') < audit.indexOf('runUiAudit'));
+  const css = readFileSync(new URL('../src/ui/style.css', import.meta.url), 'utf8');
+  assert.ok(/body\.opening-on #hud[^{]*#minimap-wrap/.test(css), 'HUD and minimap hidden while the opening plays');
+});
+
+test('R11: the wake pose is display-only (scene reads OpeningView, sim hash unchanged)', () => {
+  const scene = readFileSync(new URL('../src/render3d/scene3dFull.ts', import.meta.url), 'utf8');
+  assert.ok(scene.includes('this.opening.wake'));
+  const op = readFileSync(new URL('../src/ui/opening.ts', import.meta.url), 'utf8');
+  assert.equal(/Math\.random|game3d\/world3d/.test(op.replace(/\/\/.*$/gm, '')), false);
 });

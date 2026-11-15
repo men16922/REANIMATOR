@@ -45,3 +45,10 @@ A status readout (bottom-left) narrates each beat. Skip: any key, pointer press,
 ## Fix pass (post-merge browser check)
 - Root cause of the "black opening": the eyelid (`.lid`) and caption CSS animations run on wall time from `showIntro()`. The showcase hold (`opening-wake|alarm|opening`) set the clock to 3.0/5.6/8.7 s but the lids were still closed, so only the status line was visible. The renderer, lamp and camera were fine (rendered live in Chromium at 1200x843). Fix: the showcase seeks the lid and line animations to the held time (negative `animation-delay`), and `showIntro()` clears that delay.
 - `__reanimatorUiAudit()` now ends the opening first and returns `reason` when `ok` is false without a failing control (`auditReport` in `ui/uiAudit.ts`).
+
+## R11 cinematic pass
+- HUD and minimap (`#hud`, `#minimap-wrap`, `#classic-hud`, `#coach`) stay hidden under `body.opening-on` and fade in (0.9 s CSS transition, 0.01 s with Reduce flashing) when `hideIntro()` runs. Every exit goes through `hideIntro()`: finish at 9.8 s, skip (any key, button), showcase exit, `__reanimatorUiAudit()` (which also adds `opening-snap` so measuring is not mid-fade).
+- Letterbox bars (`.op-bar`, 11% each) are in during the opening and retract from 8.9 s to the handoff (`--op-bars`).
+- Wake pose: `OpeningState.wake` (1 kneeling, 0 standing, rising 2.0 to 5.0 s; to 3.2 s with Reduce flashing). `scene3dFull` blends `WAKE_POSE` (thigh, knee, lean, headPitch, hipsDrop via `legDrop`, rifle lowered) into the hero's display offsets only. No new rig channels, sim untouched.
+- Title card `CRYO AIRLOCK — 03:12 AFTER BREACH` (`#op-title`, 3.9 to 7.4 s, opacity only).
+- Tests: 4 new in `tests/opening.test.ts` (wake monotone and reduced, bars/title/HUD timing, HUD restore on every exit path, display-only). Visuals unverified (headless Chrome cannot launch here): kneel look, hip drop clipping the floor, title card overlap with the status line.

@@ -56,3 +56,7 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 
 - Status: main에 `--no-ff` 4회 병합, 푸시 없음. 충돌 2곳(`tests/audio.test.ts` 사운드 수 59, `scene3dFull.ts` 두 body 클래스 토글 모두 유지). `body.classic .hunter-pill` 규칙 추가.
 - 봉인 파일 무변경. `make check` exit 0(519/519, 봇 5533 ticks HP 95/160 57 kills, reach3d 52 waypoints 3432 ticks, dist-guard 13 files 14,819,279 B). 브라우저 검증 unverified.
+
+## 2026-11-15 — R11 polish (hunter armour, opening cinematic)
+
+- Status: 2 commits on main, no push. Sealed files untouched. Hunter: 5 merged armour meshes on bones, accent follows alert colours. Opening: HUD/minimap hidden then faded in, letterbox, display-only wake pose, title card; 4 new tests. Visuals unverified (Chrome cannot launch).

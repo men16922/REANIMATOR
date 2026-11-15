@@ -368,6 +368,15 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 #intro .op-flash { position: absolute; inset: 0; opacity: var(--op-flash, 0); background: radial-gradient(circle at 75% 35%, rgba(255, 240, 210, 0.95), rgba(255, 120, 40, 0.35) 45%, transparent 75%); }
 #op-status { position: absolute; left: 1.6em; bottom: 1.4em; margin: 0; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.78em; letter-spacing: 0.18em; color: #7ae8ff; text-shadow: 0 0 8px rgba(75, 232, 255, 0.6); }
 #op-status::before { content: '> '; opacity: 0.6; }
+/* R11: letterbox bars retract at the handoff, title card, HUD and minimap held back until then */
+#intro .op-bar { position: absolute; left: 0; right: 0; height: 11%; background: #000; transform: scaleY(var(--op-bars, 1)); }
+#intro .op-bar-top { top: 0; transform-origin: top; }
+#intro .op-bar-bot { bottom: 0; transform-origin: bottom; }
+#op-title { position: absolute; left: 1.6em; bottom: 4.6em; margin: 0; opacity: var(--op-title, 0); font-size: 1.05em; letter-spacing: 0.34em; color: #e8f4ff; text-shadow: 0 0 12px rgba(75, 232, 255, 0.5); border-left: 3px solid var(--c-gold); padding-left: 0.8em; }
+#hud, #minimap-wrap, #classic-hud, #coach { transition: opacity 0.9s ease-out; }
+body.opening-on #hud, body.opening-on #minimap-wrap, body.opening-on #classic-hud, body.opening-on #coach { opacity: 0; visibility: hidden; transition: none; }
+body.opening-snap #hud, body.opening-snap #minimap-wrap, body.opening-snap #classic-hud, body.opening-snap #coach { transition: none; }
+body.reduce-fx #hud, body.reduce-fx #minimap-wrap, body.reduce-fx #classic-hud, body.reduce-fx #coach { transition-duration: 0.01s; }
 body.reduce-fx #intro .op-frost { backdrop-filter: none; }
 #intro-skip { position: absolute; right: 1.4em; bottom: 1.2em; pointer-events: auto; background: rgba(6, 12, 20, 0.7); font-size: 0.8em; padding: 0.4em 1.1em; }
 

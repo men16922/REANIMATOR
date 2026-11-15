@@ -22,7 +22,7 @@ import { applyPostParams, createFireballMaterial, createGroundWaveMaterial, crea
 import type { SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
 import { getPlayerPose3D, RAIL_CHARGE_TICKS, skipBossIntro3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
-import { HeroController, type HeroFrame } from './heroPose.ts';
+import { HeroController, legDrop, type HeroFrame } from './heroPose.ts';
 import { HeroGear } from './heroGear3d.ts';
 import {
   applyEnemyRim3D,
@@ -245,6 +245,8 @@ function makeCrackedWallTextures(w: number, h: number): { color: THREE.CanvasTex
 
 const _MELT_BG = new THREE.Color(0x3a0508);
 const _MELT_RED = new THREE.Color(0xff2a2a);
+/** Kneeling pose at the start of the opening (radians); blended out by `OpeningView.wake`. */
+const WAKE_POSE = { thigh: 1.2, knee: 2.3, lean: 0.42, headPitch: 0.3 } as const;
 const _HUNTER_BG = new THREE.Color(0x3a0a08);
 const _HUNTER_RED = new THREE.Color(0xd24a3a);
 const _FLASH_TMP = new THREE.Color();
@@ -1971,6 +1973,17 @@ export class Scene3DRenderer {
         saveCooldown: w.saveCooldown,
         tick: w.tick,
       });
+      // R11 opening: kneel-to-stand blend on the display offsets only (the sim is held while it plays)
+      if (this.opening && this.opening.wake > 0.001) {
+        const k = this.opening.wake;
+        const o = heroFrame.offsets;
+        o.thigh += (WAKE_POSE.thigh - o.thigh) * k;
+        o.knee += (WAKE_POSE.knee - o.knee) * k;
+        o.lean += (WAKE_POSE.lean - o.lean) * k;
+        o.headPitch += (WAKE_POSE.headPitch - o.headPitch) * k;
+        o.hipsDrop = Math.max(o.hipsDrop, legDrop(WAKE_POSE.thigh, WAKE_POSE.knee) * k);
+        heroFrame.lower = Math.max(heroFrame.lower, k);
+      }
       this.heroFrame = heroFrame;
       stepRiggedAnimation3D(rig, desiredAnim, dt, 1.08, 0, p.hp > 0, { ...pose, grounded: pose.grounded || !airborne }, {
         frame: heroFrame,

@@ -66,3 +66,6 @@
 
 ## R10 fix pass
 - Opening black frame (CSS lids not seeked in showcase), hunter steel material, compact hunter pill, 1996 year unified, UI audit ends the opening and reports a reason. `__reanimator().perf` was never empty (keys `drawCalls`, `byGroup`, ...; no `calls`): no regression. Details in R10_OPENING.md and R10_HUNTER.md.
+
+## R11 polish
+- Hunter armour plates on rig bones ([R10_HUNTER](R10_HUNTER.md)); opening HUD fade-in, letterbox, wake pose, title card ([R10_OPENING](R10_OPENING.md)). Browser visuals unverified.

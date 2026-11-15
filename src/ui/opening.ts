@@ -21,6 +21,10 @@ export const OPENING_BEATS = {
   prompt: 9.0,
   handoff: 9.8,
 } as const;
+/** R11 beats: the operative rises from a kneel (display pose only), a title card holds, letterbox bars retract into the handoff. */
+export const OPENING_WAKE = { start: 2.0, standBy: 5.0, standByReduced: 3.2 } as const;
+export const OPENING_TITLE = { in: 3.9, out: 7.4, text: 'CRYO AIRLOCK \u2014 03:12 AFTER BREACH' } as const;
+export const OPENING_BARS = { retractFrom: 8.9 } as const;
 export const OPENING_SECONDS = OPENING_BEATS.handoff;
 
 export interface OpeningState {
@@ -52,6 +56,14 @@ export interface OpeningState {
   prompt: boolean;
   /** control is handed back */
   done: boolean;
+  /** 1 = kneeling in the pod, 0 = standing (display-only pose blend for the operative rig) */
+  wake: number;
+  /** 0..1 letterbox bar coverage (1 = fully in, retracts to 0 at the handoff) */
+  bars: number;
+  /** 0..1 title card opacity */
+  title: number;
+  /** the full HUD and minimap stay hidden until the handoff */
+  hudHidden: boolean;
 }
 
 const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -117,6 +129,10 @@ export function openingState(t: number, reduce = false): OpeningState {
     burst: time >= B.burst,
     prompt: time >= B.prompt,
     done: time >= B.handoff,
+    wake: 1 - smooth((time - OPENING_WAKE.start) / ((reduce ? OPENING_WAKE.standByReduced : OPENING_WAKE.standBy) - OPENING_WAKE.start)),
+    bars: 1 - smooth((time - OPENING_BARS.retractFrom) / (B.handoff - OPENING_BARS.retractFrom)),
+    title: smooth((time - OPENING_TITLE.in) / 0.7) * (1 - smooth((time - OPENING_TITLE.out + 0.7) / 0.7)),
+    hudHidden: time < B.handoff,
   };
 }
 
@@ -165,6 +181,8 @@ export interface OpeningView {
   rattle: number;
   dolly: number;
   lift: number;
+  /** 1 kneeling .. 0 standing: blended into the operative's display pose offsets */
+  wake: number;
   hideEnemyIds: ReadonlySet<string>;
 }
 
@@ -172,5 +190,5 @@ const HIDE: ReadonlySet<string> = new Set([OPENING_ENEMY_ID]);
 const SHOWN: ReadonlySet<string> = new Set();
 
 export function openingView(s: OpeningState): OpeningView {
-  return { lamp: s.lamp, alarm: s.alarm, sweep: s.sweep, rattle: s.rattle, dolly: s.dolly, lift: s.lift, hideEnemyIds: s.enemyHidden ? HIDE : SHOWN };
+  return { lamp: s.lamp, alarm: s.alarm, sweep: s.sweep, rattle: s.rattle, dolly: s.dolly, lift: s.lift, wake: s.wake, hideEnemyIds: s.enemyHidden ? HIDE : SHOWN };
 }
