@@ -708,6 +708,7 @@ function closeSubPanels(): boolean {
   else if (tp) {
     // Controls opens from Extras, so it goes back there; everything else returns to the main menu.
     if (tp.id === PANEL_IDS.controls) return openPanelFor('extras', 'title-controls-open'), true;
+    if (tp.id === PANEL_IDS.credits) return openPanelFor('extras', 'credits-open'), true;
     closeTitlePanel(tp.id === PANEL_IDS.extras ? 'extras-open' : 'settings-open');
     return true;
   } else return false;
@@ -865,6 +866,8 @@ $('extras-open').addEventListener('click', () => openPanelFor('extras', 'title-c
 $('extras-close').addEventListener('click', () => closeTitlePanel('extras-open'));
 $('title-controls-open').addEventListener('click', () => openPanelFor('controls', 'title-controls-close'));
 $('title-controls-close').addEventListener('click', () => openPanelFor('extras', 'title-controls-open'));
+$('credits-open').addEventListener('click', () => openPanelFor('credits', 'credits-close'));
+$('credits-close').addEventListener('click', () => openPanelFor('extras', 'credits-open'));
 $('continue').addEventListener('click', () => {
   if (!world.lastSaveId) return;
   respawnPlayer3D(world);

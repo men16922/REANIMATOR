@@ -1,101 +1,168 @@
 # REANIMATOR
 
-> Kiroween 2026 · 1995 DOS *Abuse* 셰어웨어의 이동 물리를 실제 실행 로그로 검증해 복원하고, 같은 프로젝트 안에서 새로 설계한 풀 3D 쿼터뷰 트윈스틱 슈터로 확장한다.
+![REANIMATOR title screen](docs/evidence/showcase/title.png)
 
-두 개의 층으로 구성된다.
+**A 1996 DOS shooter's movement physics, reverse-engineered and verified frame by frame, then reborn as a 3D side-view metroidvania that runs in your browser.**
 
-| 층 | 내용 | 틱 | 검증 방식 |
-|---|---|---|---|
-| **Restoration (복원)** | 원본 `ABUSE.EXE` 실행에서 얻은 수치 로그와 `src/engine/motion.ts` 재현 결과를 비교 | 15 Hz (설계값. 원본 틱은 미측정) | S1·S2·S3 + sealed holdout `M05`, 11개 필드 exact 비교 (`reference/fixtures/scenarios.json`) |
-| **New Design (신규)** | Full 3D 쿼터뷰 트윈스틱 슈터. 4개 구역, 4종 무기, 보스 `Core Warden`, 원자로 Meltdown 탈출 | 60 Hz 결정적 시뮬레이션 (`src/game3d/world3d.ts`) | 단위 테스트 + 봇 완주(`tools/game/playthrough.ts`) + headless Chrome 스모크 |
+Built for AWS Kiroween 2026 with [Kiro](#built-with-kiro). TypeScript, Three.js, no game engine, no original assets.
 
-**Restoration Lab**은 타이틀 화면의 `Restoration Lab` 버튼(오버레이 `#lab`)으로 연다. 원본 실행 로그와 엔진 재생 결과를 틱 단위로 나란히 보여 준다. "Demo mutation" 체크는 벽을 3 px 옮겨 비교기가 불일치를 잡는지 보여 주는 데모이며 원본 버그가 아니다.
+[한국어 요약](#한국어-요약) · [Judges' guide (3-minute demo)](docs/JUDGES.md) · [How Kiro was used](docs/KIRO_USAGE.md)
 
-## 갤러리
+## What is this
 
-`docs/evidence/g4_playable/`에 `node tools/smoke/capture-showcase.ts`가 1280×800으로 생성한다.
+REANIMATOR has two layers in one repository.
 
-| | |
-|---|---|
-| ![Title](docs/evidence/g4_playable/01_title_3d.png) | ![Zone A aim](docs/evidence/g4_playable/02_zone_a_aim_3d.png) |
-| 01 타이틀 | 02 Zone A 조준(레이저 사이트·헤드램프) |
-| ![Catwalk](docs/evidence/g4_playable/03_catwalk_grenade_barrel.png) | ![Warden](docs/evidence/g4_playable/04_warden_boss_shockwave.png) |
-| 03 캣워크, 수류탄과 바이오 배럴 | 04 Core Warden 충격파 |
-| ![Meltdown](docs/evidence/g4_playable/05_meltdown_escape.png) | ![Lab](docs/evidence/g4_playable/06_restoration_lab.png) |
-| 05 Meltdown 탈출 | 06 Restoration Lab |
+| Layer | What it is | How it is checked |
+|---|---|---|
+| **Restoration** | A TypeScript re-implementation of the movement physics of the *Abuse* 1.05 DOS shareware (`src/engine/motion.ts`). | Compared against numeric logs captured from the original running binary: scenarios S1, S2, S3 and a sealed holdout M05, 11 fields each, exact match (`reference/fixtures/scenarios.json`). |
+| **New design** | A 3D side-view metroidvania: 6 sectors, ability-gated doors, a 3-phase boss, an escape sequence, procedural music, and a switchable 1996-style Classic View. | 60 Hz deterministic simulation (`src/game3d/world3d.ts`), unit tests, a bot that plays the whole game, reachability checks, and browser smoke tests. |
 
-## 조작
+Open **Title > Extras > Restoration Lab** to see the original logs and the engine replay side by side, tick by tick.
 
-| 입력 | 동작 |
-|---|---|
-| `W` `A` `S` `D` / 방향키 | 8방향 이동 |
-| 마우스 이동 | 조준 (커서를 월드에 레이캐스트) |
-| 좌클릭 | 발사 |
-| `Space` | 점프 |
-| `Shift` / 우클릭 | Jet-Dash |
-| `F` | 상호작용 |
-| `E` | 헤드램프 토글 |
-| `1` `2` `3` `4` | Pulse Rifle / Scattergun / Grenade / Rail-Cannon (획득 후 선택 가능) |
-| `Q` / 마우스 휠 | 무기 순환 |
-| `Esc` / `P` | 일시정지 |
-| `R` | 재시작 |
+![Restoration Lab](docs/evidence/showcase/lab.png)
 
-## 빠른 시작
+## 1996 → 2026
 
-Node `>=26.12.1`이 필요하다 (`package.json` engines). `Makefile`은 `.tools/node-v26.13.1-darwin-arm64`의 프로젝트 전용 Node를 쓰도록 고정되어 있어, 해당 경로가 없으면 `make` 타깃 대신 `npm`/`node` 명령을 직접 쓴다.
+*Abuse* (Crack dot Com, 1996) is a side-scrolling run-and-gun with a dark, gritty look. We wanted its movement to feel the same, so we measured it instead of guessing. The steps were:
+
+1. **Acquire and register the original.** The shareware 1.05 package is hashed and listed in `reference/manifests/abuse-source.json`. Rights and format findings are in [`docs/reference/ASSET_REGISTER.md`](docs/reference/ASSET_REGISTER.md) and [`docs/evidence/G0_REPORT.md`](docs/evidence/G0_REPORT.md).
+2. **Analyse the binary.** The executable is a DOS/4GW LE file. It was converted for analysis, and Ghidra (through the REA toolchain, 1,544 recovered procedures) was used to find the mover code paths. Report: [`docs/evidence/G1_REPORT.md`](docs/evidence/G1_REPORT.md).
+3. **Observe, don't assume.** An observation harness (`reference/harness/`) runs scripted input inside the original game and dumps per-tick state. Each scenario was captured three times with identical hashes.
+4. **Re-implement and compare.** `src/engine/motion.ts` is judged by `tools/reference/verify.ts` against those logs. The first holdout (M04) failed. The cause was found in the binary and the engine was fixed. M04 was then moved to development and a fresh sealed holdout, M05, was written down and passed. The failure is recorded in [`docs/evidence/G2_REPORT.md`](docs/evidence/G2_REPORT.md).
+5. **Build something new on top.** The 3D game uses its own movement code (`src/engine/motion3d.ts`) and is **not** a restoration.
+
+### What is and is not restored
+
+- **Restored and verified:** movement physics, as exercised by S1, S2, S3 and M05.
+- **Design value, not measured:** the 15 Hz tick of the restored engine. The original's tick rate was not measured.
+- **New design:** everything in the 3D game (sectors, enemies, weapons, boss, audio, art, Classic View).
+- **Not included:** the original executable, data, art, sound, or captures. `dist-guard` fails the build if any show up in `dist/`.
+
+The verification rules are in [`docs/reference/VERIFICATION_CONTRACT.md`](docs/reference/VERIFICATION_CONTRACT.md).
+
+## How to play
+
+Node `>=26.12.1` is required (`package.json` engines).
 
 ```bash
 npm install
-npm run dev                       # Vite 개발 서버
+npm run dev        # Vite dev server, open the printed URL
 ```
 
-## 검증 명령
+| Key | Action |
+|---|---|
+| `A` `D` | Run |
+| `W` / `Space` | Jump (twice with Thruster Boots) |
+| `S` | Drop through grates |
+| `Shift` / right click | Dash (invulnerable frames) |
+| Airborne `Shift` + `S` | Stomp |
+| Mouse | 360° aim |
+| Left click | Fire. With the Rail-Cannon, hold to charge and release |
+| `1` `2` `3` `4` / `Q` | Pulse, Scattergun, Grenade, Rail-Cannon |
+| `E` | Headlamp |
+| `F` | Save station / console |
+| `Tab` | Sector map |
+| `V` | Toggle Classic View (1996 look) |
+| `C` | On the result screen after dying: return to your last save |
+| `Esc` | Pause |
+
+Walls slow your fall when you press into them in the air, and wall jump needs the Thruster Boots. Details and numbers: [`docs/R1_GAMEPLAY.md`](docs/R1_GAMEPLAY.md).
+
+## Highlights
+
+- **Metroidvania structure.** Six sectors (Cryo Airlock, Central Transit Shaft, Sunken Mines, Bio-Labs, Upper Security Deck, Core Vault). Doors are locked by weapon type (blue Pulse, green Scattergun, yellow Grenade, red Rail-Cannon plus console). Thruster Boots open two 4.4 m height gates. Energy Tanks add +30 max HP. Two secret Cracked Bio-Walls.
+- **Core Warden boss.** Three phases with telegraphed attacks, a weak-point window, an intro cinematic, and damage numbers. See [`docs/R2_BOSS.md`](docs/R2_BOSS.md).
+- **Combat depth.** Wall jump, dash cancel, stomp, per-weapon enemy matchups, kill combos that refund your dash, rail charge. See [`docs/R1_GAMEPLAY.md`](docs/R1_GAMEPLAY.md).
+- **Abuse-style enemies.** Ceiling droppers, wall and ceiling climbers, hive spawners, swarm flanking. See [`docs/R3_FOES.md`](docs/R3_FOES.md).
+- **Classic View.** Press `V` for a 320x200, 256-colour dithered, orthographic look with an optional CRT filter and a pixel HUD. The palette, font, and icons are original work. No Abuse data was read or copied. See [`docs/R3_CLASSIC.md`](docs/R3_CLASSIC.md).
+- **Mood.** Scripted lighting, gore chunks and decals, smoke, per-sector grading.
+- **Procedural audio.** Music and effects are synthesized with WebAudio at runtime (sectioned themes, boss phases, reverb, delay, sidechain). No audio files. See [`docs/R2_AUDIO.md`](docs/R2_AUDIO.md).
+- **Game feel.** Hit-stop, trauma screen shake, camera rig, pooled particles, kill slow-motion.
+- **Attract mode.** The title screen plays the bot through the game as a cinematic reel.
+
+| | |
+|---|---|
+| ![Classic View](docs/evidence/showcase/classic.png) | ![Combat](docs/evidence/showcase/combat.png) |
+| Classic View (`V`) | Combat |
+| ![Core Warden](docs/evidence/showcase/boss.png) | ![Sunken Mines](docs/evidence/showcase/mines.png) |
+| Core Warden | Sunken Mines |
+| ![Bio-Labs](docs/evidence/showcase/biolabs.png) | ![Restoration Lab](docs/evidence/showcase/lab.png) |
+| Bio-Labs | Restoration Lab |
+
+## Architecture
+
+The simulation is deterministic and knows nothing about rendering. That is what lets a bot and the tests play the full game headlessly.
+
+```mermaid
+flowchart LR
+  IN[Keyboard / mouse] --> UI["src/ui/main.ts<br/>input, HUD, menus"]
+  UI -->|input per tick| SIM
+  BOT["bot3d.ts + nav3d.ts"] -->|input per tick| SIM
+  subgraph SIM ["Simulation, 60 Hz deterministic"]
+    W["world3d.ts<br/>state, combat, doors, boss"]
+    M["motion3d.ts<br/>player movement"]
+    MAP["map3d.ts<br/>6 sectors"]
+    W --- M
+    W --- MAP
+  end
+  SIM -->|state + events| R["render3d/scene3dFull.ts<br/>Three.js, interpolated"]
+  SIM -->|events| FX["fx3d, gore3d, popups3d<br/>hit-stop, shake, particles"]
+  SIM -->|state + events| AD["ui/audioDirector.ts<br/>WebAudio music + SFX"]
+  FX --> R
+  R --> CV["classicView.ts<br/>320x200 palette pass"]
+  REF[("reference/fixtures<br/>original logs")] --> VER["tools/reference/verify.ts"]
+  ENG["engine/motion.ts<br/>restored physics, 15 Hz"] --> VER
+```
+
+- Data flows one way from the simulation to the renderer, effects, and audio. They read state and events and never write back. The headlamp state `w.light` is HUD and renderer only, and `tests/game3d.test.ts` checks that it cannot change movement, combat, pickups, doors, saves, hazards, or enemies.
+- The restored 15 Hz physics (`src/engine/motion.ts`) is a sealed module used by the Restoration Lab and the verifier.
+
+## Verification
 
 ```bash
-make check                        # typecheck, node --test, reference-verify, reach, build, dist-guard
-make reference-holdout            # sealed holdout 판정. 엔진 리비전당 1회, 결과로 엔진을 튜닝하지 않는다
-node tools/game/playthrough.ts    # 봇이 구역 A–D, 보스, 탈출까지 결정적으로 완주
-make smoke-local                  # build 후 headless Chrome 스모크 (tools/smoke/smoke.ts)
-node tools/smoke/capture-showcase.ts   # dist/ 필요(먼저 make check). 갤러리 PNG 6장 재생성
+make check                       # tsc, node --test, reference-verify, reach + reach3d, build, dist-guard
+make reference-holdout           # sealed holdout (once per engine revision, never used to tune)
+make smoke-local                 # build, then headless Chrome smoke test (tools/smoke/smoke.ts)
+node tools/game/playthrough.ts   # deterministic bot plays the whole game to the escape
 ```
 
-참고: `capture-showcase.ts`는 실행 시작 때 `docs/evidence/g4_playable/`의 기존 `.png`를 모두 지운 뒤 위 6개 파일을 생성해 저장한다.
+Observed on `main` at commit `c84649e`:
 
-## 리깅된 Meshy 자산
+- `make check` exit 0, 211 of 211 node tests, `reference-verify` 3 of 3 scenarios, `reach3d` 52 waypoints, `dist-guard` PASS on 13 files.
+- Bot run: won in 4,901 ticks with 126 of 160 HP and 50 kills.
+- Draw calls per sector: 159 to 275 in Modern, 123 in Classic. Zero browser console warnings.
 
-`reference/manifests/meshy-assets.json`(schema `reanimator-meshy-assets-v2`) 기준. 모두 신규 설계이며 Abuse 원본과 무관하다. 모델은 Meshy 7.1로 생성하고 `tools/meshy/optimize-rigged.ts`(리깅 GLB) 및 `tools/meshy/optimize-glb.ts`(프롭 GLB)로 Meshopt + WebP 512 최적화를 거쳐 `public/assets/models/`에 둔다. 매니페스트의 license 필드는 `Private`이다.
+The `make` targets use the project-local Node in `.tools/`. If it is missing, run the same commands with your own Node (`node --test tests/`, `node tools/reference/verify.ts`, and so on).
 
-| ID | 역할 | Rig | 클립 | 최적화 크기 | 삼각형 |
-|---|---|---|---|---|---|
-| `operative` | 플레이어 | 66 joints | idle, walk, run, jump, attack, death | 2,131,000 B | 10,344 |
-| `warden` | 보스 Core Warden | 66 joints | idle, walk, run, attack, death | 4,186,512 B | 31,061 |
-| `bio-stalker` | 추격형 적 | 66 joints | idle, walk, run, attack, death | 3,093,224 B | 30,974 |
-| `pulse-rifle` | 무기 소품 | 없음 | 없음 | 562,032 B | 8,332 |
-| `bio-barrel` | 폭발 배럴 | 없음 | 없음 | 474,200 B | 7,500 |
-| `crawler` | Skitter-Husk 근접 적 | 없음 | 없음 | 596,704 B | 11,992 |
-| `spitter` | Spore-Sentinel 원거리 적 | 없음 | 없음 | 608,696 B | 12,000 |
-| `power-core` | 원자로 코어 | 없음 | 없음 | 600,268 B | 10,000 |
-| `exit-gate` | 탈출 에어록 | 없음 | 없음 | 1,275,864 B | 21,774 |
+## Built with Kiro
 
-Meshy 원본 GLB(`assets/meshy-raw/`, 수십 MB)는 `.gitignore`로 제외된다. 사운드는 파일 없이 WebAudio로 절차 합성한다(`src/ui/audio.ts`).
+Kiro was the working environment for the whole project, not only for code generation. Each item links to the real file.
 
-## R3.3 헤드램프 격리
+- **Spec-driven development.** Five specs, each with requirements, design, and tasks: [`abuse-reference`](.kiro/specs/abuse-reference/), [`restored-motion`](.kiro/specs/restored-motion/), [`reanimated-slice`](.kiro/specs/reanimated-slice/), [`full-3d-quarter-view`](.kiro/specs/full-3d-quarter-view/), [`metroidvania-3d`](.kiro/specs/metroidvania-3d/).
+- **Steering.** [`.kiro/steering/reanimator.md`](.kiro/steering/reanimator.md) always loads the sealed-file list, the headlamp rule, and the "unverified unless observed" rule. Harness steering files such as [`harness-sync`](.kiro/steering/harness-sync.md) and [`harness-checkpoint`](.kiro/steering/harness-checkpoint.md) keep sessions resumable through short entry docs.
+- **Hook.** [`.kiro/hooks/engine-gate-on-save.json`](.kiro/hooks/engine-gate-on-save.json) runs `make check` when the engine or verifier is saved. It fired four times in one session, all exit 0 (log in `docs/evidence/g2/hook_runs.log`).
+- **Sealed files and a verification contract.** The engine, the 2D slice, the fixtures, and the holdout are protected, and expected values are never generated by the new engine. See [`docs/reference/VERIFICATION_CONTRACT.md`](docs/reference/VERIFICATION_CONTRACT.md).
+- **Parallel sub-agent rounds.** Rounds R1 to R4 each ran four tracks in parallel git worktrees. An integration agent merged them and the orchestrator checked the result in a real browser with Playwright. That found bugs unit tests had missed: a combo pill kept hidden by CSS, a title wordmark collapsed to the SVG origin by a transform override, and an instanced door-lamp buffer sized for 7 lamps while 8 were written. Details in [`docs/KIRO_USAGE.md`](docs/KIRO_USAGE.md).
+- **Honest records.** `docs/KIRO_USAGE.md` lists only what Kiro actually did, including what was not done. For example, the REA MCP server was verified from the command line but could not be wired into Kiro's settings.
 
-헤드램프(`E`)의 상태 `w.light`는 렌더링과 HUD에서만 읽는다. 이동, 전투, 픽업, 위험 지형, 적에는 영향을 주지 않는다. `tests/game3d.test.ts`가 이를 확인한다. 한 월드는 360틱 동안 램프를 켜고 끄고, 다른 월드는 켜지 않은 채 같은 입력을 주고, `light` 필드를 제외한 전체 상태가 `deepEqual`로 같아야 하며 배터리 값만 달라야 한다. 2D 쪽 동일 불변식은 `tests/game.test.ts`에 있다.
+## Assets, credits, and licensing
 
-## IP 가드와 저장소 범위
+- The 3D models are generated with Meshy 7.1 and optimized with the scripts in `tools/meshy/` (register: [`docs/reference/ASSET_REGISTER.md`](docs/reference/ASSET_REGISTER.md), manifest: `reference/manifests/meshy-assets.json`). Sound and music are synthesized at runtime.
+- **No original *Abuse* assets are included.** `tools/release/check-dist.ts` (the `dist-guard` step of `make check`) compares `dist/` against the original file hashes and names, and rejects unexpected extensions, `MZ` executable headers, and DOS/4G banners.
+- Original executables, derived analysis files, and original screen captures are listed in `.gitignore` and are not published. The original license restricts reverse engineering and derivative works. This project does not distribute original code or data. This is not legal advice.
+- *Abuse* was created by Crack dot Com. REANIMATOR is an independent project and is not affiliated with or endorsed by its authors.
+- Code: [MIT](LICENSE). The MIT license does not cover the original *Abuse* files.
 
-- `tools/release/check-dist.ts`(`make check`의 `dist-guard` 단계)가 `dist/`를 `reference/manifests/abuse-source.json`의 원본 파일 해시·파일명과 대조한다. 추가로 허용 확장자 밖의 파일, `MZ` 실행 헤더, DOS/4G extender 배너가 있으면 실패한다.
-- 원본 실행 파일, 원본 파생물(`reference/work/`, `reference/derived/`, `reference/private/`), 원본 화면 캡처와 명령 덤프는 `.gitignore`로 제외된다. 목록과 근거는 `docs/reference/ASSET_REGISTER.md`.
-- 원본 `LICENSE.TXT` §1은 역공학과 파생물을 제한한다. 이 프로젝트는 원본 코드·데이터를 배포하지 않으며, 법률 자문이 아니다.
-- `reference/fixtures/`, `reference/holdout/`, `reference/harness/`, `reference/manifests/`는 공개 후보로 추적된다. 원본 수치 로그만 담고 원본 자산은 없다.
+## Limits
 
-## 한계
+- Restoration covers movement physics only. The 15 Hz tick is a design value.
+- The bot plays deterministically and says little about human difficulty. Human play observation is not done yet.
 
-- 15 Hz는 설계값이다. 원본 틱 레이트는 측정하지 않았다.
-- 복원 범위는 이동 물리(S1–S3, M05)다. 3D 슈터 부분은 원본 로직의 복원이 아닌 신규 설계다.
-- 봇 완주는 결정적 입력 기준이며 사람 플레이 시간·난이도는 검증하지 않았다.
+## 한국어 요약
 
-## 라이선스
+REANIMATOR는 1996년 DOS 게임 *Abuse* 셰어웨어 1.05의 이동 물리를 원본 실행 로그와 틱 단위로 대조해 복원하고(S1·S2·S3와 봉인 holdout M05, 11개 필드 exact 일치), 그 위에 브라우저에서 돌아가는 3D 사이드뷰 메트로배니아를 새로 설계한 프로젝트다.
 
-[MIT](LICENSE). 원본 *Abuse* 파일은 포함되지 않으며 이 라이선스의 대상이 아니다.
+- **정직한 경계**: 복원한 것은 이동 물리뿐이다. 15 Hz는 설계값이며 원본 틱은 측정하지 않았다. 3D 게임의 나머지(섹터, 적, 무기, 보스, 음향, 그래픽)는 신규 설계다. 원본 Abuse 에셋은 포함하지 않으며 `dist-guard`가 빌드 산출물을 검사한다.
+- **실행**: `npm install` 후 `npm run dev`. `V`로 1996풍 Classic View, `Tab` 맵, `E` 헤드램프, `Shift` 대시, 공중 `Shift+S` 스톰프. 타이틀의 Extras에서 Restoration Lab을 열 수 있다.
+- **검증**: `make check`(main `c84649e` 기준 exit 0, 테스트 211/211, reference-verify 3/3, reach3d 52 waypoints), `make reference-holdout`, `make smoke-local`.
+- **Kiro 활용**: spec 5종, steering, hook, 병렬 worktree 서브에이전트 4라운드, Playwright 브라우저 검증. 상세는 [`docs/KIRO_USAGE.md`](docs/KIRO_USAGE.md), 심사위원용 3분 데모는 [`docs/JUDGES.md`](docs/JUDGES.md).

@@ -262,6 +262,8 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 .settings-h { font-size: 0.75em; letter-spacing: 0.3em; color: var(--c-cyan); }
 #controls-panel { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; background: rgba(5, 8, 14, 0.96); }
 #controls-panel[hidden] { display: none; }
+.credits-body { max-width: 34em; text-align: left; line-height: 1.5; }
+.credits-body p { margin: 0 0 0.7em; }
 .ctrl-grid { display: grid; grid-template-columns: repeat(2, minmax(16em, 1fr)); gap: 0.7em 2.4em; text-align: left; }
 
 /* ---- result ---- */
