@@ -60,6 +60,12 @@ export interface PlayerAbilities3D {
   thrusterBoots: boolean;
   /** Crawl Slide module: ground dash + S slides under 1.0 m tunnels */
   crawlSlide: boolean;
+  /** Blast Core: Grenade and Rocket blasts shatter blast plates (`breakBy: 'blast'`) */
+  blastCore: boolean;
+  /** Scan Lens: a Scan Pulse overrides sealed scan hatches (`breakBy: 'scan'`) within SCAN_OVERRIDE_RADIUS_3D */
+  scanLens: boolean;
+  /** Thermal Plating: standing against a heat seal (`breakBy: 'heat'`) for HEAT_TICKS_3D melts it */
+  thermalPlating: boolean;
 }
 
 export interface PlayerState3D {
@@ -588,6 +594,10 @@ export const MAGNET_ACCEL_3D = 0.9;
 export const MAGNET_TOP_SPEED_3D = 15;
 /** Round 9: ticks of leaning on a fake wall before it gives way (0.3 s). */
 export const LEAN_TICKS_3D = 18;
+/** Thermal Plating: ticks of contact that melt a heat seal. */
+export const HEAT_TICKS_3D = 30;
+/** Scan Lens: how close (m, to the nearest face of the hatch) a Scan Pulse must start to override a scan hatch. */
+export const SCAN_OVERRIDE_RADIUS_3D = 6;
 
 export const AMMO_PICKUP_SHARE_3D: Record<2 | 3 | 4 | 5 | 6, number> = { 2: 1, 3: 0.45, 4: 0.35, 5: 2.2, 6: 0.3 };
 export const AMMO_WEAPONS_3D = [2, 3, 4, 5, 6] as const;
@@ -918,7 +928,7 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
       body,
       hp: BASE_MAX_HP,
       maxHp: BASE_MAX_HP,
-      abilities: { thrusterBoots: false, crawlSlide: false },
+      abilities: { thrusterBoots: false, crawlSlide: false, blastCore: false, scanLens: false, thermalPlating: false },
       energyTanks: 0,
       ammoExpansions: 0,
       aimX: spawn.x + 8,
@@ -1414,6 +1424,14 @@ export function triggerExplosion3D(
   if (byWeapon !== 0) {
     for (const s of doorSolids(w)) {
       if (distPointToSolidXY(s, x, y) <= radius * 0.8) tryOpenDoor3D(w, s, byWeapon);
+    }
+  }
+
+  // Blast Core: explosive blasts also shatter blast plates
+  if ((byWeapon === 3 || byWeapon === 6) && w.player.abilities.blastCore) {
+    for (const s of w.level.solids) {
+      if (s.breakBy !== 'blast' || !s.breakId || w.openDoors.has(s.breakId)) continue;
+      if (distPointToSolidXY(s, x, y) <= radius * 0.8) breakBlock3D(w, s);
     }
   }
 
@@ -2789,6 +2807,14 @@ function stepScan3D(w: WorldState3D, pressed: boolean): void {
   p.scanTicks = SCAN_TICKS;
   p.scanCooldown = SCAN_COOLDOWN_TICKS;
   w.events.push({ type: 'scan' });
+  // Scan Lens: the pulse overrides sealed hatches close to the player
+  if (p.abilities.scanLens) {
+    const b = p.body;
+    for (const s of w.level.solids) {
+      if (s.breakBy !== 'scan' || !s.breakId || w.openDoors.has(s.breakId)) continue;
+      if (distPointToSolidXY(s, b.x, b.y + 0.9) <= SCAN_OVERRIDE_RADIUS_3D) breakBlock3D(w, s);
+    }
+  }
 }
 
 export interface ScanTargets3D {
@@ -3133,6 +3159,15 @@ function applyUpgrade(w: WorldState3D, id: string, kind: UpgradePickupKind3D): v
   } else if (kind === 'crawl_slide') {
     p.abilities.crawlSlide = true;
     setHint(w, 'CRAWL SLIDE ONLINE: GROUND DASH + S UNDER LOW TUNNELS');
+  } else if (kind === 'blast_core') {
+    p.abilities.blastCore = true;
+    setHint(w, 'BLAST CORE ONLINE: GRENADE AND ROCKET BLASTS SHATTER BLAST PLATES');
+  } else if (kind === 'scan_lens') {
+    p.abilities.scanLens = true;
+    setHint(w, 'SCAN LENS ONLINE: A SCAN PULSE OVERRIDES SEALED HATCHES');
+  } else if (kind === 'thermal_plating') {
+    p.abilities.thermalPlating = true;
+    setHint(w, 'THERMAL PLATING ONLINE: PRESS AGAINST A HEAT SEAL TO MELT IT');
   } else if (kind === 'ammo_expansion') {
     p.ammoExpansions++;
     for (const sl of AMMO_WEAPONS_3D) {
@@ -3173,11 +3208,20 @@ function stompBlast(w: WorldState3D): void {
   }
 }
 
+const BREAK_HINT_3D: Record<NonNullable<MapSolid3D['breakBy']>, string> = {
+  stomp: 'FLOOR BROKE',
+  rail: 'PLATE SHATTERED',
+  lean: 'THE WALL GIVES WAY',
+  blast: 'BLAST PLATE SHATTERED',
+  scan: 'HATCH OVERRIDDEN',
+  heat: 'HEAT SEAL MELTED',
+};
+
 /** Break a breakable block: it leaves the collider, raises `block_break` and counts a secret if one hides behind it. */
 export function breakBlock3D(w: WorldState3D, s: MapSolid3D): boolean {
   if (!s.breakId || w.openDoors.has(s.breakId)) return false;
   w.openDoors.add(s.breakId);
-  w.events.push({ type: 'block_break', value: s.breakBy === 'rail' ? 1 : s.breakBy === 'lean' ? 2 : 0 });
+  w.events.push({ type: 'block_break', value: s.breakBy === 'rail' || s.breakBy === 'blast' ? 1 : s.breakBy === 'lean' || s.breakBy === 'heat' ? 2 : 0 });
   w.shakeTicks = Math.max(w.shakeTicks, 10);
   w.shakeStrength = Math.max(w.shakeStrength, 0.24);
   const secret = w.level.secrets.find((sr) => sr.doorId === s.breakId);
@@ -3187,7 +3231,7 @@ export function breakBlock3D(w: WorldState3D, s: MapSolid3D): boolean {
     w.run.score += 500;
     setHint(w, `SECRET FOUND: ${secret.name.toUpperCase()}`);
   } else {
-    roomHint(w, s.breakBy === 'rail' ? 'PLATE SHATTERED' : s.breakBy === 'lean' ? 'THE WALL GIVES WAY' : 'FLOOR BROKE');
+    roomHint(w, BREAK_HINT_3D[s.breakBy ?? 'stomp']);
   }
   return true;
 }
@@ -3552,6 +3596,21 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
     const n = touching ? (w.leanProgress[s.breakId] ?? 0) + 1 : Math.max(0, (w.leanProgress[s.breakId] ?? 0) - 2);
     w.leanProgress[s.breakId] = n;
     if (n >= LEAN_TICKS_3D) breakBlock3D(w, s);
+  }
+
+  // Heat seals: press against one with the Thermal Plating and it melts (same contact rule as the fake wall)
+  if (p.abilities.thermalPlating) {
+    for (const s of w.level.solids) {
+      if (s.breakBy !== 'heat' || !s.breakId || w.openDoors.has(s.breakId)) continue;
+      const b = p.body;
+      const toward = Math.sign((s.minX + s.maxX) / 2 - b.x);
+      const touching =
+        b.x + ABILITY_3D.radius >= s.minX - 0.12 && b.x - ABILITY_3D.radius <= s.maxX + 0.12 &&
+        b.y + 1.0 > s.minY && b.y < s.maxY && input.moveX * toward > 0.3;
+      const n = touching ? (w.leanProgress[s.breakId] ?? 0) + 1 : Math.max(0, (w.leanProgress[s.breakId] ?? 0) - 2);
+      w.leanProgress[s.breakId] = n;
+      if (n >= HEAT_TICKS_3D) breakBlock3D(w, s);
+    }
   }
 
   // Data logs

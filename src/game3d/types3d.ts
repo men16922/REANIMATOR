@@ -84,7 +84,15 @@ export interface SoundEvent3D {
 export type BoxKind3D = 'wall' | 'crate' | 'catwalk' | 'platform' | 'console' | 'door';
 export type DoorLockKind3D = 'blue' | 'green' | 'yellow' | 'red' | 'console' | 'escape';
 export type SectorId3D = 'airlock' | 'shaft' | 'mines' | 'biolabs' | 'security' | 'core';
-export type UpgradePickupKind3D = 'thruster_boots' | 'energy_tank' | 'crawl_slide' | 'ammo_expansion';
+export type UpgradePickupKind3D =
+  | 'thruster_boots'
+  | 'energy_tank'
+  | 'crawl_slide'
+  | 'ammo_expansion'
+  // Round 16 Metroid abilities: each one breaks one kind of sealed block (see docs/R16_METROID_ABILITIES.md)
+  | 'blast_core'
+  | 'scan_lens'
+  | 'thermal_plating';
 
 export interface RoomDef3D {
   id: string;
@@ -145,7 +153,7 @@ export interface MapSolid3D {
   bridgeId?: string;
   /** Round 5: breakable block. The solid vanishes once `openDoors` holds `breakId`. `breakBy` names the only thing that breaks it. */
   breakId?: string;
-  breakBy?: 'stomp' | 'rail' | 'lean';
+  breakBy?: 'stomp' | 'rail' | 'lean' | 'blast' | 'scan' | 'heat';
   /** Round 5: solid only exists while `openDoors` holds this id (escape hatch shutter, derived from the meltdown clock) */
   sealId?: string;
   /** Round 4: moved or toggled at runtime, so the renderer draws it from hazards3d instead of the static batches */

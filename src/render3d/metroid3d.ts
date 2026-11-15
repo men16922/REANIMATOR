@@ -201,10 +201,10 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
   const blocks: BlockView[] = level.solids
     .filter((s) => s.breakId)
     .map((s) => {
-      const plate = s.breakBy === 'rail';
+      const plate = s.breakBy === 'rail' || s.breakBy === 'blast';
       const fake = s.breakBy === 'lean';
       // A fake wall must pass as plain wall: no crack texture, only a faint teal seam shimmer for the attentive.
-      const tx = fake ? null : crackTexture(plate ? '#ff8a2a' : '#ffc03a', plate);
+      const tx = fake ? null : crackTexture(s.breakBy === 'scan' ? '#2bf0ff' : s.breakBy === 'heat' ? '#ff4a1a' : plate ? '#ff8a2a' : '#ffc03a', plate);
       if (tx) {
         tx.wrapS = THREE.RepeatWrapping;
         tx.wrapT = THREE.RepeatWrapping;

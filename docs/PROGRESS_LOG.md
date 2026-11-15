@@ -117,3 +117,7 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - `.env` gitignored (separate commit). Meshy API probe failed: could not resolve `api.meshy.ai` (HTTP 000), so no assets were generated and code is unchanged. Kiro MCP write blocked by EPERM, not added. See `docs/R15_MESHY_TERRAIN.md`.
 
 - R15 terrain kit: 11 Meshy GLBs ingested offline, instanced per sector in `terrainKit.ts`; a delegated sub-agent verified six sectors in the Playwright MCP browser (draw calls 148 to 299, 0 console errors, screenshots in `docs/evidence/r15_meshy_terrain/`) and ran `make check`. New user requests (Metroid abilities, tutorial mode, transient DATA LOG, retro UI, intro review) were added to NEXT_PLAN, not implemented.
+
+## 2026-11-16 · R16 Metroid abilities (FEAT-002)
+
+- Three optional-route abilities added: Blast Core (blast plate, Blast Cache), Scan Lens (scan hatch, Lens Cache), Thermal Plating (heat seal, Heat Cache). Design, coordinates, reach3d impact and the two count-based test updates are in `docs/R16_METROID_ABILITIES.md`. Bot pins unchanged. Tutorial (FEAT-003) not started. Browser view unverified.

@@ -56,7 +56,7 @@ export function renderFallback2D3D(canvas: HTMLCanvasElement, w: WorldState3D): 
   }
   for (const up of w.level.upgrades) {
     if (w.collectedUpgrades.has(up.id)) continue;
-    ctx.fillStyle = up.kind === 'thruster_boots' ? '#ffb02e' : up.kind === 'crawl_slide' ? '#2bf0ff' : up.kind === 'ammo_expansion' ? '#ff8a2a' : '#3dff88';
+    ctx.fillStyle = up.kind === 'blast_core' ? '#ff5a1a' : up.kind === 'scan_lens' ? '#8fe9ff' : up.kind === 'thermal_plating' ? '#ff3a3a' : up.kind === 'thruster_boots' ? '#ffb02e' : up.kind === 'crawl_slide' ? '#2bf0ff' : up.kind === 'ammo_expansion' ? '#ff8a2a' : '#3dff88';
     ctx.fillRect(X(up.x) - 8, Y(up.y) - 28, 16, 20);
   }
   for (const pk of w.pickups) {

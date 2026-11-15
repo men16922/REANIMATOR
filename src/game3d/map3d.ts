@@ -158,7 +158,14 @@ export function buildFacilityMap3D(): Level3D {
     // Secret alcove behind a Cracked Bio-Wall (Grenade), west of the spawn
     door('door-secret-alcove', 'door_secret_alcove', 'yellow', -1.5, 0, 0, 3.4, 0xffd23a),
     box('airlock-wall-west-up', -1.5, 0, 3.4, 10),
-    box('alcove-floor', -9, -0.5, -1.2, 0, 'catwalk', { color: 0x2a3542 }),
+    box('alcove-floor-w', -9, -6.4, -1.2, 0, 'catwalk', { color: 0x2a3542 }),
+    // Blast plate (R16): a scorched slab in the alcove floor. Only a Grenade or Rocket blast with the Blast Core breaks it. Opens the Blast Cache below.
+    box('blast-alcove', -6.4, -3.8, -1.2, 0, 'catwalk', { breakId: 'break_blast_alcove', breakBy: 'blast', dynamic: true, color: 0x2a3542, emissive: 0xff5a1a }),
+    box('alcove-floor-e', -3.8, -0.5, -1.2, 0, 'catwalk', { color: 0x2a3542 }),
+    box('blast-cache-wall-w', -6.8, -6.4, -3.7, -1.2, 'wall', { color: 0x2a3542 }),
+    box('blast-cache-wall-e', -3.8, -3.4, -3.7, -1.2, 'wall', { color: 0x2a3542 }),
+    box('blast-cache-floor', -6.8, -3.4, -3.7, -3.4, 'catwalk', { color: 0x2a3542 }),
+    platform('blast-cache-step', -5.6, -4.2, -1.9, { color: 0x3a434e }),
     box('alcove-ceiling', -9, -1.5, 3.4, 4.6),
     box('alcove-wall-west', -9.5, -9, -1.2, 4.6),
     // Secret roof cache above the airlock ceiling (needs Boots to reach the shaft deck, then a Grenade)
@@ -276,13 +283,24 @@ export function buildFacilityMap3D(): Level3D {
     platform('sec-nook-step', 67.8, 69.6, 10.8, { color: 0x3a434e }),
     box('nook-lip', 69.6, 70.0, 9.6, 10.8, 'wall', { color: 0x2a3542 }),
     box('nook-ceiling', 70.8, 78.8, 13.8, 14.8),
-    box('nook-wall-back', 78.0, 78.8, 10.8, 14.8, 'wall', { color: 0x2a3542 }),
+    box('nook-wall-back', 78.0, 78.8, 13.8, 14.8, 'wall', { color: 0x2a3542 }),
+    // Heat seal (R16): a glowing bulkhead at the back of the Vault Nook. Only the Thermal Plating can press through it. Opens the Heat Cache.
+    box('heat-seal', 78.0, 78.8, 10.8, 13.8, 'wall', { breakId: 'break_heat_nook', breakBy: 'heat', dynamic: true, color: 0x3a2a24, emissive: 0xff4a1a }),
+    box('nook2-ceiling', 78.8, 86.0, 13.8, 14.8),
+    box('nook2-wall-back', 86.0, 86.8, 10.8, 14.8, 'wall', { color: 0x2a3542 }),
     box('sec-console', 54.0, 55.0, 8.8, 10.1, 'console', {
       minZ: -0.6, maxZ: 0.6, color: 0x1f3644, emissive: 0x2bf0ff,
     }),
 
     // ===== 6. room_core =====
-    box('core-floor-a', 70, 94.6, -1.2, 0, 'catwalk', { color: 0x1c212a }),
+    box('core-floor-a-w', 70, 71.0, -1.2, 0, 'catwalk', { color: 0x1c212a }),
+    // Scan hatch (R16): a sealed floor panel with a lens socket. A Scan Pulse with the Scan Lens overrides it. Opens the Lens Cache below.
+    box('scan-core', 71.0, 73.6, -1.2, 0, 'catwalk', { breakId: 'break_scan_core', breakBy: 'scan', dynamic: true, color: 0x1c212a, emissive: 0x2bf0ff }),
+    box('core-floor-a', 73.6, 94.6, -1.2, 0, 'catwalk', { color: 0x1c212a }),
+    box('scan-cache-wall-w', 70.6, 71.0, -3.7, -1.2, 'wall', { color: 0x2a3542 }),
+    box('scan-cache-wall-e', 73.6, 74.0, -3.7, -1.2, 'wall', { color: 0x2a3542 }),
+    box('scan-cache-floor', 70.6, 74.0, -3.7, -3.4, 'catwalk', { color: 0x1c212a }),
+    platform('scan-cache-step', 71.5, 73.0, -1.9, { color: 0x3a434e }),
     // Stomp floor: cracked slab over the Core Cache. A down-dash stomp breaks it.
     box('stomp-core', 94.6, 97.4, -1.2, 0, 'catwalk', { breakId: 'break_stomp_core', breakBy: 'stomp', dynamic: true, color: 0x1c212a, emissive: 0xffb02a }),
     box('core-floor-b', 97.4, 98, -1.2, 0, 'catwalk', { color: 0x1c212a }),
@@ -333,6 +351,13 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'etank_underfloor', kind: 'energy_tank', x: 4.0, y: -3.2, z: 0 },
     { id: 'ammo_ex_mines', kind: 'ammo_expansion', x: -4.0, y: -8.6, z: 0 },
     { id: 'ammo_ex_core', kind: 'ammo_expansion', x: 97.5, y: -3.4, z: 0 },
+    // Round 16 Metroid abilities. Each one sits in an optional spot and unlocks one sealed cache (see docs/R16_METROID_ABILITIES.md).
+    { id: 'blast_core', kind: 'blast_core', x: -7.4, y: 0, z: 0 },
+    { id: 'scan_lens', kind: 'scan_lens', x: 21.5, y: 10.2, z: 0 },
+    { id: 'thermal_plating', kind: 'thermal_plating', x: 95.6, y: -3.4, z: 0 },
+    { id: 'etank_blast', kind: 'energy_tank', x: -5.1, y: -3.4, z: 0 },
+    { id: 'ammo_ex_scan', kind: 'ammo_expansion', x: 72.3, y: -3.4, z: 0 },
+    { id: 'etank_heat', kind: 'energy_tank', x: 83.0, y: 10.8, z: 0 },
   ];
 
   const mapStations: MapStation3D[] = [

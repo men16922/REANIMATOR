@@ -122,3 +122,5 @@
 
 - R12 post-fix: airlock crate crawlers now drop down and engage an idle player; tutorial hold counts from e-airlock-1 wake-up. Bot Normal 5123 / HP 118. Browser check unverified.
 - R14 C (r14-charlight): character key/fill/AO/exposure term in character shaders, rims 0.25-0.35; make check exit 0, browser captures unverified. See docs/R14_CHARLIGHT.md.
+
+- R16 (FEAT-002): Metroid abilities Blast Core, Scan Lens, Thermal Plating with three sealed caches. `make check` exit 0, bot pins unchanged. See `docs/R16_METROID_ABILITIES.md`. Browser verification not run.

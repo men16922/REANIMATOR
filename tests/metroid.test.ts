@@ -243,10 +243,10 @@ test('breakables: Rail plates break only to the Rail-Cannon, the shot ends on th
 
 test('breakables: the shortcut plate opens a Bio-Labs <-> Shaft passage and every break check passes', () => {
   const level = buildFacilityMap3D();
-  assert.equal(level.solids.filter((s) => s.breakId).length, 4);
+  assert.equal(level.solids.filter((s) => s.breakId).length, 7);
   assert.deepEqual(checkBreakables(level), []);
   const ids = buildBreakChecks().map((c) => c.breakId).sort();
-  assert.deepEqual(ids, ['break_lean_security', 'break_plate_mines', 'break_plate_shaft', 'break_stomp_core']);
+  assert.deepEqual(ids, ['break_blast_alcove', 'break_heat_nook', 'break_lean_security', 'break_plate_mines', 'break_plate_shaft', 'break_scan_core', 'break_stomp_core']);
   // Cracks are markers: every breakable is dynamic so the renderer draws it separately, with an emissive seam colour
   for (const s of level.solids.filter((x) => x.breakId)) {
     assert.equal(s.dynamic, true);
@@ -294,7 +294,7 @@ test("minimap markers: '?' for every untaken item, log, weapon and unfound secre
   const w = newWorld3D();
   const all = collectMinimapMarkers(w);
   assert.equal(all.filter((m) => m.kind === 'secret').length, 5);
-  assert.equal(all.filter((m) => m.kind === 'item').length, 7 + 6 + 5, 'upgrades + logs + weapon pedestals');
+  assert.equal(all.filter((m) => m.kind === 'item').length, 13 + 6 + 5, 'upgrades + logs + weapon pedestals');
   w.collectedUpgrades.add('thruster_boots');
   w.collectibles[0].taken = true;
   w.secretsFound.push('secret_alcove');
@@ -311,10 +311,10 @@ test("minimap markers: '?' for every untaken item, log, weapon and unfound secre
 
 test('rewards: Energy Tank 3, two ammo expansions and the module raise completion to 100% over the full path', () => {
   const w = newWorld3D();
-  assert.equal(w.level.upgrades.filter((u) => u.kind === 'energy_tank').length, 3);
-  assert.equal(w.level.upgrades.filter((u) => u.kind === 'ammo_expansion').length, 2);
+  assert.equal(w.level.upgrades.filter((u) => u.kind === 'energy_tank').length, 5);
+  assert.equal(w.level.upgrades.filter((u) => u.kind === 'ammo_expansion').length, 3);
   stepN(w, 1);
-  assert.equal(w.completion.total, 6 + 5 + 7 + 5);
+  assert.equal(w.completion.total, 6 + 5 + 13 + 5);
   // Take every collectible by standing on it
   for (const u of w.level.upgrades) {
     place(w, u.x, u.y);
@@ -336,9 +336,9 @@ test('rewards: Energy Tank 3, two ammo expansions and the module raise completio
   stepN(w, 1);
   assert.equal(w.completion.found, w.completion.total);
   assert.equal(w.completion.percent, 100);
-  assert.equal(w.player.energyTanks, 3);
-  assert.equal(w.player.maxHp, 190);
-  assert.equal(w.player.ammoExpansions, 2);
+  assert.equal(w.player.energyTanks, 5);
+  assert.equal(w.player.maxHp, 250);
+  assert.equal(w.player.ammoExpansions, 3);
 });
 
 test('rewards: an ammo expansion raises the Save/Recharge refill level by half the starting ammo', () => {

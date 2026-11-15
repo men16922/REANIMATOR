@@ -534,6 +534,10 @@ export function buildBreakChecks(): BreakCheck[] {
     // Stomp floor: Core arena floor to the cache, and back out even without the boots
     { label: 'stomp-core', breakId: 'break_stomp_core', from: { x: 96, y: 0 }, target: { x: 97.5, y: -3.4, tolX: 0.8, tolY: 0.5 }, maxJumps: 1, back: [{ x: 95.8, y: -1.9, tolX: 0.5, tolY: 0.4 }, { x: 92, y: 0, tolX: 0.8, tolY: 0.5 }] },
     // Lean wall: the Security Deck shelf (one plain jump from the deck) to the Vault Nook, and back out by walking off the shelf
+    // Round 16 abilities: Blast plate (Cryo alcove floor) to the Blast Cache, Scan hatch (Core floor) to the Lens Cache, Heat seal (Vault Nook) to the Heat Cache
+    { label: 'blast-alcove', breakId: 'break_blast_alcove', from: { x: -8, y: 0 }, target: { x: -5.1, y: -3.4, tolX: 0.6, tolY: 0.5 }, maxJumps: 1, back: [{ x: -4.9, y: -1.9, tolX: 0.5, tolY: 0.4 }, { x: -8, y: 0, tolX: 0.8, tolY: 0.5 }] },
+    { label: 'scan-core', breakId: 'break_scan_core', from: { x: 76, y: 0 }, target: { x: 72.3, y: -3.4, tolX: 0.6, tolY: 0.5 }, maxJumps: 1, back: [{ x: 72.2, y: -1.9, tolX: 0.5, tolY: 0.4 }, { x: 76, y: 0, tolX: 0.8, tolY: 0.5 }] },
+    { label: 'heat-nook', breakId: 'break_heat_nook', from: { x: 75, y: 10.8 }, target: { x: 83, y: 10.8, tolX: 0.6, tolY: 0.5 }, maxJumps: 1, back: [{ x: 75, y: 10.8, tolX: 0.8, tolY: 0.5 }] },
     { label: 'lean-security', breakId: 'break_lean_security', from: { x: 68.9, y: 10.8 }, target: { x: 74, y: 10.8, tolX: 0.8, tolY: 0.5 }, maxJumps: 1, back: [{ x: 68.9, y: 10.8, tolX: 0.5, tolY: 0.5 }, { x: 64, y: 8.8, tolX: 1, tolY: 0.5 }] },
   ];
 }
@@ -598,6 +602,13 @@ export function buildCompletionLegs(level: Level3D): CompletionLeg[] {
     { label: 'etank_underfloor (slide)', from: under.approach, target: t('etank_underfloor'), doors: all, maxJumps: 2, slide: true },
     // Backtrack 2: Mines pocket behind the Rail plate
     { label: 'ammo_ex_mines', from: { x: 3, y: -8.6 }, target: t('ammo_ex_mines'), doors: [...all, 'break_plate_mines'], maxJumps: 1 },
+    // Round 16 abilities. Pickups need no gate bypass: the alcove (Grenade door), the roof cache (Boots, yellow door) and the Core Cache (stomp).
+    { label: 'blast_core', from: { x: 3, y: 0 }, target: t('blast_core'), doors: all, maxJumps: 1 },
+    { label: 'scan_lens', from: { x: 30, y: 8.8 }, target: t('scan_lens'), doors: all, maxJumps: 2 },
+    { label: 'thermal_plating', from: { x: 96, y: 0 }, target: t('thermal_plating'), doors: [...all, 'break_stomp_core'], maxJumps: 1 },
+    { label: 'etank_blast', from: { x: -8, y: 0 }, target: t('etank_blast'), doors: [...all, 'break_blast_alcove'], maxJumps: 1 },
+    { label: 'ammo_ex_scan', from: { x: 76, y: 0 }, target: t('ammo_ex_scan'), doors: [...all, 'break_scan_core'], maxJumps: 1 },
+    { label: 'etank_heat', from: { x: 75, y: 10.8 }, target: t('etank_heat'), doors: [...all, 'break_heat_nook'], maxJumps: 1 },
     // Backtrack 3: Core cache under the stomp floor
     { label: 'ammo_ex_core', from: { x: 96, y: 0 }, target: t('ammo_ex_core'), doors: [...all, 'break_stomp_core'], maxJumps: 1 },
   ];

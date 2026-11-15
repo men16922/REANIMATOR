@@ -174,8 +174,8 @@ export class ClassicHud {
  * Classic View status line for the abilities the pixel strip does not draw (dash, light, scan, boots).
  * Pure: percentages are clamped, text is ASCII uppercase so it fits the pixel look.
  */
-export function classicStatusText(a: { dashPct: number; lightOn: boolean; batteryPct: number; scan: string; boots: boolean }): string {
+export function classicStatusText(a: { dashPct: number; lightOn: boolean; batteryPct: number; scan: string; boots: boolean; modules?: readonly string[] }): string {
   const dash = a.dashPct >= 99.5 ? 'RDY' : `${Math.round(Math.max(0, a.dashPct))}%`;
   const light = `${a.lightOn ? 'ON' : 'OFF'} ${Math.round(Math.max(0, Math.min(100, a.batteryPct)))}%`;
-  return `DASH ${dash}  LIGHT ${light}  SCAN ${a.scan}${a.boots ? '  BOOTS' : ''}`;
+  return `DASH ${dash}  LIGHT ${light}  SCAN ${a.scan}${a.boots ? '  BOOTS' : ''}${a.modules && a.modules.length ? `  ${a.modules.join(' ')}` : ''}`;
 }

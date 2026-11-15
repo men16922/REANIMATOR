@@ -131,6 +131,9 @@ const ui = {
   result: $('result'),
   revived: $('revived'),
   bootsPill: $('boots-pill'),
+  blastPill: $('blast-pill'),
+  lensPill: $('lens-pill'),
+  thermalPill: $('thermal-pill'),
   etankCount: $('etank-count'),
   minimap: $<HTMLCanvasElement>('minimap'),
   minimapWrap: $('minimap-wrap'),
@@ -739,6 +742,9 @@ const UPGRADE_BANNER: Record<string, { title: string; desc: string }> = {
   thruster_boots: { title: 'THRUSTER BOOTS', desc: 'Press jump again in mid-air for a second jump. Reach the high ledge in the Central Shaft.' },
   energy_tank: { title: 'ENERGY TANK', desc: 'Maximum hull +30. Hull fully restored.' },
   crawl_slide: { title: 'CRAWL SLIDE', desc: 'Hold S and press Shift on the ground to slide under low tunnels. Look for 1 m ducts marked with hazard stripes.' },
+  blast_core: { title: 'BLAST CORE', desc: 'Grenade and Rocket blasts now shatter scorched blast plates in the floor.' },
+  scan_lens: { title: 'SCAN LENS', desc: 'Press Z near a sealed hatch to override it. Look for plates with cyan seams.' },
+  thermal_plating: { title: 'THERMAL PLATING', desc: 'Press against a glowing heat seal to melt it and walk through.' },
   ammo_expansion: { title: 'AMMO EXPANSION', desc: 'Save stations now recharge 50% more ammo. Reserves topped up.' },
 };
 /** Seconds of display freeze per pickup kind (the simulation does not advance, so replays stay deterministic) */
@@ -935,6 +941,7 @@ function hud(): void {
         batteryPct: (world.light.battery / LIGHT.max) * 100,
         scan: p.scanTicks > 0 ? 'ACTIVE' : p.scanCooldown > 0 ? `${(p.scanCooldown / 60).toFixed(0)}S` : 'READY',
         boots: p.abilities.thrusterBoots,
+        modules: [p.abilities.blastCore ? 'BLAST' : '', p.abilities.scanLens ? 'LENS' : '', p.abilities.thermalPlating ? 'THERMAL' : ''].filter(Boolean),
       });
       if (cs.textContent !== t) cs.textContent = t;
     }
@@ -959,6 +966,9 @@ function hud(): void {
   $('rail-pill').hidden = !railOn;
   if (railOn) $('rail-bar').style.width = `${Math.min(100, (p.railCharge / RAIL_CHARGE_TICKS) * 100)}%`;
   ui.bootsPill.hidden = !p.abilities.thrusterBoots;
+  ui.blastPill.hidden = !p.abilities.blastCore;
+  ui.lensPill.hidden = !p.abilities.scanLens;
+  ui.thermalPill.hidden = !p.abilities.thermalPlating;
   $('scan-pill').classList.toggle('active', p.scanTicks > 0);
   $('scan-state').textContent = p.scanTicks > 0 ? 'ACTIVE' : p.scanCooldown > 0 ? `${(p.scanCooldown / 60).toFixed(0)}s` : 'READY';
   {

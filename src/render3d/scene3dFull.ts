@@ -89,6 +89,9 @@ import { buildTerrainDetail, makeTerrainDetailMaterial } from './terrainDetail.t
 import { TerrainKit, planKitUnits } from './terrainKit.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
+/** Round 16 ability pickups reuse the existing item silhouettes with their own colour (no new meshes, no lights). */
+const ABILITY_ITEM_COLOR: Partial<Record<string, number>> = { blast_core: 0xff5a1a, scan_lens: 0x8fe9ff, thermal_plating: 0xff3a3a };
+
 /** Static scenery that is hidden while it is outside the camera window (render-only). */
 interface CullEntry {
   obj: THREE.Object3D;
@@ -1076,11 +1079,11 @@ export class Scene3DRenderer {
 
     // Upgrade pedestals: Thruster Boots (amber) and Energy Tanks (green)
     for (const up of w.level.upgrades) {
-      const color = up.kind === 'thruster_boots' ? 0xffb02e : up.kind === 'crawl_slide' ? 0x2bf0ff : up.kind === 'ammo_expansion' ? 0xff8a2a : 0x3dff88;
+      const color = ABILITY_ITEM_COLOR[up.kind] ?? (up.kind === 'thruster_boots' ? 0xffb02e : up.kind === 'crawl_slide' ? 0x2bf0ff : up.kind === 'ammo_expansion' ? 0xff8a2a : 0x3dff88);
       // Procedural item silhouette on the pedestal (boots / energy tank), spinning and bobbing in render().
       const gem = new THREE.Group();
       gem.add(
-        up.kind === 'thruster_boots' ? buildBootsItem(color) : up.kind === 'crawl_slide' ? buildSlideItem(color) : up.kind === 'ammo_expansion' ? buildAmmoItem(color) : buildEnergyTankItem(color),
+        up.kind === 'thruster_boots' ? buildBootsItem(color) : up.kind === 'crawl_slide' || up.kind === 'scan_lens' ? buildSlideItem(color) : up.kind === 'ammo_expansion' || up.kind === 'blast_core' ? buildAmmoItem(color) : up.kind === 'thermal_plating' ? buildBootsItem(color) : buildEnergyTankItem(color),
       );
       const halo = new THREE.Mesh(
         new THREE.CircleGeometry(0.6, 24),

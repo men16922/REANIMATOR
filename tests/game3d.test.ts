@@ -25,9 +25,10 @@ import {
   type WorldState3D,
   BOSS_INTRO_TICKS,
   skipBossIntro3D,
+  HEAT_TICKS_3D,
 } from '../src/game3d/world3d.ts';
 import { runReckless } from '../tools/game/difficulty.ts';
-import { buildReachRoute, dashReaches, walkTo } from '../tools/game/reach3d.ts';
+import { buildBreakChecks, buildReachRoute, checkBreakables, dashReaches, walkTo } from '../tools/game/reach3d.ts';
 
 function readGlbJson(relPath: string): {
   skins?: { joints: number[] }[];
@@ -94,9 +95,11 @@ test('map: six sectors, symmetric neighbors, every room reachable, <= 1 save per
   }
   const props = [...level.saveStations, ...level.upgrades, ...level.pedestals];
   for (const p of props) {
+    // The Heat Cache sits in the Vault Nook annex, which lies outside every room box like the nook itself
+    if (p.id === 'etank_heat') continue;
     assert.ok(roomAt3D(level, p.x, p.y + 0.9), `${p.id} must lie inside a room`);
   }
-  assert.equal(level.upgrades.filter((u) => u.kind === 'energy_tank').length, 3, 'Mines, Bio-Labs and the Underfloor Duct');
+  assert.equal(level.upgrades.filter((u) => u.kind === 'energy_tank').length, 5, 'Mines, Bio-Labs, the Underfloor Duct, the Blast Cache and the Heat Cache');
   assert.equal(level.upgrades.filter((u) => u.kind === 'thruster_boots').length, 1);
 });
 
@@ -1117,7 +1120,7 @@ test('exploration: six data logs (one per sector), completion percent and run su
   stepN(w, 1);
   assert.equal(w.completion.percent, 0);
   assert.equal(w.completion.logsTotal, 6);
-  assert.equal(w.completion.total, 6 + 5 + 7 + 5, 'logs + secrets + upgrades + weapons');
+  assert.equal(w.completion.total, 6 + 5 + 13 + 5, 'logs + secrets + upgrades + weapons');
 
   const log = w.collectibles.find((c) => c.id === 'log_mines')!;
   place(w, log.x, log.y);
@@ -1125,7 +1128,7 @@ test('exploration: six data logs (one per sector), completion percent and run su
   assert.ok(log.taken);
   assert.ok(w.events.some((e) => e.type === 'collect'));
   assert.equal(w.completion.logsFound, 1);
-  assert.equal(w.completion.percent, Math.round((100 * 1) / 23));
+  assert.equal(w.completion.percent, Math.round((100 * 1) / 29));
   // Taking it again does nothing
   stepN(w, 2);
   assert.equal(w.completion.logsFound, 1);
@@ -1196,7 +1199,9 @@ test('difficulty curve: sector damage rises toward the Core and the bot still wi
   assert.equal(s.won, true);
   assert.equal(s.deaths, 0);
   assert.ok(s.kills >= 20);
-  assert.ok(s.completionPercent >= 35); // R10: 39 (the Core data log is no longer picked up by chance in the Warden fight; was 43)
+  // R10: 39 of 23 collectibles (the Core data log is no longer picked up by chance in the Warden fight; was 43).
+  // R16: the total grew to 29 (3 abilities + 3 caches, all off the bot route), so the same bot haul reads 34%.
+  assert.ok(s.completionPercent >= 30);
 });
 
 test('extraction ambush: meltdown wakes hold-outs along the escape route and stops med drops', () => {
@@ -1475,4 +1480,135 @@ test('counter hint: only for crawler and stalker windups, and it retires after a
   assert.equal(ob.update(w)?.id, 'counter');
   for (let i = 0; i < 700; i++) ob.update(w);
   assert.notEqual(ob.update(w)?.id, 'counter');
+});
+
+// ---------------------------------------------------------------- Round 16: Metroid abilities (Blast Core, Scan Lens, Thermal Plating)
+
+const R16_ABILITY_PICKUPS = [
+  { id: 'blast_core', flag: 'blastCore' },
+  { id: 'scan_lens', flag: 'scanLens' },
+  { id: 'thermal_plating', flag: 'thermalPlating' },
+] as const;
+
+test('r16 abilities: three pickups grant their ability once, and a new world owns none', () => {
+  const w0 = newWorld3D();
+  for (const a of R16_ABILITY_PICKUPS) assert.equal(w0.player.abilities[a.flag], false, `${a.flag} starts locked`);
+  for (const a of R16_ABILITY_PICKUPS) {
+    const w = newWorld3D();
+    const up = w.level.upgrades.find((u) => u.id === a.id)!;
+    assert.equal(up.kind, a.id);
+    place(w, up.x, up.y);
+    stepN(w, 1);
+    assert.equal(w.player.abilities[a.flag], true, `${a.id} grants ${a.flag}`);
+    assert.ok(w.collectedUpgrades.has(a.id));
+    assert.ok(w.events.some((e) => e.type === 'upgrade'));
+    // Only its own ability
+    for (const o of R16_ABILITY_PICKUPS) if (o.flag !== a.flag) assert.equal(w.player.abilities[o.flag], false);
+  }
+});
+
+test('r16 blast core: a Grenade or Rocket blast breaks the blast plate only with the ability and only nearby', () => {
+  const plate = (w: WorldState3D) => w.level.solids.find((s) => s.breakBy === 'blast')!;
+  const cx = (s: MapSolid3D) => (s.minX + s.maxX) / 2;
+  const blow = (w: WorldState3D, by: 0 | 3 | 6, dx = 0) => {
+    const s = plate(w);
+    triggerExplosion3D(w, cx(s) + dx, s.maxY + 0.2, 0, 4.1, 0, 0xff8a30, 0, by);
+    return w.openDoors.has(s.breakId!);
+  };
+  const locked = newWorld3D();
+  assert.equal(blow(locked, 3), false, 'no Blast Core: a grenade does nothing');
+  const own = (): WorldState3D => {
+    const w = newWorld3D();
+    w.player.abilities.blastCore = true;
+    return w;
+  };
+  assert.equal(blow(own(), 0), false, 'a barrel-style blast (no weapon) does not count');
+  assert.equal(blow(own(), 3, 9), false, 'out of range');
+  const g = own();
+  assert.equal(blow(g, 3), true, 'grenade with Blast Core');
+  assert.ok(g.events.some((e) => e.type === 'block_break'));
+  assert.equal(blow(own(), 6), true, 'rocket with Blast Core');
+});
+
+test('r16 scan lens: a Scan Pulse overrides the hatch only with the ability and only when close', () => {
+  const hatch = (w: WorldState3D) => w.level.solids.find((s) => s.breakBy === 'scan')!;
+  const scanAt = (w: WorldState3D, dx: number): boolean => {
+    const s = hatch(w);
+    place(w, (s.minX + s.maxX) / 2 + dx, s.maxY);
+    stepN(w, 1, { scan: true });
+    return w.openDoors.has(s.breakId!);
+  };
+  const locked = newWorld3D();
+  assert.equal(scanAt(locked, 0), false, 'no lens');
+  const far = newWorld3D();
+  far.player.abilities.scanLens = true;
+  assert.equal(scanAt(far, 14), false, 'too far');
+  const ok = newWorld3D();
+  ok.player.abilities.scanLens = true;
+  assert.equal(scanAt(ok, 1), true);
+  assert.ok(ok.events.some((e) => e.type === 'block_break'));
+});
+
+test('r16 thermal plating: pressing against the heat seal melts it in HEAT_TICKS_3D, never without the ability', () => {
+  const seal = (w: WorldState3D) => w.level.solids.find((s) => s.breakBy === 'heat')!;
+  const press = (w: WorldState3D, ticks: number): boolean => {
+    const s = seal(w);
+    place(w, s.minX - ABILITY_3D.radius - 0.05, s.minY);
+    for (let i = 0; i < ticks; i++) {
+      stepWorld3D(w, { ...emptyInput3D(), moveX: 1 });
+      if (w.openDoors.has(s.breakId!)) return true;
+    }
+    return false;
+  };
+  assert.equal(press(newWorld3D(), 240), false, 'no plating');
+  const w = newWorld3D();
+  w.player.abilities.thermalPlating = true;
+  assert.equal(press(w, HEAT_TICKS_3D - 6), false, 'needs sustained contact');
+  const w2 = newWorld3D();
+  w2.player.abilities.thermalPlating = true;
+  assert.equal(press(w2, HEAT_TICKS_3D + 10), true);
+});
+
+test('r16 gates: every ability gate is sealed without the ability and open with its break id (reach3d walks)', () => {
+  const level = buildFacilityMap3D();
+  const doors = new Set(level.solids.filter((s) => s.doorId).map((s) => s.doorId!));
+  for (const c of buildBreakChecks().filter((b) => ['break_blast_alcove', 'break_scan_core', 'break_heat_nook'].includes(b.breakId))) {
+    const sealed = walkTo(spawnBody3D(c.from.x, c.from.y, 0), c.target, level, doors, 2, 500);
+    assert.equal(sealed.reached, false, `${c.label} unreachable while sealed`);
+    const open = walkTo(spawnBody3D(c.from.x, c.from.y, 0), c.target, level, new Set(doors).add(c.breakId), c.maxJumps, 1200);
+    assert.equal(open.reached, true, `${c.label} reachable once broken`);
+  }
+  assert.deepEqual(checkBreakables(level), []);
+});
+
+test('r16 abilities: deterministic, kept across death and respawn, and the headlamp never changes the outcome (R3.3)', () => {
+  const run = (lamp: boolean): string => {
+    const w = newWorld3D();
+    w.player.abilities.blastCore = true;
+    w.player.abilities.scanLens = true;
+    w.player.abilities.thermalPlating = true;
+    w.light.on = lamp;
+    w.light.battery = lamp ? w.light.battery : 0;
+    const seal = w.level.solids.find((s) => s.breakBy === 'heat')!;
+    place(w, seal.minX - ABILITY_3D.radius - 0.05, seal.minY);
+    stepN(w, 50, { moveX: 1 });
+    const hatch = w.level.solids.find((s) => s.breakBy === 'scan')!;
+    place(w, (hatch.minX + hatch.maxX) / 2, hatch.maxY);
+    stepN(w, 2, { scan: true });
+    const plate = w.level.solids.find((s) => s.breakBy === 'blast')!;
+    triggerExplosion3D(w, (plate.minX + plate.maxX) / 2, plate.maxY + 0.2, 0, 4.1, 0, 0xff8a30, 0, 3);
+    return JSON.stringify([[...w.openDoors].sort(), w.player.abilities]);
+  };
+  const a = run(true);
+  assert.equal(a, run(true), 'same inputs, same result');
+  assert.equal(a, run(false), 'headlamp state does not matter');
+  assert.deepEqual(JSON.parse(a)[0], ['break_blast_alcove', 'break_heat_nook', 'break_scan_core']);
+
+  const w = newWorld3D();
+  w.player.abilities.blastCore = true;
+  w.player.abilities.scanLens = true;
+  w.player.abilities.thermalPlating = true;
+  w.status = 'lost';
+  respawnPlayer3D(w);
+  assert.deepEqual(w.player.abilities, { thrusterBoots: false, crawlSlide: false, blastCore: true, scanLens: true, thermalPlating: true });
 });
