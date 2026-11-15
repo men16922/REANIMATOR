@@ -63,3 +63,26 @@ Not verified: human play-through difficulty, and `make smoke-local` on the newes
 - Hunter armour fitted to the rig bones, opening HUD fade-in with letterbox and title card, showcase hold exit, Escape resume in the pause menu, English UI chrome.
 - Observed in Chrome by the orchestrator: the R9 UI audit passes in 12 scenarios, Scan Pulse outlines show, the Vault Nook secret is found with the camera following into it, and there are no console warnings. The opening renders with letterbox and no HUD. The HUD fits one row with the HUNTER pill.
 - Not yet verified: the final `3c8e7a0` hunter look, the feel of the counter window, a human playtest (G5), and `make smoke-local` (needs a real Chrome).
+
+## Debug hooks
+
+All are on `window` (declared in `src/ui/main.ts`). Every synchronous one cancels a pending async hook.
+
+- `__reanimator()`: state snapshot (includes `layers` and `worldSerial`).
+- `__reanimatorAdvance(inputs, setup?, { continue? })`: runs input frames. Default builds a fresh world; `{ continue: true }` keeps the current one. Returns snapshot plus `debug`.
+- `__reanimatorStep(inputs, alpha?)`: runs input frames on the current world (always continues).
+- `__reanimatorRunBot(maxTicks, untilStep?, showResultOnEnd?)`: bot plays.
+- `__reanimatorSetView(mode)`: switch Modern or Classic view.
+- `__reanimatorAudio`: audio debug state.
+- `__reanimatorShowResult('won' | 'lost')`: open the result screen.
+- `__reanimatorShowBanner(kind)`: show a sector, weapon, boots, etank or coach banner.
+- `__reanimatorPick(px, py, includePoints?)`: list scene objects under a pixel.
+- `__reanimatorShowcase(name)`: async README scene; resolves with `superseded: true` if a later debug call took over.
+- `__reanimatorDemo(id)`: jump to a demo tour checkpoint.
+- `__reanimatorSoak(n?, opts?)`: async soak run over demos and showcases.
+- `__reanimatorUiAudit()`: async UI audit; may resolve with `superseded: true`.
+- `__reanimatorShowLog(id, view?)`: open a log in the reader, archive, credits or ending view.
+
+## R12 additions
+
+- Bot respawn routing, shot dodging and counters, plus debug hook robustness (`continue` mode, supersede rule, `debug` and `layers` fields) and result screen copy. Details: [R12_ROBUST](R12_ROBUST.md). Browser behaviour unverified.

@@ -2,9 +2,10 @@
 // Walks the six-sector progression (blue -> green -> Mines upgrades -> yellow -> Bio-Labs -> Security -> red -> Core -> escape)
 // by driving the real stepWorld3D. Shared by tools/game/playthrough.ts and tools/smoke/capture-showcase.ts.
 
-import { castRaySolidDistance3D, emptyInput3D, hazardNowTick3D, type InputState3D, type WorldState3D } from './world3d.ts';
+import { castRaySolidDistance3D, emptyInput3D, hazardNowTick3D, PARRY_REACH, WARDEN_COUNTER_REACH, type InputState3D, type WorldState3D } from './world3d.ts';
 import { hazardHold } from './hazards.ts';
 import { navReached, navSteer, type NavTarget } from './nav3d.ts';
+import { ABILITY_3D } from '../engine/motion3d.ts';
 import type { WeaponSlot3D } from './types3d.ts';
 
 interface BotStep extends NavTarget {
@@ -87,8 +88,8 @@ function buildSteps(w: WorldState3D): BotStep[] {
     { label: 'hive bio east', x: 56.0, y: 0, tolX: 0.8, done: hiveDown('hive-bio-2') },
     { label: 'red door', x: 56.0, y: 0, fire: { weapon: 4, aimX: 70, aimY: 2.0 }, done: door('door_boss') },
     { label: 'core arena', x: 73, y: 0, tolX: 0.8 },
-    { label: 'warden', x: 73, y: 0, mode: 'boss', done: (s) => !s.enemies.some((e) => e.kind === 'warden' && e.alive) },
-    { label: 'reactor core', x: 87.5, y: 0, mode: 'core', done: (s) => s.coreDestroyed },
+    { label: 'warden', x: 73, y: 0, tolX: 0.8, mode: 'boss', done: (s) => !s.enemies.some((e) => e.kind === 'warden' && e.alive) },
+    { label: 'reactor core', x: 87.5, y: 0, tolX: 0.8, mode: 'core', done: (s) => s.coreDestroyed },
     { label: 'escape bio', x: 60, y: 0 },
     { label: 'escape bio west', x: 47, y: 0, tolX: 1.5, leap: true },
     { label: 'escape ledge east', x: 38, y: 0 },
@@ -140,6 +141,28 @@ function pickThreat(w: WorldState3D): Threat | null {
   return best;
 }
 
+/**
+ * Ticks until the nearest hostile acid/plasma shot overlaps the player's box, assuming the player stands still and the shot
+ * flies straight (both hostile kinds are ungravitated). Infinity when nothing is on course inside the horizon.
+ */
+export function incomingShotTicks(w: WorldState3D, horizon = 14): number {
+  const b = w.player.body;
+  const dt = 1 / 60;
+  let best = Infinity;
+  for (const pr of w.projectiles) {
+    if (pr.fromPlayer) continue;
+    for (let k = 1; k <= horizon && k < best; k++) {
+      const x = pr.x + pr.vx * dt * k;
+      const y = pr.y + pr.vy * dt * k;
+      if (Math.abs(b.x - x) <= ABILITY_3D.radius + pr.radius + 0.15 && y >= b.y - 0.1 && y <= b.y + ABILITY_3D.height + 0.1) {
+        best = k;
+        break;
+      }
+    }
+  }
+  return best;
+}
+
 function chooseWeapon(w: WorldState3D, t: Threat): WeaponSlot3D {
   const p = w.player;
   if (t.boss && p.unlocked[4] && p.ammo[4] > 0 && t.dist > 5) return 4;
@@ -152,6 +175,48 @@ export function createBot3D(w0: WorldState3D): Bot3D {
   let idx = 0;
   let prevJump = false;
   let bossSide: 1 | -1 = -1;
+  let seenDeaths = w0.run.deaths;
+  /** After a respawn, steps before this index are walked as plain waypoints (arrival only) so the bot retraces the route. */
+  let recoverTo = -1;
+
+  /**
+   * Re-plan after a respawn. The route is a linear list, so after a defeat the bot jumps to the waypoint nearest to where it
+   * stands inside the window [last finished objective, first unfinished objective]. Waypoints before the window are history;
+   * finished objectives inside it are skipped by the advance loop. Works from any Save station, the spawn, or a Story spot.
+   */
+  function replan(w: WorldState3D): void {
+    // Objectives are not all monotonic (a save step reads lastSaveId), so the frontier is the first unfinished objective after
+    // the latest finished one
+    let last = -1;
+    for (let i = 0; i < steps.length - 1; i++) {
+      const d = steps[i].done;
+      if (d && d(w)) last = i;
+    }
+    let pending = steps.length - 1;
+    for (let i = last + 1; i < steps.length - 1; i++) {
+      const d = steps[i].done;
+      if (d && !d(w)) {
+        pending = i;
+        break;
+      }
+    }
+    const lo = 0;
+    const b = w.player.body;
+    let best = lo;
+    let bestD = Infinity;
+    for (let i = lo; i <= pending; i++) {
+      const s = steps[i];
+      const dist = Math.hypot(s.x - b.x, (s.y - b.y) * 2.5);
+      if (dist <= bestD) {
+        bestD = dist;
+        best = i;
+      }
+    }
+    idx = best;
+    recoverTo = pending;
+    prevJump = false;
+    bossSide = -1;
+  }
 
   return {
     get stepIndex() {
@@ -165,12 +230,16 @@ export function createBot3D(w0: WorldState3D): Bot3D {
       const p = w.player;
       const b = p.body;
       const maxJumps = p.abilities.thrusterBoots ? 2 : 1;
+      if (w.run.deaths !== seenDeaths) {
+        seenDeaths = w.run.deaths;
+        replan(w);
+      }
 
       // Advance finished steps
       while (idx < steps.length - 1) {
         const s = steps[idx];
         const arrived = navReached(b, s) && b.grounded;
-        const finished = s.done ? s.done(w) : arrived;
+        const finished = idx < recoverTo ? arrived : s.done ? s.done(w) : arrived;
         if (finished) idx++;
         else break;
       }
@@ -195,7 +264,8 @@ export function createBot3D(w0: WorldState3D): Bot3D {
       inp.moveX = nav.moveX;
       inp.jump = nav.jump;
       inp.dropDown = nav.dropDown;
-      if (step.ride) {
+      // Ride only while the car still has height to cover; a rider dropped level with the target (Story respawn spot) walks off
+      if (step.ride && Math.abs(step.y - b.y) > 0.6) {
         inp.moveX = 0;
         inp.jump = false;
         inp.dropDown = false;
@@ -240,6 +310,16 @@ export function createBot3D(w0: WorldState3D): Bot3D {
         const gx = pr.x - b.x;
         if (b.grounded && Math.abs(gx) < 3.2 && gx * pr.vx < 0 && pr.y > b.y - 0.4 && pr.y < b.y + 1.9) inp.jump = true;
       }
+      // Dodge hostile shots (R12): dash through on the dash i-frames when one is about to land, otherwise hop a low shot.
+      // Never while riding the lift, holding at a hazard, or when the Warden's charge needs the dash.
+      const shotIn = incomingShotTicks(w);
+      const chargeSoon = !!wd && wd.bossPattern === 'charge' && (wd.windupTicks > 0 || wd.lungeTicks > 0);
+      if (!step.ride && !holding && shotIn <= 5 && p.hurtInvulnTicks === 0 && p.dashInvulnTicks === 0) {
+        if (b.dashCooldown === 0 && !chargeSoon) {
+          inp.dash = true;
+          if (inp.moveX === 0) inp.moveX = p.facing;
+        }
+      }
       // Dash long flat stretches during the meltdown run and to cross the Warden
       const flat = Math.abs(target.y - b.y) < 0.5 && Math.abs(target.x - b.x) > 9;
       // Keep the dash for a charge that is winding up or under way (it is the only way through it)
@@ -274,6 +354,15 @@ export function createBot3D(w0: WorldState3D): Bot3D {
       // Reclaimer catch: press the Melee Counter while the grab windup is inside its window (the bot never wastes a press)
       const hu = w.hunter;
       if (hu.alive && hu.parryOpen && Math.abs(hu.x - b.x) <= 3.4) inp.counter = true;
+      // R12: the same counter for a crawler/stalker lunge or a Warden charge/slam whose window is open and in reach
+      // (reach checks mirror stepCounter3D with a small margin, so a press never whiffs)
+      if (p.counterCooldown === 0) {
+        for (const e of w.enemies) {
+          if (!e.alive || !e.active || !e.parryOpen) continue;
+          const reach = (e.kind === 'warden' ? WARDEN_COUNTER_REACH : PARRY_REACH) - 0.2;
+          if (Math.abs(e.x - b.x) <= reach && Math.abs(e.y - b.y) <= 1.6) inp.counter = true;
+        }
+      }
 
       // Console / save interaction
       inp.interact = true;
