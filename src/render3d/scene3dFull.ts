@@ -59,6 +59,7 @@ import { buildHazards3D, type Hazards3D } from './hazards3d.ts';
 import { buildAmmoItem, buildMetroid3D, buildSlideItem, type Metroid3D } from './metroid3d.ts';
 import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 import { buildVista3D, type Vista3D } from './vista3d.ts';
+import type { OpeningView } from '../ui/opening.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
 /** Static scenery that is hidden while it is outside the camera window (render-only). */
@@ -590,6 +591,8 @@ export class Scene3DRenderer {
 
   /** Mirrors the HUD "Reduce flashing" option: damps shake and chromatic kick, steadies the low-HP tint. */
   public reduceMotion = false;
+  /** R10 opening set piece: display-only overrides (lamp, alarm sweep, camera, hidden enemy). Null in normal play. */
+  public opening: OpeningView | null = null;
   private heroHurtAt = -10;
   private prevHurtTicks = 0;
   /** Display clock for particles and shake: 0 during hit-stop, <1 during kill slow-motion. */
@@ -1845,7 +1848,8 @@ export class Scene3DRenderer {
     this.presetAmbI += (preset.ambient - this.presetAmbI) * lk;
     this.presetSunI += (preset.sunI - this.presetSunI) * lk;
     this.bloomPass.strength += (preset.bloom - this.bloomPass.strength) * lk;
-    this.lampK += ((w.light.on ? 1 : 0) - this.lampK) * Math.min(1, dt * 6);
+    if (this.opening && w.light.on) this.lampK = this.opening.lamp;
+    else this.lampK += ((w.light.on ? 1 : 0) - this.lampK) * Math.min(1, dt * 6);
     const dim = LAMP_OFF_DIM + (1 - LAMP_OFF_DIM) * this.lampK;
     const reactor = !inMeltdown && room && room.sector === 'core' ? 0.86 + 0.28 * reactorPulse(tSec, this.reduceMotion) : 1;
     this.ambient.intensity = this.presetAmbI * dim * reactor;
@@ -1859,6 +1863,13 @@ export class Scene3DRenderer {
       this.alarmLight.position.set(w.player.body.x + Math.cos(sweep) * 9, w.player.body.y + 3.4 + Math.sin(sweep * 0.5) * 1.2, 3.5 + Math.sin(sweep) * 2.5);
       this.ambient.color.setHex(0xc96b6b).lerp(_MELT_RED, 0.25 + 0.35 * sirenPulse);
       this.ambient.intensity *= 0.85 + 0.35 * sirenPulse;
+    } else if (this.opening && this.opening.alarm > 0.01) {
+      // Opening alarm: the existing alarm light orbits the bay (no new light); reduce mode keeps it steady.
+      const a = this.opening.alarm;
+      const sw = this.opening.sweep;
+      this.alarmLight.intensity = (10 + 8 * (this.reduceMotion ? 0.5 : 0.5 + 0.5 * Math.sin(tSec * 7))) * a;
+      this.alarmLight.position.set(w.player.body.x + Math.cos(sw) * 9, w.player.body.y + 3.4 + Math.sin(sw * 0.5) * 1.2, 3.5 + Math.sin(sw) * 2.5);
+      this.ambient.color.copy(this.presetSky).lerp(_MELT_RED, 0.3 * a);
     } else {
       this.alarmLight.intensity = 0;
       this.ambient.color.copy(this.presetSky);
@@ -2198,6 +2209,14 @@ export class Scene3DRenderer {
       this.wardenTelegraphRing.visible = false;
     }
 
+    if (this.opening && this.opening.hideEnemyIds.size > 0) {
+      for (const id of this.opening.hideEnemyIds) {
+        const hr = this.riggedEnemies.get(id);
+        if (hr) hr.root.visible = false;
+        const hs = this.staticEnemies.get(id);
+        if (hs) hs.root.visible = false;
+      }
+    }
     this.bossTele.update(w, wardenE, wardenX, wardenY, px, py, tSec, this.reduceMotion, this.introAwake, introOn);
 
     // 6. Bio-Barrels, Power Core, Exit Gate & Pickups
@@ -2300,7 +2319,7 @@ export class Scene3DRenderer {
       for (const e of w.enemies) if (e.alive && e.kind !== 'warden') dists.push(Math.hypot(e.x - px, e.y - py));
       this.camZoomK = stepZoom(this.camZoomK, this.attractT !== null ? 1 : dynamicZoomTarget({ distances: dists }), dt);
     }
-    let camDistZ = CAM_BASE_DIST * this.camZoomK * hint.distMul;
+    let camDistZ = CAM_BASE_DIST * this.camZoomK * hint.distMul * (this.opening ? this.opening.dolly : 1);
     {
       // Boss fight framing: blend toward the player+boss midpoint and zoom out (display only; Classic reuses camDistZ for its ortho zoom).
       const introBusy = this.attractT !== null || w.bossIntroTicks > 0 || this.introPan > 0.002 || this.introZoom > 0.002;
@@ -2342,7 +2361,9 @@ export class Scene3DRenderer {
       this.camera.lookAt(this.camFocus.x, this.camFocus.y + sh.lookDown, 0);
     } else {
       const shk = this.fx.trauma.sample(tSec, this.reduceMotion);
-      this.camera.position.set(this.camFocus.x + shk.x, this.camFocus.y + 1.7 + shk.y, camDistZ);
+      const op = this.opening;
+      const rat = op && op.rattle > 0 ? op.rattle * 0.035 : 0;
+      this.camera.position.set(this.camFocus.x + shk.x + (rat ? Math.sin(tSec * 61) * rat : 0), this.camFocus.y + 1.7 + (op ? op.lift : 0) + shk.y + (rat ? Math.sin(tSec * 53) * rat : 0), camDistZ);
       this.camera.lookAt(this.camFocus.x, this.camFocus.y, 0);
       this.camera.rotation.z += shk.roll;
     }

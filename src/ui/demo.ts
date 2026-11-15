@@ -170,6 +170,8 @@ export interface ShowcaseScene {
   inputs?: Frame[];
   /** Expected sector after the inputs (for tests). */
   sector?: SectorId3D;
+  /** R10: freeze the opening set piece at this many seconds (display clock) over the fresh airlock world. */
+  openingAt?: number;
   /** Real animation frames to wait after the last tick. Short for scenes with fast-decaying particles. */
   settleFrames: number;
 }
@@ -191,6 +193,10 @@ export const SHOWCASE_SCENES: Readonly<Record<string, ShowcaseScene>> = {
   security: { kind: 'world', setup: { ...KIT_LATE, x: 55, y: 8.8 }, inputs: rep(20, { moveX: 1 }), sector: 'security', settleFrames: 12 },
   slide: { kind: 'world', setup: { ...KIT_LATE, slide: true, x: 38.5, y: -4.4 }, inputs: rep(30, { moveX: 1 }), sector: 'shaft', settleFrames: 12 },
   escape: { kind: 'world', setup: { ...KIT_LATE, x: 23.4, y: 5.2, console: true, meltdownTicks: 2400 }, inputs: rep(60, { moveX: -1 }), sector: 'airlock', settleFrames: 8 },
+  // R10 opening set piece, frozen at three beats (display-side: the world is the untouched tick-0 airlock).
+  'opening-wake': { kind: 'world', openingAt: 3.0, sector: 'airlock', settleFrames: 8 },
+  'opening-alarm': { kind: 'world', openingAt: 5.6, sector: 'airlock', settleFrames: 8 },
+  opening: { kind: 'world', openingAt: 8.7, sector: 'airlock', settleFrames: 6 },
   lab: { kind: 'lab', settleFrames: 6 },
 };
 

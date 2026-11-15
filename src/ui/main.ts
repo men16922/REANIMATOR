@@ -31,6 +31,7 @@ import { rankPitch } from './audioLogic.ts';
 import { AudioDirector, snapshotPre } from './audioDirector.ts';
 import { Attract, freshWorld, REEL_SEGMENT_SECONDS, Showcase } from './attract.ts';
 import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type DebugSetup3D, type DemoStop } from './demo.ts';
+import { OPENING_BEATS, OPENING_ENEMY_ID, OPENING_VENT, OpeningClock, openingView } from './opening.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, type Hint } from './flow.ts';
 import { initLab } from './labView.ts';
 import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
@@ -176,6 +177,14 @@ let showcaseView: ViewMode | null = null;
 let demoStop: DemoStop | null = null;
 let deaths = 0;
 let introActive = false;
+/** R10 opening set piece: display-side clock, sound cue edges, and the post-handoff SHOOT prompt. The sim is held while it plays. */
+const openingClock = new OpeningClock();
+const openingCues = { hiss: false, lamp: false, rattle: false };
+let openingAlarmAt = 0;
+let openingShoot = false;
+/** Showcase capture: hold the opening at a fixed time instead of letting the clock run. */
+let openingFrozen = false;
+const OPENING_SHOOT_HINT: Hint = { id: 'opening-shoot', keys: ['MOUSE', 'LMB'], text: 'SHOOT IT' };
 let introTimer = 0;
 let coachId = '';
 let hitTimer = 0;
@@ -391,13 +400,61 @@ function showIntro(): void {
     el.style.animation = '';
   }
   window.clearTimeout(introTimer);
-  introTimer = window.setTimeout(hideIntro, 9800);
+  openingClock.reset();
+  openingCues.hiss = openingCues.lamp = openingCues.rattle = false;
+  openingAlarmAt = 0;
+  openingShoot = false;
+  // Failsafe if the frame loop stalls (background tab): the clock itself ends the opening in about 10 s of frames.
+  introTimer = window.setTimeout(hideIntro, 30000);
+  tickOpening(0);
+}
+
+/** Per-frame opening update: timeline, overlay variables, renderer view, one-shot sound and FX cues. */
+function tickOpening(dt: number): void {
+  if (!introActive) return;
+  openingClock.advance(dt);
+  const reduce = ui.reduceFlash.checked;
+  const st = openingClock.state(reduce);
+  const el = ui.intro;
+  el.style.setProperty('--op-dark', st.dark.toFixed(3));
+  el.style.setProperty('--op-frost', st.frost.toFixed(3));
+  el.style.setProperty('--op-alarm', st.alarm.toFixed(3));
+  el.style.setProperty('--op-sweep', `${(50 + 50 * Math.sin(st.sweep)).toFixed(1)}%`);
+  el.style.setProperty('--op-flash', st.burstFlash.toFixed(3));
+  const status = $('op-status');
+  if (status.textContent !== st.status) status.textContent = st.status;
+  if (scene3d) scene3d.opening = openingView(st);
+  const t = openingClock.time;
+  if (!openingCues.hiss && t >= 0.3) {
+    openingCues.hiss = true;
+    playSound('opening.hiss');
+  }
+  if (!openingCues.lamp && t >= OPENING_BEATS.lampOn) {
+    openingCues.lamp = true;
+    playSound('opening.lamp');
+  }
+  if (!openingCues.rattle && t >= OPENING_BEATS.rattle) {
+    openingCues.rattle = true;
+    playSound('opening.rattle');
+  }
+  if (st.alarm > 0.3 && t - openingAlarmAt > 0.55) {
+    openingAlarmAt = t;
+    playSound('world.alarm');
+  }
+  if (openingClock.takeBurst()) {
+    playSound('opening.burst');
+    scene3d?.fx.ventBurst(OPENING_VENT.x, OPENING_VENT.y);
+    openingShoot = true;
+  }
+  if (openingClock.finished) hideIntro();
 }
 
 function hideIntro(): void {
   if (!introActive) return;
   introActive = false;
   window.clearTimeout(introTimer);
+  openingFrozen = false;
+  if (scene3d) scene3d.opening = null;
   ui.intro.hidden = true;
   seen.room = ''; // let the sector card appear now that the intro is gone
 }
@@ -713,7 +770,11 @@ function observeWorld(): void {
 }
 
 function updateCoach(): void {
-  const hint: Hint | null = mode === 'playing' && !manualHold && !introActive ? onboarding.update(world) : null;
+  if (openingShoot) {
+    const crawler = world.enemies.find((e) => e.id === OPENING_ENEMY_ID);
+    if (onboarding.usage.fired || !crawler || !crawler.alive || world.tick > 720 || mode !== 'playing') openingShoot = false;
+  }
+  const hint: Hint | null = mode === 'playing' && !manualHold && !introActive ? (openingShoot ? OPENING_SHOOT_HINT : onboarding.update(world)) : null;
   if (onboarding.done.size !== onboardingSaved) {
     onboardingSaved = onboarding.done.size;
     store(STORE.hints, JSON.stringify([...onboarding.done]));
@@ -934,7 +995,8 @@ function frameBody(t: number): void {
     reader = tickReader(reader, dt);
     renderReader();
   }
-  if (mode === 'playing' && !manualHold && !reader) {
+  if (introActive) tickOpening(openingFrozen ? 0 : dt);
+  if (mode === 'playing' && !manualHold && !reader && !introActive) {
     // Hit-stop and kill slow-motion only retime the display clock. Every simulation tick still runs, in order.
     frozen = fx ? fx.hitstop.step() : false;
     if (itemFreeze > 0) {
@@ -1584,7 +1646,7 @@ function settleFrames(n: number): Promise<void> {
 }
 
 /**
- * Showcase scenes for README captures: `await __reanimatorShowcase(name)`. Names: title, classic, combat, boss, mines,
+ * Showcase scenes for README captures: `await __reanimatorShowcase(name)`. Names: title, classic, combat, boss, mines, opening, opening-wake, opening-alarm,
  * biolabs, security, slide, escape, lab. Each call builds the scene from a fresh deterministic world, renders it, and
  * resolves with the snapshot once the renderer has had a few real frames to settle (particles, bloom, camera).
  */
@@ -1603,6 +1665,18 @@ wAny.__reanimatorShowcase = async (name) => {
     bot = null;
     applyDebugSetup(world, sc.setup ?? {});
     enterManual();
+    if (sc.openingAt !== undefined) {
+      showIntro();
+      openingFrozen = true;
+      openingClock.time = sc.openingAt;
+      openingCues.hiss = openingCues.lamp = openingCues.rattle = true;
+      if (sc.openingAt >= OPENING_BEATS.burst) {
+        openingClock.takeBurst();
+        openingShoot = false;
+        scene3d?.fx.ventBurst(OPENING_VENT.x, OPENING_VENT.y);
+      }
+      tickOpening(0);
+    }
     for (const inp of sc.inputs ?? []) {
       world = stepWorld3D(world, { ...emptyInput3D(), aimX: world.player.body.x + world.player.facing * 8, aimY: world.player.body.y + 1.12, ...inp });
       scene3d?.fx.observe(world);

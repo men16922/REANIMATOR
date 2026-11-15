@@ -462,6 +462,16 @@ export class FxDirector {
     this.projs.clear();
   }
 
+  /** R10 opening: the vent grille blows out above the first crawler. Display only (sparks, dust drop, ring, shake). */
+  ventBurst(x: number, y: number): void {
+    this.burst(x, y, 1, 0.7, 0.28, 1, 28, 11);
+    this.burst(x, y, 0.9, 0.95, 1, 0.8, 12, 6);
+    this.ring(x, y, 1.8, 1, 0.55, 0.25);
+    for (let i = 0; i < 6; i++) this.dustAt(x + this.rr(-0.8, 0.8), y - i * 0.45, 2, 3, 0);
+    this.trauma.add(this.reduce ? 0.3 : 0.7);
+    if (!this.reduce) this.chroma = Math.max(this.chroma, 0.35);
+  }
+
   /** Test/visual-debug helper: queue a burst without a world. */
   debugBurst(x: number, y: number): void {
     this.burst(x, y, 0.4, 1, 0.6, 0.2, 24, 9);

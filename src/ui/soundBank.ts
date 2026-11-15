@@ -84,6 +84,12 @@ export const SOUND_BANK = {
   'world.light_off': r(2, 0.05, o(700, 0.03, 'square', 0.05)),
   'world.alarm': r(3, 0.12, o(440, 0.15, 'sawtooth', 0.06, 330)),
 
+  // ---- R10 opening set piece: pod hiss, lamp stutter-on, vent blow-out ----
+  'opening.hiss': r(3, 0.5, n(1.6, 0.1, 5200, 'highpass', 900, 0, 0.8), o(62, 1.4, 'sine', 0.08, 48), o(1800, 0.5, 'sine', 0.012, 900, 0.1)),
+  'opening.lamp': r(3, 0.2, o(2400, 0.04, 'square', 0.05, 1500), n(0.06, 0.06, 3000, 'bandpass', 1200, 0, 2), o(90, 0.12, 'triangle', 0.08, 60)),
+  'opening.rattle': r(3, 0.3, n(0.9, 0.05, 700, 'bandpass', 1500, 0, 3), o(70, 0.9, 'triangle', 0.07, 95)),
+  'opening.burst': r(8, 0.5, n(0.45, 0.2, 2600, 'bandpass', 500, 0, 1.2), o(120, 0.35, 'sawtooth', 0.16, 38), o(2100, 0.18, 'square', 0.05, 300, 0.01), o(55, 0.5, 'triangle', 0.14, 30, 0.03)),
+
   // ---- stingers ----
   'stinger.win': r(10, 1, ...arp([523, 659, 784, 1047, 1319], 0.12, 0.45, 'sine', 0.16), ...arp([262, 330, 392, 523], 0.12, 0.6, 'triangle', 0.08)),
   'stinger.lose': r(10, 1, o(220, 1.4, 'triangle', 0.2, 40), o(165, 1.6, 'sawtooth', 0.08, 30, 0.15), n(1.0, 0.06, 500, 'lowpass', 80)),
