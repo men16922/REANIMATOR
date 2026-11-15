@@ -11,6 +11,12 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - 11-15 R2 통합: fix/boss/audio/brand. `main.ts` 충돌 2곳 수동 해결.
 - 11-15 R3 통합: foes/fix/mood/classic. 충돌 2곳(`main.ts` import, `index.html`+Classic 블록) 수동 해결. `make check` exit 0(211/211, reach3d 52 waypoints, dist-guard 13 files).
 
+## 2026-11-15 — R5 통합 (r5/metroid, render, rig, vfx)
+
+- Status: main에 `--no-ff` 4회 병합(순서 metroid → render → rig → vfx), 푸시 없음.
+- 충돌: `scene3dFull.ts` 1곳(render 병합 시). `metroid3d` 빌드와 `hazards3d.setClassic` 호출을 둘 다 유지. rig·vfx 병합은 자동. `stepRiggedEnemyAnimation3D` 잔여 참조 0, vfx의 `flashMaterials3D` cap 경로는 `scene3dFull.ts`에서 정상 호출. frontLift는 벽·램프 재질에만 적용.
+- 봉인 파일 무변경. `make check` exit 0(테스트 291/291, reach3d 52 waypoints, dist-guard 13 files 14,652,123 B). 브라우저 검증은 오케스트레이터 진행 중.
+
 ## 2026-11-15 — R4-D 제출 패키지 (r4/docs)
 
 - Status: 로컬 브랜치 `r4/docs`, 푸시 없음.

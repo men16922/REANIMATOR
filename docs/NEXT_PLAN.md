@@ -2,12 +2,20 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R5 병합 후 (오케스트레이터)
+
+- [x] metroid → render → rig → vfx 병합, `make check` 통과(STATUS 기준선).
+- [ ] 브라우저 확인(진행 중): 적 리깅·LOD, Crawl Slide·파괴 블록·맵 단말·탈출 해치, 메시 병합 후 drawCalls, 증기 시트, 보스 카메라, 피격 플래시·투사체 글로우·색수차, 콘솔 오류 0.
+- [ ] `biolabs.png`, `boss.png` 재촬영 후 커밋. `combat.png`, `lab.png` 추가.
+- [ ] 병합 후 봇 완주(`__reanimatorRunBot`) 재측정.
+- [ ] Metroid 후속(벽 점프 보강, 패리, 스캔)은 [R4_METROID_GAPS](plans/R4_METROID_GAPS.md) 참조.
+
 ## R4 병합 후 (오케스트레이터)
 
 - [x] 트랙 A·B·C·D 병합, `make check` 통과(STATUS 기준선).
 - [ ] 브라우저 확인: hazards3d(크러셔 등 MeshStandardMaterial)가 Classic View(`V`)에서 팔레트·디더와 어울리는지, 영웅 포즈·무기 모델, 폭발·보스 셰이더, 콘솔 오류 0.
-- [ ] 적 애니메이션 리깅 개선(사용자 요청, R4 범위 밖). Abuse 느낌 강화 후속. Metroid 보강안 구현은 [R4_METROID_GAPS](plans/R4_METROID_GAPS.md).
-- [ ] 쇼케이스 PNG 7장을 `docs/evidence/showcase/`에 저장: `title.png`, `classic.png`, `combat.png`, `boss.png`, `mines.png`, `biolabs.png`, `lab.png`. README 갤러리가 이 경로를 참조한다.
+- [x] 적 애니메이션 리깅(R5-Rig), Metroid 보강 일부(R5-Metroid). Abuse 느낌 강화 후속은 남음.
+- [ ] 쇼케이스 PNG 중 `combat.png`, `lab.png` 미저장(README 갤러리가 참조).
 - [ ] Credits 패널 브라우저 확인: Title > Extras > Credits, `Esc`와 Back이 Extras로 돌아오는지, 키보드 포커스.
 
 ## 브라우저 확인 (R3까지 누적, unverified 항목)

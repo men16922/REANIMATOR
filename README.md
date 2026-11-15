@@ -75,6 +75,9 @@ Walls slow your fall when you press into them in the air, and wall jump needs th
 - **Combat depth.** Wall jump, dash cancel, stomp, per-weapon enemy matchups, kill combos that refund your dash, rail charge. See [`docs/R1_GAMEPLAY.md`](docs/R1_GAMEPLAY.md).
 - **Abuse-style enemies.** Ceiling droppers, wall and ceiling climbers, hive spawners, swarm flanking. See [`docs/R3_FOES.md`](docs/R3_FOES.md).
 - **Classic View.** Press `V` for a 320x200, 256-colour dithered, orthographic look with an optional CRT filter and a pixel HUD. The palette, font, and icons are original work. No Abuse data was read or copied. See [`docs/R3_CLASSIC.md`](docs/R3_CLASSIC.md).
+- **Enemy rigs (R5).** Stride-locked gaits, pose channels, boss attack patterns, secondary motion, distance LOD. See [`docs/R5_RIG.md`](docs/R5_RIG.md).
+- **Metroid systems (R5).** Crawl Slide through two tunnels, three breakable blocks, six map terminals that reveal the minimap (`M`), extra Energy Tanks and Ammo Expansions, and an escape hatch that shuts during the Meltdown. See [`docs/R5_METROID.md`](docs/R5_METROID.md).
+- **Combat VFX (R5).** Short warm-white hit flash, glowing projectiles, capped chromatic kick, stacked damage popups, death pop, rail ready ring, scatter shock wave. Mesh merging and a soft steam shader keep draw calls down. See [`docs/R5_RENDER.md`](docs/R5_RENDER.md).
 - **Mood.** Scripted lighting, gore chunks and decals, smoke, per-sector grading.
 - **Procedural audio.** Music and effects are synthesized with WebAudio at runtime (sectioned themes, boss phases, reverb, delay, sidechain). No audio files. See [`docs/R2_AUDIO.md`](docs/R2_AUDIO.md).
 - **Game feel.** Hit-stop, trauma screen shake, camera rig, pooled particles, kill slow-motion.

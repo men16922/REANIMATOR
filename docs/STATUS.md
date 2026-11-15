@@ -1,6 +1,6 @@
 # 현재 상태
 
-최종 갱신: 2026-11-15 · R4 병합 완료(A·B·C·D, `--no-ff`). 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-15 · R5 병합 완료(metroid·render·rig·vfx, `--no-ff`). 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## 구현 상태
 
@@ -14,7 +14,17 @@
 - **R4-C 플레이어** (`r4/hero`): operative 다리 본·반동·무기 스왑·벽 손·착지 포즈, 무기 모델 4종, 헤드램프 렌즈, 백팩 HP 표시등, `__reanimator().player` 텔레메트리.
 - **R4-D 제출 패키지**: README 개편, [JUDGES](JUDGES.md), KIRO_USAGE 갱신, Credits 패널(Extras), package.json 설명·키워드.
 
-## 검증 기준선 (R4 병합 후, 통합 에이전트 관찰)
+- **R5-Metroid** (`r5/metroid`): Crawl Slide(터널 2곳), 파괴 블록 3, 맵 단말 6(미니맵 `?` 마커, `M` 키), Energy Tank 3, Ammo Expansion 2, 탈출 해치(final-shutter) 비트. `reach3d`에 터널·파괴·100% 완주·탈출 공정성 검사. [R5_METROID](R5_METROID.md)
+- **R5-Render** (`r5/render`): 메시 병합(영웅 장비·hive·정적 위험물), 벽 재질 frontLift, 노이즈 증기 시트, 보스 카메라 블렌드, `perf.byGroup`·`bossFrame` 텔레메트리. [R5_RENDER](R5_RENDER.md)
+- **R5-Rig** (`r5/rig`): 적 리깅(보폭 고정 걸음, 포즈 채널, 보스 패턴, 보조 모션, LOD, trace 지표). [R5_RIG](R5_RIG.md)
+- **R5-VFX** (`r5/vfx`): 4틱 웜화이트 피격 플래시(상한 0.3), 투사체 글로우 파티클, 색수차 상한 0.42, 팝업 티어·스택, 사망 팝, 레일 준비 링·음, 스캐터 파동.
+
+## 검증 기준선 (R5 병합 후, 통합 에이전트 관찰)
+
+- `make check` exit 0: tsc 통과, node 테스트 291/291, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks(57.2 s), vite build, dist-guard PASS(13 files, 14,652,123 B, 218 대조). 병합 충돌은 `scene3dFull.ts` 1곳(metroid3d 빌드와 hazards `setClassic`, 양쪽 유지). rig·vfx는 자동 병합. frontLift는 벽·램프 재질 전용이라 적 림 셰이더와 겹치지 않음(코드 확인).
+- 브라우저 검증(콘솔, drawCalls, 쇼케이스 재촬영)은 오케스트레이터가 진행 중이며 이 문서 작성 시점에는 unverified. 봇 완주 수치는 metroid 브랜치 측정 won 5362 ticks, HP 112이며 병합 후 재측정은 unverified.
+
+## 이전 기준선 (R4 병합 후)
 
 - `make check` exit 0: tsc 통과, node 테스트 244/244, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks, vite build, dist-guard PASS(13 files, 14,619,332 B, 218 대조).
 - 봇(hazards 브랜치 측정): won 5362 ticks, HP 112. 병합 후 봇·브라우저 수치(drawCalls, 콘솔)는 unverified.
@@ -29,4 +39,4 @@
 - 사람 플레이(G5) 미실시. 봇은 HP를 거의 잃지 않아 난이도 근거가 못 된다(무모한 입력 `make difficulty`는 정체).
 - `make smoke-local`은 이전 샌드박스에서 Chrome abort(134). 최신 기준 smoke는 unverified. 브라우저 확인은 오케스트레이터의 Playwright 관찰에 의존.
 - 15 Hz는 설계값이며 원본 틱은 미측정. `.kiro/settings/mcp.json` REA MCP 쓰기 차단 잔여.
-- 쇼케이스 PNG(`docs/evidence/showcase/`)는 아직 저장 전. README는 경로만 링크한다.
+- 쇼케이스 PNG 5장(title, classic, mines, biolabs, boss)은 저장됨. biolabs·boss는 재촬영 예정. combat·lab은 미저장.

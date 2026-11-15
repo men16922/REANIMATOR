@@ -113,3 +113,18 @@ agy가 오케스트레이션하고 kiro-cli가 문서·spec 작업을 맡았다.
 
 - 수행: README 전면 개편, `docs/JUDGES.md`, 하네스 문서 정리(전문은 `docs/archive/`로 이동), 인게임 Credits 패널, `package.json` description·keywords·license.
 - 검증은 오케스트레이터 보고와 `docs/PROGRESS_LOG.md` 참조.
+
+## 2026-11-15 — R5 병렬 라운드 (오케스트레이터 + worktree 서브에이전트)
+
+R4와 같은 방식(트랙별 worktree `/private/tmp/r5-{rig,metroid,render,vfx}`, 로컬 커밋, 통합 에이전트가 `--no-ff` 병합)으로 4트랙을 돌렸다. 이 절은 통합 에이전트의 사실 기록이다.
+
+| 트랙(브랜치) | 커밋 | 내용 |
+|---|---|---|
+| r5/metroid | `4f2345f`, `b3407cb` | Crawl Slide·터널, 파괴 블록, 맵 단말·미니맵 `?`, Energy Tank·Ammo Expansion, 탈출 해치 |
+| r5/render | `7c3c8b5` | 메시 병합, frontLift, 노이즈 증기, 보스 카메라, perf 텔레메트리 |
+| r5/rig | `eb2d48d` | 적 리깅(`enemyRig3d.ts`), 보스 패턴, 보조 모션, LOD |
+| r5/vfx | `2efc31c` | 피격 플래시·투사체 글로우·색수차 상한·팝업·사망 팝·레일 링 |
+
+- 병합: 충돌은 `scene3dFull.ts` 1곳이었고 양쪽을 유지했다. `make check` 291/291 테스트로 통과(위 STATUS 기준선).
+- 사용자 요청 대응: "적 애니메이션도 자연스럽게 리깅" → R5-Rig, "Abuse에서 미비한 건 Metroid에서" → R4 계획 문서(`R4_METROID_GAPS`)를 R5-Metroid로 일부 구현.
+- 브라우저 검증은 오케스트레이터가 진행 중이며 아직 기록하지 않았다(unverified).
