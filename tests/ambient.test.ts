@@ -78,3 +78,13 @@ test('builder adds 3 draw calls per sector, no lights, honors setView, reduce an
   assert.ok(slow > 0 && slow < 0.5, `reduce slows the clock (${slow})`);
   amb.dispose();
 });
+
+test('pointPxFor scales point size with view height (1300 at 900 px)', async () => {
+  const { pointPxFor } = await import('../src/render3d/ambient3d.ts');
+  assert.equal(pointPxFor(900), 1300);
+  assert.equal(pointPxFor(1800), 2600);
+  assert.equal(pointPxFor(450), 650);
+  assert.equal(pointPxFor(undefined), 1300);
+  assert.equal(pointPxFor(0), 1300);
+  assert.equal(pointPxFor(NaN), 1300);
+});

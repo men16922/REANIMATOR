@@ -155,3 +155,25 @@ test('R13: crawler scuttle stride is constant across ground speeds (no in-place 
   assert.ok(hi / lo < 1.05, `stride spread ${lo.toFixed(2)}..${hi.toFixed(2)} m`);
   assert.ok(gaitStep('crawler', 6.1) / (2 * Math.PI) <= 6.5);
 });
+
+// ---- R13: surface travel speed drives the crawler gait ----
+import { CRAWLER_STRIDE, enemyTravelSpeed } from '../src/render3d/enemyMotion.ts';
+
+test('wall/ceiling crawler travel speed uses hypot(vx, vy) and drives a non-zero gait', () => {
+  for (const surface of ['wall', 'ceiling']) {
+    const e = { surface, state: 'patrol', speedNow: 0, vx: 0, vy: 3 };
+    const s = enemyTravelSpeed(e);
+    assert.equal(s, 3);
+    assert.ok(gaitStep('crawler', s) > 0);
+    // The old |vx|-only rule would have frozen the gait on a vertical climb
+    assert.equal(gaitStep('crawler', Math.abs(e.vx)), 0);
+  }
+  assert.ok(Math.abs(enemyTravelSpeed({ surface: 'wall', state: 'chase', speedNow: 0, vx: 3, vy: 4 }) - 5) < 1e-9);
+  assert.ok(Math.abs(gaitStep('crawler', CRAWLER_STRIDE) - 2 * Math.PI) < 1e-9);
+});
+
+test('floor crawler travel speed uses the achieved speed; attack and dropping fall back to |vx|', () => {
+  assert.equal(enemyTravelSpeed({ surface: 'floor', state: 'chase', speedNow: 2.5, vx: 9, vy: 0 }), 2.5);
+  assert.equal(enemyTravelSpeed({ surface: 'floor', state: 'attack', speedNow: 2.5, vx: -4, vy: 0 }), 4);
+  assert.equal(enemyTravelSpeed({ surface: 'ceiling', dropping: true, state: 'drop', speedNow: 0, vx: -1, vy: -6 }), 1);
+});
