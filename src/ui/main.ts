@@ -975,7 +975,7 @@ function buildSnapshot() {
   const warden = world.enemies.find((e) => e.kind === 'warden');
   const tel = scene3d
     ? scene3d.getTelemetry()
-    : { modelsLoaded: false, loadedModels: [], failedModels: [], riggedCount: 0, activeAnimations: {}, fx: null, enemyRender: {} as Record<string, { yaw: number; clip: string; timeScale: number; x: number; y: number; z: number }> };
+    : { modelsLoaded: false, loadedModels: [], failedModels: [], riggedCount: 0, activeAnimations: {}, fx: null, player: null, enemyRender: {} as Record<string, { yaw: number; clip: string; timeScale: number; x: number; y: number; z: number }> };
   const b = world.player.body;
   return {
     lab: lab ? { id: lab.scenario.id, status: lab.status, mutation: lab.mutation } : null,

@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { GLTFLoader, type GLTF } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { ActorAnimAction, PlayerPoseState3D } from '../game3d/types3d.ts';
+import { RECOIL_PROFILE, type HeroFrame } from './heroPose.ts';
 
 export { THREE };
 
@@ -48,6 +49,12 @@ export interface RiggedInstance {
   rightArm?: THREE.Object3D;
   rightForeArm?: THREE.Object3D;
   rightHand?: THREE.Object3D;
+  leftUpLeg?: THREE.Object3D;
+  leftLeg?: THREE.Object3D;
+  rightUpLeg?: THREE.Object3D;
+  rightLeg?: THREE.Object3D;
+  /** Uniform scale applied to modelRoot (metres per model unit) */
+  modelScale: number;
   riflePivot?: THREE.Group;
   muzzleLocal?: THREE.Object3D;
   /** Enemy attack clip is parked at its windup pose (see stepRiggedEnemyAnimation3D) */
@@ -89,6 +96,10 @@ const _qInvParent = new THREE.Quaternion();
 const _qWorld = new THREE.Quaternion();
 const _qTwist = new THREE.Quaternion();
 const _mBasis = new THREE.Matrix4();
+const X_AXIS = new THREE.Vector3(1, 0, 0);
+const _vAxis = new THREE.Vector3();
+const _qDelta = new THREE.Quaternion();
+const _qModel = new THREE.Quaternion();
 
 export async function preloadAllModels3D(): Promise<{ ok: boolean; loaded: ModelKey3D[] }> {
   if (loadPromise) return loadPromise;
@@ -181,6 +192,7 @@ export function instantiateRiggedModel3D(
   const baseEmissive: THREE.Color[] = [];
 
   let modelRoot: THREE.Object3D;
+  let modelScale = 1;
   if (gltf) {
     modelRoot = SkeletonUtils.clone(gltf.scene);
     modelRoot.updateMatrixWorld(true);
@@ -189,6 +201,7 @@ export function instantiateRiggedModel3D(
     const scale = targetHeight / rawH;
     modelRoot.scale.setScalar(scale);
     modelRoot.position.y = -box.min.y * scale;
+    modelScale = scale;
   } else {
     const grp = new THREE.Group();
     const capsule = new THREE.Mesh(
@@ -214,6 +227,10 @@ export function instantiateRiggedModel3D(
   let rightArm: THREE.Object3D | undefined;
   let rightForeArm: THREE.Object3D | undefined;
   let rightHand: THREE.Object3D | undefined;
+  let leftUpLeg: THREE.Object3D | undefined;
+  let leftLeg: THREE.Object3D | undefined;
+  let rightUpLeg: THREE.Object3D | undefined;
+  let rightLeg: THREE.Object3D | undefined;
 
   modelRoot.traverse((obj) => {
     const cname = obj.name.replace(/:/g, '');
@@ -230,6 +247,10 @@ export function instantiateRiggedModel3D(
     else if (cname === 'mixamorigRightArm') rightArm = obj;
     else if (cname === 'mixamorigRightForeArm') rightForeArm = obj;
     else if (cname === 'mixamorigRightHand') rightHand = obj;
+    else if (cname === 'mixamorigLeftUpLeg') leftUpLeg = obj;
+    else if (cname === 'mixamorigLeftLeg') leftLeg = obj;
+    else if (cname === 'mixamorigRightUpLeg') rightUpLeg = obj;
+    else if (cname === 'mixamorigRightLeg') rightLeg = obj;
 
     if (obj instanceof THREE.Mesh) {
       obj.castShadow = true;
@@ -311,6 +332,11 @@ export function instantiateRiggedModel3D(
     rightArm,
     rightForeArm,
     rightHand,
+    leftUpLeg,
+    leftLeg,
+    rightUpLeg,
+    rightLeg,
+    modelScale,
     riflePivot,
     muzzleLocal,
   };
@@ -331,6 +357,54 @@ function aimBoneAlongWorldDir(bone: THREE.Object3D | undefined, worldDir: THREE.
   bone.updateMatrixWorld(true);
 }
 
+
+/** Per-frame presentation input for the Operative (render only; see heroPose.ts). */
+export interface HeroRigInput {
+  frame: HeroFrame;
+  tSec: number;
+  /** World side of the wall being touched: -1 west, +1 east (0 none) */
+  wallDir: number;
+}
+
+/** Rotates a bone about an axis given in rig space, independent of the bone's own local axes. */
+function rotateBoneAboutRigAxis(inst: RiggedInstance, bone: THREE.Object3D | undefined, axis: THREE.Vector3, angle: number): void {
+  if (!bone || !bone.parent || Math.abs(angle) < 1e-5) return;
+  inst.modelRoot.getWorldQuaternion(_qModel);
+  _vAxis.copy(axis).applyQuaternion(_qModel);
+  bone.parent.updateWorldMatrix(true, false);
+  bone.parent.getWorldQuaternion(_qParentWorld);
+  _qInvParent.copy(_qParentWorld).invert();
+  _qDelta.setFromAxisAngle(_vAxis, angle);
+  bone.quaternion.premultiply(_qParentWorld.premultiply(_qDelta)).premultiply(_qInvParent);
+}
+
+/** Additive procedural pose (crouch, landing squash, stomp tuck, lean, twist, hit-back) on top of the clip. */
+function applyHeroOffsets(inst: RiggedInstance, hero: HeroRigInput): void {
+  const o = hero.frame.offsets;
+  const prof = RECOIL_PROFILE[hero.frame.shown];
+  const rec = hero.frame.recoil;
+  // Legs: thigh forward = negative about the rig X axis, knee fold = positive (verified against the GLB rest pose)
+  for (const [up, low] of [
+    [inst.leftUpLeg, inst.leftLeg],
+    [inst.rightUpLeg, inst.rightLeg],
+  ] as const) {
+    rotateBoneAboutRigAxis(inst, up, X_AXIS, -o.thigh);
+    rotateBoneAboutRigAxis(inst, low, X_AXIS, o.knee);
+  }
+  const lean = o.lean - rec * prof.rock;
+  if (inst.spine) inst.spine.rotation.x += lean * 0.3;
+  if (inst.spine1) inst.spine1.rotation.x += lean * 0.35;
+  if (inst.spine2) inst.spine2.rotation.x += lean * 0.35;
+  if (inst.head) inst.head.rotation.x += o.headPitch - rec * prof.rock * 0.5 - lean * 0.2;
+  if (Math.abs(o.twist) > 1e-4 && inst.spine1 && inst.spine2) {
+    inst.spine1.rotation.y += o.twist * 0.45;
+    inst.spine2.rotation.y += o.twist * 0.55;
+  }
+  if (hero.frame.railFrac > 0 && inst.spine2) {
+    inst.spine2.rotation.z += Math.sin(hero.tSec * 63) * 0.014 * hero.frame.railFrac;
+  }
+}
+
 /**
  * Applies full split-body quaternion IK for the Side-View Metroidvania Operative:
  * 1) Tilts spine & head toward vertical aimPitch.
@@ -338,10 +412,29 @@ function aimBoneAlongWorldDir(bone: THREE.Object3D | undefined, worldDir: THREE.
  * 3) Locks left arm + forearm onto the rifle's forward foregrip (eliminates unarmed sprinter flail).
  * 4) Locks riflePivot world basis strictly onto (-aimFwd, orthoUp, cross) so barrel = laser sight.
  */
-function applyTwoHandedRifleIK(inst: RiggedInstance, pose: PlayerPoseState3D): void {
+function applyTwoHandedRifleIK(inst: RiggedInstance, pose: PlayerPoseState3D, hero?: HeroRigInput): void {
   _vAimFwd.set(pose.aimDirX, pose.aimDirY, 0);
   if (_vAimFwd.lengthSq() < 1e-6) _vAimFwd.set(pose.aimSignX, 0, 0);
   else _vAimFwd.normalize();
+
+  // Presentation layer: muzzle climb from recoil, low-ready (swap / save), rail charge tremor, pull-back distance
+  let back = 0;
+  let foregrip = 0.24;
+  if (hero) {
+    const prof = RECOIL_PROFILE[hero.frame.shown];
+    const f = hero.frame;
+    const tremor = f.railFrac > 0 ? Math.sin(hero.tSec * 71) * 0.022 * f.railFrac : 0;
+    const ang = pose.aimSignX * (f.recoil * prof.climb + tremor) - pose.aimSignX * f.lower * 0.85;
+    if (Math.abs(ang) > 1e-5) {
+      const c = Math.cos(ang);
+      const sn = Math.sin(ang);
+      const fx = _vAimFwd.x * c - _vAimFwd.y * sn;
+      const fy = _vAimFwd.x * sn + _vAimFwd.y * c;
+      _vAimFwd.set(fx, fy, 0);
+    }
+    back = f.recoil * prof.back;
+    foregrip = prof.foregrip;
+  }
 
   // Facing +X -> character right is +Z (toward camera); facing -X -> character right is -Z
   _vCharRight.set(0, 0, pose.aimSignX);
@@ -361,7 +454,7 @@ function applyTwoHandedRifleIK(inst: RiggedInstance, pose: PlayerPoseState3D): v
   inst.rightArm.getWorldPosition(_vShoulder);
   _vTarget
     .copy(_vShoulder)
-    .addScaledVector(_vAimFwd, 0.14)
+    .addScaledVector(_vAimFwd, 0.14 - back * 0.5)
     .addScaledVector(_vOrthoUp, -0.15)
     .addScaledVector(_vCharRight, 0.04);
   _vDir.subVectors(_vTarget, _vShoulder);
@@ -370,7 +463,7 @@ function applyTwoHandedRifleIK(inst: RiggedInstance, pose: PlayerPoseState3D): v
   inst.rightForeArm.getWorldPosition(_vElbow);
   _vTarget
     .copy(_vShoulder)
-    .addScaledVector(_vAimFwd, 0.34)
+    .addScaledVector(_vAimFwd, 0.34 - back)
     .addScaledVector(_vOrthoUp, -0.02)
     .addScaledVector(_vCharRight, -0.02);
   _vDir.subVectors(_vTarget, _vElbow);
@@ -384,10 +477,15 @@ function applyTwoHandedRifleIK(inst: RiggedInstance, pose: PlayerPoseState3D): v
   if (inst.leftArm && inst.leftForeArm) {
     _vForegrip
       .copy(_vHand)
-      .addScaledVector(_vAimFwd, 0.24)
+      .addScaledVector(_vAimFwd, foregrip)
       .addScaledVector(_vOrthoUp, 0.01);
 
     inst.leftArm.getWorldPosition(_vShoulder);
+    if (hero && hero.frame.offsets.wallHand > 0.01 && hero.wallDir !== 0) {
+      // Support hand leaves the rifle and presses flat on the wall at head height
+      _vTarget.set(_vShoulder.x + hero.wallDir * 0.5, _vShoulder.y + 0.26, _vShoulder.z);
+      _vForegrip.lerp(_vTarget, Math.min(1, hero.frame.offsets.wallHand));
+    }
     _vElbow
       .copy(_vShoulder)
       .lerp(_vForegrip, 0.48)
@@ -414,6 +512,10 @@ function applyTwoHandedRifleIK(inst: RiggedInstance, pose: PlayerPoseState3D): v
     inst.riflePivot.quaternion.copy(_qInvParent).multiply(_qWorld);
     // Keep trigger area centered in right palm along forearm-to-hand offset
     inst.riflePivot.position.set(0.0, 0.045, 0.01 * pose.aimSignX);
+    if (back > 0) {
+      _vLocalDir.copy(_vAimFwd).multiplyScalar(-back / inst.modelScale).applyQuaternion(_qInvParent);
+      inst.riflePivot.position.add(_vLocalDir);
+    }
     inst.riflePivot.updateMatrixWorld(true);
   }
 }
@@ -426,6 +528,7 @@ export function stepRiggedAnimation3D(
   upperBodyDeltaYaw = 0,
   aimWeaponReady = false,
   pose?: PlayerPoseState3D,
+  hero?: HeroRigInput,
 ): void {
   const target: ActorAnimAction = inst.actions[desired]
     ? desired
@@ -490,13 +593,17 @@ export function stepRiggedAnimation3D(
   if (pose && inst.hips) {
     if (!pose.grounded) {
       inst.hips.position.y = inst.hipsBaseY + (pose.vy > 0 ? 0.03 : 0);
+    } else if (hero) {
+      inst.hips.position.y -= hero.frame.offsets.hipsDrop / inst.modelScale;
     } else if (pose.landingFactor > 0.01) {
       inst.hips.position.y = Math.min(inst.hips.position.y, inst.hipsBaseY) - pose.landingFactor * 0.13;
     }
   }
 
+  if (hero && inst.currentAnim !== 'death') applyHeroOffsets(inst, hero);
+
   if (pose && inst.currentAnim !== 'death' && aimWeaponReady) {
-    applyTwoHandedRifleIK(inst, pose);
+    applyTwoHandedRifleIK(inst, pose, hero);
   } else {
     // Legacy enemy or non-IK additive yaw twist
     if (Math.abs(upperBodyDeltaYaw) > 0.005 && inst.spine1 && inst.spine2) {
