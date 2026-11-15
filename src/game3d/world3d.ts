@@ -1134,8 +1134,34 @@ function foeCause(e: Readonly<EnemyState3D>): DeathCauseKey3D {
   return e.kind === 'warden' ? 'warden' : e.kind;
 }
 
+/** R12 onboarding: the two floor crawlers and the dropper of the first room are the tutorial encounter. */
+const TUTORIAL_FIRST_ID = 'e-airlock-1';
+const TUTORIAL_FOLLOW_IDS: readonly string[] = ['e-airlock-2', 'e-drop-airlock'];
+const TUTORIAL_DAMAGE_SCALE = 0.6;
+/** The follow-up foes stay asleep this long at most (60 Hz ticks) while the first crawler lives. */
+const TUTORIAL_HOLD_TICKS = 1200;
+const TUTORIAL_ALERT_TICKS = 60;
+const TUTORIAL_WINDUP_TICKS = 28;
+function isTutorialFoe(e: Readonly<EnemyState3D>): boolean {
+  return e.zone === 'airlock' && (e.id === TUTORIAL_FIRST_ID || TUTORIAL_FOLLOW_IDS.includes(e.id));
+}
+/** Until the player's first kill (Hard excluded) the tutorial foes hit softer and telegraph longer. */
+function tutorialSoft(w: Readonly<WorldState3D>, e: Readonly<EnemyState3D>): boolean {
+  return isTutorialFoe(e) && w.difficulty !== 'hard' && w.player.kills === 0;
+}
+/** Follow-up foes wait for the first crawler to die (or a timeout) so the first fight is one-on-one. */
+function tutorialHeld(w: Readonly<WorldState3D>, e: Readonly<EnemyState3D>): boolean {
+  if (!TUTORIAL_FOLLOW_IDS.includes(e.id) || w.difficulty === 'hard' || w.tick >= TUTORIAL_HOLD_TICKS || e.hitFlashTicks > 0) return false;
+  const first = w.enemies.find((o) => o.id === TUTORIAL_FIRST_ID);
+  return !!first && first.alive;
+}
+function alertTicksFor(w: Readonly<WorldState3D>, e: Readonly<EnemyState3D>): number {
+  return tutorialSoft(w, e) ? TUTORIAL_ALERT_TICKS : ENEMY_ALERT_TICKS_3D;
+}
+
 /** Enemy damage after sector scaling; the reactor meltdown adds +30% pressure. */
 function scaledDamage(w: Readonly<WorldState3D>, e: EnemyState3D, base: number): number {
+  if (tutorialSoft(w, e)) base *= TUTORIAL_DAMAGE_SCALE;
   return Math.max(1, Math.round(base * SECTOR_DAMAGE_3D[e.zone] * (w.meltdownTicks >= 0 ? 1.3 : 1)));
 }
 
@@ -1886,7 +1912,7 @@ function hangLineClear(w: WorldState3D, e: EnemyState3D): boolean {
 function stepHanging(w: WorldState3D, e: EnemyState3D): void {
   const pb = w.player.body;
   const dx = pb.x - e.x;
-  const near = e.zone === w.currentRoom && Math.abs(dx) < 24 && Math.abs(pb.y - e.y) < 16;
+  const near = e.zone === w.currentRoom && Math.abs(dx) < 24 && Math.abs(pb.y - e.y) < 16 && !tutorialHeld(w, e);
   if (!e.active) {
     if (!near && e.hitFlashTicks === 0) {
       e.anim = 'idle';
@@ -1993,13 +2019,13 @@ function stepEnemies3D(w: WorldState3D): void {
         e.state = 'dormant';
         continue;
       }
-      const nearPlayer = dist < 24 && Math.abs(dy) < 16;
+      const nearPlayer = dist < 24 && Math.abs(dy) < 16 && !tutorialHeld(w, e);
       if ((e.zone === w.currentRoom && nearPlayer) || e.hitFlashTicks > 0 || (e.zone === 'core' && w.coreDestroyed)) {
         e.active = true;
         e.facing = dirX;
         e.turnTicks = 0;
         if (isWarden) setEnemyState(e, 'chase', 0);
-        else if (enemyCanSee(w, e)) setEnemyState(e, 'alert', ENEMY_ALERT_TICKS_3D);
+        else if (enemyCanSee(w, e)) setEnemyState(e, 'alert', alertTicksFor(w, e));
         else setEnemyState(e, 'patrol', 0);
       } else {
         e.anim = 'idle';
@@ -2227,7 +2253,7 @@ function stepEnemies3D(w: WorldState3D): void {
           if (((e.zone === w.currentRoom && dist < 18 && Math.abs(dy) < 6 && e.aggroCooldown === 0 && enemyCanSee(w, e))) || e.hitFlashTicks > 0) {
             e.facing = dirX;
             e.turnTicks = 0;
-            setEnemyState(e, 'alert', ENEMY_ALERT_TICKS_3D);
+            setEnemyState(e, 'alert', alertTicksFor(w, e));
             patrolling = false;
             moving = false;
             break;
@@ -2357,7 +2383,7 @@ function stepEnemies3D(w: WorldState3D): void {
             if (dist <= reach && Math.abs(dy) < 2.2 && e.attackCooldown === 0 && !turning && !crossing && attackSlotFree) {
               e.facing = dirX;
               e.turnTicks = 0;
-              const wt = e.kind === 'crawler' ? 14 : 18;
+              const wt = tutorialSoft(w, e) ? TUTORIAL_WINDUP_TICKS : e.kind === 'crawler' ? 14 : 18;
               setEnemyState(e, 'windup', wt);
               e.windupTicks = wt;
               moving = false;
@@ -3106,6 +3132,7 @@ export function respawnPlayer3D(w: WorldState3D): void {
   w.projectiles = w.projectiles.filter((pr) => pr.fromPlayer);
   w.shockwaves = [];
   resetHunterChase(w);
+  if (!st) calmSpawnFoes(w);
   // A dead escape run restarts the bridge script so the route can never be left broken
   for (const c of w.collapses) {
     for (const id of c.fallen) w.openDoors.delete(`collapse:${id}`);
@@ -3115,6 +3142,20 @@ export function respawnPlayer3D(w: WorldState3D): void {
   }
   if (w.meltdownTicks === 0) w.meltdownTicks = MELTDOWN_TICKS;
   w.status = 'playing';
+}
+
+/** R12: a defeat before any Save station restarts from the spawn; foes near it lose the scent so the retry is not instant death. */
+function calmSpawnFoes(w: WorldState3D): void {
+  const sx = w.level.spawn.x;
+  for (const e of w.enemies) {
+    if (!e.alive || !e.active || e.kind === 'warden' || Math.abs(e.x - sx) > 14) continue;
+    setEnemyState(e, 'patrol', 0);
+    e.aggroCooldown = 150;
+    e.vx = 0;
+    e.windupTicks = 0;
+    e.lungeTicks = 0;
+    e.dropping = false;
+  }
 }
 
 /** A defeat sends the hunter back to its patrol (a retired unit stays retired). */

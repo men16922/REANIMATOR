@@ -201,7 +201,7 @@ export class Onboarding {
             this.done.add('counter');
             break;
           }
-          return { id: 'counter', keys: ['X'], text: 'FOE FLASHING: press X to COUNTER' };
+          return this.usage.dashed ? { id: 'counter', keys: ['X'], text: 'FOE FLASHING: press X to COUNTER' } : { id: 'counter', keys: ['X', 'SHIFT'], text: 'FOE FLASHING: X to COUNTER, or SHIFT to DASH through it' };
         }
       }
     }

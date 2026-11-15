@@ -970,7 +970,7 @@ function showResult(): void {
   const st = buildRunStats(world, deaths, SIM_HZ_3D);
   const canResume = !won && canResumeNow();
   ui.resultTitle.textContent = won ? 'Escaped with the core' : 'Signal lost';
-  const cp = won ? '' : canResume ? 'Press C or Enter to resume at the last Save station.' : 'No Save station reached yet. Play again restarts the run.';
+  const cp = won ? '' : canResume ? (world.lastSaveId || world.diff.nearRespawn ? 'Press C or Enter to resume at the last Save station.' : 'Press C or Enter to retry from the start. Your run is kept.') : '';
   const cause = world.deathCause;
   const causeEl = $('result-cause');
   causeEl.hidden = won || !cause;
@@ -1131,7 +1131,7 @@ function restartCurrent(): void {
 
 /** Story respawns near where you fell, so a defeat is always resumable. Other difficulties need a Save station. */
 function canResumeNow(): boolean {
-  return !!world.lastSaveId || world.diff.nearRespawn;
+  return true; // R12: with no Save station yet, resume restarts from the spawn with the run kept
 }
 
 function resumeAtSave(): boolean {
