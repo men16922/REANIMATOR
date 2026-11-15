@@ -14,6 +14,7 @@ import type {
   AcidPool3D,
   BarrelSpawn3D,
   Collider3D,
+  DataLog3D,
   EnemySpawn3D,
   Level3D,
   MapSolid3D,
@@ -31,6 +32,7 @@ export type {
   BoxKind3D,
   Collider3D,
   DoorLockKind3D,
+  DataLog3D,
   EnemySpawn3D,
   Level3D,
   MapSolid3D,
@@ -39,6 +41,7 @@ export type {
   Ramp3D,
   RoomDef3D,
   SaveStation3D,
+  SecretRoom3D,
   SectorId3D,
   UpgradePedestal3D,
   UpgradePickupKind3D,
@@ -89,7 +92,7 @@ export function buildFacilityMap3D(): Level3D {
     {
       id: 'room_airlock', sector: 'airlock', name: 'Airlock Bay',
       hint: 'Cryo airlock. The extraction balcony above is sealed until the reactor goes critical.',
-      minX: 0, maxX: 24, minY: 0, maxY: 9,
+      minX: -9, maxX: 24, minY: 0, maxY: 14.2,
       gridX: 0, gridY: 1, gridW: 3, gridH: 1, ambientColor: 0x1a2a3a,
       hasExit: true, neighbors: ['room_shaft'],
     },
@@ -134,7 +137,15 @@ export function buildFacilityMap3D(): Level3D {
     // ===== 1. room_airlock =====
     box('airlock-floor', -0.5, 24, -1.2, 0, 'catwalk', { color: 0x4a5866 }),
     box('airlock-ceiling', 0, 24, 9.0, 10.2),
-    box('airlock-wall-west', -1.5, 0, 0, 10),
+    // Secret alcove behind a Cracked Bio-Wall (Grenade), west of the spawn
+    door('door-secret-alcove', 'door_secret_alcove', 'yellow', -1.5, 0, 0, 3.4, 0xffd23a),
+    box('airlock-wall-west-up', -1.5, 0, 3.4, 10),
+    box('alcove-floor', -9, -0.5, -1.2, 0, 'catwalk', { color: 0x2a3542 }),
+    box('alcove-ceiling', -9, -1.5, 3.4, 4.6),
+    box('alcove-wall-west', -9.5, -9, -1.2, 4.6),
+    // Secret roof cache above the airlock ceiling (needs Boots to reach the shaft deck, then a Grenade)
+    box('cache-wall-west', 12, 13, 10.2, 14.2),
+    box('cache-ceiling', 12, 24, 13.2, 14.2),
     box('airlock-balcony', 1.5, 13.5, 4.8, 5.2, 'catwalk', { color: 0x2a3542 }),
     box('airlock-bridge', 13.5, 24.4, 4.8, 5.2, 'catwalk', { color: 0x2a3542 }),
     // East partition: lower doorway y0..3.6, upper doorway y5.2..8.6
@@ -150,7 +161,9 @@ export function buildFacilityMap3D(): Level3D {
     box('shaft-wall-west-low', 23.6, 24.4, -7.4, 0),
     box('shaft-wall-west-bottom', 23.6, 24.4, -12, -11),
     door('door-shaft-mines', 'door_shaft_mines', 'green', 23.6, 24.4, -11, -7.4, 0x3aff6a),
-    box('shaft-wall-west-up', 23.6, 24.4, 8.8, 14),
+    box('shaft-wall-west-up', 23.6, 24.4, 8.8, 10.2),
+    door('door-secret-cache', 'door_secret_cache', 'yellow', 23.6, 24.4, 10.2, 13.2, 0xffd23a),
+    box('shaft-wall-west-top', 23.6, 24.4, 13.2, 14),
     box('shaft-wall-east-low', 41.6, 42.4, -12, 0),
     door('door-shaft-biolabs', 'door_shaft_biolabs', 'yellow', 41.6, 42.4, 0, 3.6, 0xffd23a),
     box('shaft-wall-east-mid', 41.6, 42.4, 3.6, 8.8),
@@ -279,19 +292,40 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'e-mines-1', kind: 'crawler', x: 4.0, y: -11.0, z: 0, zone: 'mines' },
     { id: 'e-mines-2', kind: 'spitter', x: 7.0, y: -8.6, z: 0, zone: 'mines' },
     { id: 'e-mines-3', kind: 'stalker', x: 21.0, y: -11.0, z: 0, zone: 'mines' },
+    { id: 'e-mines-4', kind: 'crawler', x: 8.0, y: -11.0, z: 0, zone: 'mines' },
     { id: 'e-bio-1', kind: 'crawler', x: 45.0, y: 0, z: 0, zone: 'biolabs' },
     { id: 'e-bio-2', kind: 'spitter', x: 48.0, y: 2.2, z: 0, zone: 'biolabs' },
     { id: 'e-bio-3', kind: 'stalker', x: 62.0, y: 0, z: 0, zone: 'biolabs' },
     { id: 'e-bio-4', kind: 'spitter', x: 66.0, y: 2.2, z: 0, zone: 'biolabs' },
+    { id: 'e-bio-5', kind: 'stalker', x: 56.0, y: 0, z: 0, zone: 'biolabs' },
     { id: 'e-sec-1', kind: 'stalker', x: 50.0, y: 8.8, z: 0, zone: 'security' },
     { id: 'e-sec-2', kind: 'spitter', x: 60.0, y: 8.8, z: 0, zone: 'security' },
+    { id: 'e-sec-3', kind: 'stalker', x: 66.0, y: 8.8, z: 0, zone: 'security' },
     { id: 'e-core-warden', kind: 'warden', x: 83.0, y: 0, z: 0, zone: 'core' },
     { id: 'e-core-1', kind: 'crawler', x: 77.0, y: 0, z: 0, zone: 'core' },
     { id: 'e-core-2', kind: 'stalker', x: 90.0, y: 2.4, z: 0, zone: 'core' },
+    { id: 'e-core-3', kind: 'spitter', x: 95.0, y: 0, z: 0, zone: 'core' },
+    // Warden minion slots: dead and hidden until the Phase III summon revives them
+    { id: 'e-core-m1', kind: 'crawler', x: 80.0, y: 0, z: 0, zone: 'core' },
+    { id: 'e-core-m2', kind: 'crawler', x: 92.0, y: 0, z: 0, zone: 'core' },
+    // Extraction ambush slots: dead until the reactor goes critical, then they hold the escape route
+    { id: 'e-esc-1', kind: 'stalker', x: 64.0, y: 0, z: 0, zone: 'biolabs' },
+    { id: 'e-esc-2', kind: 'crawler', x: 49.0, y: 0, z: 0, zone: 'biolabs' },
+    { id: 'e-esc-3', kind: 'spitter', x: 33.0, y: 0, z: 0, zone: 'shaft' },
+    { id: 'e-esc-4', kind: 'crawler', x: 39.5, y: 0, z: 0, zone: 'shaft' },
+  ];
+
+  const dataLogs: DataLog3D[] = [
+    { id: 'log_airlock', sector: 'airlock', title: 'Cryo Log 01: Alcove Manifest', x: -5, y: 0, z: 0 },
+    { id: 'log_shaft', sector: 'shaft', title: 'Shaft Log 02: Roof Cache', x: 18, y: 10.2, z: 0 },
+    { id: 'log_mines', sector: 'mines', title: 'Mines Log 03: West Drift', x: 1.3, y: -11.0, z: 0 },
+    { id: 'log_biolabs', sector: 'biolabs', title: 'Bio-Labs Log 04: Specimen Tray', x: 52.6, y: 4.5, z: 0 },
+    { id: 'log_security', sector: 'security', title: 'Security Log 05: Override Memo', x: 68.8, y: 8.8, z: 0 },
+    { id: 'log_core', sector: 'core', title: 'Core Log 06: Warden Protocol', x: 87.5, y: 2.4, z: 0 },
   ];
 
   return {
-    bounds: { minX: -1.5, maxX: 99.5, minY: -12.6, maxY: 14.8, minZ: MIN_Z, maxZ: MAX_Z },
+    bounds: { minX: -9.5, maxX: 99.5, minY: -12.6, maxY: 14.8, minZ: MIN_Z, maxZ: MAX_Z },
     spawn: { x: 3.5, y: 0, z: 0 },
     consolePos: { x: 54.5, y: 8.8, z: 0, radius: 2.2 },
     corePos: { x: 93.5, y: 0, z: 0, radius: 1.85 },
@@ -307,6 +341,11 @@ export function buildFacilityMap3D(): Level3D {
     pedestals,
     medStations,
     enemies,
+    dataLogs,
+    secrets: [
+      { id: 'secret_alcove', sector: 'airlock', name: 'Cryo Alcove', doorId: 'door_secret_alcove' },
+      { id: 'secret_cache', sector: 'shaft', name: 'Roof Cache', doorId: 'door_secret_cache' },
+    ],
   };
 }
 

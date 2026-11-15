@@ -21,10 +21,24 @@ export type SoundEventType3D =
   | 'slam'
   | 'pickup'
   | 'meltdown'
-  | 'win';
+  | 'win'
+  // Gameplay-depth events (round 1): movement mastery, combat feedback, boss patterns, exploration
+  | 'wall_jump'
+  | 'dash_cancel'
+  | 'stomp'
+  | 'combo'
+  | 'boss_telegraph'
+  | 'boss_charge'
+  | 'boss_summon'
+  | 'boss_phase'
+  | 'boss_exposed'
+  | 'collect'
+  | 'secret';
 
 export interface SoundEvent3D {
   type: SoundEventType3D;
+  /** Optional magnitude: combo count, boss phase number, collectible index */
+  value?: number;
 }
 export type BoxKind3D = 'wall' | 'crate' | 'catwalk' | 'platform' | 'console' | 'door';
 export type DoorLockKind3D = 'blue' | 'green' | 'yellow' | 'red' | 'console' | 'escape';
@@ -148,6 +162,23 @@ export interface MedStation3D {
   heal: number;
 }
 
+export interface DataLog3D {
+  id: string;
+  sector: SectorId3D;
+  title: string;
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface SecretRoom3D {
+  id: string;
+  sector: SectorId3D;
+  name: string;
+  /** Door solid (Cracked Bio-Wall, yellow lock) that hides the room */
+  doorId: string;
+}
+
 export interface EnemySpawn3D {
   id: string;
   kind: 'stalker' | 'crawler' | 'spitter' | 'warden';
@@ -174,6 +205,8 @@ export interface Level3D {
   pedestals: WeaponPedestal3D[];
   medStations: MedStation3D[];
   enemies: EnemySpawn3D[];
+  dataLogs: DataLog3D[];
+  secrets: SecretRoom3D[];
 }
 
 export interface PlayerPoseState3D {

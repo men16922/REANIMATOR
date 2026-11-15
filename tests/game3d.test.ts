@@ -55,6 +55,11 @@ function place(w: WorldState3D, x: number, y: number): void {
 function doorSolid(w: WorldState3D, id: string): MapSolid3D {
   return w.level.solids.find((s) => s.doorId === id)!;
 }
+/** Rail-Cannon: hold fire for `charge` ticks, then release (fires on release). */
+function railShot(w: WorldState3D, aimX: number, aimY: number, charge = 1): void {
+  for (let i = 0; i < charge; i++) stepWorld3D(w, { ...emptyInput3D(), weaponSlot: 4, fire: true, aimX, aimY });
+  stepWorld3D(w, { ...emptyInput3D(), weaponSlot: 4, fire: false, aimX, aimY });
+}
 function stepN(w: WorldState3D, n: number, inp: Partial<InputState3D> = {}): void {
   for (let i = 0; i < n; i++) stepWorld3D(w, { ...emptyInput3D(), ...inp });
 }
@@ -326,7 +331,7 @@ test('combat: Scattergun fans 7 pellets, Grenade bounces and explodes, bio-barre
   ch.player.ammo[4] = 3;
   const first = ch.barrels.find((b) => b.id === 'brl-airlock-1')!;
   ch.barrels.push({ id: 'chain', x: first.x + 2.0, y: 0, z: 0, hp: 20, alive: true, fuseTicks: -1, hitFlashTicks: 0 });
-  stepN(ch, 1, { fire: true, weaponSlot: 4, aimX: first.x, aimY: 0.7 });
+  railShot(ch, first.x, 0.7);
   assert.equal(first.alive, false, 'rail destroys the first barrel');
   stepN(ch, 12);
   assert.equal(ch.barrels.find((b) => b.id === 'chain')!.alive, false, 'chain barrel detonates');
@@ -339,16 +344,16 @@ test('combat: Scattergun fans 7 pellets, Grenade bounces and explodes, bio-barre
   behind.x = 27;
   behind.y = 0;
   behind.hp = behind.maxHp = 78;
-  stepN(rl, 1, { fire: true, weaponSlot: 4, aimX: 30, aimY: 1.0 });
+  railShot(rl, 30, 1.0);
   assert.ok(rl.beams[0] && Math.hypot(rl.beams[0].x2 - 20, rl.beams[0].y2 - 1.12) < 5, 'beam stops at the locked door');
   assert.equal(behind.hp, 78, 'enemy behind the door is untouched');
   rl.openDoors.add('door_airlock_shaft');
   rl.player.fireCooldown = 0;
-  stepN(rl, 1, { fire: true, weaponSlot: 4, aimX: 30, aimY: 1.0 });
+  railShot(rl, 30, 1.0);
   assert.ok(behind.hp < 78, 'beam passes once the door is open');
 });
 
-test('Core Warden: shielded core, Phase 2 at <= 50% HP, jump dodges shockwave, Meltdown opens the escape hatch', () => {
+test('Core Warden: shielded core, Phase 2 at <= 2/3 HP, jump dodges shockwave, Meltdown opens the escape hatch', () => {
   const w = newWorld3D();
   w.consoleUnlocked = true;
   w.openDoors.add('door_boss');
@@ -360,13 +365,13 @@ test('Core Warden: shielded core, Phase 2 at <= 50% HP, jump dodges shockwave, M
   assert.equal(warden.phase, 1);
 
   const coreStart = w.coreHp;
-  stepN(w, 1, { weaponSlot: 4, fire: true, aimX: w.level.corePos.x, aimY: 1.4 });
+  railShot(w, w.level.corePos.x, 1.4);
   assert.equal(w.coreHp, coreStart, 'core shielded while the Warden lives');
 
-  warden.hp = Math.floor(warden.maxHp * 0.5) + 20;
+  warden.hp = Math.floor(warden.maxHp * (2 / 3)) + 20;
   warden.x = 82;
   w.player.fireCooldown = 0;
-  stepN(w, 1, { weaponSlot: 4, fire: true, aimX: warden.x, aimY: 1.4 });
+  railShot(w, warden.x, 1.4);
   assert.equal(warden.phase, 2);
 
   const sw = { id: 99, x: 63, y: 0, z: 0, radius: 2.8, maxRadius: 15, speed: 9, damage: 22, hitPlayer: false, phase: 1 as const };
@@ -392,7 +397,7 @@ test('Core Warden: shielded core, Phase 2 at <= 50% HP, jump dodges shockwave, M
   place(w, 88, 0);
   w.player.fireCooldown = 0;
   assert.ok(!w.openDoors.has('door_escape'));
-  stepN(w, 1, { weaponSlot: 4, fire: true, aimX: w.level.corePos.x, aimY: 1.4 });
+  railShot(w, w.level.corePos.x, 1.4);
   assert.equal(w.coreDestroyed, true);
   assert.ok(w.openDoors.has('door_escape'), 'escape hatch opens on Meltdown');
   assert.equal(w.phase, 'escape');

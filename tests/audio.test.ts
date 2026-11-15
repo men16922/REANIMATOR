@@ -30,7 +30,7 @@ const KINDS: EnemyKindA[] = ['crawler', 'stalker', 'spitter', 'warden'];
 
 test('every simulation event maps to a recipe in the sound bank', () => {
   const types = Object.keys(EVENT_SOUND) as SoundEventType3D[];
-  assert.equal(types.length, 18);
+  assert.equal(types.length, 29);
   for (const t of types) assert.ok(SOUND_IDS.includes(soundIdForEvent(t) as never), `missing recipe for ${t}`);
 });
 
