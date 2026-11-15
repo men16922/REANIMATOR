@@ -20,3 +20,9 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 - [x] 난이도 측정 도구 `make difficulty`(`tools/game/difficulty.ts`) + 테스트.
 - [x] `PCFShadowMap`, vite `three` 청크 분리, 아카이브 링크 수정, riggedCount 원인 문서화.
 - [ ] 남음: Chrome 환경에서 `make smoke-local`·showcase로 그림자·청크 변경 확인, G5 사람 플레이, 푸시 승인.
+
+## 재귀 개선 2차(2026-11-15)
+
+- [x] 샤프트 좌상단 하늘색 사각형·좌하단 연두색 삼각형 원인 추정: 문(`door-airlock-shaft` blue y0–3.6, `door-shaft-mines` green y-11~-7.4, x=23.6–24.4, z±3.2)의 측면(깊이 6.4 m)이 원근으로 보이며, 균일 emissive 0.85 + 블룸으로 단색화됨. 수정: 문 재질에 `emissiveMap`(hazard/wall 텍스처) 적용, emissiveIntensity 0.6, 펄스 0.5±0.15. 브라우저 시각 확인은 unverified.
+- [x] 샤프트 가독성: HemisphereLight 강도 1.15→1.35, 지면색 0x242028(PointLight 추가 없음, fps 비용 없음).
+- [ ] 브라우저 재확인: `__reanimatorAdvance([], {x:30,y:1,boots:true,openDoors:[]})` 후 스냅샷으로 샤프트 좌측 문 면이 줄무늬 질감이며 단색 면이 없는지, 콘솔 오류 0, fps 확인. 이어서 `__reanimatorRunBot(4000)`으로 완주 유지 확인.

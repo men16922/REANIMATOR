@@ -1,5 +1,9 @@
 # 진행 기록
 
+## 2026-11-15 — 샤프트 단색 면 수정·가독성 (Kiro)
+- 원인(추정, 코드 분석): 샤프트 좌측 문 2개(blue y0–3.6, green y-11~-7.4, x≈24)의 측면이 원근으로 크게 보이고 균일 emissive 0.85에 블룸이 겹쳐 단색 사각형·삼각형이 됨. 수정: 문 `emissiveMap` 추가, 강도 0.6(펄스 0.5±0.15), HemisphereLight 1.35·지면색 0x242028.
+- 검증: `make check` exit 0(reach3d 52 waypoints 3431 ticks, dist-guard PASS 13 files 14,330,345 B). 브라우저 시각 확인은 unverified(Chrome 불가). 재확인 절차는 NEXT_PLAN 참조.
+
 ## 2026-11-15 — 난이도 측정 도구 + 폴리시 (Kiro)
 - 추가: `tools/game/difficulty.ts`(`make difficulty`). 무모한 입력(상시 동진·주기 점프·상시 사격·엄폐 없음)으로 3600 ticks 실행, 결과 `hpLost 248, deaths 2, kills 3, endX 41.18`(결정적, 2회 동일). 봉인 파일·`w.light` 무접촉. 테스트 1개 추가(45/45).
 - 정리: `PCFSoftShadowMap`→`PCFShadowMap`(`scene3dFull.ts`), `vite.config.ts` 신설(`three` 수동 청크, 경고 한도 700 kB; three 661 kB·앱 128 kB), 아카이브 깨진 링크 3개 수정.

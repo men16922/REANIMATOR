@@ -29,3 +29,5 @@
 - 부츠 우회 제거: `bio-grate-up`을 y 4.4로 낮춰 Security 데크도 4.4 m 게이트(`reach3d`·테스트로 확인). 제트 대시 우회 없음(`reach3d` `dashReaches`, 테스트로 확인; 스크립트 탐색 한계, 사람 확인은 G5).
 - `make smoke-local`은 이 샌드박스에서 Chrome이 abort(exit 134, `--no-sandbox`도 동일)해 최신 맵 기준 unverified. 위 29/29는 맵 변경 전 값.
 - 움직임 자연스러움(방향 전환·점프 포즈·머리 회전 수정)은 정지 캡처로만 확인, 사람 눈 확인 필요. 어두운 샤프트는 보조 조명으로 완화했으나 튜닝 여지 있음. 15 Hz는 설계값. `.kiro/settings/mcp.json` REA MCP 쓰기 차단 잔여.
+
+- 2026-11-15: 샤프트 문 emissive 단색 면 수정·ambient 상향 적용(`make check` exit 0). 브라우저 시각 재확인 unverified.

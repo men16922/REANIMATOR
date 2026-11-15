@@ -146,7 +146,7 @@ export class Scene3DRenderer {
     this.camera = new THREE.PerspectiveCamera(38, canvas.width / canvas.height, 0.4, 120);
     this.camera.position.set(3.5, 3.2, 15.5);
 
-    this.ambient = new THREE.HemisphereLight(0x8bb6df, 0x1c1714, 1.15);
+    this.ambient = new THREE.HemisphereLight(0x8bb6df, 0x242028, 1.35);
     this.scene.add(this.ambient);
 
     this.sun = new THREE.DirectionalLight(0xdcebff, 1.9);
@@ -465,7 +465,8 @@ export class Scene3DRenderer {
         map: s.doorLock === 'yellow' ? tex.wallMap : tex.hazardMap,
         color: s.doorLock === 'yellow' ? 0x6b5a2a : 0x23262e,
         emissive: lockColor,
-        emissiveIntensity: 0.85,
+        emissiveMap: s.doorLock === 'yellow' ? tex.wallMap : tex.hazardMap,
+        emissiveIntensity: 0.6,
         roughness: 0.35,
         metalness: 0.72,
         transparent: true,
@@ -677,7 +678,7 @@ export class Scene3DRenderer {
       const targetY = open ? entry.baseY + entry.height + 0.3 : entry.baseY;
       entry.mesh.position.y += (targetY - entry.mesh.position.y) * Math.min(1, dt * 8);
       const mat = entry.mesh.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = open ? 0.2 : 0.7 + Math.sin(tSec * 3 + entry.baseY) * 0.25;
+      mat.emissiveIntensity = open ? 0.15 : 0.5 + Math.sin(tSec * 3 + entry.baseY) * 0.15;
       entry.mesh.visible = !open || Math.abs(entry.mesh.position.y - targetY) > 0.05;
     }
 
