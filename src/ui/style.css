@@ -291,3 +291,16 @@ body.reduce-fx .wpn-slot.switch { animation: none; }
   .logo-svg .wm-glow, .logo-svg .heart-glow { opacity: 0.4; }
   #loading { transition: none; }
 }
+
+/* ---- Classic View (1996): original pixel status strip, crosshair cursor, transition overlay (see docs/R3_CLASSIC.md) ---- */
+#view-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; image-rendering: pixelated; }
+#view-fx[hidden] { display: none; }
+#classic-hud { display: none; position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: auto; aspect-ratio: 320 / 24; image-rendering: pixelated; pointer-events: none; }
+body.classic #hud:not([hidden]) ~ #classic-hud { display: block; }
+/* The strip replaces the DOM health, weapon, kills, tank and hint readouts. Objective, meltdown, boss and minimap stay. */
+body.classic .hp-pill, body.classic .kills-pill, body.classic .etank-pill, body.classic #weapon-bar, body.classic .hud-sub { display: none; }
+/* 16x16 pixel-art crosshair (SVG data URI), hot spot at the centre. */
+body.classic #screen {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Cpath fill='%23101010' d='M6 0h4v6h6v4h-6v6H6v-6H0V6h6z'/%3E%3Cpath fill='%23f0c040' d='M7 1h2v5H7zM7 10h2v5H7zM1 7h5v2H1zM10 7h5v2h-5z'/%3E%3Cpath fill='%23ff5030' d='M7 7h2v2H7z'/%3E%3C/svg%3E") 8 8, crosshair;
+  image-rendering: pixelated;
+}
