@@ -158,6 +158,7 @@ function start(): void {
   bot = null;
   acc = 0;
   flash = 0;
+  scene3d?.fx.reset();
   releaseInput();
   show('playing');
 }
@@ -262,14 +263,20 @@ function renderWorld(alpha = 1): void {
 
 function handlePostStepAudio(pre: ReturnType<typeof snapshotPre>): void {
   if (world.player.hp < pre.hp) flash = 1;
+  scene3d?.fx.observe(world);
   audioDirector.afterStep(world, pre);
 }
 
 function frame(t: number): void {
   const dt = Math.min(0.1, (t - last) / 1000 || 1 / 60);
   last = t;
+  const fx = scene3d?.fx;
+  let frozen = false;
   if (mode === 'playing' && !manualHold) {
-    acc += dt;
+    // Hit-stop and kill slow-motion only retime the display clock. Every simulation tick still runs, in order.
+    frozen = fx ? fx.hitstop.step() : false;
+    const clock = fx ? fx.slowmo.step(dt) : 1;
+    if (!frozen) acc += dt * clock;
     const stepDt = 1 / SIM_HZ_3D;
     let steps = 0;
     while (acc >= stepDt && steps < 4) {
@@ -291,7 +298,11 @@ function frame(t: number): void {
         break;
       }
     }
-    flash = Math.max(0, flash - dt * 3.2);
+    if (!frozen) flash = Math.max(0, flash - dt * 3.2);
+  }
+  if (scene3d) {
+    scene3d.reduceMotion = ui.reduceFlash.checked;
+    scene3d.fxTimeScale = frozen ? 0 : fx ? fx.slowmo.scale : 1;
   }
   renderWorld(mode === 'playing' && !manualHold ? Math.min(1, acc * SIM_HZ_3D) : 1);
   hud();
@@ -301,6 +312,7 @@ function frame(t: number): void {
 function resumeAtSave(): boolean {
   if (mode !== 'result' || world.status !== 'lost' || !world.lastSaveId) return false;
   respawnPlayer3D(world);
+  scene3d?.fx.reset();
   audioDirector.reset();
   releaseInput();
   show('playing');
@@ -462,7 +474,7 @@ function buildSnapshot() {
   const warden = world.enemies.find((e) => e.kind === 'warden');
   const tel = scene3d
     ? scene3d.getTelemetry()
-    : { modelsLoaded: false, loadedModels: [], failedModels: [], riggedCount: 0, activeAnimations: {}, enemyRender: {} as Record<string, { yaw: number; clip: string; timeScale: number; x: number; y: number; z: number }> };
+    : { modelsLoaded: false, loadedModels: [], failedModels: [], riggedCount: 0, activeAnimations: {}, fx: null, enemyRender: {} as Record<string, { yaw: number; clip: string; timeScale: number; x: number; y: number; z: number }> };
   const b = world.player.body;
   return {
     lab: lab ? { id: lab.scenario.id, status: lab.status, mutation: lab.mutation } : null,
@@ -571,11 +583,13 @@ wAny.__reanimatorAdvance = (inputs, setup) => {
   world = newWorld3D();
   bot = null;
   if (setup) applyDebugSetup(world, setup);
+  scene3d?.fx.reset();
   enterManual();
   for (const inp of inputs) {
     world = stepWorld3D(world, { ...emptyInput3D(), aimX: world.player.body.x + world.player.facing * 8, aimY: world.player.body.y + 1.12, ...inp });
     if (world.status !== 'playing') break;
   }
+  scene3d?.fx.observe(world, true);
   renderWorld();
   hud();
   return buildSnapshot();
@@ -585,6 +599,7 @@ wAny.__reanimatorStep = (inputs, alpha = 1) => {
   enterManual();
   for (const inp of inputs) {
     world = stepWorld3D(world, { ...emptyInput3D(), aimX: world.player.body.x + world.player.facing * 8, aimY: world.player.body.y + 1.12, ...inp });
+    scene3d?.fx.observe(world);
     if (world.status !== 'playing') break;
   }
   renderWorld(alpha);
@@ -599,6 +614,7 @@ wAny.__reanimatorRunBot = (maxTicks, untilStep) => {
     if (untilStep && bot.stepLabel === untilStep) break;
     world = stepWorld3D(world, bot.next(world));
   }
+  scene3d?.fx.observe(world, true);
   renderWorld();
   hud();
   return buildSnapshot();
