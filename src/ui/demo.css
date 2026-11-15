@@ -14,3 +14,15 @@
 #showcase-caption b { font-size: 2.1em; letter-spacing: 0.16em; text-transform: uppercase; color: #ffb36b; }
 #showcase-caption span { font-size: 1.05em; letter-spacing: 0.06em; color: #f1e6d4; }
 #showcase-caption em { margin-top: 0.8em; font-style: normal; font-size: 0.7em; letter-spacing: 0.3em; color: #8d8072; }
+
+/* Judge Reel (EXTRAS > Judge Reel, ?reel): lower third over the lab and world cuts, end card, calm lab alarm */
+body.reel-on #showcase-caption { bottom: 4%; padding: 1.1em 6% 0.9em; background: linear-gradient(to top, rgba(4, 6, 10, 0.86) 40%, rgba(4, 6, 10, 0)); }
+body.reel-on #showcase-caption em { display: none; }
+#reel-end { position: absolute; inset: 0; z-index: var(--z-intro); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.9em; padding: 0 8%; text-align: center; background: radial-gradient(ellipse at 50% 40%, rgba(20, 14, 10, 0.78), rgba(4, 6, 10, 0.96)); text-shadow: 0 2px 10px #000; }
+#reel-end[hidden] { display: none; }
+#reel-end h2 { margin: 0; font-size: 3.4em; letter-spacing: 0.34em; color: #ffb36b; }
+#reel-end p { margin: 0; max-width: 40em; font-size: 1.05em; letter-spacing: 0.05em; color: #f1e6d4; }
+#reel-end ul { margin: 0.4em 0 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.35em; font-size: 0.9em; letter-spacing: 0.08em; color: #cdbfa8; }
+#reel-end li::before { content: "\25B8  "; color: #ff9a3c; }
+#reel-end em { margin-top: 1em; font-style: normal; font-size: 0.7em; letter-spacing: 0.3em; color: #8d8072; }
+body.reduce-fx #lab.lab-alarm::before { animation: none; }

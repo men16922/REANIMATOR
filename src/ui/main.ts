@@ -37,6 +37,7 @@ import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type Debu
 import { OPENING_BEATS, OPENING_ENEMY_ID, OPENING_VENT, OpeningClock, openingView } from './opening.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, type Hint } from './flow.ts';
 import { initLab } from './labView.ts';
+import { createReelHost, ReelPlayer } from './reelPlayer.ts';
 import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
 import { meltdownPillVisible, objectiveFor } from './objective.ts';
@@ -1094,7 +1095,16 @@ function frameBody(t: number): void {
     scene3d.fx.gore.level = goreLevel;
     scene3d.fxTimeScale = frozen ? 0 : fx ? fx.slowmo.scale : 1;
   }
-  if (mode === 'title' || mode === 'showcase') {
+  if (mode === 'showcase' && reelPlayer.active) {
+    // Judge Reel (src/ui/reelPlayer.ts): scripted private world, normal gameplay camera, never touches `world`.
+    reelPlayer.frame(dt);
+    if (reelPlayer.active) {
+      scene3d?.setAttractCamera(null);
+      if (scene3d) scene3d.render(reelPlayer.world, reelPlayer.alpha);
+      else renderFallback2D3D(canvas, reelPlayer.world);
+      viewFx.afterRender(performance.now());
+    }
+  } else if (mode === 'title' || mode === 'showcase') {
     // Attract mode: a bot plays a private world behind the title. Never touches `world` or human input.
     // The captioned showcase uses the same path with its own reel.
     const reel = mode === 'showcase' && showcase ? showcase : attract;
@@ -1143,14 +1153,52 @@ function startShowcase(): void {
   onShowcaseCut();
 }
 
+let reelLaunched = false;
+const reelPlayer = new ReelPlayer(createReelHost({
+  canvas,
+  reduce: () => ui.reduceFlash.checked,
+  view: () => viewMode,
+  setView: (v, crt) => {
+    if (v === viewMode) return;
+    if (crt) viewFx.start(v, () => applyView(v, false), performance.now());
+    else applyView(v, false);
+  },
+  opening: (on) => {
+    if (on) {
+      const seen = store(STORE.intro); // the reel must not consume the first-run intro
+      showIntro();
+      if (seen !== '1') store(STORE.intro, '0');
+    } else if (introActive) hideIntro();
+  },
+  observe: (w) => scene3d?.fx.observe(w),
+  resetFx: () => scene3d?.fx.reset(),
+  finish: () => exitShowcase(),
+  openLab: () => labCtl.open(),
+  closeLab: () => labCtl.close(),
+}));
+
+/** EXTRAS > Judge Reel, `?reel` and `__reanimatorReel()`: ~90 s scripted cuts with lower-third captions. */
+function startReel(): void {
+  exitShowcase();
+  hideIntro();
+  dismissLoading();
+  demoStop = null;
+  releaseInput();
+  reelLaunched = true;
+  show('showcase');
+  reelPlayer.start();
+}
+
 function exitShowcase(): void {
   if (mode !== 'showcase') return;
+  reelPlayer.stop();
+  viewFx.finish();
   showcase = null;
   if (showcaseView && showcaseView !== viewMode) applyView(showcaseView, false);
   showcaseView = null;
   scene3d?.fx.reset();
   show('title');
-  openPanelFor('extras', 'showcase-open');
+  openPanelFor('extras', reelLaunched ? 'reel-open' : 'showcase-open');
 }
 
 /** Restart whatever is being played: the demo checkpoint if there is one, else a normal run. */
@@ -1383,6 +1431,7 @@ $('title-controls-close').addEventListener('click', () => openPanelFor('extras',
 $('demo-open').addEventListener('click', () => openPanelFor('demo', `demo-${DEMO_STOPS[0].id}`));
 $('demo-close').addEventListener('click', () => openPanelFor('extras', 'demo-open'));
 $('showcase-open').addEventListener('click', startShowcase);
+$('reel-open').addEventListener('click', startReel);
 // Demo tour list: one button per checkpoint, each enters the normal play loop with that checkpoint's setup.
 for (const stop of DEMO_STOPS) {
   const b = document.createElement('button');
@@ -1588,6 +1637,7 @@ const wAny = window as unknown as {
   __reanimatorShowResult: (kind: 'won' | 'lost') => ReturnType<typeof buildSnapshot>;
   __reanimatorShowBanner: (kind: 'sector' | 'weapon' | 'boots' | 'etank' | 'coach') => ReturnType<typeof buildSnapshot>;
   __reanimatorPick: (px: number, py: number, includePoints?: boolean) => Array<Record<string, unknown>>;
+  __reanimatorReel: () => ReturnType<typeof buildSnapshot>;
   __reanimatorShowcase: (name: string) => Promise<ReturnType<typeof buildSnapshot> & { superseded?: true }>;
   __reanimatorDemo: (id: string) => ReturnType<typeof buildSnapshot>;
   __reanimatorSoak: (n?: number, opts?: SoakOptions) => Promise<SoakReport>;
@@ -1760,6 +1810,11 @@ function settleFrames(n: number): Promise<void> {
  * biolabs, security, slide, escape, bestiary, lab. Each call builds the scene from a fresh deterministic world, renders it, and
  * resolves with the snapshot once the renderer has had a few real frames to settle (particles, bloom, camera).
  */
+wAny.__reanimatorReel = () => {
+  startReel();
+  return buildSnapshot();
+};
+
 wAny.__reanimatorShowcase = async (name) => {
   const sc = SHOWCASE_SCENES[name];
   if (!sc) throw new Error(`unknown showcase scene "${name}"; known: ${SHOWCASE_NAMES.join(', ')}`);
@@ -2053,4 +2108,10 @@ wAny.__reanimatorUiAudit = async () => {
 
 show('title');
 requestAnimationFrame(frame);
+if (/[?&]reel\b/.test(location.search)) {
+  // Wait (bounded) for the models, then play the Judge Reel over the loading screen's place.
+  const t0 = performance.now();
+  const go = (): void => (scene3d && !scene3d.getTelemetry().modelsLoaded && performance.now() - t0 < 12000 ? void window.setTimeout(go, 100) : startReel());
+  go();
+}
 
