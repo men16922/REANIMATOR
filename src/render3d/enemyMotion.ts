@@ -8,6 +8,14 @@ export interface EnemyRenderTelemetry {
   x: number;
   y: number;
   z: number;
+  /** Rig pose state (idle/move/aim/windup/strike/leap/land/recoil/stagger/roar/dead) */
+  poseState?: string;
+  /** Crossfade weights of the rigged foes (idle/walk/run/attack/death), sums to 1 */
+  blend?: Record<string, number>;
+  /** Foot travel implied by the gait phase (m/s); compare with the ground speed to see skating */
+  footSpeed?: number;
+  /** Head yaw relative to the body (rad): the head leads turns */
+  headRel?: number;
 }
 
 export const ENEMY_YAW_MAX_RATE = 12; // rad/s hard cap: 0.2 rad at 60 fps
@@ -189,14 +197,32 @@ export interface EnemyTraceFrame {
   clip: string;
   timeScale: number;
   x: number;
+  /** Rig frames: foot travel implied by the gait phase (m/s). When present it replaces the clip/timeScale skate test. */
+  footSpeed?: number;
+  /** Rig frames: bone channel vector (rad, hipsDrop in m) for pose-jump checks */
+  pose?: number[];
+  poseState?: string;
 }
 
 export interface EnemyTraceReport {
   frames: number;
   maxYawStep: number;
+  /** Largest angular speed of the displayed yaw, rad/s */
+  maxYawRate: number;
   yawJumps: number;
   skateFrames: number;
   maxSkateRatio: number;
+  /** Frames where the foe moved above minSpeed and was judged for skating */
+  movingFrames: number;
+  /** skateFrames / movingFrames */
+  skateFraction: number;
+  /** Largest per-frame change of any bone channel */
+  maxPoseStep: number;
+  /** Frames whose pose step exceeds poseLimit */
+  poseJumps: number;
+  /** Pose steps on frames where poseState changed */
+  transitions: number;
+  maxTransitionJump: number;
 }
 
 export interface EnemyTraceOptions {
@@ -207,21 +233,34 @@ export interface EnemyTraceOptions {
   skateTolerance?: number;
   /** Ignore speeds below this (m/s) when judging skate */
   minSpeed?: number;
+  /** Per-frame bone channel step (rad) counted as a pose jump */
+  poseLimit?: number;
 }
 
+const NON_WALK_POSE_STATES = new Set(['strike', 'leap', 'stagger', 'recoil', 'dead', 'roar', 'land']);
+
 /**
- * Checks consecutive telemetry frames of one enemy: yaw jumps (>= yawLimit rad per frame) and foot skating
- * (locomotion clip whose timeScale does not match the actual ground speed, or a moving body with a non-locomotion clip).
+ * Checks consecutive telemetry frames of one enemy: yaw jumps (>= yawLimit rad per frame), foot skating, and pose
+ * jumps (bone channels that change faster than poseLimit per frame, notably across pose-state transitions).
+ * Skating: with footSpeed the ground speed |dx|/dt must match it; without, a locomotion clip whose timeScale does not
+ * match the ground speed, or a moving body under a non-locomotion clip, counts.
  */
 export function analyzeEnemyTrace(frames: EnemyTraceFrame[], opts: EnemyTraceOptions = {}): EnemyTraceReport {
   const yawLimit = opts.yawLimit ?? 0.5;
   const loco = opts.locomotion ?? { walk: 2.2, run: 5.5, crawl: CRAWLER_REF_SPEED };
   const tol = opts.skateTolerance ?? 0.4;
   const minSpeed = opts.minSpeed ?? 0.8;
+  const poseLimit = opts.poseLimit ?? 0.25;
   let maxYawStep = 0;
+  let maxYawRate = 0;
   let yawJumps = 0;
   let skateFrames = 0;
   let maxSkateRatio = 0;
+  let movingFrames = 0;
+  let maxPoseStep = 0;
+  let poseJumps = 0;
+  let transitions = 0;
+  let maxTransitionJump = 0;
   for (let i = 1; i < frames.length; i++) {
     const a = frames[i - 1];
     const b = frames[i];
@@ -229,16 +268,47 @@ export function analyzeEnemyTrace(frames: EnemyTraceFrame[], opts: EnemyTraceOpt
     if (dt <= 0) continue;
     const dyaw = Math.abs(wrapAngle(b.yaw - a.yaw));
     if (dyaw > maxYawStep) maxYawStep = dyaw;
+    if (dyaw / dt > maxYawRate) maxYawRate = dyaw / dt;
     if (dyaw >= yawLimit) yawJumps++;
+    if (a.pose && b.pose) {
+      let step = 0;
+      for (let k = 0; k < a.pose.length; k++) step = Math.max(step, Math.abs(b.pose[k] - a.pose[k]));
+      if (step > maxPoseStep) maxPoseStep = step;
+      if (step > poseLimit) poseJumps++;
+      if (a.poseState !== b.poseState) {
+        transitions++;
+        if (step > maxTransitionJump) maxTransitionJump = step;
+      }
+    }
     const speed = Math.abs(b.x - a.x) / dt;
-    if (speed < minSpeed) continue;
-    const ref = loco[b.clip];
-    // Moving fast under a non-locomotion clip counts as full skate (excluding knockback/death which are not walking)
-    const expected = ref ? ref * b.timeScale : 0;
-    if (!ref && (b.clip === 'attack' || b.clip === 'leap' || b.clip === 'stagger' || b.clip === 'death')) continue;
-    const ratio = expected > 0 ? Math.abs(speed - expected) / speed : 1;
+    if (speed < minSpeed || speed > 30) continue;
+    let ratio: number;
+    if (b.footSpeed !== undefined) {
+      if (b.poseState && NON_WALK_POSE_STATES.has(b.poseState)) continue;
+      ratio = Math.abs(speed - b.footSpeed) / speed;
+    } else {
+      const ref = loco[b.clip];
+      // Moving fast under a non-locomotion clip counts as full skate (excluding knockback/death which are not walking)
+      const expected = ref ? ref * b.timeScale : 0;
+      if (!ref && (b.clip === 'attack' || b.clip === 'leap' || b.clip === 'stagger' || b.clip === 'death')) continue;
+      ratio = expected > 0 ? Math.abs(speed - expected) / speed : 1;
+    }
+    movingFrames++;
     if (ratio > maxSkateRatio) maxSkateRatio = ratio;
     if (ratio > tol) skateFrames++;
   }
-  return { frames: frames.length, maxYawStep, yawJumps, skateFrames, maxSkateRatio };
+  return {
+    frames: frames.length,
+    maxYawStep,
+    maxYawRate,
+    yawJumps,
+    skateFrames,
+    maxSkateRatio,
+    movingFrames,
+    skateFraction: movingFrames > 0 ? skateFrames / movingFrames : 0,
+    maxPoseStep,
+    poseJumps,
+    transitions,
+    maxTransitionJump,
+  };
 }

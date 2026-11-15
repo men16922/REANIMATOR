@@ -31,12 +31,14 @@ import {
   instantiateStaticModel3D,
   preloadAllModels3D,
   stepRiggedAnimation3D,
-  stepRiggedEnemyAnimation3D,
+  stepEnemyRigAnimation3D,
+  applyEnemyRigChannels3D,
   tuneEnemyMaterials3D,
   tuneWardenMaterials3D,
   WARDEN_FLASH_SCALE_3D,
   type RiggedInstance,
 } from './riggedModels.ts';
+import { EnemyRigDriver, ProcSecondary, type EnemyRigFrame } from './enemyRig3d.ts';
 import {
   gaitStep,
   proceduralEnemyPose,
@@ -154,6 +156,11 @@ interface EnemyViz {
   land: number;
   stagger: number;
   prevVy: number;
+  /** Rigged foes only: bone-channel driver (render-only) and its LOD accumulator */
+  rig?: EnemyRigDriver;
+  lodAcc: number;
+  lastFrame?: EnemyRigFrame;
+  sec?: ProcSecondary;
 }
 
 const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
@@ -319,7 +326,7 @@ export class Scene3DRenderer {
   private readonly muzzleGlows: THREE.Mesh[] = [];
   private readonly riggedEnemies = new Map<string, RiggedInstance>();
   private readonly pickProxyMaterial = new THREE.MeshBasicMaterial({ visible: false });
-  private readonly enemyRenderInfo = new Map<string, { yaw: number; x: number; y: number; z: number; clip?: string; timeScale?: number }>();
+  private readonly enemyRenderInfo = new Map<string, Partial<EnemyRenderTelemetry> & { yaw: number; x: number; y: number; z: number }>();
   private readonly staticEnemies = new Map<string, StaticActorHandle>();
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
   private readonly hiveHandles = new Map<string, { root: THREE.Group; core: THREE.Mesh; mat: THREE.MeshStandardMaterial }>();
@@ -570,11 +577,15 @@ export class Scene3DRenderer {
       if (!info) continue;
       enemyRender[id] = {
         yaw: r3(info.yaw),
-        clip: rig.currentAnim,
-        timeScale: r3(rig.actions[rig.currentAnim]?.timeScale ?? 0),
+        clip: info.clip ?? rig.currentAnim,
+        timeScale: r3(info.timeScale ?? 0),
         x: r3(info.x),
         y: r3(info.y),
         z: r3(info.z),
+        poseState: info.poseState,
+        blend: info.blend,
+        footSpeed: info.footSpeed,
+        headRel: info.headRel,
       };
     }
     for (const id of this.staticEnemies.keys()) {
@@ -587,6 +598,7 @@ export class Scene3DRenderer {
         x: r3(info.x),
         y: r3(info.y),
         z: r3(info.z),
+        poseState: info.poseState,
       };
     }
     return {
@@ -1804,7 +1816,7 @@ export class Scene3DRenderer {
 
       let v = this.enemyViz.get(e.id);
       if (!v) {
-        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0 };
+        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0 };
         this.enemyViz.set(e.id, v);
       }
       // Smooth turn (rate ~7) with a lean into the turn
@@ -1834,9 +1846,38 @@ export class Scene3DRenderer {
       const rig = this.riggedEnemies.get(e.id);
       if (rig) {
         rig.root.userData.state = e.alive ? e.state : 'dead';
-        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0 });
-        // Alert: tense forward lean instead of a frozen strike pose. Hit/stagger: tip back against the facing.
-        const alertPitch = alerting ? 0.09 * Math.min(1, e.stateTicks / 6) : 0;
+        const rk = e.kind === 'warden' ? 'warden' : 'stalker';
+        const driver = (v.rig ??= new EnemyRigDriver(rk, e));
+        // LOD: far foes re-pose less often (the skinned update is the expensive part); state changes always step
+        const dxp = ex - px;
+        const dyp = ey - py;
+        const far2 = dxp * dxp + dyp * dyp;
+        const interval = e.kind === 'warden' ? 0 : far2 > 40 * 40 ? 1 / 12 : far2 > 24 * 24 ? 1 / 24 : 0;
+        v.lodAcc += dt;
+        const last = v.lastFrame;
+        const changed = !last || (e.alive ? e.state : 'dead') !== (rig.root.userData.lastState as string | undefined);
+        let frame = last;
+        if (!frame || changed || v.lodAcc >= interval) {
+          frame = driver.step(e, { x: px, y: py }, v.lodAcc, tSec, ex);
+          stepEnemyRigAnimation3D(rig, rk, frame, v.lodAcc);
+          applyEnemyRigChannels3D(rig, frame.ch);
+          v.lodAcc = 0;
+          v.lastFrame = frame;
+          rig.root.userData.lastState = e.alive ? e.state : 'dead';
+        }
+        v.yaw = frame.bodyYaw;
+        this.enemyRenderInfo.set(e.id, {
+          yaw: v.yaw,
+          x: ex,
+          y: ey,
+          z: 0,
+          clip: frame.clip,
+          timeScale: frame.timeScale,
+          poseState: frame.poseState,
+          blend: frame.weights as unknown as Record<string, number>,
+          footSpeed: frame.footSpeed,
+          headRel: frame.headRel,
+        });
         let deathScale = 1;
         let deathSink = 0;
         if (!e.alive) {
@@ -1849,23 +1890,9 @@ export class Scene3DRenderer {
           rig.root.visible = true;
         }
         rig.root.position.set(ex, ey - deathSink, 0);
-        rig.root.rotation.set(alertPitch - v.recoil * 0.22 - v.stagger * 0.18, v.yaw, v.lean);
-        rig.root.scale.setScalar(Math.max(0.001, (1 + v.recoil * 0.05) * deathScale));
-        let desired: 'idle' | 'walk' | 'run' | 'attack' | 'death' = 'idle';
-        let mode: 'hold' | 'play' = 'play';
-        let frac = 0;
-        if (!e.alive) desired = 'death';
-        else if (winding) {
-          desired = 'attack';
-          mode = 'hold';
-          frac = windFrac;
-        } else if (striking) desired = 'attack';
-        else if (e.state !== 'stagger' && speed > 0.4) desired = e.kind !== 'warden' && speed > 4.2 ? 'run' : 'walk';
-        stepRiggedEnemyAnimation3D(
-          rig,
-          { desired, speed, refSpeed: desired === 'run' ? 5.5 : e.kind === 'warden' ? 2.6 : 2.2, attackMode: mode, attackFrac: frac },
-          dt,
-        );
+        rig.root.rotation.set(frame.rootPitch, v.yaw, v.lean);
+        rig.root.scale.set(1, Math.max(0.001, frame.rootScaleY) * Math.max(0.001, deathScale), 1);
+        rig.root.scale.x = rig.root.scale.z = Math.max(0.001, (1 + v.recoil * 0.05) * deathScale);
         if (flashAmt > 0) {
           flashRiggedMaterials3D(rig, ENEMY_FLASH_HEX_3D, flashAmt);
         } else if (e.kind === 'warden' && e.alive && !e.active && this.introAwake > 0.01) {
@@ -1886,11 +1913,14 @@ export class Scene3DRenderer {
       if (st) {
         const r = st.root;
         r.userData.state = e.alive ? e.state : 'dead';
+        // Wall/ceiling crawlers move along the surface (vy is crawl speed there, not a fall)
+        const onSurface = e.surface !== 'floor' && !e.dropping;
+        const surfSpeed = onSurface ? Math.hypot(e.vx, e.vy) : speed;
         const proc = proceduralEnemyPose({
           kind: e.kind === 'spitter' ? 'spitter' : 'crawler',
           alive: e.alive,
-          speed,
-          vy: e.vy,
+          speed: surfSpeed,
+          vy: onSurface ? 0 : e.vy,
           winding,
           windFrac,
           striking,
@@ -1906,12 +1936,32 @@ export class Scene3DRenderer {
           alerting,
         });
         if (e.alive) v.gait += dt * gaitStep(e.kind === 'spitter' ? 'spitter' : 'crawler', speed);
-        const { lift, pitch, roll, sx, sy, sz } = proc;
+        const sec = (v.sec ??= new ProcSecondary(e.surfaceAngle));
+        const sc = sec.step(
+          {
+            alive: e.alive,
+            sx: proc.sx,
+            sy: proc.sy,
+            sz: proc.sz,
+            pitch: proc.pitch,
+            roll: proc.roll,
+            vx: e.vx,
+            dropping: e.dropping,
+            shot: v.shot,
+            surfaceTarget: e.surfaceAngle,
+            spitter: e.kind === 'spitter',
+          },
+          dt,
+        );
+        const { lift, pitch, roll } = proc;
+        const { sx, sy, sz } = sc;
         r.visible = proc.visible;
-        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: proc.clip, timeScale: proc.timeScale });
+        const inner = r.children[0];
+        if (inner) inner.rotation.set(sc.innerPitch, 0, sc.innerRoll);
+        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: proc.clip, timeScale: proc.timeScale, poseState: proc.clip });
         const pulse = e.alive ? 1 + v.recoil * 0.06 : 1;
         // Wall/ceiling crawling: rotate the body about the world Z axis around its box centre (sim exposes surfaceAngle)
-        const sa = e.surfaceAngle;
+        const sa = sc.surf;
         if (Math.abs(sa) > 1e-3) {
           const hh = e.height;
           r.position.set(ex + Math.sin(sa) * hh * 0.5, ey + hh * 0.5 - Math.cos(sa) * hh * 0.5 + lift, 0);
