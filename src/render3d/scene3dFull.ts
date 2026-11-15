@@ -352,6 +352,37 @@ export class Scene3DRenderer {
     };
   }
 
+  /** Debug only: raycast from a CSS-pixel viewport point and list intersected meshes, nearest first. */
+  public pickAt(px: number, py: number): Array<Record<string, unknown>> {
+    const rect = this.renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(((px - rect.left) / rect.width) * 2 - 1, -(((py - rect.top) / rect.height) * 2 - 1));
+    this.camera.updateMatrixWorld();
+    const rc = new THREE.Raycaster();
+    rc.setFromCamera(ndc, this.camera);
+    const hits = rc.intersectObjects(this.scene.children, true);
+    const hex = (c: unknown): string | null => (c instanceof THREE.Color ? `#${c.getHexString()}` : null);
+    return hits.map((h) => {
+      const o = h.object as THREE.Object3D & { material?: THREE.Material | THREE.Material[] };
+      const m = (Array.isArray(o.material) ? o.material[0] : o.material) as THREE.Material & {
+        color?: THREE.Color; emissive?: THREE.Color; opacity?: number; transparent?: boolean;
+      };
+      let named: THREE.Object3D | null = o;
+      while (named && !named.name) named = named.parent;
+      return {
+        name: o.name || named?.name || '',
+        type: o.type,
+        userData: { ...o.userData, ...(named && named !== o ? { parentUserData: named.userData } : {}) },
+        materialType: m?.type ?? null,
+        color: hex(m?.color),
+        emissive: hex(m?.emissive),
+        opacity: m?.opacity ?? null,
+        transparent: m?.transparent ?? null,
+        worldPos: { x: +h.point.x.toFixed(2), y: +h.point.y.toFixed(2), z: +h.point.z.toFixed(2) },
+        distance: +h.distance.toFixed(2),
+      };
+    });
+  }
+
   /** Converts normalized canvas cursor coordinates (-1..1 NDC) into the world aim point on the z = 0 lane. */
   public screenToWorldAim(ndcX: number, ndcY: number, w: WorldState3D): { x: number; y: number; z: number } {
     this.camera.updateMatrixWorld();
@@ -559,10 +590,12 @@ export class Scene3DRenderer {
     const sx = s.maxX - s.minX;
     const visualMaxY = s.visualMaxY ?? s.maxY;
     const sy = Math.max(0.08, visualMaxY - s.minY);
-    const sz = s.maxZ - s.minZ;
+    // Crates fill the whole collision lane; render them shallower so they never wall off the camera view.
+    const visMaxZ = s.kind === 'crate' ? Math.min(s.maxZ, 1.2) : s.maxZ;
+    const sz = visMaxZ - s.minZ;
     const cx = (s.minX + s.maxX) * 0.5;
     const cy = s.minY + sy * 0.5;
-    const cz = (s.minZ + s.maxZ) * 0.5;
+    const cz = (s.minZ + visMaxZ) * 0.5;
 
     let mat: THREE.MeshStandardMaterial;
     if (s.kind === 'catwalk' && s.minY >= 0.5) {
@@ -630,6 +663,8 @@ export class Scene3DRenderer {
 
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), mat);
     mesh.position.set(cx, cy, cz);
+    mesh.name = `solid:${s.id}`;
+    mesh.userData.pickKind = s.kind;
     mesh.castShadow = s.kind !== 'catwalk' || s.minY >= 0.5;
     mesh.receiveShadow = true;
     this.scene.add(mesh);
@@ -821,6 +856,7 @@ export class Scene3DRenderer {
       grp.add(core);
     }
 
+    grp.name = `pickup:${id}`;
     this.scene.add(grp);
     this.pickupHandles.set(id, grp);
     return grp;
@@ -1296,15 +1332,17 @@ export class Scene3DRenderer {
           }),
         );
         const core = new THREE.Mesh(
-          new THREE.SphereGeometry(0.55, 14, 12),
+          new THREE.SphereGeometry(0.4, 14, 12),
           new THREE.MeshBasicMaterial({
-            color: 0xffffff,
+            color: ex.color,
             transparent: true,
-            opacity: 0.75,
+            opacity: 0.4,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
           }),
         );
+        mesh.name = `explosion:${ex.id}`;
+        core.name = `explosion-core:${ex.id}`;
         mesh.add(core);
         this.dynGroup.add(mesh);
         this.explMeshes.set(ex.id, mesh);
@@ -1316,7 +1354,7 @@ export class Scene3DRenderer {
       const fade = Math.max(0.05, 0.85 * (1 - p));
       (mesh.material as THREE.MeshBasicMaterial).opacity = fade;
       if (mesh.children[0]) {
-        ((mesh.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = fade * 0.85;
+        ((mesh.children[0] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = fade * 0.4;
       }
     }
     for (const [id, m] of this.explMeshes) {

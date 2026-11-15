@@ -335,6 +335,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     const wall = new THREE.Mesh(geo, mat);
     wall.position.set((room.minX + room.maxX) / 2, (room.minY + room.maxY) / 2, BACK_WALL_Z);
     wall.receiveShadow = true;
+    wall.name = `decor-backwall:${room.sector}`;
     group.add(wall);
 
     const macro = track(tex.macroMap.clone());
@@ -345,6 +346,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
       track(new THREE.MeshBasicMaterial({ map: macro, blending: THREE.MultiplyBlending, transparent: true, depthWrite: false, opacity: 0.7, premultipliedAlpha: true })),
     );
     overlay.position.set(wall.position.x, wall.position.y, BACK_WALL_Z + 0.02);
+    overlay.name = `decor-backwall-overlay:${room.sector}`;
     group.add(overlay);
   }
 
@@ -362,6 +364,8 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
   ): THREE.InstancedMesh | null => {
     if (props.length === 0) return null;
     const im = new THREE.InstancedMesh(track(geo), track(mat), props.length);
+    im.name = `decor:${[...new Set(props.map((q) => q.kind))].join('+')}`;
+    im.userData.propKinds = [...new Set(props.map((q) => q.kind))];
     props.forEach((p, i) => {
       dummy.position.set(p.x, p.y, p.z);
       dummy.rotation.set(p.rot === 'flip' ? Math.PI : 0, 0, p.rot === 'x' ? Math.PI / 2 : 0);
@@ -464,7 +468,9 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     const merged = mergeGeometries(cableGeos);
     cableGeos.forEach((g) => g.dispose());
     if (merged) {
-      group.add(new THREE.Mesh(track(merged), track(new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.7, metalness: 0.2 }))));
+      const cableMesh = new THREE.Mesh(track(merged), track(new THREE.MeshStandardMaterial({ color: 0x14181e, roughness: 0.7, metalness: 0.2 })));
+      cableMesh.name = 'decor-cables';
+      group.add(cableMesh);
     }
   }
 

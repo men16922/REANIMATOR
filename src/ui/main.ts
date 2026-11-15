@@ -550,6 +550,7 @@ const wAny = window as unknown as {
   __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D) => ReturnType<typeof buildSnapshot>;
   __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => ReturnType<typeof buildSnapshot>;
   __reanimatorRunBot: (maxTicks: number, untilStep?: string) => ReturnType<typeof buildSnapshot>;
+  __reanimatorPick: (px: number, py: number) => Array<Record<string, unknown>>;
 };
 
 function enterManual(): void {
@@ -598,6 +599,9 @@ wAny.__reanimatorRunBot = (maxTicks, untilStep) => {
   hud();
   return buildSnapshot();
 };
+
+/** Debug only: list meshes under a CSS-pixel viewport point, nearest first. */
+wAny.__reanimatorPick = (px, py) => scene3d?.pickAt(px, py) ?? [];
 
 show('title');
 requestAnimationFrame(frame);

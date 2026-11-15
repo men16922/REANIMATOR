@@ -155,3 +155,9 @@
 - 다음: 추천안 확인 후 Kiro P0 — 원본 배포본·라이선스·반복 실행.
 - Git: 체크포인트에서 `git status -sb`, `git diff --stat`, `git log -3 --oneline`을 재확인했으나 Git 저장소가 아니어서 조회 불가. 커밋·푸시 없음.
 - 체크포인트: 기존 완료 기록을 갱신하고 중복 항목은 추가하지 않음. 재개 위치는 `docs/plans/REANIMATOR_PLAN.md` P0의 원본 배포본·라이선스·반복 실행.
+
+## Debug pick hook + Airlock overlay fixes
+- Added `window.__reanimatorPick(px, py)` (CSS-pixel viewport raycast, nearest first) backed by `Scene3DRenderer.pickAt`. Meshes now carry names: `solid:<id>`, `pickup:<id>`, `explosion:<id>`, `decor:<kinds>`, `decor-backwall:<sector>`, `decor-cables`.
+- (b) White sphere in orange wireframe dome: most likely the Explosion mesh (wireframe icosahedron + white additive core sphere, bot fired near the barrel/crawlers). Core is now ex.color, radius 0.4, opacity 0.4. Unverified visually.
+- (a) Dark foreground box: not identified by code alone. Candidate: `airlock-crate` (full-lane solid, front face z=3.2). Crate render depth is now capped at z=1.2. Confirm with `__reanimatorPick(320, 650)`. Unverified visually.
+- `make check` exit 0.
