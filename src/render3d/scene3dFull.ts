@@ -38,6 +38,9 @@ import {
   type EnemyRenderTelemetry,
 } from './enemyMotion.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
+import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
+import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
+import { reactorPulse } from './mood3d.ts';
 import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
@@ -230,13 +233,19 @@ interface PosSnap {
   y: number;
 }
 
+/** Ambient and sun multiplier while the headlamp is off (the lamp-on level is the preset). */
+const LAMP_OFF_DIM = 0.78;
+const HEADLAMP_INTENSITY = 90;
+
 const SECTOR_LIGHT: Record<SectorId3D, { sky: THREE.Color; sun: THREE.Color; ambient: number; sunI: number; bloom: number }> = {
-  airlock: { sky: new THREE.Color(0x8bb6df), sun: new THREE.Color(0xdcebff), ambient: 1.35, sunI: 1.9, bloom: 0.32 },
-  shaft: { sky: new THREE.Color(0x86a9c8), sun: new THREE.Color(0xd4e4f5), ambient: 1.4, sunI: 1.8, bloom: 0.3 },
-  mines: { sky: new THREE.Color(0xb59a78), sun: new THREE.Color(0xffd9a8), ambient: 1.3, sunI: 1.7, bloom: 0.36 },
-  biolabs: { sky: new THREE.Color(0x8fd1a8), sun: new THREE.Color(0xd2f5dc), ambient: 1.35, sunI: 1.7, bloom: 0.4 },
-  security: { sky: new THREE.Color(0x9ab0d6), sun: new THREE.Color(0xe6eeff), ambient: 1.45, sunI: 1.9, bloom: 0.34 },
-  core: { sky: new THREE.Color(0xc08a8a), sun: new THREE.Color(0xffc4b0), ambient: 1.3, sunI: 1.8, bloom: 0.4 },
+  // Round 3 mood pass: lower ambient and sun for deep shadow, rust / drab-green tints. `ambient` is the headlamp-on
+  // level; LAMP_OFF_DIM scales it down when the lamp is off (render only, R3.3).
+  airlock: { sky: new THREE.Color(0x748ea0), sun: new THREE.Color(0xcfdbe2), ambient: 0.98, sunI: 1.3, bloom: 0.32 },
+  shaft: { sky: new THREE.Color(0x85725c), sun: new THREE.Color(0xe6caa0), ambient: 0.95, sunI: 1.3, bloom: 0.3 },
+  mines: { sky: new THREE.Color(0x76593a), sun: new THREE.Color(0xffb870), ambient: 0.88, sunI: 1.2, bloom: 0.38 },
+  biolabs: { sky: new THREE.Color(0x628560), sun: new THREE.Color(0xc4e2a8), ambient: 0.92, sunI: 1.25, bloom: 0.4 },
+  security: { sky: new THREE.Color(0x66708a), sun: new THREE.Color(0xd2d8ee), ambient: 0.95, sunI: 1.3, bloom: 0.34 },
+  core: { sky: new THREE.Color(0x854636), sun: new THREE.Color(0xff9a70), ambient: 0.9, sunI: 1.25, bloom: 0.42 },
 };
 
 export class Scene3DRenderer {
@@ -249,6 +258,12 @@ export class Scene3DRenderer {
   public readonly fx = new FxDirector();
   private readonly fxAdd: ParticleLayer;
   private readonly fxAlpha: ParticleLayer;
+  private readonly fxSmoke: ParticleLayer;
+  private readonly goreChunks: ChunkLayer;
+  private readonly goreDecals: DecalLayer;
+  private mood: Mood3D | null = null;
+  /** Smoothed 0..1 headlamp state for lighting (render only). */
+  private lampK = 0;
   private readonly postPass: ShaderPass;
   private readonly postParams = createPostParams();
   private readonly baseFov = 38;
@@ -371,7 +386,7 @@ export class Scene3DRenderer {
     this.scene.add(this.sun);
     this.scene.add(this.sun.target);
 
-    const rimLight = new THREE.DirectionalLight(0x2bf0ff, 0.85);
+    const rimLight = new THREE.DirectionalLight(0x4fd8e8, 1.25);
     rimLight.position.set(-10, 8, -10);
     this.scene.add(rimLight);
 
@@ -393,7 +408,7 @@ export class Scene3DRenderer {
       new THREE.MeshBasicMaterial({
         color: 0x7ae8ff,
         transparent: true,
-        opacity: 0.055,
+        opacity: 0.075,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         side: THREE.DoubleSide,
@@ -402,7 +417,7 @@ export class Scene3DRenderer {
     this.scene.add(this.headlampCone);
 
     // Visual-only fill light so the operative stays readable in dark shafts
-    this.fillLight = new THREE.PointLight(0xbfe6ff, 22, 14, 1.3);
+    this.fillLight = new THREE.PointLight(0xbfe6ff, 11, 12, 1.4);
     this.scene.add(this.fillLight);
 
     this.muzzleLight = new THREE.PointLight(0x38f2ff, 0, 7, 1.6);
@@ -476,6 +491,13 @@ export class Scene3DRenderer {
     this.composer.addPass(this.postPass);
     this.fxAdd = new ParticleLayer(this.fx.add, true, false);
     this.fxAlpha = new ParticleLayer(this.fx.alpha, false, true);
+    this.fxSmoke = new ParticleLayer(this.fx.smoke, false, false);
+    this.fxSmoke.mesh.renderOrder = 18;
+    this.goreChunks = new ChunkLayer(this.fx.gore.chunks);
+    this.goreDecals = new DecalLayer(this.fx.gore.decals);
+    this.scene.add(this.goreDecals.mesh);
+    this.scene.add(this.goreChunks.mesh);
+    this.scene.add(this.fxSmoke.mesh);
     this.scene.add(this.fxAlpha.mesh);
     this.scene.add(this.fxAdd.mesh);
     this.scene.add(this.bossTele.group);
@@ -654,6 +676,8 @@ export class Scene3DRenderer {
     this.buildTrim();
     this.decor?.dispose();
     this.decor = buildDecor3D(this.scene, w.level, tex);
+    this.mood?.dispose();
+    this.mood = buildMood3D(this.scene, w.level);
     for (const r of w.level.ramps) {
       const mat = new THREE.MeshStandardMaterial({
         map: tex.grateMap,
@@ -1463,7 +1487,8 @@ export class Scene3DRenderer {
     const fogTarget = Math.min(0.02, room ? SECTOR_FOG[room.sector] : 0.012);
     this.fogDensity += (fogTarget - this.fogDensity) * Math.min(1, dt * 2);
     (this.scene.fog as THREE.FogExp2).density = this.fogDensity;
-    this.decor?.update(tSec, w.player.body.x, w.player.body.y);
+    this.decor?.update(tSec, w.player.body.x, w.player.body.y, this.reduceMotion);
+    this.mood?.update(tSec, this.reduceMotion);
     const preset = SECTOR_LIGHT[room ? room.sector : 'airlock'];
     const lk = Math.min(1, dt * 2.5);
     this.presetSky.lerp(preset.sky, lk);
@@ -1471,8 +1496,11 @@ export class Scene3DRenderer {
     this.presetAmbI += (preset.ambient - this.presetAmbI) * lk;
     this.presetSunI += (preset.sunI - this.presetSunI) * lk;
     this.bloomPass.strength += (preset.bloom - this.bloomPass.strength) * lk;
-    this.ambient.intensity = this.presetAmbI;
-    this.sun.intensity = this.presetSunI;
+    this.lampK += ((w.light.on ? 1 : 0) - this.lampK) * Math.min(1, dt * 6);
+    const dim = LAMP_OFF_DIM + (1 - LAMP_OFF_DIM) * this.lampK;
+    const reactor = !inMeltdown && room && room.sector === 'core' ? 0.86 + 0.28 * reactorPulse(tSec, this.reduceMotion) : 1;
+    this.ambient.intensity = this.presetAmbI * dim * reactor;
+    this.sun.intensity = this.presetSunI * dim;
     this.sun.color.copy(this.presetSun);
     if (inMeltdown) {
       const pulse = 0.5 + 0.5 * Math.sin(tSec * 8.5);
@@ -1546,7 +1574,7 @@ export class Scene3DRenderer {
       this.muzzleLight.position.copy(muzzlePos);
 
       // R3.3 Headlamp (100% visual-only)
-      this.headlamp.intensity = w.light.on ? 34 : 0;
+      this.headlamp.intensity = HEADLAMP_INTENSITY * this.lampK;
       this.headlampCone.visible = w.light.on;
       if (w.light.on) {
         const hx = px + pose.aimDirX * 0.35;
@@ -1828,6 +1856,9 @@ export class Scene3DRenderer {
     }
     this.fxAdd.sync();
     this.fxAlpha.sync();
+    this.fxSmoke.sync();
+    this.goreChunks.sync();
+    this.goreDecals.sync();
     this.popupLayer.sync();
     stepPostParams(this.postParams, w.currentRoom, dt, tSec, p.hp / Math.max(1, p.maxHp), this.fx.chroma, this.reduceMotion);
     {

@@ -6,6 +6,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { MapSolid3D } from '../game3d/map3d.ts';
 import type { Level3D, RoomDef3D, SectorId3D } from '../game3d/types3d.ts';
 import { mulberry32, type FacilityTextures3D } from './textures3d.ts';
+import { flickerLevel, isLampProp, lampMode, lampSeed, reactorPulse, type LampMode } from './mood3d.ts';
 
 export { mulberry32 };
 
@@ -306,7 +307,7 @@ export function layoutAllDecor(level: Level3D): DecorLayout[] {
 // ----------------------------------------------------------------------------
 
 export interface Decor3D {
-  update(tSec: number, playerX: number, playerY: number): void;
+  update(tSec: number, playerX: number, playerY: number, reduce?: boolean): void;
   /** Hides per-room meshes (back walls, dust, bubbles) whose rect lies outside the view window. */
   setView(minX: number, maxX: number, minY: number, maxY: number): void;
   dispose(): void;
@@ -510,6 +511,18 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
     core.instanceMatrix.needsUpdate = true;
     if (core.instanceColor) core.instanceColor.needsUpdate = true;
   }
+  // Broken lamps: the emissive face flickers on a deterministic pattern (the light shafts use the same seed).
+  const sectorOfProp = new Map<DecorProp, SectorId3D>();
+  for (const l of layouts) for (const p of l.props) sectorOfProp.set(p, l.sector);
+  const flickerLamps: { i: number; mode: LampMode; seed: number; r: number; g: number; b: number }[] = [];
+  glowProps.forEach((p, i) => {
+    if (!isLampProp(p)) return;
+    const seed = lampSeed(p.x, p.y);
+    const mode = lampMode(sectorOfProp.get(p) ?? 'airlock', seed);
+    if (mode === 'steady') return;
+    col.setHex(p.color).multiplyScalar(0.9);
+    flickerLamps.push({ i, mode, seed, r: col.r, g: col.g, b: col.b });
+  });
   const spriteTex = track(makeHaloTexture());
   const spriteProps = glowProps.filter((p) => Math.max(p.sx, p.sy) <= 3.5);
   const sprites = makeInstanced(
@@ -660,7 +673,7 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
 
   let lastT = 0;
   return {
-    update(tSec: number, playerX: number, playerY: number): void {
+    update(tSec: number, playerX: number, playerY: number, reduce = false): void {
       const dt = Math.min(0.1, Math.max(0, tSec - lastT));
       lastT = tSec;
       const k = dt * 60;
@@ -669,7 +682,14 @@ export function buildDecor3D(scene: THREE.Scene, level: Level3D, tex: FacilityTe
         monFrame = frame;
         drawMonitor(frame);
       }
-      pulseMat.color.setScalar(0.45 + 0.35 * Math.sin(tSec * 2.2)).multiply(col.setHex(0xff7a40));
+      pulseMat.color.setScalar(0.2 + 0.75 * reactorPulse(tSec, reduce)).multiply(col.setHex(0xff7a40));
+      if (core && flickerLamps.length > 0) {
+        for (const fl of flickerLamps) {
+          const lv = flickerLevel(fl.mode, fl.seed, tSec, reduce);
+          core.setColorAt(fl.i, col.setRGB(fl.r * lv, fl.g * lv, fl.b * lv));
+        }
+        if (core.instanceColor) core.instanceColor.needsUpdate = true;
+      }
       haloMat.opacity = 0.42 + 0.08 * Math.sin(tSec * 0.7);
       for (const b of bubbles) {
         for (let i = 0; i < b.base.length; i++) {

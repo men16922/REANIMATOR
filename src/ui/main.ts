@@ -28,6 +28,7 @@ import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
 import { renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
+import { parseGoreLevel, type GoreLevel } from '../render3d/gore3d.ts';
 import { loadProgress, menuKeyAction, PANEL_IDS, stepIndex, type TitlePanel } from './menu.ts';
 import { getFailedModelNames3D, getLoadedModelNames3D } from '../render3d/riggedModels.ts';
 
@@ -97,6 +98,8 @@ const ui = {
   resultDetail: $('result-detail'),
   reduceFlash: $<HTMLInputElement>('reduce-flash'),
   reduceFlashP: $<HTMLInputElement>('reduce-flash-p'),
+  goreLevel: $<HTMLSelectElement>('gore-level'),
+  goreLevelP: $<HTMLSelectElement>('gore-level-p'),
   hpGhost: $('hp-ghost'),
   hpPill: $('hp-pill'),
   intro: $('intro'),
@@ -108,7 +111,7 @@ const ui = {
 };
 
 // ---- persisted preferences (localStorage may be unavailable, e.g. private mode) ----
-const STORE = { intro: 'reanimator.introSeen.v1', hints: 'reanimator.hints.v1', reduce: 'reanimator.reduceFlash.v1', volume: 'reanimator.volume.v1' } as const;
+const STORE = { intro: 'reanimator.introSeen.v1', hints: 'reanimator.hints.v1', reduce: 'reanimator.reduceFlash.v1', gore: 'reanimator.goreLevel.v1', volume: 'reanimator.volume.v1' } as const;
 function store(key: string, value?: string): string | null {
   try {
     if (value !== undefined) localStorage.setItem(key, value);
@@ -304,6 +307,14 @@ function applyReduceFx(on: boolean): void {
   ui.reduceFlash.checked = on;
   ui.reduceFlashP.checked = on;
   store(STORE.reduce, on ? '1' : '0');
+}
+
+let goreLevel: GoreLevel = parseGoreLevel(store(STORE.gore));
+function applyGore(level: GoreLevel): void {
+  goreLevel = level;
+  ui.goreLevel.value = level;
+  ui.goreLevelP.value = level;
+  store(STORE.gore, level);
 }
 
 function popClass(el: HTMLElement, cls: string, ms: number, timerKey?: 'hit'): void {
@@ -595,6 +606,7 @@ function frame(t: number): void {
   }
   if (scene3d) {
     scene3d.reduceMotion = ui.reduceFlash.checked;
+    scene3d.fx.gore.level = goreLevel;
     scene3d.fxTimeScale = frozen ? 0 : fx ? fx.slowmo.scale : 1;
   }
   if (mode === 'title') {
@@ -815,6 +827,8 @@ $('controls-close').addEventListener('click', () => {
   $('controls-open').focus();
 });
 for (const el of [ui.reduceFlash, ui.reduceFlashP]) el.addEventListener('change', () => applyReduceFx(el.checked));
+for (const el of [ui.goreLevel, ui.goreLevelP]) el.addEventListener('change', () => applyGore(parseGoreLevel(el.value)));
+applyGore(goreLevel);
 applyReduceFx(store(STORE.reduce) === '1' || window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 for (const id of ['volume', 'volume-p']) {
   const el = $<HTMLInputElement>(id);
