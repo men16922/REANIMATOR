@@ -53,3 +53,5 @@
 - 브라우저 확인(Lab UI, 설정·난이도 패널, 로그 리더·엔딩, soak trace)은 unverified. `lab.png`는 재촬영 필요.
 
 이전 기준선(R7 이하): [archive/STATUS_baselines_R4_R7.md](archive/STATUS_baselines_R4_R7.md)
+## R10 Classic
+- Classic audit, CRT collapse toggle (0.4 s, instant under reduce flashing), flat Classic FX/DOM pills, meltdown alarm reduce gate. See docs/R10_CLASSIC.md. Browser checks unverified.

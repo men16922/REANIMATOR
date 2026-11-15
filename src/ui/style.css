@@ -406,6 +406,23 @@ body.classic #screen {
   image-rendering: pixelated;
 }
 
+/* R10: remaining DOM overlays under Classic. Pixel type, hard edges, no blur, glow, gradient or rounding, palette colours only. */
+body.classic .pill, body.classic #pickup-banner, body.classic #sector-card, body.classic #coach, body.classic .banner, body.classic .scan-pill, body.classic .meltdown-pill, body.classic .combo-pill, body.classic .rail-pill, body.classic .upgrade-pill, body.classic .core-pill {
+  font-family: 'Courier New', ui-monospace, monospace; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+  border-radius: 0; box-shadow: none; text-shadow: 1px 1px 0 #000; background-image: none; backdrop-filter: none; filter: none;
+  border-width: 2px; border-style: solid; background-color: #101014;
+}
+body.classic .scan-pill { color: #90f0e0; border-color: #18787c; }
+body.classic .scan-pill.active { color: #101014; background-color: #90f0e0; border-color: #f0f8f0; box-shadow: none; }
+body.classic .meltdown-pill { color: #ffd0c0; background-color: #a01810; border-color: #ff6050; animation: none; }
+body.classic .combo-pill, body.classic .upgrade-pill { color: #f0c040; border-color: #c09818; }
+body.classic .rail-pill { color: #c8b0ff; border-color: #6a3a8a; }
+body.classic .core-pill { color: #e0a040; border-color: #7a3c1c; }
+body.classic #pickup-banner, body.classic #sector-card, body.classic #coach { background-color: #101014; border: 2px solid #e0a040; color: #f0e0b0; text-shadow: 1px 1px 0 #000; }
+body.classic .bar, body.classic .bar i { border-radius: 0; box-shadow: none; background-image: none; }
+body.classic #hud.hit, body.classic .wpn-slot.switch { animation: none; box-shadow: none; }
+body.classic #damage-flash { display: none; }
+
 /* R8 assist: difficulty note, compact settings form, death cause line */
 #settings-panel .form { gap: 0.5em; }
 #settings-panel .form .note { margin: 0; max-width: 28em; font-size: 0.78em; letter-spacing: 0.06em; color: #b9a58b; text-transform: none; }

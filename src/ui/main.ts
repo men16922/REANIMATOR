@@ -24,7 +24,7 @@ import {
 import { assistAim, difficultyNote, displayClock, parseAssist, parseDifficulty, stepAutoFire } from '../game3d/assist.ts';
 import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2d.ts';
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
-import { parseCrt, parseViewMode, PixelTransition, toggleViewMode, VIEW_STORE, viewLabel, type ViewMode } from '../render3d/classicView.ts';
+import { parseCrt, parseViewMode, PixelTransition, toggleViewMode, transitionPlan, VIEW_STORE, viewLabel, type ViewMode } from '../render3d/classicView.ts';
 import { ClassicHud } from './classicHud.ts';
 import { getAudioDebug, play as playSound, playFanfare, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
 import { rankPitch } from './audioLogic.ts';
@@ -587,11 +587,12 @@ function applyCrt(on: boolean, persist = true): void {
   syncViewButtons();
 }
 
-/** 1996 <-> 2026 with the 0.4 s mosaic. Reduced-flash mode switches instantly. */
+/** 1996 <-> 2026 with the 0.4 s CRT collapse. Reduced-flash mode switches instantly. */
 function toggleView(): void {
   if (viewFx.active) return;
   const target = toggleViewMode(viewMode);
-  if (ui.reduceFlash.checked) {
+  if (!transitionPlan(ui.reduceFlash.checked).animate) {
+    viewFx.finish();
     applyView(target);
     return;
   }
