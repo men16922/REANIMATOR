@@ -14,7 +14,7 @@ import { BOSS_PHASE_COLORS, createPostParams, FxDirector, stepPostParams } from 
 import { BossTelegraph3D } from './bossTelegraph3d.ts';
 import { BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
 import { PopupLayer } from './popups3d.ts';
-import { CLASSIC_GLOW_SPRITE_SCALE, ClassicPipeline, classicOrthoHalf, remapNdcToClassic, type ViewMode } from './classicView.ts';
+import { CLASSIC_GLOW_SPRITE_SCALE, ClassicPipeline, classicOrthoHalf, gateStrobe, remapNdcToClassic, type ViewMode } from './classicView.ts';
 import { buildBootsItem, buildEnergyTankItem, buildSaveStation, createHoloMaterial, createShieldMaterial, type SaveStationProps } from './propsGfx.ts';
 import { applyPostParams, createFireballMaterial, createGroundWaveMaterial, createPostPass, createShockRingMaterial, ParticleLayer } from './fx3dGfx.ts';
 import type { SectorId3D } from '../game3d/types3d.ts';
@@ -752,6 +752,7 @@ export class Scene3DRenderer {
     this.mood?.setClassic(m === 'classic');
     this.vista?.setClassic(m === 'classic');
     this.hazards3d?.setClassic(m === 'classic');
+    this.metroid3d?.setClassic(m === 'classic');
     this.applyClassicGlow();
     if (m === 'classic' && !this.classic) this.classic = new ClassicPipeline(this.renderer);
     if (m === 'modern') {
@@ -855,6 +856,7 @@ export class Scene3DRenderer {
     this.metroid3d?.dispose();
     this.metroid3d = buildMetroid3D(this.scene, w.level);
     this.hazards3d.setClassic(this.viewMode === 'classic');
+    this.metroid3d.setClassic(this.viewMode === 'classic');
     this.mood.setClassic(this.viewMode === 'classic');
     this.applyClassicGlow();
     for (const r of w.level.ramps) {
@@ -1852,7 +1854,7 @@ export class Scene3DRenderer {
     this.sun.intensity = this.presetSunI * dim;
     this.sun.color.copy(this.presetSun);
     if (inMeltdown) {
-      const pulse = 0.5 + 0.5 * Math.sin(tSec * 8.5);
+      const pulse = gateStrobe(0.5 + 0.5 * Math.sin(tSec * 8.5), 0.5, this.reduceMotion);
       this.alarmLight.intensity = 14 + pulse * 18;
       // Rotating beacon: the existing alarm light orbits the operative so walls sweep red (no extra lights).
       const sweep = this.reduceMotion ? 0 : tSec * 2.6;

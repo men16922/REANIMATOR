@@ -8,7 +8,7 @@ import {
   computeClassicLayout,
   DITHER_SPREAD,
   PALETTE_SIZE,
-  transitionFrame,
+  crtFrame,
   transitionLabel,
   type ClassicLayout,
   type ViewMode,
@@ -222,12 +222,10 @@ export class ClassicPipeline {
   }
 }
 
-/** 2D overlay that mosaics the live canvas for 0.4 s around a view switch and shows the "1996"/"2026" label. */
+/** 2D overlay that collapses the live canvas like a CRT powering off and on over 0.4 s around a view switch and shows the "1996"/"2026" label. */
 export class PixelTransition {
   private readonly overlay: HTMLCanvasElement;
   private readonly octx: CanvasRenderingContext2D | null;
-  private readonly small: HTMLCanvasElement;
-  private readonly sctx: CanvasRenderingContext2D | null;
   private startMs = -1;
   private target: ViewMode = 'classic';
   private fired = false;
@@ -241,8 +239,6 @@ export class PixelTransition {
     this.overlay.hidden = true;
     this.overlay.setAttribute('aria-hidden', 'true');
     this.octx = this.overlay.getContext('2d');
-    this.small = document.createElement('canvas');
-    this.sctx = this.small.getContext('2d');
     // Directly after the game canvas: HUD, title and result layers stay above the mosaic.
     source.after(this.overlay);
   }
@@ -268,8 +264,8 @@ export class PixelTransition {
 
   /** Call right after the scene render of every frame (the WebGL buffer is still readable in that task). */
   public afterRender(nowMs: number): void {
-    if (this.startMs < 0 || !this.octx || !this.sctx) return;
-    const f = transitionFrame((nowMs - this.startMs) / 1000);
+    if (this.startMs < 0 || !this.octx) return;
+    const f = crtFrame((nowMs - this.startMs) / 1000);
     if (f.switched && !this.fired) {
       this.fired = true;
       this.onSwitch?.();
@@ -280,26 +276,28 @@ export class PixelTransition {
       this.onSwitch = null;
       return;
     }
+    // CRT power-off/on: the picture squashes toward one scanline, whole-pixel steps, flat black and a hard white line.
     const W = this.overlay.width;
     const H = this.overlay.height;
-    const cols = Math.max(1, Math.ceil(320 / f.block));
-    const rows = Math.max(1, Math.ceil(200 / f.block));
-    this.small.width = cols;
-    this.small.height = rows;
-    this.sctx.imageSmoothingEnabled = true;
-    this.sctx.drawImage(this.source, 0, 0, cols, rows);
+    const hh = Math.max(2, Math.round(f.heightFrac * 200) * (H / 200));
+    const y0 = Math.round((H - hh) / 2);
+    this.octx.globalAlpha = 1;
     this.octx.imageSmoothingEnabled = false;
-    this.octx.clearRect(0, 0, W, H);
-    this.octx.drawImage(this.small, 0, 0, cols, rows, 0, 0, W, H);
-    const a = Math.sin(Math.PI * f.t);
+    this.octx.fillStyle = '#000';
+    this.octx.fillRect(0, 0, W, H);
+    this.octx.drawImage(this.source, 0, 0, this.source.width, this.source.height, 0, y0, W, hh);
+    if (f.glow > 0.35) {
+      this.octx.fillStyle = f.glow > 0.9 ? '#f0f0e0' : '#a0a090';
+      this.octx.fillRect(0, Math.round(H / 2) - 2, W, 4);
+    }
     const label = transitionLabel(this.target);
     const sc = 10;
     const lw = textWidth(label) * sc;
-    this.octx.globalAlpha = Math.min(1, a * 1.6);
-    this.octx.fillStyle = 'rgba(0,0,0,0.72)';
-    this.octx.fillRect(0, H / 2 - 5 * sc, W, 10 * sc);
-    drawPixelText(this.octx, label, Math.round((W - lw) / 2), Math.round(H / 2 - (7 * sc) / 2), this.target === 'classic' ? '#e0a040' : '#80f0ff', sc);
-    this.octx.globalAlpha = 1;
+    if (f.glow > 0.8) {
+      this.octx.fillStyle = '#000';
+      this.octx.fillRect(0, H / 2 - 5 * sc, W, 10 * sc);
+      drawPixelText(this.octx, label, Math.round((W - lw) / 2), Math.round(H / 2 - (7 * sc) / 2), this.target === 'classic' ? '#e0a040' : '#80f0ff', sc);
+    }
     this.overlay.hidden = false;
   }
 }

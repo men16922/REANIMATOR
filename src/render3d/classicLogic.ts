@@ -159,6 +159,50 @@ export function transitionFrame(elapsedSec: number, duration = TRANSITION_SECOND
   return { switched: t >= 0.5, block: 1 + Math.round(peak * peak * 30), t, done: t >= 1 };
 }
 
+export interface CrtFrame {
+  /** True once the displayed mode should already be the target mode (the tube is fully collapsed at t = 0.5). */
+  switched: boolean;
+  /** Picture height as a fraction of the screen, snapped to whole internal scanlines (200 rows). 1 = full, 1/200 = one line. */
+  heightFrac: number;
+  /** White line brightness 0..1: peaks when the picture is one scanline tall. */
+  glow: number;
+  t: number;
+  done: boolean;
+}
+
+/** CRT power-off then power-on: the picture collapses to one scanline by t = 0.5 and opens again. 0.4 s total, display only. */
+export function crtFrame(elapsedSec: number, duration = TRANSITION_SECONDS): CrtFrame {
+  const t = Math.min(1, Math.max(0, elapsedSec / duration));
+  const half = t < 0.5 ? t * 2 : (1 - t) * 2; // 0 = full picture, 1 = collapsed
+  const eased = half * half * (3 - 2 * half);
+  const rows = Math.max(1, Math.round((1 - eased) * CLASSIC_HEIGHT));
+  return { switched: t >= 0.5, heightFrac: rows / CLASSIC_HEIGHT, glow: eased, t, done: t >= 1 };
+}
+
+/** Reduce flashing: the view switch is instant (no collapse, no white line). */
+export function transitionPlan(reduceFlash: boolean): { animate: boolean; seconds: number } {
+  return reduceFlash ? { animate: false, seconds: 0 } : { animate: true, seconds: TRANSITION_SECONDS };
+}
+
+/** A periodic value (siren, shutter strobe) becomes its steady midpoint when reduced motion is on. */
+export function gateStrobe(value: number, steady: number, reduce: boolean): number {
+  return reduce ? steady : value;
+}
+
+/**
+ * Classic: soft additive FX alphas (scan frames, rings, seams) fade to a flat grey dither after the palette pass.
+ * Snap them to hard steps so they stay solid colour or vanish: <0.2 hidden, <0.6 half (0.55), else full.
+ */
+export function classicFxOpacity(o: number): number {
+  if (o < 0.2) return 0;
+  return o < 0.6 ? 0.55 : 1;
+}
+
+/** Classic floor for pulsing emissive seams: removes slow breathing that dithers into shimmering noise. */
+export function classicSeamEmissive(base: number, breathing: number, classic: boolean): number {
+  return classic ? Math.max(base, 0.5) : breathing;
+}
+
 // ---- persisted preferences ----
 export const VIEW_STORE = { mode: 'reanimator.viewMode.v1', crt: 'reanimator.crt.v1' } as const;
 

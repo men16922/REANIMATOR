@@ -50,3 +50,4 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - 충돌: `tests/game3d.test.ts` 1곳, 양쪽 테스트 유지.
 - 통합 보강: `scanTargets3D`가 기댐 가짜 벽(`break_lean_security`)을 시크릿으로 분류(+테스트). 키 X/C/Z는 컨텍스트별 한 의미(사망 화면 C는 Resume, 플레이 중 C는 카운터 보조). [R9_PARRY](R9_PARRY.md).
 - 봉인 파일 무변경. `make check` exit 0(테스트 459/459, reach3d 52 waypoints 3432 ticks, 봇 5362 ticks HP 112/160 56 kills, dist-guard 13 files 14,790,497 B). 브라우저 검증은 하지 않았다(unverified).
+- R10 Classic: audit, CRT toggle transition, reduce-flash sweep (docs/R10_CLASSIC.md). make check 465/465.

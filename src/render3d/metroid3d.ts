@@ -3,11 +3,13 @@
 // Every visual is a pure function of WorldState3D (openDoors, mapRevealed, meltdown clock). No PointLights, no per-frame allocation:
 // meshes are built once per level and only toggled or moved in update().
 import * as THREE from 'three';
+import { classicFxOpacity, classicSeamEmissive } from './classicLogic.ts';
 import { SCAN_TICKS, escapeSealView3D, newScanTargets3D, scanTargets3D, type WorldState3D } from '../game3d/world3d.ts';
 import type { Level3D, MapSolid3D } from '../game3d/types3d.ts';
 
 export interface Metroid3D {
   update(w: WorldState3D, tSec: number, dt: number, reduceMotion: boolean): void;
+  setClassic(on: boolean): void;
   dispose(): void;
 }
 
@@ -323,7 +325,11 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
     root.add(shutterMesh);
   }
 
+  let classic = false;
   return {
+    setClassic(on): void {
+      classic = on;
+    },
     update(w, tSec, dt, reduceMotion): void {
       for (const b of blocks) {
         const broken = w.openDoors.has(b.s.breakId!);
@@ -331,7 +337,7 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
         b.mesh.visible = b.fade > 0.03;
         b.mat.opacity = b.fade;
         // Seams breathe so the marked block reads as breakable without a light
-        b.mat.emissiveIntensity = broken ? 1.6 : b.s.breakBy === 'lean' ? (reduceMotion ? 0.12 : 0.1 + 0.07 * Math.sin(tSec * 1.3)) : reduceMotion ? 0.55 : 0.45 + 0.2 * Math.sin(tSec * 2.4 + b.s.minX);
+        b.mat.emissiveIntensity = broken ? 1.6 : b.s.breakBy === 'lean' ? (reduceMotion ? 0.12 : 0.1 + 0.07 * Math.sin(tSec * 1.3)) : classic ? classicSeamEmissive(0.55, 0, true) : reduceMotion ? 0.55 : 0.45 + 0.2 * Math.sin(tSec * 2.4 + b.s.minX);
         if (broken) b.mesh.position.y -= dt * 2.5 * (1 - b.fade);
         else b.mesh.position.y = (b.s.minY + b.s.maxY) / 2;
       }
@@ -341,10 +347,11 @@ export function buildMetroid3D(scene: THREE.Scene, level: Level3D): Metroid3D {
       if (scanning) {
         const k = w.player.scanTicks / SCAN_TICKS;
         const fade = Math.min(1, k * 4);
-        const pulse = reduceMotion ? 1 : 1 + 0.06 * Math.sin(tSec * 8);
-        frameMat.opacity = 0.9 * fade;
-        secretMat.opacity = 0.9 * fade;
-        ringMat.opacity = 0.9 * fade;
+        const pulse = reduceMotion || classic ? 1 : 1 + 0.06 * Math.sin(tSec * 8);
+        const fo = classic ? classicFxOpacity(0.9 * fade) : 0.9 * fade;
+        frameMat.opacity = fo;
+        secretMat.opacity = fo;
+        ringMat.opacity = fo;
         const t = scanTargets3D(w, undefined, scanOut);
         // Secrets first so a crowd of breakable blocks can never push them out of the pool; each list is nearest first
         for (let pass = 0; pass < 2; pass++) {
