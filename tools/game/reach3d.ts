@@ -533,6 +533,8 @@ export function buildBreakChecks(): BreakCheck[] {
     { label: 'plate-mines', breakId: 'break_plate_mines', from: { x: 3, y: -8.6 }, target: { x: -4, y: -8.6, tolX: 0.6, tolY: 0.5 }, maxJumps: 1, back: [{ x: 3, y: -8.6, tolX: 0.6, tolY: 0.5 }] },
     // Stomp floor: Core arena floor to the cache, and back out even without the boots
     { label: 'stomp-core', breakId: 'break_stomp_core', from: { x: 96, y: 0 }, target: { x: 97.5, y: -3.4, tolX: 0.8, tolY: 0.5 }, maxJumps: 1, back: [{ x: 95.8, y: -1.9, tolX: 0.5, tolY: 0.4 }, { x: 92, y: 0, tolX: 0.8, tolY: 0.5 }] },
+    // Lean wall: the Security Deck shelf (one plain jump from the deck) to the Vault Nook, and back out by walking off the shelf
+    { label: 'lean-security', breakId: 'break_lean_security', from: { x: 68.9, y: 10.8 }, target: { x: 74, y: 10.8, tolX: 0.8, tolY: 0.5 }, maxJumps: 1, back: [{ x: 68.9, y: 10.8, tolX: 0.5, tolY: 0.5 }, { x: 64, y: 8.8, tolX: 1, tolY: 0.5 }] },
   ];
 }
 

@@ -129,7 +129,7 @@ export interface MapSolid3D {
   bridgeId?: string;
   /** Round 5: breakable block. The solid vanishes once `openDoors` holds `breakId`. `breakBy` names the only thing that breaks it. */
   breakId?: string;
-  breakBy?: 'stomp' | 'rail';
+  breakBy?: 'stomp' | 'rail' | 'lean';
   /** Round 5: solid only exists while `openDoors` holds this id (escape hatch shutter, derived from the meltdown clock) */
   sealId?: string;
   /** Round 4: moved or toggled at runtime, so the renderer draws it from hazards3d instead of the static batches */
@@ -207,11 +207,20 @@ export interface DataLog3D {
   z: number;
 }
 
+/** Loot lying in a secret pocket. Not magnetised: the player has to find the room first. */
+export interface CachePickup3D {
+  id: string;
+  kind: 'ammo' | 'med';
+  value: number;
+  x: number;
+  y: number;
+}
+
 export interface SecretRoom3D {
   id: string;
   sector: SectorId3D;
   name: string;
-  /** Door solid (Cracked Bio-Wall, yellow lock) that hides the room */
+  /** Door solid (Cracked Bio-Wall, yellow lock) or breakable block (`breakId`, including `lean` fake walls) that hides the room */
   doorId: string;
 }
 
@@ -373,6 +382,8 @@ export interface Level3D {
   collapses: CollapseSpawn3D[];
   mapStations: MapStation3D[];
   tunnels: CrawlTunnel3D[];
+  /** Round 9: loot placed inside secret pockets (ammo and medical packs). */
+  caches: CachePickup3D[];
 }
 
 export interface PlayerPoseState3D {

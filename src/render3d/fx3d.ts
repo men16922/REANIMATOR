@@ -580,7 +580,11 @@ export class FxDirector {
           case 'jump': this.dustAt(px, py + 0.05, 4, 3.2, 0); break;
           case 'double_jump': this.ring(px, py + 0.4, 0.5, 1.0, 0.9, 1.0); this.trauma.add(0.04); break;
           case 'upgrade': this.ring(px, py + 1.0, 0.5, 1.0, 0.85, 0.3); this.burst(px, py + 1.0, 1, 0.9, 0.3, 0.5, 18, 5); break;
-          case 'pickup': this.burst(px, py + 1.0, 0.4, 1, 0.8, 0.3, 8, 3); break;
+          case 'pickup':
+            if (ev.value === 0) { this.burst(px, py + 1.0, 0.4, 1, 0.55, 1, 10, 3); this.ring(px, py + 0.9, 0.55, 0.4, 1, 0.55); }
+            else if (ev.value === 1) { this.burst(px, py + 0.9, 1, 0.8, 0.25, 1, 12, 4); this.ring(px, py + 0.9, 0.45, 1, 0.8, 0.3); this.trauma.add(0.02); }
+            else this.burst(px, py + 1.0, 0.4, 1, 0.8, 0.3, 8, 3);
+            break;
           case 'win': this.trauma.add(0.5); break;
           case 'hazard_crush': if (ev.value === 1) { this.trauma.add(0.35); this.dustAt(px, py + 0.1, 6, 4, 0); } break;
           case 'barrel_explode': this.trauma.add(0.25); break;

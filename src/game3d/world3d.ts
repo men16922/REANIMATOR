@@ -514,6 +514,10 @@ export interface WorldState3D {
   shakeStrength: number;
   nextId: number;
   prevLightButton: boolean;
+  /** Round 9: ticks the player has leaned on each fake wall (`breakBy: 'lean'`), keyed by breakId. */
+  leanProgress: Record<string, number>;
+  /** Round 9: pickup magnet speed per dropped pickup id (m/s). */
+  magnetSpeed: Record<string, number>;
   /** Difficulty preset chosen at world creation (part of the deterministic setup). */
   difficulty: Difficulty3D;
   diff: DifficultyParams3D;
@@ -537,6 +541,13 @@ export const WEAPON_META: Record<WeaponSlot3D, { name: string; cooldown: number;
 };
 
 /** Ammo-drop split: each drop of value v gives ceil(v * share) of that weapon's ammo (Scatter gets the full value). */
+/** Round 9: dropped pickups drift to the player inside this horizontal range (m), accelerating up to the top speed. */
+export const MAGNET_RANGE_3D = 4.6;
+export const MAGNET_ACCEL_3D = 0.9;
+export const MAGNET_TOP_SPEED_3D = 15;
+/** Round 9: ticks of leaning on a fake wall before it gives way (0.3 s). */
+export const LEAN_TICKS_3D = 18;
+
 export const AMMO_PICKUP_SHARE_3D: Record<2 | 3 | 4 | 5 | 6, number> = { 2: 1, 3: 0.45, 4: 0.35, 5: 2.2, 6: 0.3 };
 export const AMMO_WEAPONS_3D = [2, 3, 4, 5, 6] as const;
 export const WEAPON_SLOTS_3D = [1, 2, 3, 4, 5, 6] as const;
@@ -819,6 +830,7 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
       z: 0,
       taken: false,
     })),
+    ...level.caches.map((c) => ({ id: c.id, kind: c.kind, value: c.value, x: c.x, y: c.y, z: 0, taken: false })),
   ];
 
   return {
@@ -891,6 +903,8 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
     shakeStrength: 0,
     nextId: 1,
     prevLightButton: false,
+    leanProgress: {},
+    magnetSpeed: {},
     difficulty,
     diff,
     assist,
@@ -2645,7 +2659,7 @@ function stompBlast(w: WorldState3D): void {
 export function breakBlock3D(w: WorldState3D, s: MapSolid3D): boolean {
   if (!s.breakId || w.openDoors.has(s.breakId)) return false;
   w.openDoors.add(s.breakId);
-  w.events.push({ type: 'block_break', value: s.breakBy === 'rail' ? 1 : 0 });
+  w.events.push({ type: 'block_break', value: s.breakBy === 'rail' ? 1 : s.breakBy === 'lean' ? 2 : 0 });
   w.shakeTicks = Math.max(w.shakeTicks, 10);
   w.shakeStrength = Math.max(w.shakeStrength, 0.24);
   const secret = w.level.secrets.find((sr) => sr.doorId === s.breakId);
@@ -2655,7 +2669,7 @@ export function breakBlock3D(w: WorldState3D, s: MapSolid3D): boolean {
     w.run.score += 500;
     setHint(w, `SECRET FOUND: ${secret.name.toUpperCase()}`);
   } else {
-    setHint(w, s.breakBy === 'rail' ? 'PLATE SHATTERED' : 'FLOOR BROKE');
+    setHint(w, s.breakBy === 'rail' ? 'PLATE SHATTERED' : s.breakBy === 'lean' ? 'THE WALL GIVES WAY' : 'FLOOR BROKE');
   }
   return true;
 }
@@ -2892,25 +2906,53 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   // Weapon, medical and ammo pickups
   for (const pk of w.pickups) {
     if (pk.taken) continue;
+    // Dropped ammo and medical packs (id `drop-*`) drift toward the player so a fight never ends with a chore.
+    if (pk.id.startsWith('drop-') && pk.kind !== 'weapon') {
+      // A med pack is only pulled in when the heal is worth it (hp under 80%), so walking past never wastes it
+      const wanted = pk.kind === 'ammo' || (p.hp < p.maxHp * 0.8 && w.meltdownTicks < 0);
+      const dx = p.body.x - pk.x;
+      if (wanted && Math.abs(dx) <= MAGNET_RANGE_3D && Math.abs(p.body.y - pk.y) <= 2.4) {
+        const v = Math.min(MAGNET_TOP_SPEED_3D, (w.magnetSpeed[pk.id] ?? 2) + MAGNET_ACCEL_3D);
+        w.magnetSpeed[pk.id] = v;
+        pk.x += Math.sign(dx) * Math.min(Math.abs(dx), v / 60);
+        // Only ever lift, never sink into the floor the drop rests on
+        if (p.body.y > pk.y) pk.y = Math.min(p.body.y, pk.y + (v / 60) * 0.6);
+      } else if (w.magnetSpeed[pk.id] !== undefined) {
+        w.magnetSpeed[pk.id] = 0;
+      }
+    }
     if (Math.abs(p.body.x - pk.x) <= 1.25 && Math.abs(p.body.y - pk.y) <= 1.4) {
       if (pk.kind === 'weapon' && pk.weapon) {
         pk.taken = true;
         p.unlocked[pk.weapon] = true;
         if (pk.weapon !== 1) p.ammo[pk.weapon as 2 | 3 | 4 | 5 | 6] += pk.value;
         p.weapon = pk.weapon;
-        w.events.push({ type: 'pickup' });
+        w.events.push({ type: 'pickup', value: 2 });
       } else if (pk.kind === 'med' && p.hp < p.maxHp && w.meltdownTicks < 0) {
         pk.taken = true;
         p.hp = Math.min(p.maxHp, p.hp + (w.diff.heal === 1 ? pk.value : Math.round(pk.value * w.diff.heal)));
-        w.events.push({ type: 'pickup' });
+        w.events.push({ type: 'pickup', value: 0 });
       } else if (pk.kind === 'ammo') {
         pk.taken = true;
         for (const sl of AMMO_WEAPONS_3D) {
           if (sl <= 4 || p.unlocked[sl]) p.ammo[sl] += Math.ceil(pk.value * AMMO_PICKUP_SHARE_3D[sl]);
         }
-        w.events.push({ type: 'pickup' });
+        w.events.push({ type: 'pickup', value: 1 });
       }
     }
+  }
+
+  // Fake walls: lean on one for a third of a second and it gives way (Abuse-style hidden passage)
+  for (const s of w.level.solids) {
+    if (s.breakBy !== 'lean' || !s.breakId || w.openDoors.has(s.breakId)) continue;
+    const b = p.body;
+    const toward = Math.sign((s.minX + s.maxX) / 2 - b.x);
+    const touching =
+      b.x + ABILITY_3D.radius >= s.minX - 0.12 && b.x - ABILITY_3D.radius <= s.maxX + 0.12 &&
+      b.y + 1.0 > s.minY && b.y < s.maxY && input.moveX * toward > 0.3;
+    const n = touching ? (w.leanProgress[s.breakId] ?? 0) + 1 : Math.max(0, (w.leanProgress[s.breakId] ?? 0) - 2);
+    w.leanProgress[s.breakId] = n;
+    if (n >= LEAN_TICKS_3D) breakBlock3D(w, s);
   }
 
   // Data logs

@@ -1081,7 +1081,7 @@ test('Core Warden: two identical runs produce identical boss state (deterministi
 test('exploration: secret walls (Cracked Bio-Wall) open with a Grenade blast and are counted', () => {
   const w = newWorld3D();
   // Two Cracked Bio-Walls (Grenade) plus two breakable-block secrets added in round 5 (see tests/metroid.test.ts)
-  assert.equal(w.level.secrets.length, 4);
+  assert.equal(w.level.secrets.length, 5); // plus the round 9 lean-wall Vault Nook (tests/abuse9.test.ts)
   assert.equal(w.secretsFound.length, 0);
   for (const sr of w.level.secrets.filter((x) => !x.doorId.startsWith('break_'))) {
     const d = doorSolid(w, sr.doorId);
@@ -1114,7 +1114,7 @@ test('exploration: six data logs (one per sector), completion percent and run su
   stepN(w, 1);
   assert.equal(w.completion.percent, 0);
   assert.equal(w.completion.logsTotal, 6);
-  assert.equal(w.completion.total, 6 + 4 + 7 + 5, 'logs + secrets + upgrades + weapons');
+  assert.equal(w.completion.total, 6 + 5 + 7 + 5, 'logs + secrets + upgrades + weapons');
 
   const log = w.collectibles.find((c) => c.id === 'log_mines')!;
   place(w, log.x, log.y);
@@ -1122,7 +1122,7 @@ test('exploration: six data logs (one per sector), completion percent and run su
   assert.ok(log.taken);
   assert.ok(w.events.some((e) => e.type === 'collect'));
   assert.equal(w.completion.logsFound, 1);
-  assert.equal(w.completion.percent, Math.round((100 * 1) / 22));
+  assert.equal(w.completion.percent, Math.round((100 * 1) / 23));
   // Taking it again does nothing
   stepN(w, 2);
   assert.equal(w.completion.logsFound, 1);
