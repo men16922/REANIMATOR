@@ -360,7 +360,7 @@ export class EnemyRigDriver {
     tgt.armUpR += this.recoil.x * 0.8;
 
     // lean into the run (stalker leans harder than the heavy warden)
-    tgt.spine += runLean(kind, speed, this.moveW);
+    if (!winding && !striking) tgt.spine += runLean(kind, speed, this.moveW);
 
     // lateral acceleration sway (secondary spring on the upper body)
     stepSpring(this.sway, clamp((this.moveW > 0.3 ? 0.04 : 0) * Math.sin(this.gaitPhase * Math.PI * 4), -0.05, 0.05), dt, 3, 0.4);

@@ -7,6 +7,8 @@ import { stackedPopupY } from './vfxStyle3d.ts';
 export const POPUP_GLYPHS = '0123456789x';
 export const POPUP_CAPACITY = 40;
 export const POPUP_MAX_CHARS = 5;
+/** A merged popup stops absorbing hits at this count, so sustained fire starts a fresh number at the hit point. */
+export const POPUP_MERGE_MAX = 5;
 export const GLYPH_CAPACITY = POPUP_CAPACITY * POPUP_MAX_CHARS;
 
 export interface PopupOpts {
@@ -62,7 +64,7 @@ export class PopupPool {
   spawn(text: string, x: number, y: number, o: PopupOpts): void {
     if (o.merge) {
       for (let k = 0; k < this.count; k++) {
-        if (this.mergeVal[k] === o.merge && this.age[k] < 0.4 && Math.abs(this.x[k] - x) < 0.9 && Math.abs(this.size[k] - o.size) < 1e-6) {
+        if (this.mergeVal[k] === o.merge && this.age[k] < 0.4 && Math.abs(this.x[k] - x) < 0.9 && Math.abs(this.y[k] - y) < 0.9 && this.hits[k] < POPUP_MERGE_MAX && Math.abs(this.size[k] - o.size) < 1e-6) {
           this.hits[k]++;
           this.text[k] = mergedPopupText(o.merge, this.hits[k]);
           this.age[k] = Math.min(this.age[k], 0.12);

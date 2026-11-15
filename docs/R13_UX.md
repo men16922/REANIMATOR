@@ -50,3 +50,10 @@ User steering: "enemies' running still looks awkward". Display-side only; no fil
 ### Browser evidence
 
 Screenshots in `.playwright-mcp/`: `r13-run-before-1.png`, `r13-run-after-1.png`, `r13-run-after-2.png`, `r13-classic-hud.png`. The bestiary showcase did not keep crawlers in the `crawl` clip during sampling, so crawler `footSpeed` telemetry was not observed live; the stride match is verified by the node tests. Visual smoothness of the new gait is unverified by eye on a moving crawler.
+
+## Review v1 follow-up
+
+- **Enemy run, evidence first.** Traced the bot playthrough (`tests` pin 5123 ticks, HP 118) and a live chase at the Bio-Labs door. Cause found: `separateEnemies3D` teleports a queued stalker/crawler 0.7 m every 7 ticks while it runs into a closed door (41 pops of 0.6..0.8 m in the bot run), so a runner appeared to hop back and forth in place. Fixing it in the sim (0.07 m/tick slide) removed all 41 pops but moved the pin to 5186 ticks / HP 126, so it was not shipped. Display fix instead: after such a pop the enemy x low-passes (rate 9/s) for 0.5 s (`snap`/`dispX` in `scene3dFull.ts`; stagger and attack states are excluded). Measured in the browser with one tick per 17 ms: max frame step 0.69 m to 0.18 m, wobble about 0.04 m. A sim-side fix remains an open option if the pin may move.
+- Popup merge: a popup absorbs at most `POPUP_MERGE_MAX` (5) hits and only hits within 0.9 m in y of it, so sustained fire starts a new number at the hit point. Different enemies with equal damage inside 0.9 m still merge (accepted: the number reads as combined damage).
+- Hints: `setHint` is global by default. Door lock, hive, ambush, bridge and counter hints use `roomHint` (bound to the sector where they fired); Reclaimer hints stay pinned to the hunter zone.
+- Run lean no longer stacks on the windup or strike pose. Misplaced doc comment moved. The two commits are not bisectable separately (`popupCeilNdc` in `main.ts` needs `scene3dFull.ts`); documented, history not rewritten.

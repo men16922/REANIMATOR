@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readLayers } from '../src/ui/debugLayers.ts';
-import { mergedPopupText, popupCeilWorldY, PopupPool } from '../src/render3d/popups3d.ts';
+import { mergedPopupText, popupCeilWorldY, PopupPool, POPUP_MERGE_MAX } from '../src/render3d/popups3d.ts';
 import { classicStatusText } from '../src/ui/classicHud.ts';
 import { newWorld3D, visibleHint } from '../src/game3d/world3d.ts';
 
@@ -76,4 +76,27 @@ test('popupCeilWorldY maps an NDC ceiling onto the z = 0 lane', () => {
   assert.equal(popupCeilWorldY(-1, 1, 0), 5);
   assert.equal(popupCeilWorldY(-0.5, 0.5, 0.5), 10);
   assert.equal(popupCeilWorldY(0.2, 0.2, 0.5), Infinity);
+});
+
+test('PopupPool: merging stops at the cap and ignores popups that floated away', () => {
+  const pool = new PopupPool();
+  const o = { size: 1, life: 1, r: 1, g: 1, b: 1, merge: 14 };
+  for (let i = 0; i < 12; i++) pool.spawn('14', 0, 1, o);
+  assert.ok(pool.count >= 2, 'sustained fire starts new popups instead of growing one forever');
+  assert.ok(Math.max(...Array.from(pool.hits.slice(0, pool.count))) <= POPUP_MERGE_MAX);
+  const p2 = new PopupPool();
+  p2.spawn('14', 0, 1, o);
+  p2.update(0.3);
+  p2.spawn('14', 0, 1 - 2, o);
+  assert.equal(p2.count, 2, 'a hit far below the risen popup is its own number');
+});
+
+test('setHint defaults to a global hint (pickups and saves survive a sector change)', async () => {
+  const { tryOpenDoor3D } = await import('../src/game3d/world3d.ts');
+  const w = newWorld3D();
+  const door = w.level.solids.find((s) => s.doorId && s.doorLock === 'blue');
+  assert.ok(door);
+  w.currentRoom = 'airlock';
+  tryOpenDoor3D(w, door!, 0);
+  assert.equal(w.hintSector, 'airlock', 'door lock hints are bound to the place');
 });

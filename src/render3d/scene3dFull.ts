@@ -188,6 +188,10 @@ interface EnemyViz {
   flinch: Flinch;
   /** Turn-around error (rad) before this frame's yaw step */
   turnErr: number;
+  /** Seconds of position glide left after a one-tick position pop, and the last displayed x */
+  snap: number;
+  dispX: number;
+  snapTick: number;
   /** R13: smoothed display speed (m/s) driving the single-mesh gait */
   dispSpeed?: number;
 }
@@ -2108,16 +2112,29 @@ export class Scene3DRenderer {
     for (const e of w.enemies) {
       const pe = this.prevEnemies.get(e.id) ?? { x: e.x, y: e.y };
       const ce = this.curEnemies.get(e.id) ?? { x: e.x, y: e.y };
-      const ex = Math.abs(ce.x - pe.x) > 4 ? ce.x : pe.x + (ce.x - pe.x) * a;
+      const exRaw = Math.abs(ce.x - pe.x) > 4 ? ce.x : pe.x + (ce.x - pe.x) * a;
       const ey = Math.abs(ce.y - pe.y) > 4 ? ce.y : pe.y + (ce.y - pe.y) * a;
       this.lastEnemyStates.set(e.id, e.alive ? e.state : 'dead');
-      if (e.kind === 'warden' && !e.minion) { wardenE = e; wardenX = ex; wardenY = ey; }
-
       let v = this.enemyViz.get(e.id);
       if (!v) {
-        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0, flinch: { amp: 0, kb: 0 }, turnErr: 0 };
+        v = { yaw: e.yaw, lean: 0, recoil: 0, prevHit: 0, shot: 0, prevWindup: 0, phase: (e.x * 1.7) % 6.28, gait: 0, land: 0, stagger: 0, prevVy: 0, lodAcc: 0, flinch: { amp: 0, kb: 0 }, turnErr: 0, snap: 0, snapTick: -1, dispX: exRaw };
         this.enemyViz.set(e.id, v);
       }
+      // R13: queueing or wall ejection can pop a runner 0.7 m in one tick, repeatedly. After such a pop the display x
+      // low-passes (~0.1 s) toward the sim x for 0.5 s, so the body glides through the sawtooth instead of teleporting.
+      // Knockback and lunges (stagger/attack) stay crisp.
+      if (v.snapTick !== w.tick) {
+        v.snapTick = w.tick;
+        const jump = ce.x - pe.x;
+        if (e.alive && e.surface === 'floor' && e.state !== 'stagger' && e.state !== 'attack' && e.attackAnimTicks === 0 && Math.abs(jump) > 0.4 && Math.abs(jump) < 2) v.snap = 0.5;
+      }
+      let ex = exRaw;
+      if (v.snap > 0) {
+        v.snap = Math.max(0, v.snap - dt);
+        ex = Math.abs(v.dispX - exRaw) > 2 ? exRaw : v.dispX + (exRaw - v.dispX) * (1 - Math.exp(-9 * Math.min(dt, 1 / 30)));
+      }
+      v.dispX = ex;
+      if (e.kind === 'warden' && !e.minion) { wardenE = e; wardenX = ex; wardenY = ey; }
       // Smooth turn (rate ~7) with a lean into the turn
       const yawDiff = wrapAngle(e.yaw - v.yaw);
       v.turnErr = yawDiff;
