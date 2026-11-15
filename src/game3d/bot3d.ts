@@ -179,6 +179,17 @@ export function createBot3D(w0: WorldState3D): Bot3D {
         const gap = Math.abs(b.x - sw.x) - sw.radius;
         if (b.grounded && gap > -0.8 && gap < 2.2) inp.jump = true;
       }
+      // Read the Warden's telegraphs: dash through a charge, hop incoming plasma rings
+      const wd = w.enemies.find((e) => e.kind === 'warden' && e.alive);
+      if (wd && wd.bossPattern === 'charge' && wd.lungeTicks > 0 && Math.abs(wd.x - b.x) < 5.5 && b.dashCooldown === 0) {
+        inp.dash = true;
+        inp.moveX = wd.chargeDir;
+      }
+      for (const pr of w.projectiles) {
+        if (pr.fromPlayer || pr.kind !== 'boss_plasma') continue;
+        const gx = pr.x - b.x;
+        if (b.grounded && Math.abs(gx) < 3.2 && gx * pr.vx < 0 && pr.y > b.y - 0.4 && pr.y < b.y + 1.9) inp.jump = true;
+      }
       // Dash long flat stretches during the meltdown run and to cross the Warden
       const flat = Math.abs(target.y - b.y) < 0.5 && Math.abs(target.x - b.x) > 9;
       if (b.dashCooldown === 0 && b.grounded && ((w.phase === 'escape' && flat) || (step.mode === 'boss' && bossSide === 1 && Math.abs(b.x - target.x) > 6))) {

@@ -99,6 +99,8 @@ export interface EnemyState3D {
   chargeDir: number;
   /** Warden only: remaining barrage bursts */
   barrageLeft: number;
+  /** Warden only: separate close-range swipe timer so melee never starves the pattern cycle */
+  meleeCooldown: number;
   /** Summoned Warden minion slot (dead until summoned; hidden by the renderer while dead) */
   minion: boolean;
   windupTicks: number;
@@ -346,11 +348,11 @@ export const WEAPON_MATCHUP_3D: Record<EnemyKind3D, Record<WeaponSlot3D | 0, num
 /** Per-sector enemy damage scaling: gentle start, rising pressure toward the Core. */
 export const SECTOR_DAMAGE_3D: Record<SectorId3D, number> = {
   airlock: 0.8,
-  shaft: 0.95,
-  mines: 1.1,
-  biolabs: 1.25,
-  security: 1.4,
-  core: 1.5,
+  shaft: 1.0,
+  mines: 1.2,
+  biolabs: 1.4,
+  security: 1.6,
+  core: 1.7,
 };
 
 /** Per-sector enemy toughness: soft start, tougher late game. */
@@ -371,7 +373,7 @@ export const COMPLETION_WEAPON_PEDESTALS = 3;
 export const WARDEN_CYCLE_3D: Record<1 | 2 | 3, readonly BossPattern3D[]> = {
   1: ['slam', 'volley', 'slam', 'volley'],
   2: ['charge', 'volley', 'slam', 'charge', 'volley'],
-  3: ['barrage', 'charge', 'summon', 'slam', 'barrage', 'charge'],
+  3: ['barrage', 'charge', 'summon', 'barrage', 'charge'],
 };
 const WARDEN_WINDUP: Record<Exclude<BossPattern3D, 'none'>, Record<1 | 2 | 3, number>> = {
   slam: { 1: 36, 2: 30, 3: 26 },
@@ -453,7 +455,7 @@ export function newWorld3D(): WorldState3D {
 
   const enemies: EnemyState3D[] = level.enemies.map((sp) => {
     const st = ENEMY_STATS[sp.kind];
-    const hpScale = sp.kind === 'warden' ? 1 : SECTOR_HP_3D[sp.zone];
+    const hpScale = sp.kind === 'warden' ? 1 : SECTOR_HP_3D[sp.zone] * (sp.id.startsWith('e-esc-') ? 2 : 1);
     const minion = sp.id.startsWith('e-core-m') || sp.id.startsWith('e-esc-');
     return {
       id: sp.id,
@@ -478,6 +480,7 @@ export function newWorld3D(): WorldState3D {
       exposedTicks: 0,
       chargeDir: 1,
       barrageLeft: 0,
+      meleeCooldown: 0,
       minion,
       attackCooldown: sp.kind === 'warden' ? 45 : 30,
       windupTicks: 0,
@@ -713,8 +716,9 @@ function damagePlayer(w: WorldState3D, rawDamage: number, knockX = 0): void {
 }
 
 /** Sector-scaled enemy damage (integer). */
-function scaledDamage(e: EnemyState3D, base: number): number {
-  return Math.max(1, Math.round(base * SECTOR_DAMAGE_3D[e.zone]));
+/** Enemy damage after sector scaling; the reactor meltdown adds +30% pressure. */
+function scaledDamage(w: Readonly<WorldState3D>, e: EnemyState3D, base: number): number {
+  return Math.max(1, Math.round(base * SECTOR_DAMAGE_3D[e.zone] * (w.meltdownTicks >= 0 ? 1.3 : 1)));
 }
 
 function registerKill(w: WorldState3D, e: EnemyState3D): void {
@@ -728,7 +732,7 @@ function registerKill(w: WorldState3D, e: EnemyState3D): void {
   w.run.score += (e.kind === 'warden' ? 2000 : 100) + (c.count - 1) * 50;
   // Chain reward: every kill refunds the dash; a 3+ chain also patches the hull a little
   p.body.dashCooldown = 0;
-  if (c.count >= 3) p.hp = Math.min(p.maxHp, p.hp + 5);
+  if (c.count >= 3 && w.meltdownTicks < 0) p.hp = Math.min(p.maxHp, p.hp + 5);
   if (c.count >= 2) w.events.push({ type: 'combo', value: c.count });
 }
 
@@ -778,7 +782,7 @@ function damageEnemy(
     registerKill(w, e);
     if (e.kind === 'warden') {
       w.phase = 'core';
-      w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'med', value: 50, x: e.x, y: e.y, z: 0, taken: false });
+      w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'med', value: 15, x: e.x, y: e.y, z: 0, taken: false });
       for (const m of w.enemies) {
         if (m.minion && m.alive) {
           m.alive = false;
@@ -787,7 +791,7 @@ function damageEnemy(
           m.anim = 'death';
         }
       }
-    } else if (w.player.kills % 2 === 1) {
+    } else if (w.player.kills % 2 === 1 && w.meltdownTicks < 0) {
       const ammo = w.player.kills % 4 === 1;
       w.pickups.push({
         id: `drop-${w.nextId++}`,
@@ -1182,7 +1186,7 @@ function spitterFire(w: WorldState3D, e: EnemyState3D): void {
     id: w.nextId++, kind: 'enemy_acid', fromPlayer: false,
     x: e.x + (dx / len) * 0.6, y: sy + ((ty - sy) / len) * 0.6, z: 0,
     vx: (dx / len) * 12.5, vy: ((ty - sy) / len) * 12.5, vz: 0,
-    damage: scaledDamage(e, 12), radius: 0.24, lifeTicks: 110, bounces: 0,
+    damage: scaledDamage(w, e, 12), radius: 0.24, lifeTicks: 110, bounces: 0,
   });
   e.attackCooldown = 96;
   e.attackAnimTicks = 20;
@@ -1226,6 +1230,7 @@ function stepEnemies3D(w: WorldState3D): void {
     }
 
     if (e.attackCooldown > 0) e.attackCooldown--;
+    if (e.meleeCooldown > 0) e.meleeCooldown--;
     if (e.attackAnimTicks > 0) e.attackAnimTicks--;
 
     let wantVx = 0;
@@ -1267,7 +1272,7 @@ function stepEnemies3D(w: WorldState3D): void {
         e.lungeTicks--;
         e.vx = e.chargeDir * (ph === 3 ? 19 : 17);
         if (Math.abs(pb.x - e.x) <= e.radius + ABILITY_3D.radius + 0.3 && pb.y - e.y < 1.5 && pb.y - e.y > -1.8) {
-          damagePlayer(w, scaledDamage(e, 18), e.chargeDir * 9);
+          damagePlayer(w, scaledDamage(w, e, 24), e.chargeDir * 9);
         }
         const atWall = (e.chargeDir > 0 && e.x >= floorX1) || (e.chargeDir < 0 && e.x <= floorX0);
         if (atWall || e.lungeTicks <= 0) {
@@ -1295,7 +1300,7 @@ function stepEnemies3D(w: WorldState3D): void {
             w.shockwaves.push({
               id: w.nextId++, x: e.x, y: e.y, z: 0, radius: 1.0,
               maxRadius: ph >= 2 ? 15.5 : 13.0, speed: ph === 3 ? 12.0 : ph === 2 ? 10.4 : 8.8,
-              damage: scaledDamage(e, ph === 3 ? 20 : ph === 2 ? 18 : 16), hitPlayer: false, phase: ph >= 2 ? 2 : 1,
+              damage: scaledDamage(w, e, ph === 3 ? 28 : ph === 2 ? 25 : 22), hitPlayer: false, phase: ph >= 2 ? 2 : 1,
             });
             w.shakeTicks = Math.max(w.shakeTicks, 14);
             w.shakeStrength = Math.max(w.shakeStrength, 0.36);
@@ -1314,7 +1319,7 @@ function stepEnemies3D(w: WorldState3D): void {
                 id: w.nextId++, kind: 'boss_plasma', fromPlayer: false,
                 x: e.x + Math.cos(ang) * 1.1, y: ey + Math.sin(ang) * 1.1, z: 0,
                 vx: Math.cos(ang) * (ph === 3 ? 15 : 13.5), vy: Math.sin(ang) * (ph === 3 ? 15 : 13.5), vz: 0,
-                damage: scaledDamage(e, 9), radius: 0.32, lifeTicks: 110, bounces: 0,
+                damage: scaledDamage(w, e, 12), radius: 0.32, lifeTicks: 110, bounces: 0,
               });
             }
             e.attackAnimTicks = 22;
@@ -1372,7 +1377,7 @@ function stepEnemies3D(w: WorldState3D): void {
               id: w.nextId++, kind: 'boss_plasma', fromPlayer: false,
               x: e.x + Math.cos(ang) * 1.2, y: ey + Math.sin(ang) * 1.2, z: 0,
               vx: Math.cos(ang) * 9.5, vy: Math.sin(ang) * 9.5, vz: 0,
-              damage: scaledDamage(e, 8), radius: 0.3, lifeTicks: 95, bounces: 0,
+              damage: scaledDamage(w, e, 11), radius: 0.3, lifeTicks: 95, bounces: 0,
             });
           }
           w.events.push({ type: 'slam' });
@@ -1405,10 +1410,10 @@ function stepEnemies3D(w: WorldState3D): void {
           e.anim = 'idle';
         } else {
           e.anim = e.attackAnimTicks > 0 ? 'attack' : 'idle';
-          if (e.attackCooldown <= 30 && Math.abs(dy) < 1.8) {
-            damagePlayer(w, scaledDamage(e, 12), dirX * 7);
+          if (e.meleeCooldown === 0 && Math.abs(dy) < 1.8) {
+            damagePlayer(w, scaledDamage(w, e, 16), dirX * 7);
             e.attackAnimTicks = 24;
-            e.attackCooldown = 68;
+            e.meleeCooldown = 70;
           }
         }
       }
@@ -1490,7 +1495,7 @@ function stepEnemies3D(w: WorldState3D): void {
           e.stateTicks = e.lungeTicks;
           e.vx = e.facing * (e.kind === 'crawler' ? 9 : 10.5);
           if (Math.abs(pb.x - e.x) <= e.radius + ABILITY_3D.radius + 0.6 && Math.abs(dy) < 1.55) {
-            damagePlayer(w, scaledDamage(e, e.kind === 'stalker' ? 14 : 9), e.facing * 5);
+            damagePlayer(w, scaledDamage(w, e, e.kind === 'stalker' ? 14 : 9), e.facing * 5);
             e.lungeTicks = 0;
           }
           if (e.lungeTicks <= 0) {
@@ -1810,7 +1815,7 @@ export function stepWorld3D(w: WorldState3D, input: InputState3D): WorldState3D 
         if (pk.weapon !== 1) p.ammo[pk.weapon as 2 | 3 | 4] += pk.value;
         p.weapon = pk.weapon;
         w.events.push({ type: 'pickup' });
-      } else if (pk.kind === 'med' && p.hp < p.maxHp) {
+      } else if (pk.kind === 'med' && p.hp < p.maxHp && w.meltdownTicks < 0) {
         pk.taken = true;
         p.hp = Math.min(p.maxHp, p.hp + pk.value);
         w.events.push({ type: 'pickup' });

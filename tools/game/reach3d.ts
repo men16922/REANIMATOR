@@ -76,6 +76,70 @@ export function dashReaches(
   return false;
 }
 
+/**
+ * Wall-hop probe: an exhaustive-ish "abuse" policy that presses into a wall and spams jump (and optionally dash-cancels)
+ * at several periods, trying to climb to `target`. Wall jump needs Thruster Boots (maxJumps > 1), so without boots this
+ * must never reach a boots gate.
+ */
+export function wallHopReaches(
+  start: Body3D,
+  target: NavTarget,
+  level: Level3D,
+  openDoors: ReadonlySet<string>,
+  maxJumps: number,
+  maxTicks = 900,
+): boolean {
+  const col = buildCollider3D(level, openDoors);
+  for (const dir of [1, -1]) {
+    for (const period of [4, 6, 8, 10, 14, 20]) {
+      for (const dashCancel of [false, true]) {
+        let b = { ...start };
+        for (let t = 0; t < maxTicks; t++) {
+          if (navReached(b, target) && b.grounded) return true;
+          const jump = t % period < Math.ceil(period / 2);
+          const dash = dashCancel && t % 30 === 0;
+          b = stepBody3D(
+            b,
+            { moveX: dir, moveZ: 0, jump, dash, aimDirX: dir, aimDirZ: 0, dropDown: false, maxJumps },
+            col,
+          );
+        }
+      }
+    }
+  }
+  return false;
+}
+
+export interface CollectibleCheck {
+  label: string;
+  from: { x: number; y: number };
+  target: NavTarget;
+  /** Doors opened before walking (secret doors, locks) */
+  doors: string[];
+  maxJumps: number;
+}
+
+/** Every data log must be reachable once its secret door (if any) is open. */
+export function buildCollectibleChecks(level: Level3D): CollectibleCheck[] {
+  const log = (id: string) => level.dataLogs.find((l) => l.id === id)!;
+  const all = level.solids.filter((s) => s.doorId).map((s) => s.doorId!);
+  const mk = (id: string, from: { x: number; y: number }, doors: string[], maxJumps: number, leap = false): CollectibleCheck => ({
+    label: id,
+    from,
+    target: { x: log(id).x, y: log(id).y, tolX: 0.9, tolY: 0.5, leap },
+    doors,
+    maxJumps,
+  });
+  return [
+    mk('log_airlock', { x: level.spawn.x, y: 0 }, ['door_secret_alcove'], 1),
+    mk('log_shaft', { x: 30, y: 8.8 }, ['door_secret_cache'], 2),
+    mk('log_mines', { x: 13, y: -9.6 }, all, 1, true),
+    mk('log_biolabs', { x: 46, y: 0 }, all, 1),
+    mk('log_security', { x: 65, y: 8.8 }, all, 1),
+    mk('log_core', { x: 74, y: 0 }, all, 1),
+  ];
+}
+
 export function buildReachRoute(level: Level3D): ReachStep[] {
   const ped = (id: string) => level.pedestals.find((p) => p.id === id)!;
   const up = (id: string) => level.upgrades.find((u) => u.id === id)!;
@@ -205,13 +269,39 @@ function runGate(): void {
       console.error('Jet-dash gate check FAILED (bypass without boots, or control failed with boots)');
       process.exit(1);
     }
+    const hopNo = wallHopReaches(from, g.target, level, doors, 1, 900);
+    console.log(`GATE wall-hop/dash-cancel (from x=${g.sx}, y=${g.sy}): without boots reached=${hopNo}`);
+    if (hopNo) {
+      console.error('Wall-hop gate check FAILED: wall slide / wall jump / dash cancel bypassed the Thruster Boots gate');
+      process.exit(1);
+    }
   }
+}
+
+function runCollectibles(): void {
+  const level = buildFacilityMap3D();
+  for (const c of buildCollectibleChecks(level)) {
+    const r = walkTo(spawnBody3D(c.from.x, c.from.y, 0), c.target, level, new Set(c.doors), c.maxJumps, 1200);
+    console.log(`${r.reached ? 'OK  ' : 'FAIL'} collect ${c.label.padEnd(14)} in ${r.ticks} ticks`);
+    if (!r.reached) {
+      console.error(`Collectible ${c.label} unreachable`);
+      process.exit(1);
+    }
+  }
+  // Secret doors must be sealed (solid) until opened: the alcove and cache are unreachable beforehand.
+  const sealed = walkTo(spawnBody3D(level.spawn.x, 0, 0), { x: -5, y: 0, tolX: 0.9 }, level, new Set(), 2, 600);
+  if (sealed.reached) {
+    console.error('Secret alcove reachable while sealed');
+    process.exit(1);
+  }
+  console.log('SECRETS sealed until opened: OK');
 }
 
 // Only run when executed directly (tests import walkTo/buildReachRoute).
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const total = runRoute();
   runGate();
+  runCollectibles();
   const n = buildReachRoute(buildFacilityMap3D()).length;
   console.log(`REACH3D PASS: ${n} waypoints, ${total} ticks (${(total / 60).toFixed(1)} s), Thruster Boots gate verified.`);
 }

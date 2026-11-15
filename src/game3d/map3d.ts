@@ -313,12 +313,13 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'e-esc-2', kind: 'crawler', x: 49.0, y: 0, z: 0, zone: 'biolabs' },
     { id: 'e-esc-3', kind: 'spitter', x: 33.0, y: 0, z: 0, zone: 'shaft' },
     { id: 'e-esc-4', kind: 'crawler', x: 39.5, y: 0, z: 0, zone: 'shaft' },
+    { id: 'e-esc-5', kind: 'spitter', x: 9.0, y: 5.2, z: 0, zone: 'airlock' },
   ];
 
   const dataLogs: DataLog3D[] = [
     { id: 'log_airlock', sector: 'airlock', title: 'Cryo Log 01: Alcove Manifest', x: -5, y: 0, z: 0 },
     { id: 'log_shaft', sector: 'shaft', title: 'Shaft Log 02: Roof Cache', x: 18, y: 10.2, z: 0 },
-    { id: 'log_mines', sector: 'mines', title: 'Mines Log 03: West Drift', x: 1.3, y: -11.0, z: 0 },
+    { id: 'log_mines', sector: 'mines', title: 'Mines Log 03: Vault Drift', x: 7.0, y: -8.6, z: 0 },
     { id: 'log_biolabs', sector: 'biolabs', title: 'Bio-Labs Log 04: Specimen Tray', x: 52.6, y: 4.5, z: 0 },
     { id: 'log_security', sector: 'security', title: 'Security Log 05: Override Memo', x: 68.8, y: 8.8, z: 0 },
     { id: 'log_core', sector: 'core', title: 'Core Log 06: Warden Protocol', x: 87.5, y: 2.4, z: 0 },

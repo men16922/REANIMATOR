@@ -669,7 +669,7 @@ test('monster AI: enemies in another sector stay dormant when the player telepor
   const w = newWorld3D();
   w.player.body = spawnBody3D(48, -11, 0);
   w.player.hp = 999;
-  const far = w.enemies.filter((e) => e.zone === 'airlock');
+  const far = w.enemies.filter((e) => e.zone === 'airlock' && !e.minion);
   assert.ok(far.length > 0);
   for (let i = 0; i < 60; i++) stepWorld3D(w, emptyInput3D());
   for (const e of far) assert.equal(e.state, 'dormant', `${e.id} ${e.state}`);
@@ -689,4 +689,516 @@ test('monster AI: crawler does not re-windup immediately after a lunge (cooldown
     if (prev !== 'windup' && e.state === 'windup' && lastAttack >= 0) gap = Math.min(gap, i - lastAttack);
   }
   assert.ok(gap >= 60, `windup restarted ${gap} ticks after lunge`);
+});
+
+// ---- Gameplay depth, round 1 ----
+import {
+  COMBO_WINDOW_TICKS,
+  RAIL_CHARGE_TICKS,
+  SECTOR_DAMAGE_3D,
+  WARDEN_CYCLE_3D,
+  WEAPON_MATCHUP_3D,
+  getRunSummary3D,
+} from '../src/game3d/world3d.ts';
+import { buildCollectibleChecks, wallHopReaches } from '../tools/game/reach3d.ts';
+
+/** A flat test arena with a tall east wall for wall-slide and wall-jump probes. */
+function wallArena(): Collider3D {
+  return col([box('floor', -20, 20, -1, 0), box('wall', 5, 6, 0, 30)]);
+}
+
+test('movement: wall slide caps the fall speed for everyone; wall jump needs Thruster Boots', () => {
+  const c = wallArena();
+  const start = (): Body3D => ({ ...spawnBody3D(4.55, 8, 0), grounded: false, state: 3 });
+  // Pressing into the wall while falling slides at <= wallSlideSpeed magnitude
+  let b = start();
+  for (let i = 0; i < 40; i++) b = stepBody3D(b, { ...idle, moveX: 1, maxJumps: 1 }, c);
+  assert.ok(b.wallDir === 1, 'touching the east wall');
+  assert.ok(b.vy >= ABILITY_3D.wallSlideSpeed - 1e-9, `slide speed capped, vy=${b.vy}`);
+  // Not pressing into the wall: full fall speed
+  let free = start();
+  free.x = 3;
+  for (let i = 0; i < 30; i++) free = stepBody3D(free, { ...idle, moveX: 0, maxJumps: 1 }, c);
+  assert.ok(free.vy < ABILITY_3D.wallSlideSpeed, 'no slide away from the wall');
+
+  // Without boots: pressing jump on the wall never launches
+  let nb = start();
+  for (let i = 0; i < 20; i++) nb = stepBody3D(nb, { ...idle, moveX: 1, jump: i % 4 < 2, maxJumps: 1 }, c);
+  assert.equal(nb.wallJumped, false);
+  assert.ok(nb.y < 8, 'no climbing without boots');
+
+  // With boots: a wall jump kicks up and away from the wall, with a flag for the event
+  let wb = start();
+  for (let i = 0; i < 12; i++) wb = stepBody3D(wb, { ...idle, moveX: 1, jump: false, maxJumps: 2 }, c);
+  const y0 = wb.y;
+  wb = stepBody3D(wb, { ...idle, moveX: 1, jump: true, maxJumps: 2 }, c);
+  assert.equal(wb.wallJumped, true);
+  assert.ok(wb.vy > 8 && wb.vx < -5, `up and away, vy=${wb.vy} vx=${wb.vx}`);
+  for (let i = 0; i < 6; i++) wb = stepBody3D(wb, { ...idle, moveX: 1, jump: true, maxJumps: 2 }, c);
+  assert.ok(wb.y > y0, 'gained height');
+});
+
+test('movement: wall jump event is raised by the world and counted in run stats', () => {
+  const w = newWorld3D();
+  w.player.abilities.thrusterBoots = true;
+  // Shaft east wall (x 41.6) above the ledge: stand mid-air against it
+  place(w, 41.1, 6);
+  w.player.body.grounded = false;
+  let saw = false;
+  for (let i = 0; i < 30; i++) {
+    stepWorld3D(w, { ...emptyInput3D(), moveX: 1, jump: i === 12, aimX: 50, aimY: 6 });
+    if (w.events.some((e) => e.type === 'wall_jump')) saw = true;
+  }
+  assert.ok(saw, 'wall_jump event');
+  assert.equal(w.run.wallJumps, 1);
+});
+
+test('movement: dash cancel keeps momentum into a jump; needs a jump to spend', () => {
+  const c = col([box('floor', -50, 50, -1, 0)]);
+  let b = spawnBody3D(0, 0, 0);
+  b = stepBody3D(b, { ...idle, moveX: 1, dash: true, maxJumps: 1 }, c);
+  assert.ok(b.dashTicks > 0);
+  b = stepBody3D(b, { ...idle, moveX: 1, jump: true, maxJumps: 1 }, c);
+  assert.equal(b.dashCanceled, true);
+  assert.equal(b.dashTicks, 0);
+  assert.ok(b.vy > 8, 'jump launched out of the dash');
+  assert.ok(b.vx > ABILITY_3D.runTopSpeed, `momentum kept above run speed, vx=${b.vx}`);
+  // Airborne without a spare jump: no cancel
+  let a = spawnBody3D(0, 0, 0);
+  a = stepBody3D(a, { ...idle, jump: true, maxJumps: 1 }, c);
+  a = stepBody3D(a, { ...idle, jump: false, maxJumps: 1 }, c);
+  a = stepBody3D(a, { ...idle, moveX: 1, dash: true, maxJumps: 1 }, c);
+  a = stepBody3D(a, { ...idle, moveX: 1, jump: true, maxJumps: 1 }, c);
+  assert.equal(a.dashCanceled, false, 'no spare jump, dash continues');
+});
+
+test('movement: down-dash stomp dives, lands with a blast that damages and staggers, and refunds the dash on a hit', () => {
+  const w = newWorld3D();
+  place(w, 6, 3);
+  w.player.body.grounded = false;
+  w.player.body.state = 3;
+  const e = w.enemies.find((x) => x.id === 'e-airlock-1')!;
+  e.x = 7;
+  e.y = 0;
+  e.hp = e.maxHp = 200;
+  const hp0 = e.hp;
+  let stomped = false;
+  for (let i = 0; i < 40; i++) {
+    stepWorld3D(w, { ...emptyInput3D(), dash: i === 0, dropDown: true, aimX: 10, aimY: 1 });
+    if (i === 0) assert.ok(w.player.body.stomping, 'dive started');
+    if (w.events.some((ev) => ev.type === 'stomp')) stomped = true;
+  }
+  assert.ok(stomped, 'stomp event');
+  assert.equal(w.run.stomps, 1);
+  assert.ok(e.hp < hp0, 'enemy next to the landing is hurt');
+  assert.equal(w.player.body.dashCooldown, 0, 'hit refunds the dash');
+  assert.equal(w.player.body.stomping, false);
+});
+
+test('combat: weapon matchups (Scatter shreds crawlers up close, Pulse is weak on armored Stalkers, Rail pierces)', () => {
+  assert.ok(WEAPON_MATCHUP_3D.crawler[2] > 1);
+  assert.ok(WEAPON_MATCHUP_3D.stalker[1] < 1);
+  assert.ok(WEAPON_MATCHUP_3D.stalker[4] > 1 && WEAPON_MATCHUP_3D.stalker[3] > 1);
+  assert.ok(WEAPON_MATCHUP_3D.spitter[1] > 1);
+
+  const shoot = (kind: 'crawler' | 'stalker', slot: 1 | 2, dist: number): number => {
+    const w = newWorld3D();
+    w.barrels = [];
+    place(w, 12, 0);
+    const e = w.enemies.find((x) => x.kind === kind && !x.minion)!;
+    w.enemies = [e];
+    e.x = 12 + dist;
+    e.y = 0;
+    e.hp = e.maxHp = 5000;
+    e.active = true;
+    w.currentRoom = 'airlock';
+    e.zone = 'airlock';
+    w.player.unlocked[2] = true;
+    w.player.ammo[2] = 9;
+    stepN(w, 40, { fire: true, weaponSlot: slot, aimX: e.x, aimY: 0.9 });
+    return e.maxHp - e.hp;
+  };
+  assert.ok(shoot('crawler', 2, 2) > shoot('crawler', 2, 9) * 1.3, 'Scatter falls off with range');
+  // Same shots on stalker: pulse armor shows as lower damage per shot than on a crawler
+  assert.ok(shoot('stalker', 1, 6) < shoot('crawler', 1, 6), 'armored stalker resists Pulse');
+});
+
+test('combat: Scatter knocks enemies back harder at close range', () => {
+  const run = (dist: number): number => {
+    const w = newWorld3D();
+    w.barrels = [];
+    place(w, 12, 0);
+    w.player.unlocked[2] = true;
+    w.player.ammo[2] = 9;
+    const e = w.enemies.find((x) => x.id === 'e-airlock-1')!;
+    w.enemies = [e];
+    e.x = 12 + dist;
+    e.y = 0;
+    e.hp = e.maxHp = 5000;
+    e.active = true;
+    e.zone = 'airlock';
+    w.currentRoom = 'airlock';
+    stepN(w, 1, { fire: true, weaponSlot: 2, aimX: e.x, aimY: 0.9 });
+    const x0 = e.x;
+    stepN(w, 12, { aimX: e.x, aimY: 0.9 });
+    return e.x - x0;
+  };
+  assert.ok(run(2.5) > run(8) + 0.2, 'closer target is shoved further');
+});
+
+test('combat: Rail-Cannon charges while held, fires on release, a full charge hits harder and wider', () => {
+  const dmg = (charge: number): number => {
+    const w = newWorld3D();
+    w.barrels = [];
+    place(w, 12, 0);
+    w.player.unlocked[4] = true;
+    w.player.ammo[4] = 5;
+    const e = w.enemies.find((x) => x.id === 'e-airlock-1')!;
+    w.enemies = [e];
+    e.x = 18;
+    e.y = 0;
+    e.hp = e.maxHp = 5000;
+    e.zone = 'airlock';
+    w.currentRoom = 'airlock';
+    for (let i = 0; i < charge; i++) {
+      stepWorld3D(w, { ...emptyInput3D(), weaponSlot: 4, fire: true, aimX: 18, aimY: 0.9 });
+      assert.equal(w.beams.length, 0, 'no beam while charging');
+    }
+    assert.equal(w.player.railCharge, Math.min(charge, RAIL_CHARGE_TICKS));
+    stepWorld3D(w, { ...emptyInput3D(), weaponSlot: 4, fire: false, aimX: 18, aimY: 0.9 });
+    assert.equal(w.beams.length > 0, true, 'beam on release');
+    assert.equal(w.player.railCharge, 0);
+    return e.maxHp - e.hp;
+  };
+  const tap = dmg(1);
+  const full = dmg(RAIL_CHARGE_TICKS - 1);
+  assert.ok(tap > 0);
+  assert.ok(full > tap * 1.6, `charged ${full} vs tap ${tap}`);
+
+  // Holding past full charge auto-releases
+  const w = newWorld3D();
+  place(w, 8, 0);
+  w.player.unlocked[4] = true;
+  w.player.ammo[4] = 5;
+  let fired = false;
+  for (let i = 0; i < RAIL_CHARGE_TICKS + 3 && !fired; i++) {
+    stepWorld3D(w, { ...emptyInput3D(), weaponSlot: 4, fire: true, aimX: 20, aimY: 1 });
+    fired = w.events.some((e) => e.type === 'rail');
+  }
+  assert.ok(fired, 'full charge auto-fires');
+});
+
+test('combat: chain kills raise a combo, refund the dash, and lapse after the window', () => {
+  const w = newWorld3D();
+  place(w, 8, 0);
+  const [a, b, c] = w.enemies.filter((e) => e.kind === 'crawler' && !e.minion).slice(0, 3);
+  w.enemies = [a, b, c];
+  for (const [i, e] of [a, b, c].entries()) {
+    e.x = 12 + i;
+    e.y = 0;
+    e.hp = 1;
+    e.active = true;
+    e.zone = 'airlock';
+  }
+  w.currentRoom = 'airlock';
+  w.player.body.dashCooldown = 50;
+  triggerExplosion3D(w, 13, 0.5, 0, 4, 200, 0xff7a2f, 0, 3);
+  assert.equal(w.player.kills, 3);
+  assert.equal(w.combo.count, 3);
+  assert.equal(w.combo.best, 3);
+  assert.equal(w.player.body.dashCooldown, 0, 'kills refund the dash');
+  assert.ok(w.events.some((e) => e.type === 'combo' && (e.value ?? 0) >= 2));
+  assert.equal(w.run.bestCombo, 3);
+  stepN(w, COMBO_WINDOW_TICKS + 2);
+  assert.equal(w.combo.count, 0, 'combo lapses');
+  assert.equal(w.combo.best, 3, 'best is kept');
+});
+
+// Boss helpers
+function bossWorld(): { w: WorldState3D; warden: EnemyState3D } {
+  const w = newWorld3D();
+  w.consoleUnlocked = true;
+  w.openDoors.add('door_boss');
+  place(w, 76, 0);
+  w.currentRoom = 'core';
+  w.player.hp = w.player.maxHp = 100000;
+  w.player.hurtInvulnTicks = 0;
+  const warden = w.enemies.find((e) => e.kind === 'warden')!;
+  warden.active = true;
+  warden.x = 88;
+  return { w, warden };
+}
+
+test('Core Warden: three phases at 2/3 and 1/3 HP, each phase has a deterministic telegraphed pattern cycle', () => {
+  assert.equal(WARDEN_CYCLE_3D[1].length >= 2 && WARDEN_CYCLE_3D[1].length <= 4, true);
+  for (const ph of [1, 2, 3] as const) {
+    const set = new Set(WARDEN_CYCLE_3D[ph]);
+    assert.ok(set.size >= 2 && set.size <= 3, `phase ${ph} has 2-3 distinct attacks`);
+  }
+  assert.ok(WARDEN_CYCLE_3D[2].includes('charge'));
+  assert.ok(WARDEN_CYCLE_3D[3].includes('summon') && WARDEN_CYCLE_3D[3].includes('barrage'));
+
+  const { w, warden } = bossWorld();
+  w.player.unlocked[1] = true;
+  warden.x = 84;
+  assert.equal(warden.phase, 1);
+  warden.hp = Math.floor(warden.maxHp * (2 / 3)) + 1;
+  for (let i = 0; i < 60 && warden.phase < 2; i++) stepN(w, 1, { fire: true, aimX: warden.x, aimY: 1.5 });
+  assert.equal(warden.phase, 2);
+  assert.ok(w.events.length >= 0);
+  warden.hp = Math.floor(warden.maxHp / 3) + 1;
+  let phaseEvent = 0;
+  for (let i = 0; i < 80 && warden.phase < 3; i++) {
+    stepN(w, 1, { fire: true, aimX: warden.x, aimY: 1.5 });
+    for (const e of w.events) if (e.type === 'boss_phase') phaseEvent = e.value ?? 0;
+  }
+  assert.equal(warden.phase, 3);
+  assert.equal(phaseEvent, 3, 'boss_phase event carries the new phase');
+  assert.ok(warden.exposedTicks > 0 || warden.state === 'stagger', 'phase change opens a brief weak-point window');
+});
+
+test('Core Warden: every attack has a visible windup (telegraph) before it hits, and boss_telegraph is raised', () => {
+  const seen = new Set<string>();
+  for (const phase of [1, 2, 3] as const) {
+    const { w, warden } = bossWorld();
+    warden.phase = phase;
+    warden.hp = warden.maxHp * (phase === 1 ? 0.9 : phase === 2 ? 0.5 : 0.2);
+    warden.attackCooldown = 0;
+    w.player.hurtInvulnTicks = 0;
+    let telegraphs = 0;
+    for (let i = 0; i < 1500; i++) {
+      const prevWind = warden.windupTicks;
+      const prevSw = w.shockwaves.length;
+      const prevLunge = warden.lungeTicks;
+      const prevBarrage = warden.barrageLeft;
+      const prevPlasma = w.projectiles.filter((p) => p.kind === 'boss_plasma').length;
+      stepWorld3D(w, { ...emptyInput3D(), aimX: 60, aimY: 1 });
+      w.player.hurtInvulnTicks = 0;
+      if (warden.bossPattern !== 'none') seen.add(`${phase}:${warden.bossPattern}`);
+      if (w.events.some((e) => e.type === 'boss_telegraph')) telegraphs++;
+      // Every slam, volley, charge and summon is preceded by a windup tick; barrage bursts follow a windup too
+      const plasma = w.projectiles.filter((p) => p.kind === 'boss_plasma').length;
+      if (w.shockwaves.length > prevSw) assert.ok(prevWind > 0, 'slam telegraphed');
+      if (warden.lungeTicks > 0 && prevLunge === 0) assert.ok(prevWind > 0, 'charge telegraphed');
+      if (plasma > prevPlasma && prevBarrage === 0) assert.ok(prevWind > 0, 'volley telegraphed');
+      if (plasma > prevPlasma && prevBarrage > 0) assert.ok(warden.barrageLeft < prevBarrage, 'barrage burst counted');
+    }
+    assert.ok(telegraphs >= 3, `phase ${phase} telegraphed ${telegraphs} attacks`);
+  }
+  for (const [ph, p] of [[1, 'slam'], [1, 'volley'], [2, 'charge'], [3, 'barrage'], [3, 'charge'], [3, 'summon']] as const) {
+    assert.ok(seen.has(`${ph}:${p}`), `observed ${p} in phase ${ph}`);
+  }
+});
+
+test('Core Warden: slam and charge crash open a weak-point window (x2 damage, staggered); guarded hits are reduced', () => {
+  const { w, warden } = bossWorld();
+  const base = (): number => {
+    const t = newWorld3D();
+    const wd = t.enemies.find((e) => e.kind === 'warden')!;
+    return wd.hp;
+  };
+  assert.equal(base(), warden.maxHp);
+  // Guarded
+  warden.exposedTicks = 0;
+  const g0 = warden.hp;
+  w.player.unlocked[1] = true;
+  warden.x = 82;
+  stepN(w, 1, { fire: true, aimX: 82, aimY: 1.5 });
+  for (let i = 0; i < 30 && warden.hp === g0; i++) stepN(w, 1, { fire: true, aimX: 82, aimY: 1.5 });
+  const guardedHit = g0 - warden.hp;
+  assert.ok(guardedHit > 0 && guardedHit < 18, `guarded pulse < 18, got ${guardedHit}`);
+  // Exposed
+  const { w: w2, warden: wd2 } = bossWorld();
+  wd2.exposedTicks = 200;
+  wd2.x = 82;
+  const e0 = wd2.hp;
+  for (let i = 0; i < 30 && wd2.hp === e0; i++) stepN(w2, 1, { fire: true, aimX: 82, aimY: 1.5 });
+  const exposedHit = e0 - wd2.hp;
+  assert.ok(exposedHit >= 30, `exposed pulse doubled, got ${exposedHit}`);
+  assert.equal(wd2.state, 'stagger', 'exposed boss reads as staggered');
+
+  // Charge into the wall exposes the Warden
+  const { w: w3, warden: wd3 } = bossWorld();
+  wd3.phase = 2;
+  wd3.hp = wd3.maxHp * 0.5;
+  wd3.attackCooldown = 0;
+  wd3.patternIndex = 0; // phase 2 cycle starts with charge
+  place(w3, 74, 2.6); // standing on a platform-height position keeps the player clear
+  w3.player.body.grounded = true;
+  let crashed = false;
+  for (let i = 0; i < 400 && !crashed; i++) {
+    w3.player.hp = w3.player.maxHp;
+    stepWorld3D(w3, { ...emptyInput3D(), aimX: 80, aimY: 1 });
+    if (w3.events.some((e) => e.type === 'boss_exposed')) crashed = true;
+  }
+  assert.ok(crashed, 'charge ends in an exposed window');
+  assert.ok(wd3.exposedTicks > 0);
+});
+
+test('Core Warden: Phase III summons up to two minions (dead slots revive) and they die with the Warden', () => {
+  const { w, warden } = bossWorld();
+  const minions = w.enemies.filter((e) => e.minion && e.id.startsWith('e-core-m'));
+  assert.equal(minions.length, 2);
+  assert.ok(minions.every((m) => !m.alive && m.deathTicks >= 240), 'minion slots start dead and hidden');
+  warden.phase = 3;
+  warden.hp = warden.maxHp * 0.2;
+  warden.attackCooldown = 0;
+  warden.patternIndex = 2; // summon
+  let summoned = false;
+  for (let i = 0; i < 200 && !summoned; i++) {
+    stepWorld3D(w, { ...emptyInput3D(), aimX: 60, aimY: 1 });
+    summoned = w.events.some((e) => e.type === 'boss_summon');
+  }
+  assert.ok(summoned);
+  assert.equal(minions.filter((m) => m.alive).length, 2);
+  // Defeating the Warden removes them
+  warden.hp = 1;
+  warden.exposedTicks = 100;
+  w.player.unlocked[1] = true;
+  place(w, 80, 0);
+  for (let i = 0; i < 200 && warden.alive; i++) stepN(w, 1, { fire: true, aimX: warden.x, aimY: 1.5 });
+  assert.equal(warden.alive, false);
+  assert.equal(minions.filter((m) => m.alive).length, 0);
+});
+
+test('Core Warden: two identical runs produce identical boss state (deterministic, no RNG)', () => {
+  const run = (): string => {
+    const { w, warden } = bossWorld();
+    warden.attackCooldown = 0;
+    for (let i = 0; i < 1200; i++) {
+      w.player.hp = w.player.maxHp;
+      stepWorld3D(w, { ...emptyInput3D(), moveX: i % 90 < 45 ? 1 : -1, jump: i % 50 === 0, aimX: warden.x, aimY: 1.5, fire: true });
+    }
+    return JSON.stringify([warden.hp, warden.phase, warden.x.toFixed(4), warden.patternIndex, w.projectiles.length, w.player.body.x.toFixed(4)]);
+  };
+  assert.equal(run(), run());
+});
+
+test('exploration: secret walls (Cracked Bio-Wall) open with a Grenade blast and are counted', () => {
+  const w = newWorld3D();
+  assert.equal(w.level.secrets.length, 2);
+  assert.equal(w.secretsFound.length, 0);
+  for (const sr of w.level.secrets) {
+    const d = doorSolid(w, sr.doorId);
+    assert.equal(d.doorLock, 'yellow', `${sr.id} is a Grenade lock`);
+  }
+  // Pulse cannot open it
+  tryOpenDoor3D(w, doorSolid(w, 'door_secret_alcove'), 1);
+  assert.equal(w.openDoors.has('door_secret_alcove'), false);
+  // A grenade blast next to the wall does
+  triggerExplosion3D(w, 1.2, 1.5, 0, 4.1, 0, 0xff7a2f, 0, 3);
+  assert.ok(w.openDoors.has('door_secret_alcove'));
+  assert.deepEqual(w.secretsFound, ['secret_alcove']);
+  assert.ok(w.events.some((e) => e.type === 'secret'));
+  stepN(w, 1);
+  assert.equal(w.completion.secretsFound, 1);
+  // Real grenade shot at the wall from the airlock
+  const g = newWorld3D();
+  place(g, 4, 0);
+  g.player.unlocked[3] = true;
+  g.player.ammo[3] = 3;
+  stepN(g, 1, { fire: true, weaponSlot: 3, aimX: -2, aimY: 1.2 });
+  stepN(g, 120, { aimX: -2, aimY: 1.2 });
+  assert.ok(g.openDoors.has('door_secret_alcove'), 'a thrown grenade breaks the wall');
+});
+
+test('exploration: six data logs (one per sector), completion percent and run summary fields', () => {
+  const w = newWorld3D();
+  assert.equal(w.collectibles.length, 6);
+  assert.deepEqual([...new Set(w.collectibles.map((c) => c.sector))].sort(), ['airlock', 'biolabs', 'core', 'mines', 'security', 'shaft']);
+  stepN(w, 1);
+  assert.equal(w.completion.percent, 0);
+  assert.equal(w.completion.logsTotal, 6);
+  assert.equal(w.completion.total, 6 + 2 + 3 + 3);
+
+  const log = w.collectibles.find((c) => c.id === 'log_mines')!;
+  place(w, log.x, log.y);
+  stepN(w, 1);
+  assert.ok(log.taken);
+  assert.ok(w.events.some((e) => e.type === 'collect'));
+  assert.equal(w.completion.logsFound, 1);
+  assert.equal(w.completion.percent, Math.round((100 * 1) / 14));
+  // Taking it again does nothing
+  stepN(w, 2);
+  assert.equal(w.completion.logsFound, 1);
+
+  const s = getRunSummary3D(w);
+  for (const k of ['clearTimeTicks', 'clearTimeSeconds', 'deaths', 'kills', 'collectiblesFound', 'collectiblesTotal', 'completionPercent', 'secretsFound', 'bestCombo', 'score', 'rank', 'won'] as const) {
+    assert.ok(k in s, `summary has ${k}`);
+  }
+  assert.equal(s.collectiblesFound, 1);
+  assert.equal(s.collectiblesTotal, 6);
+  assert.equal(s.won, false);
+  assert.equal(s.rank, 'C');
+});
+
+test('run stats: deaths are counted at respawn and the clock only runs while playing', () => {
+  const w = newWorld3D();
+  stepN(w, 30);
+  assert.equal(getRunSummary3D(w).clearTimeTicks, 30);
+  w.player.hp = 1;
+  w.status = 'lost';
+  respawnPlayer3D(w);
+  assert.equal(w.run.deaths, 1);
+  assert.equal(getRunSummary3D(w).deaths, 1);
+  stepN(w, 10);
+  assert.equal(w.tick, 40);
+});
+
+test('reach: wall slide, wall jump and dash cancel never bypass a Thruster Boots gate; every log is reachable', () => {
+  const level = buildFacilityMap3D();
+  const doors = new Set(level.solids.filter((s) => s.doorId).map((s) => s.doorId!));
+  const gates = [
+    { sx: 38, sy: 4.4, target: { x: 31, y: 8.8 } },
+    { sx: 65, sy: 4.4, target: { x: 65, y: 8.8 } },
+    { sx: 55, sy: 4.5, target: { x: 65, y: 8.8 } },
+  ];
+  for (const g of gates) {
+    assert.equal(wallHopReaches(spawnBody3D(g.sx, g.sy, 0), g.target, level, doors, 1, 900), false, `wall-hop bypass at x=${g.sx}`);
+  }
+  for (const c of buildCollectibleChecks(level)) {
+    const r = walkTo(spawnBody3D(c.from.x, c.from.y, 0), c.target, level, new Set(c.doors), c.maxJumps, 1200);
+    assert.equal(r.reached, true, `${c.label} reachable`);
+  }
+});
+
+test('difficulty curve: sector damage rises toward the Core and the bot still wins while taking real damage', () => {
+  const order = ['airlock', 'shaft', 'mines', 'biolabs', 'security', 'core'] as const;
+  for (let i = 1; i < order.length; i++) assert.ok(SECTOR_DAMAGE_3D[order[i]] >= SECTOR_DAMAGE_3D[order[i - 1]]);
+  assert.ok(SECTOR_DAMAGE_3D.airlock < 1 && SECTOR_DAMAGE_3D.core > 1.3);
+
+  const w = newWorld3D();
+  const bot = createBot3D(w);
+  let minHp = w.player.hp;
+  let lost = 0;
+  for (let t = 0; t < 14000 && w.status !== 'won'; t++) {
+    const before = w.player.hp;
+    stepWorld3D(w, bot.next(w));
+    if (w.player.hp < before) lost += before - w.player.hp;
+    minHp = Math.min(minHp, w.player.hp);
+    if (w.status === 'lost') assert.fail(`bot died at "${bot.stepLabel}"`);
+  }
+  assert.equal(w.status, 'won');
+  assert.ok(w.player.hp >= 60 && w.player.hp <= 140, `final HP ${w.player.hp} within 60..140`);
+  assert.ok(lost >= 80, `bot actually takes damage (lost ${lost})`);
+  assert.ok(minHp < 100, `HP dips below the base pool (min ${minHp})`);
+  const s = getRunSummary3D(w);
+  assert.equal(s.won, true);
+  assert.equal(s.deaths, 0);
+  assert.ok(s.kills >= 20);
+  assert.ok(s.completionPercent >= 40);
+});
+
+test('extraction ambush: meltdown wakes hold-outs along the escape route and stops med drops', () => {
+  const w = newWorld3D();
+  const esc = w.enemies.filter((e) => e.id.startsWith('e-esc-'));
+  assert.ok(esc.length >= 4 && esc.every((e) => !e.alive));
+  w.enemies.find((e) => e.kind === 'warden')!.alive = false;
+  place(w, 88, 0);
+  w.player.unlocked[4] = true;
+  w.player.ammo[4] = 5;
+  w.coreHp = 10;
+  railShot(w, w.level.corePos.x, 1.4);
+  assert.ok(w.coreDestroyed);
+  assert.ok(esc.every((e) => e.alive), 'ambush slots are live');
 });
