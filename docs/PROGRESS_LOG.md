@@ -180,3 +180,8 @@
 - 수정: 문 장식 빌드를 `decor3d.ts`의 `buildDoorDressingMeshes`로 추출하고 `DOOR_LAMPS_PER_DOOR = 8`을 단일 출처로 사용한다.
 - 테스트: `tests/render-buffers.test.ts` 2건(문 장식, buildDecor3D 전체: attribute 길이·index 범위·instanceMatrix/instanceColor >= count). 상수를 7로 되돌리면 실패함을 확인했다.
 - `make check` exit 0: node tests 79/79, reach3d 52 waypoints, dist-guard PASS. 브라우저 콘솔 확인은 unverified.
+
+## R1 통합 (2026-11-15)
+- main에 `--no-ff`로 r1/gameplay → r1/perf → r1/juice → r1/title 병합. 충돌은 scene3dFull.ts(juice 텔레메트리/perf, 카메라 rig/title 어트랙트)와 main.ts(observe/flash/reset)에서만 발생. 양쪽 의도 유지: 어트랙트 카메라는 fx.rig 포커스를 쓰되 셰이크·FOV 킥 제외.
+- 연결: 결과 화면 `buildRunStats`는 `updateCompletion3D`+`getRunSummary3D`에서 시간·처치·사망·수집%·랭크를 가져온다(패배 시 사망 +1). 온보딩은 시크릿 벽 힌트를 숨긴다. HUD에 콤보, 레일 차지, 보스 EXPOSED, 데이터 로그·시크릿 배너를 추가했고 데이터 로그는 pickup 비주얼 경로(보라색)로 그린다.
+- `make check` exit 0(reach3d 52 waypoints 3431 ticks, dist-guard PASS 13 files 14,468,007 B). 브라우저 검증은 오케스트레이터가 수행 예정(unverified).

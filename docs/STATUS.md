@@ -37,3 +37,6 @@
 ## 병렬 개선 3트랙 통합 (2026-11-15)
 - monsters(적 모션·림·사망 연출), terrain(조명 베젤·플랫폼 베벨·섹터 재질·문), audio(재작성 오디오·디렉터·Music/Effects 슬라이더)가 main에 병합됨. `make check` exit 0.
 - 세 트랙의 브라우저 시각·청취 검증은 unverified(오케스트레이터 확인 예정).
+
+## R1 통합 (2026-11-15)
+- gameplay/perf/juice/title 4브랜치 main 병합 완료, `make check` exit 0. 브라우저 시각·플레이 검증은 오케스트레이터 예정(unverified). 푸시 안 함, worktree 보존.

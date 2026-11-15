@@ -64,3 +64,6 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 ## 병렬 3트랙 통합 후 확인(unverified, 오케스트레이터)
 - Playwright로 적 alert/사망 연출·yaw 캡, 섹터별 지형·문 시각, `window.__reanimatorAudio`·슬라이더·BGM 전환 확인.
 - 확인 후 /private/tmp/Kiroween2026-wt-{monsters,terrain,audio} worktree와 improve/* 브랜치 정리 여부 결정. 푸시는 DNS 복구 후.
+
+## R1 후속
+- [ ] 오케스트레이터 브라우저 검증: 타이틀·어트랙트 카메라와 컬링, 히트스톱/슬로모, 콤보·레일 차지·보스 EXPOSED HUD, 데이터 로그/시크릿 배너, 결과 화면 수치 일치.
