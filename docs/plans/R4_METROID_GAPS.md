@@ -9,12 +9,12 @@ Rule: Abuse (1996) is the reference for movement physics and the 90s look. Where
 | No map | Sector map with visited rooms, doors and save marks | Done |
 | Flat enemy behaviour | Telegraphed boss phases, per-kind AI | Done (R2, R3 foes) |
 | No traversal depth | Next: wall-jump on marked surfaces, dash-slide under low gaps | Proposed, owned by the player track (C) |
-| No melee counter | Next: Dread-style parry that opens a stagger window | Proposed |
-| No scanning or lore | Data-log holograms exist; next: scan a foe for weakness text | Proposed |
+| No melee counter | Dread-style parry: press X/C in the last 8 ticks of a crawler/stalker lunge windup | Implemented R9 (`docs/R9_PARRY.md`) |
+| No scanning or lore | Data-log holograms exist. Scan Pulse (Z) reveals breakables, secrets and items within 14 m for 4 s | Scan Pulse implemented R9 (`docs/R9_PARRY.md`); foe weakness text still proposed |
 | No emergency run | Meltdown escape timer after the core falls | Done |
 
 Rules for adding any of these: keep Abuse-style 2D readability (side view, one z=0 combat lane), keep movement in `src/engine/motion3d.ts`, never touch sealed restoration files.
 
 ## R5 status
 
-Implemented in `docs/R5_METROID.md`: dash-slide (Crawl Slide, two tunnels), shootable and stompable blocks, map terminals with `?` markers, backtracking rewards, escape hatch beats. Still proposed: parry, scan.
+Implemented in `docs/R5_METROID.md`: dash-slide (Crawl Slide, two tunnels), shootable and stompable blocks, map terminals with `?` markers, backtracking rewards, escape hatch beats. Parry and Scan Pulse landed in R9 (`docs/R9_PARRY.md`).

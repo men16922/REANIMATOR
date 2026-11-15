@@ -82,6 +82,8 @@ code { color: var(--c-gold); font-family: var(--font-mono); }
 .time-pill { margin-left: auto; opacity: 0.9; }
 .upgrade-pill { color: #d9b8ff; border-color: var(--c-violet); background: rgba(46, 24, 78, 0.8); box-shadow: 0 0 8px rgba(183, 125, 255, 0.35); font-weight: 700; }
 .upgrade-pill[hidden] { display: none; }
+.scan-pill { color: #8fe9ff; border-color: #2a8ba6; }
+.scan-pill.active { background: rgba(20, 70, 90, 0.85); box-shadow: 0 0 8px rgba(82, 229, 255, 0.45); }
 .etank-pill { color: #9fe9ff; }
 .etank-pill b { color: var(--c-green); }
 .bar { position: relative; display: inline-block; width: 5.5em; height: 0.62em; border: 1px solid #5c768e; background: #0a1017; vertical-align: middle; overflow: hidden; border-radius: 1px; }

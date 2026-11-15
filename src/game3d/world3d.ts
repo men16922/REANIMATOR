@@ -46,6 +46,10 @@ export interface InputState3D {
   /** World-space aim point on the z = 0 plane */
   aimX: number;
   aimY: number;
+  /** Melee Counter (parry). Opt-in: omitted or false means the sim is identical to a build without it. Edge-triggered. */
+  counter?: boolean;
+  /** Scan Pulse. Opt-in and edge-triggered like `counter`. The sim only keeps a timer, a cooldown and the reveal flag. */
+  scan?: boolean;
 }
 
 export interface PlayerAbilities3D {
@@ -82,6 +86,14 @@ export interface PlayerState3D {
   hurtFlashTicks: number;
   acidCooldown: number;
   kills: number;
+  /** Melee Counter: whiff lockout ticks left, previous-tick button (edge detect) and stance ticks left (display only) */
+  counterCooldown: number;
+  counterPrev: boolean;
+  counterStance: number;
+  /** Scan Pulse: reveal ticks left (the reveal flag is scanTicks > 0), cooldown ticks left and previous-tick button */
+  scanTicks: number;
+  scanCooldown: number;
+  scanPrev: boolean;
 }
 
 export interface EnemyState3D {
@@ -118,6 +130,8 @@ export interface EnemyState3D {
   /** Summoned Warden minion slot (dead until summoned; hidden by the renderer while dead) */
   minion: boolean;
   windupTicks: number;
+  /** True while a crawler/stalker lunge windup is inside its last PARRY_WINDOW_TICKS ticks (the Melee Counter window). Renderer flashes it. */
+  parryOpen: boolean;
   attackAnimTicks: number;
   staggerTicks: number;
   hitFlashTicks: number;
@@ -648,6 +662,20 @@ export const STOMP_RADIUS = 3.0;
 export const STOMP_DAMAGE = 60;
 export const COMPLETION_WEAPON_PEDESTALS = 5;
 
+/** Melee Counter (parry). The window is the last N ticks of a crawler/stalker windup; a press outside it whiffs. */
+export const PARRY_WINDOW_TICKS = 8;
+export const PARRY_REACH = 3.6;
+export const PARRY_WHIFF_COOLDOWN = 30;
+export const PARRY_STANCE_TICKS = 12;
+export const PARRY_STAGGER_TICKS = 50;
+export const PARRY_DAMAGE = 45;
+export const PARRY_INVULN_TICKS = 24;
+
+/** Scan Pulse: reveal lasts SCAN_TICKS, the next scan is allowed SCAN_COOLDOWN_TICKS after the press. Display aid only, never gates the sim. */
+export const SCAN_TICKS = 240;
+export const SCAN_COOLDOWN_TICKS = 600;
+export const SCAN_RADIUS = 14;
+
 /** Warden pattern cycle per phase (deterministic, no RNG). */
 export const WARDEN_CYCLE_3D: Record<1 | 2 | 3, readonly BossPattern3D[]> = {
   1: ['slam', 'volley', 'slam', 'volley'],
@@ -676,6 +704,8 @@ export function emptyInput3D(): InputState3D {
     weaponSlot: 0,
     aimX: 12,
     aimY: 1.05,
+    counter: false,
+    scan: false,
   };
 }
 
@@ -762,6 +792,7 @@ function buildEnemy3D(sp: EnemySpawn3D, hiveId = '', hpMul = 1): EnemyState3D {
     minion,
     attackCooldown: sp.kind === 'warden' ? 45 : 30,
     windupTicks: 0,
+    parryOpen: false,
     attackAnimTicks: 0,
     staggerTicks: 0,
     hitFlashTicks: 0,
@@ -869,6 +900,12 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
       hurtFlashTicks: 0,
       acidCooldown: 0,
       kills: 0,
+      counterCooldown: 0,
+      counterPrev: false,
+      counterStance: 0,
+      scanTicks: 0,
+      scanCooldown: 0,
+      scanPrev: false,
     },
     currentRoom: 'airlock',
     visitedRooms: ['airlock'],
@@ -1884,6 +1921,7 @@ function stepEnemies3D(w: WorldState3D): void {
   const pb = w.player.body;
 
   for (const e of w.enemies) {
+    e.parryOpen = false;
     if (e.hitFlashTicks > 0) e.hitFlashTicks--;
     const angleErr = surfaceTargetAngle(e) - e.surfaceAngle;
     e.surfaceAngle += Math.max(-0.3, Math.min(0.3, angleErr));
@@ -2179,6 +2217,7 @@ function stepEnemies3D(w: WorldState3D): void {
           e.anim = 'idle';
           e.stateTicks--;
           if (e.windupTicks > 0) e.windupTicks--;
+          if (lunger && e.windupTicks > 0 && e.windupTicks <= PARRY_WINDOW_TICKS) e.parryOpen = true;
           if (e.stateTicks <= 0) {
             e.windupTicks = 0;
             if (lunger) {
@@ -2358,6 +2397,135 @@ function stepEnemies3D(w: WorldState3D): void {
     e.speedNow = Math.abs(e.vx);
     if (isWarden && e.windupTicks === 0 && e.attackAnimTicks === 0) e.anim = Math.abs(e.vx) > 0.5 ? 'walk' : 'idle';
   }
+}
+
+/**
+ * Melee Counter: on the press edge, the nearest crawler/stalker whose lunge windup is inside its parry window is staggered,
+ * takes bonus damage and always drops a pickup. A press with nothing in the window whiffs and locks the button briefly.
+ */
+function stepCounter3D(w: WorldState3D, pressed: boolean): void {
+  const p = w.player;
+  if (p.counterCooldown > 0) p.counterCooldown--;
+  if (p.counterStance > 0) p.counterStance--;
+  const edge = pressed && !p.counterPrev;
+  p.counterPrev = pressed;
+  if (!edge || p.counterCooldown > 0) return;
+  p.counterStance = PARRY_STANCE_TICKS;
+  let best: EnemyState3D | null = null;
+  let bestD = Infinity;
+  for (const e of w.enemies) {
+    if (!e.alive || !e.active || !e.parryOpen) continue;
+    const d = Math.abs(e.x - p.body.x);
+    if (d > PARRY_REACH || Math.abs(e.y - p.body.y) > 1.8 || d >= bestD) continue;
+    best = e;
+    bestD = d;
+  }
+  if (!best) {
+    p.counterCooldown = PARRY_WHIFF_COOLDOWN;
+    w.events.push({ type: 'parry_whiff' });
+    return;
+  }
+  const e = best;
+  const dir: 1 | -1 = e.x >= p.body.x ? 1 : -1;
+  e.parryOpen = false;
+  e.windupTicks = 0;
+  e.staggerTicks = PARRY_STAGGER_TICKS;
+  e.state = 'stagger';
+  e.stateTicks = PARRY_STAGGER_TICKS;
+  e.vx = 0;
+  p.facing = dir;
+  p.hurtInvulnTicks = Math.max(p.hurtInvulnTicks, PARRY_INVULN_TICKS);
+  p.body.dashCooldown = 0;
+  w.shakeTicks = Math.max(w.shakeTicks, 8);
+  w.shakeStrength = Math.max(w.shakeStrength, 0.22);
+  w.events.push({ type: 'parry', value: w.enemies.indexOf(e) });
+  damageEnemy(w, e, PARRY_DAMAGE, dir * 4);
+  // Hive larvae respawn on a cadence, so they never drop: otherwise parrying a nest would farm health and ammo
+  if (w.meltdownTicks < 0 && e.hive === '') {
+    const ammo = p.hp >= p.maxHp;
+    w.pickups.push({ id: `drop-${w.nextId++}`, kind: ammo ? 'ammo' : 'med', value: ammo ? 8 : 12, x: e.x, y: e.y, z: 0, taken: false });
+  }
+}
+
+/** Scan Pulse: edge press starts the reveal when the cooldown is over. Timers only; nothing else reads them. */
+function stepScan3D(w: WorldState3D, pressed: boolean): void {
+  const p = w.player;
+  if (p.scanTicks > 0) p.scanTicks--;
+  if (p.scanCooldown > 0) p.scanCooldown--;
+  const edge = pressed && !p.scanPrev;
+  p.scanPrev = pressed;
+  if (!edge || p.scanCooldown > 0) return;
+  p.scanTicks = SCAN_TICKS;
+  p.scanCooldown = SCAN_COOLDOWN_TICKS;
+  w.events.push({ type: 'scan' });
+}
+
+export interface ScanTargets3D {
+  /** Unbroken breakable blocks (includes secret-room walls broken by stomp or rail) */
+  blocks: MapSolid3D[];
+  /** Unfound secret-room door walls (yellow lock) */
+  secrets: MapSolid3D[];
+  /** Untaken pickups, including ones behind walls */
+  pickups: PickupState3D[];
+}
+
+/** Reusable result holder: pass the same object every frame to avoid allocation. */
+export function newScanTargets3D(): ScanTargets3D {
+  return { blocks: [], secrets: [], pickups: [] };
+}
+
+/** Insertion sort by squared distance to (px, py); lists are tiny and this allocates nothing. */
+function sortByDist<T>(list: T[], px: number, py: number, pos: (t: T) => [number, number] | { x: number; y: number }): void {
+  const d = (t: T): number => {
+    const q = pos(t);
+    const x = Array.isArray(q) ? q[0] : q.x;
+    const y = Array.isArray(q) ? q[1] : q.y;
+    return (x - px) * (x - px) + (y - py) * (y - py);
+  };
+  for (let i = 1; i < list.length; i++) {
+    const v = list[i];
+    const dv = d(v);
+    let j = i - 1;
+    while (j >= 0 && d(list[j]) > dv) {
+      list[j + 1] = list[j];
+      j--;
+    }
+    list[j + 1] = v;
+  }
+}
+
+/**
+ * Pure radius query used by the renderer while the reveal flag is set. Distance is measured from the player to the target centre.
+ * Each list is sorted nearest first. Pass `out` (from newScanTargets3D) to reuse its arrays instead of allocating.
+ */
+export function scanTargets3D(w: WorldState3D, radius: number = SCAN_RADIUS, out: ScanTargets3D = newScanTargets3D()): ScanTargets3D {
+  const px = w.player.body.x;
+  const py = w.player.body.y;
+  const near = (cx: number, cy: number): boolean => Math.hypot(cx - px, cy - py) <= radius;
+  out.blocks.length = 0;
+  out.secrets.length = 0;
+  out.pickups.length = 0;
+  for (const s of w.level.solids) {
+    const isBlock = !!s.breakId && !w.openDoors.has(s.breakId);
+    let isSecret = false;
+    if (!isBlock && s.doorId && !w.openDoors.has(s.doorId)) {
+      for (const sr of w.level.secrets) {
+        if (sr.doorId === s.doorId && !w.secretsFound.includes(sr.id)) {
+          isSecret = true;
+          break;
+        }
+      }
+    }
+    if (!isBlock && !isSecret) continue;
+    if (!near((s.minX + s.maxX) / 2, (s.minY + s.maxY) / 2)) continue;
+    (isSecret ? out.secrets : out.blocks).push(s);
+  }
+  for (const k of w.pickups) if (!k.taken && near(k.x, k.y + 0.5)) out.pickups.push(k);
+  const centre = (s: MapSolid3D): [number, number] => [(s.minX + s.maxX) / 2, (s.minY + s.maxY) / 2];
+  sortByDist(out.blocks, px, py, centre);
+  sortByDist(out.secrets, px, py, centre);
+  sortByDist(out.pickups, px, py - 0.5, (k) => k);
+  return out;
 }
 
 /** Hives birth larvae on a fixed cadence (deterministic, no RNG) while the player is near, up to HIVE_CAP_3D alive each. */
@@ -3037,6 +3205,8 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
     }
   }
 
+  stepCounter3D(w, input.counter === true);
+  stepScan3D(w, input.scan === true);
   stepSwitches3D(w, input.interact);
   stepProjectiles3D(w);
   stepBurn3D(w);

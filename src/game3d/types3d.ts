@@ -58,7 +58,12 @@ export type SoundEventType3D =
   | 'flamer'
   | 'rocket'
   | 'burn'
-  | 'rocket_jump';
+  | 'rocket_jump'
+  // Round 9: Melee Counter. parry value = enemy index; parry_whiff = pressed outside the window
+  | 'parry'
+  | 'parry_whiff'
+  // Round 9: Scan Pulse started
+  | 'scan';
 
 export interface SoundEvent3D {
   type: SoundEventType3D;

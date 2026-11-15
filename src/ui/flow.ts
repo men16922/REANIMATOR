@@ -107,6 +107,8 @@ const DOOR_RULE: Record<DoorLockKind3D, Hint | null> = {
   escape: null,
 };
 
+/** About 10 s of display at 60 updates per second */
+const COUNTER_HINT_CAP = 600;
 const NEAR_DOOR = 5.5;
 const NEAR_SAVE = 4;
 /** Terminals only announce themselves up close, so the spawn-side airlock terminal never pre-empts the opening tutorial */
@@ -115,19 +117,22 @@ const NEAR_MAP = 2.4;
 /** Tracks which hints are finished and chooses the one to show now (at most one at a time). */
 export class Onboarding {
   readonly done: Set<string>;
+  /** Updates that showed the counter hint; it retires itself after COUNTER_HINT_CAP so it cannot nag forever */
+  private counterShown = 0;
   readonly usage: InputUsage = { moved: false, jumped: false, fired: false, dashed: false, light: false, weapon: false };
 
   constructor(done: Iterable<string> = []) {
     this.done = new Set(done);
   }
 
-  observe(inp: Pick<InputState3D, 'moveX' | 'jump' | 'fire' | 'dash' | 'toggleLight' | 'weaponSlot'>): void {
+  observe(inp: Pick<InputState3D, 'moveX' | 'jump' | 'fire' | 'dash' | 'toggleLight' | 'weaponSlot'> & { counter?: boolean }): void {
     if (inp.moveX !== 0) this.usage.moved = true;
     if (inp.jump) this.usage.jumped = true;
     if (inp.fire) this.usage.fired = true;
     if (inp.dash) this.usage.dashed = true;
     if (inp.toggleLight) this.usage.light = true;
     if (inp.weaponSlot) this.usage.weapon = true;
+    if (inp.counter) this.done.add('counter');
   }
 
   /** Returns the hint to show, or null. Marks hints done when the player performs the action. */
@@ -178,6 +183,18 @@ export class Onboarding {
       else {
         for (const tn of w.level.tunnels) {
           if (Math.hypot(tn.approach.x - p.x, tn.approach.y - p.y) < NEAR_SAVE) return { id: 'slide', keys: ['S', 'SHIFT'], text: `${tn.label}: hold S and press Shift on the ground to slide under` };
+        }
+      }
+    }
+
+    if (!this.done.has('counter')) {
+      for (const e of w.enemies) {
+        if (e.alive && e.state === 'windup' && (e.kind === 'crawler' || e.kind === 'stalker') && Math.abs(e.x - p.x) < 6 && Math.abs(e.y - p.y) < 2.5) {
+          if (++this.counterShown > COUNTER_HINT_CAP) {
+            this.done.add('counter');
+            break;
+          }
+          return { id: 'counter', keys: ['X'], text: 'FOE FLASHING: press X to COUNTER' };
         }
       }
     }
