@@ -85,6 +85,34 @@ export const SOUND_BANK = {
   'stinger.lose': r(10, 1, o(220, 1.4, 'triangle', 0.2, 40), o(165, 1.6, 'sawtooth', 0.08, 30, 0.15), n(1.0, 0.06, 500, 'lowpass', 80)),
   'stinger.meltdown': r(10, 1, o(523, 0.15, 'sine', 0.2), o(392, 0.28, 'sawtooth', 0.14, 220, 0.12), o(784, 0.25, 'triangle', 0.16, undefined, 0.22), n(0.5, 0.1, 800, 'lowpass', 100, 0.1)),
 
+  // ---- movement tech (round 2) ----
+  'player.wall_jump': r(3, 0.08, n(0.14, 0.09, 1800, 'bandpass', 700, 0, 2), o(260, 0.1, 'sine', 0.08, 620, 0.03), o(120, 0.08, 'triangle', 0.07, 70)),
+  'player.dash_cancel': r(3, 0.06, o(900, 0.07, 'sine', 0.08, 220), n(0.04, 0.07, 5200, 'highpass'), o(160, 0.06, 'square', 0.04, 90)),
+  'player.stomp': r(5, 0.1, o(150, 0.2, 'triangle', 0.2, 38), o(900, 0.05, 'square', 0.06, 300), n(0.22, 0.16, 1400, 'lowpass', 120), n(0.08, 0.07, 3400, 'bandpass', 1200, 0.01, 2)),
+  'ui.combo': r(4, 0.05, o(880, 0.28, 'sine', 0.1), o(1760, 0.18, 'sine', 0.045, undefined, 0.01), o(1320, 0.22, 'triangle', 0.03, undefined, 0.02)),
+  'world.collect': r(5, 0.2, ...arp([659, 880, 1175, 1568], 0.06, 0.2, 'sine', 0.09), o(1568, 0.5, 'triangle', 0.03, undefined, 0.2)),
+  'world.secret': r(6, 0.5, ...arp([392, 466, 587, 740, 587, 880], 0.1, 0.35, 'triangle', 0.1), o(98, 0.9, 'sine', 0.08, 130), n(0.9, 0.025, 4000, 'bandpass', 1500, 0, 6)),
+
+  // ---- Core Warden: a warning per pattern, then the attack and phase events ----
+  'boss.tele.slam': r(8, 0.3, o(52, 0.8, 'sawtooth', 0.13, 150), o(104, 0.8, 'triangle', 0.07, 300), n(0.8, 0.12, 180, 'lowpass', 1100)),
+  'boss.tele.charge': r(8, 0.3, o(60, 0.8, 'sawtooth', 0.12, 340), o(120, 0.8, 'square', 0.05, 680), n(0.8, 0.07, 500, 'bandpass', 3000, 0, 2)),
+  'boss.tele.volley': r(8, 0.3, o(300, 0.7, 'sine', 0.1, 2000), o(600, 0.7, 'triangle', 0.05, 3000), n(0.7, 0.04, 2000, 'highpass')),
+  'boss.tele.summon': r(8, 0.3, o(90, 0.8, 'sine', 0.12, 420), o(135, 0.8, 'sine', 0.08, 640, 0.05), n(0.8, 0.08, 400, 'bandpass', 2600, 0, 6)),
+  'boss.charge': r(8, 0.3, o(340, 0.5, 'sawtooth', 0.14, 60), o(170, 0.5, 'square', 0.06, 40), n(0.5, 0.14, 2200, 'bandpass', 300, 0, 1.5)),
+  'boss.summon': r(7, 0.3, o(140, 0.35, 'sine', 0.14, 900), o(60, 0.5, 'triangle', 0.16, 30, 0.1), n(0.4, 0.1, 3000, 'bandpass', 800, 0, 5)),
+  'boss.phase': r(10, 1, o(75, 1.3, 'sawtooth', 0.16, 24), o(48, 1.5, 'sine', 0.2, 28), o(520, 0.8, 'square', 0.04, 500, 0.02), o(787, 0.8, 'square', 0.03, 770, 0.02), n(1.1, 0.15, 1800, 'lowpass', 70), n(0.9, 0.05, 6000, 'highpass', 2500, 0.05)),
+  'boss.exposed': r(7, 0.4, o(1568, 0.5, 'sine', 0.08), o(2093, 0.45, 'sine', 0.05, undefined, 0.05), o(400, 0.35, 'triangle', 0.06, 1600), n(0.3, 0.05, 6000, 'highpass')),
+
+  // ---- UI ----
+  'ui.move': r(9, 0.03, o(1250, 0.03, 'square', 0.035, 1050)),
+  'ui.select': r(9, 0.05, o(660, 0.09, 'sine', 0.12), o(990, 0.16, 'sine', 0.12, undefined, 0.07), o(110, 0.12, 'triangle', 0.06, 70)),
+  'ui.back': r(9, 0.05, o(520, 0.09, 'sine', 0.1, 330), o(330, 0.14, 'sine', 0.09, 230, 0.06)),
+  'ui.banner': r(5, 0.3, ...arp([784, 988, 1319], 0.07, 0.3, 'sine', 0.06), n(0.25, 0.03, 5000, 'highpass')),
+  'ui.sector': r(7, 0.5, o(55, 1.4, 'sawtooth', 0.1, 38), o(110, 1.2, 'triangle', 0.07, 82, 0.05), n(1.2, 0.06, 300, 'bandpass', 2400, 0, 1.5), o(1100, 0.6, 'sine', 0.03, undefined, 0.5)),
+  'ui.rank': r(9, 0.3, o(880, 1, 'sine', 0.1), o(1320, 0.9, 'sine', 0.06, undefined, 0.03), o(1760, 0.8, 'sine', 0.04, undefined, 0.06), o(110, 0.6, 'triangle', 0.08, 80), n(0.5, 0.03, 7000, 'highpass')),
+  'ui.pause': r(9, 0.1, n(0.35, 0.08, 4000, 'lowpass', 300), o(300, 0.25, 'sine', 0.05, 120)),
+  'ui.resume': r(9, 0.1, n(0.3, 0.08, 300, 'lowpass', 4000), o(150, 0.2, 'sine', 0.05, 380)),
+
   // ---- ambient one-shots (scheduled by the ambient layer, quiet) ----
   'amb.drip': r(0, 0.3, o(1900, 0.09, 'sine', 0.035, 700), o(950, 0.16, 'sine', 0.018, 420, 0.05)),
   'amb.bubble': r(0, 0.2, o(300, 0.1, 'sine', 0.04, 900), o(420, 0.08, 'sine', 0.025, 1200, 0.07)),

@@ -20,7 +20,8 @@ import {
 } from '../game3d/world3d.ts';
 import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2d.ts';
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
-import { getAudioDebug, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
+import { getAudioDebug, play as playSound, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
+import { rankPitch } from './audioLogic.ts';
 import { AudioDirector, snapshotPre } from './audioDirector.ts';
 import { Attract, freshWorld } from './attract.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type Hint } from './flow.ts';
@@ -192,7 +193,7 @@ function show(m: Mode): void {
   ui.controlsPanel.hidden = true;
   $('lab').hidden = true;
   if (m === 'title') hideTransient();
-  audioDirector.syncBeds(world, m === 'playing');
+  audioDirector.syncBeds(world, m === 'playing', m);
   if (m === 'playing') canvas.focus();
   else focusDefault();
 }
@@ -280,6 +281,7 @@ function showSectorCard(): void {
   $('sc-sub').textContent = SECTOR_SUBTITLE[r.sector] ?? r.hint;
   ui.sectorCard.hidden = false;
   popClass(ui.sectorCard, 'show', 0);
+  playSound('ui.sector');
 }
 
 const WEAPON_BANNER: Record<number, { title: string; desc: string }> = {
@@ -297,6 +299,7 @@ function showPickupBanner(b: { title: string; desc: string }): void {
   $('pb-desc').textContent = b.desc;
   ui.pickupBanner.hidden = false;
   popClass(ui.pickupBanner, 'show', 0);
+  playSound('ui.banner');
 }
 
 /** Detects sector changes, new pickups and weapon switches by diffing against the last frame. */
@@ -512,6 +515,7 @@ function showResult(): void {
   ui.rank.hidden = !won;
   ui.rank.textContent = st.rank;
   ui.rank.className = `rank r-${st.rank}`;
+  if (won) setTimeout(() => playSound('ui.rank', { pitch: rankPitch(st.rank) }), 450);
   $('result-tip').textContent = won ? '' : retryTip(deaths);
   $('result-tip').hidden = won;
   ui.result.classList.toggle('won', won);
@@ -719,6 +723,15 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
+// Menu sounds: focus moves tick, buttons confirm, back/close/resume buttons use the back tone
+document.addEventListener('focusin', (e) => {
+  if (mode !== 'playing' && (e.target as HTMLElement | null)?.closest?.('button')) playSound('ui.move');
+});
+document.addEventListener('click', (e) => {
+  const b = (e.target as HTMLElement | null)?.closest?.('button');
+  if (!b || mode === 'playing') return;
+  playSound(/close|resume$|^resume$/.test(b.id) ? 'ui.back' : 'ui.select');
+});
 $('play').addEventListener('click', () => start());
 $('intro-skip').addEventListener('click', hideIntro);
 window.addEventListener('pointerdown', () => hideIntro());
