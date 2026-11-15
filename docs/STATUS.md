@@ -63,3 +63,6 @@
 - Classic audit, CRT collapse toggle (0.4 s, instant under reduce flashing), flat Classic FX/DOM pills, meltdown alarm reduce gate. See docs/R10_CLASSIC.md. Browser checks unverified.
 
 - **R10** (`r10/*`): 오프닝 9.8 s 시네마틱([R10_OPENING](R10_OPENING.md)), Classic View 감사·CRT 전환([R10_CLASSIC](R10_CLASSIC.md)), Warden 카운터·셋피스([R10_BOSS](R10_BOSS.md)), Bio-Labs Hunter 구역([R10_HUNTER](R10_HUNTER.md)). 통합: 사운드 이벤트 59, 헌터 pill에 Classic 규칙 적용(보스 카운터 표시는 캔버스 FX라 CSS 대상 없음), Ctrl/Alt 살금걸음은 keydown에서 preventDefault 하지 않아 브라우저 단축키와 충돌 없음. 검증: `make check` exit 0, 테스트 519/519, 봇 Normal 5533 ticks HP 95/160 kills 57(Story·Hard 봇 승리는 테스트 통과), reach3d 52 waypoints 3432 ticks, dist-guard 13 files 14,819,279 B. 브라우저 확인 unverified.
+
+## R10 fix pass
+- Opening black frame (CSS lids not seeked in showcase), hunter steel material, compact hunter pill, 1996 year unified, UI audit ends the opening and reports a reason. `__reanimator().perf` was never empty (keys `drawCalls`, `byGroup`, ...; no `calls`): no regression. Details in R10_OPENING.md and R10_HUNTER.md.

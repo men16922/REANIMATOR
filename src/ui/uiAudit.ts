@@ -21,6 +21,8 @@ export interface UiAuditScenario {
 
 export interface UiAuditReport {
   ok: boolean;
+  /** Why ok is false when no individual control failed (for example a scenario that measured zero controls). */
+  reason?: string;
   scenarios: UiAuditScenario[];
 }
 
@@ -140,5 +142,18 @@ export async function runUiAudit(d: UiAuditDriver): Promise<UiAuditReport> {
   }
   d.toTitle();
   await d.frames(2);
-  return { ok: scenarios.every((s) => s.failures.length === 0 && s.checked > 0), scenarios };
+  return auditReport(scenarios);
+}
+
+/** Builds the report; names the cause when ok is false but no control failed (an empty scenario). */
+export function auditReport(scenarios: UiAuditScenario[]): UiAuditReport {
+  const ok = scenarios.every((s) => s.failures.length === 0 && s.checked > 0);
+  if (ok) return { ok, scenarios };
+  const empty = scenarios.filter((s) => s.checked === 0).map((s) => s.name);
+  const failed = scenarios.filter((s) => s.failures.length > 0).map((s) => s.name);
+  const parts: string[] = [];
+  if (failed.length) parts.push(`failures in: ${failed.join(', ')}`);
+  if (empty.length) parts.push(`no controls measured in: ${empty.join(', ')} (is an overlay such as the opening covering the UI?)`);
+  if (!scenarios.length) parts.push('no scenarios ran');
+  return { ok, reason: parts.join('; '), scenarios };
 }

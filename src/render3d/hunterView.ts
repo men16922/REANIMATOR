@@ -12,7 +12,6 @@ import {
   disposeActor3D,
   instantiateRiggedModel3D,
   stepEnemyRigAnimation3D,
-  tuneEnemyMaterials3D,
   type RiggedInstance,
 } from './riggedModels.ts';
 import { PARRY_FLASH_CAP, parryFlashAmount } from './vfxStyle3d.ts';
@@ -25,6 +24,9 @@ export const HUNTER_COLORS = {
   off: 0x38ff8a,
   dead: 0x2a1410,
 } as const;
+
+/** Gunmetal body material for the unit (flat dark steel, faint warm emissive; visor and flashes carry the colour). */
+export const HUNTER_STEEL = { color: 0x39434f, metalness: 0.55, roughness: 0.5, env: 0.5, emissive: 0x140605 } as const;
 
 export type HunterLook = 'quiet' | 'alarm' | 'exposed' | 'off';
 
@@ -76,15 +78,29 @@ export class HunterView {
     this.root.name = 'hunter-view';
     this.rig = instantiateRiggedModel3D('bio-stalker', HUNTER_HEIGHT, false);
     this.rig.root.name = `hunter:${h.id}`;
-    // Dark steel plating with a hot rim, distinct from the green Stalker
-    tuneEnemyMaterials3D(this.rig.materials, this.rig.baseEmissive, 0x70788a);
-    applyEnemyRim3D(this.rig.materials, 0xff5a40, 0.75, 0.1);
+    // Dark steel plating with a hot rim, distinct from the green Stalker. The Stalker texture is flesh orange and a
+    // colour multiply cannot remove a hue, so the hunter drops the albedo and emissive maps for a flat gunmetal.
+    for (let i = 0; i < this.rig.materials.length; i++) {
+      const m = this.rig.materials[i];
+      m.map = null;
+      m.emissiveMap = null;
+      m.vertexColors = false;
+      m.color.setHex(HUNTER_STEEL.color);
+      m.metalness = HUNTER_STEEL.metalness;
+      m.roughness = HUNTER_STEEL.roughness;
+      m.envMapIntensity = HUNTER_STEEL.env;
+      m.emissiveIntensity = 1;
+      this.rig.baseEmissive[i].setHex(HUNTER_STEEL.emissive);
+      m.emissive.copy(this.rig.baseEmissive[i]);
+      m.needsUpdate = true;
+    }
+    applyEnemyRim3D(this.rig.materials, 0x8fb4ff, 0.7, 0.12);
     this.rig.root.rotation.order = 'YXZ';
     this.visorMat = new THREE.MeshBasicMaterial({ color: HUNTER_COLORS.quiet, toneMapped: false });
-    this.visor = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.09, 0.3), this.visorMat);
+    this.visor = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.13, 0.3), this.visorMat);
     this.visor.name = 'hunter-visor';
     // Local +Z is the facing direction (the root yaws to the facing)
-    this.visor.position.set(0, HUNTER_HEIGHT * 0.86, 0.36);
+    this.visor.position.set(0, HUNTER_HEIGHT * 0.9, 0.2);
     this.rig.root.add(this.visor);
     this.proxy = new THREE.Mesh(new THREE.BoxGeometry(1.6, HUNTER_HEIGHT, 1.6), new THREE.MeshBasicMaterial({ visible: false }));
     this.proxy.visible = false;

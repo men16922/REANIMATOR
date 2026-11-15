@@ -86,7 +86,8 @@ code { color: var(--c-gold); font-family: var(--font-mono); }
 .scan-pill.active { background: rgba(20, 70, 90, 0.85); box-shadow: 0 0 8px rgba(82, 229, 255, 0.45); }
 .hunter-pill { color: #ffc27a; border-color: #a8601c; background: rgba(60, 30, 8, 0.82); font-weight: 700; }
 .hunter-pill[hidden] { display: none; }
-.hunter-pill b { color: #ffd9a0; margin: 0 0.3em; }
+.hunter-pill { gap: 0.3em; padding: 0.2em 0.5em; white-space: nowrap; }
+.hunter-pill b { color: #ffd9a0; margin: 0 0.15em; }
 .hunter-pill.alarm { color: #ffd4d4; border-color: var(--c-red); border-left-color: var(--c-red); background: rgba(110, 14, 18, 0.88); animation: low-hp 0.5s ease-in-out infinite; }
 .hunter-pill.exposed { color: #c8fbff; border-color: #3ab7c8; background: rgba(12, 60, 70, 0.88); }
 .hunter-pill.off { color: #b8ffd4; border-color: #2fae68; background: rgba(10, 52, 30, 0.86); }
@@ -98,6 +99,7 @@ body.meltdown-calm.hunter-alarm #hud::after { animation: none; }
 .etank-pill b { color: var(--c-green); }
 .bar { position: relative; display: inline-block; width: 5.5em; height: 0.62em; border: 1px solid #5c768e; background: #0a1017; vertical-align: middle; overflow: hidden; border-radius: 1px; }
 .bar-sm { width: 6em; }
+.bar-xs { width: 2.8em; }
 .bar i { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #e8d36a; transition: width 0.06s linear; }
 #hp-bar { background: var(--c-green); }
 #hp-ghost { background: #fff; opacity: 0.85; transition: width 0.55s ease-out 0.4s; }

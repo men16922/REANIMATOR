@@ -111,3 +111,8 @@ The estimator (`src/render3d/drawBudget.ts`) covers decor, solids, vista, hazard
 - Human feel: the 8 tick window, the 40 tick windup, the pin, the sneak key (Ctrl or Alt, and Ctrl may be claimed by the OS or browser), noise radii, claw reach against the low plate, whether the zone is fair at 160 HP.
 - Gamepad analog sneak is not wired (the sim supports analog `moveX`).
 - Real draw call count with the hunter on screen.
+
+## Fix pass (post-merge browser check)
+- Root cause of the flat orange look: the shared Stalker albedo is flesh orange and a colour multiply cannot remove a hue. The hunter now drops the albedo, emissive map and vertex colours for a dark steel material (`HUNTER_STEEL`) with a cool blue rim, and the visor bar is larger and sits nearer the head. Scale was already 2.9 m (about 1.4x the operative in the capture).
+- HUD pill is compact: label `HUNTER`, 2.8 em noise bar (`.bar-xs`), tighter padding.
+- User-facing year is 1996 everywhere (`brand.ts`, `index.html`).

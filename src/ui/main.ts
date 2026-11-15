@@ -400,6 +400,7 @@ function showIntro(): void {
   ui.intro.style.animation = '';
   for (const el of ui.intro.querySelectorAll<HTMLElement>('.lid, p')) {
     el.style.animation = 'none';
+    el.style.animationDelay = '';
     void el.offsetWidth;
     el.style.animation = '';
   }
@@ -1687,6 +1688,10 @@ wAny.__reanimatorShowcase = async (name) => {
       showIntro();
       openingFrozen = true;
       openingClock.time = sc.openingAt;
+      // The eyelids and caption lines are CSS animations on wall time: seek them to the held moment so they are not still closed.
+      for (const el of ui.intro.querySelectorAll<HTMLElement>('.lid, p')) {
+        el.style.animationDelay = el.tagName === 'P' ? `calc(var(--d) - ${sc.openingAt}s)` : `-${sc.openingAt}s`;
+      }
       openingCues.hiss = openingCues.lamp = openingCues.rattle = true;
       if (sc.openingAt >= OPENING_BEATS.burst) {
         openingClock.takeBurst();
@@ -1902,8 +1907,16 @@ wAny.__reanimatorSoak = async (n = 3, opts = {}) => {
  * center is the control itself, that it is opaque, and that the title logo and menu are hidden under any open panel.
  * Resets to a fresh title screen afterwards (the current run is discarded). Returns { ok, scenarios[] }.
  */
-wAny.__reanimatorUiAudit = () =>
-  runUiAudit({
+wAny.__reanimatorUiAudit = async () => {
+  // An opening or showcase in progress covers the title and menus; end it and let the UI settle so the audit measures the real UI.
+  exitShowcase();
+  hideIntro();
+  show('title');
+  await settleFrames(6);
+  // The title menu fades in on wall time (2.9 s delay) whenever it is shown again; hold it opaque while measuring.
+  const menu = $('title-menu');
+  menu.style.animation = 'none';
+  return runUiAudit({
     toTitle: () => {
       exitShowcase();
       hideIntro();
@@ -1917,8 +1930,10 @@ wAny.__reanimatorUiAudit = () =>
   }).then((r) => {
     world = freshWorld();
     show('title');
+    menu.style.animation = '';
     return r;
   });
+};
 
 show('title');
 requestAnimationFrame(frame);

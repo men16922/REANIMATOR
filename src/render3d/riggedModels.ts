@@ -1,5 +1,5 @@
 // Rigged multi-clip GLB model loader & Three.js AnimationMixer controller.
-// Features Metroid Dread / 1995 Abuse split-body articulation:
+// Features Metroid Dread / 1996 Abuse split-body articulation:
 //   - Lower body tracks facing hemisphere & reverses walk/run cycle when backpedaling
 //   - Upper spine pitches smoothly & quaternion-aims both arms + pulse-rifle along exact XY 360 aim vector
 //   - Velocity-locked 3-phase jump clip scrubbing (strips baked pre-jump squat & +0.42m root jump spike)

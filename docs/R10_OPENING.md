@@ -41,3 +41,7 @@ A status readout (bottom-left) narrates each beat. Skip: any key, pointer press,
 - Audio feel of the four new sound recipes and the alarm pulse.
 - Frame time during the opening (backdrop-filter blur on the frost layer) and the `rendererMode` smoke.
 - Reduce flashing look in a real browser; `__reanimatorShowcase('opening')` captures.
+
+## Fix pass (post-merge browser check)
+- Root cause of the "black opening": the eyelid (`.lid`) and caption CSS animations run on wall time from `showIntro()`. The showcase hold (`opening-wake|alarm|opening`) set the clock to 3.0/5.6/8.7 s but the lids were still closed, so only the status line was visible. The renderer, lamp and camera were fine (rendered live in Chromium at 1200x843). Fix: the showcase seeks the lid and line animations to the held time (negative `animation-delay`), and `showIntro()` clears that delay.
+- `__reanimatorUiAudit()` now ends the opening first and returns `reason` when `ok` is false without a failing control (`auditReport` in `ui/uiAudit.ts`).
