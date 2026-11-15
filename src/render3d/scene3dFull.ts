@@ -4,7 +4,7 @@
 // 60 -> display-rate interpolation, and the R3.3 visual-only headlamp.
 
 import * as THREE from 'three';
-import { DEATH_POP_CAP, HIT_FLASH_HEX, deathPopAmount, hitFlashAmount } from './vfxStyle3d.ts';
+import { DEATH_POP_CAP, HIT_FLASH_HEX, deathPopAmount, hitFlashAmount, playerHurtFlashAmount } from './vfxStyle3d.ts';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -562,6 +562,8 @@ export class Scene3DRenderer {
 
   /** Mirrors the HUD "Reduce flashing" option: damps shake and chromatic kick, steadies the low-HP tint. */
   public reduceMotion = false;
+  private heroHurtAt = -10;
+  private prevHurtTicks = 0;
   /** Display clock for particles and shake: 0 during hit-stop, <1 during kill slow-motion. */
   public fxTimeScale = 1;
 
@@ -1782,10 +1784,14 @@ export class Scene3DRenderer {
       // (the solid red silhouette while the world was paused mid-flash). Classic keeps emissive off and shows the hurt
       // through the palette pass damage flash, plus a short visibility blink like a 90s sprite.
       const cl = this.viewMode === 'classic';
+      // Hurt flash decays on display time: a new hit (counter rises) restarts it, a paused sim cannot hold it.
+      if (p.hurtFlashTicks > this.prevHurtTicks) this.heroHurtAt = tSec;
+      this.prevHurtTicks = p.hurtFlashTicks;
+      const hurtAmt = p.hurtFlashTicks > 0 ? playerHurtFlashAmount(tSec - this.heroHurtAt, this.reduceMotion) : 0;
       // Blink on wall-clock time (15 Hz) so a paused world never freezes on a hidden frame.
       rig.root.visible = !(cl && p.hurtFlashTicks > 0 && Math.floor(tSec * 15) % 2 === 1);
       if (cl) flashRiggedMaterials3D(rig, 0x000000, 0);
-      else if (p.hurtFlashTicks > 0) flashRiggedMaterials3D(rig, 0xff2f2f, 0.75);
+      else if (hurtAmt > 0) flashRiggedMaterials3D(rig, HIT_FLASH_HEX, hurtAmt);
       else if (p.dashInvulnTicks > 0) flashRiggedMaterials3D(rig, 0x2bf0ff, 0.55);
       else flashRiggedMaterials3D(rig, 0x000000, 0);
 
@@ -2281,7 +2287,7 @@ export class Scene3DRenderer {
       const grow = 1 - Math.pow(1 - Math.min(1, p * 2.4), 2);
       ball.scale.setScalar(0.3 + grow * ex.maxRadius * 0.45);
       (ball.material as THREE.ShaderMaterial).uniforms.uP.value = p;
-      ring.scale.setScalar(ex.maxRadius * 2.3);
+      ring.scale.setScalar(Math.min(ex.maxRadius * 2.1, 9));
       (ring.material as THREE.ShaderMaterial).uniforms.uP.value = p;
       const k = Math.max(0, 1 - p * 2.6) * Math.min(1, ex.maxRadius / 3);
       if (k > flashK) {
