@@ -185,3 +185,11 @@
 - main에 `--no-ff`로 r1/gameplay → r1/perf → r1/juice → r1/title 병합. 충돌은 scene3dFull.ts(juice 텔레메트리/perf, 카메라 rig/title 어트랙트)와 main.ts(observe/flash/reset)에서만 발생. 양쪽 의도 유지: 어트랙트 카메라는 fx.rig 포커스를 쓰되 셰이크·FOV 킥 제외.
 - 연결: 결과 화면 `buildRunStats`는 `updateCompletion3D`+`getRunSummary3D`에서 시간·처치·사망·수집%·랭크를 가져온다(패배 시 사망 +1). 온보딩은 시크릿 벽 힌트를 숨긴다. HUD에 콤보, 레일 차지, 보스 EXPOSED, 데이터 로그·시크릿 배너를 추가했고 데이터 로그는 pickup 비주얼 경로(보라색)로 그린다.
 - `make check` exit 0(reach3d 52 waypoints 3431 ticks, dist-guard PASS 13 files 14,468,007 B). 브라우저 검증은 오케스트레이터가 수행 예정(unverified).
+
+## R2 통합 (2026-11-15)
+- main에 `--no-ff`로 r2/fix → r2/boss → r2/audio → r2/brand 병합. 충돌은 main.ts에서만 두 번 발생했다.
+  - audio: `#play` 클릭 리스너 주변. fix의 `() => start()`를 유지하고 audio의 focusin/click 위임 리스너를 앞에 두었다. 위임 리스너는 document 단위라 brand 메뉴·패널의 모든 button에서 동작하고, `*-close`/`resume` id는 back 톤을 쓴다.
+  - brand: `#intro-open`. Extras 패널 안에서도 fix의 `start(true)`를 쓴다(brand의 `showIntro` 직접 호출 대신). 나머지 brand 리스너(settings/extras/controls/continue/hover)는 그대로 유지했다.
+- 어트랙트 boss 컷의 인트로 자동 스킵은 scene3dFull.ts(`attractT !== null`이면 `skipBossIntro3D`)에서 처리된다. 코드 확인만 했다.
+- `make check` exit 0: node tests 160/160, reference-verify 3/3 PASS, reach3d 52 waypoints 3431 tick, dist-guard PASS(13 files, 14,529,962 B, 218 대조). 봉인 파일 변경 없음.
+- 브라우저 시각·청취·메뉴 조작 검증은 오케스트레이터가 수행 예정(unverified). 푸시 안 함, worktree 보존.

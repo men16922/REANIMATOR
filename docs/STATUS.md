@@ -40,3 +40,6 @@
 
 ## R1 통합 (2026-11-15)
 - gameplay/perf/juice/title 4브랜치 main 병합 완료, `make check` exit 0. 브라우저 시각·플레이 검증은 오케스트레이터 예정(unverified). 푸시 안 함, worktree 보존.
+
+## R2 통합 (2026-11-15)
+- fix/boss/audio/brand 4브랜치 main 병합 완료, `make check` exit 0(tests 160/160). 브라우저 검증은 오케스트레이터 예정(unverified). 푸시 안 함, worktree 보존.

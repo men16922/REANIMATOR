@@ -115,9 +115,11 @@ try {
     { loaded: initial.loadedModels, failed: initial.failedModels, riggedCount: initial.riggedCount },
   );
 
+  check('first screen menu has Play, Settings, Extras (Continue hidden without a save)', (await page.locator('#title-menu button:visible').count()) === 3);
+  await page.click('#extras-open');
   await page.getByRole('button', { name: 'How it was revived' }).click();
   check('evidence panel opens', await page.getByRole('heading', { name: 'How it was revived' }).isVisible());
-  await page.getByRole('button', { name: 'Back' }).click();
+  await page.click('#revived-close');
 
   await page.getByRole('button', { name: 'Restoration Lab' }).click();
   await wait(200);
@@ -141,7 +143,8 @@ try {
   check('Lab: demo mutation is detected as FAIL', mut.status === 'FAIL' && mut.mutation, mut);
   await page.screenshot({ path: resolve(out, 'lab_mutation_fail.png') });
   await page.uncheck('#lab-mutation');
-  await page.getByRole('button', { name: 'Back' }).click();
+  await page.click('#lab-close');
+  await page.click('#extras-close');
 
   // Start playing
   await page.getByRole('button', { name: 'Play' }).click();

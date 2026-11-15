@@ -27,10 +27,34 @@ import { Attract, freshWorld } from './attract.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type Hint } from './flow.ts';
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
 import { renderMinimap } from './minimap.ts';
+import { buildLogoSvg } from './brand.ts';
+import { loadProgress, menuKeyAction, PANEL_IDS, stepIndex, type TitlePanel } from './menu.ts';
+import { getFailedModelNames3D, getLoadedModelNames3D } from '../render3d/riggedModels.ts';
 
 const SIM_HZ_3D = 60;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const canvas = $<HTMLCanvasElement>('screen');
+$('title-logo').innerHTML = buildLogoSvg('t');
+$('loading-logo').innerHTML = buildLogoSvg('l');
+
+// ---- loading screen: logo + progress while the 9 Meshy models load (polls the loader; never blocks) ----
+{
+  const MODEL_TOTAL = 9;
+  const loading = $('loading');
+  const started = performance.now();
+  const timer = window.setInterval(() => {
+    const l = getLoadedModelNames3D().length;
+    const f = getFailedModelNames3D().length;
+    const pr = loadProgress(l, f, MODEL_TOTAL);
+    $('load-fill').style.width = `${Math.round(pr * 100)}%`;
+    $('load-count').textContent = `${Math.min(l, MODEL_TOTAL)}/${MODEL_TOTAL}`;
+    if (pr >= 1 || performance.now() - started > 12000 || !scene3d) {
+      window.clearInterval(timer);
+      loading.classList.add('done');
+      window.setTimeout(() => { loading.hidden = true; focusDefault(); }, 520);
+    }
+  }, 80);
+}
 
 // Must probe WebGL2 BEFORE any getContext('2d') call, because a canvas locks context type on first acquire.
 let scene3d: Scene3DRenderer | null = null;
@@ -192,6 +216,8 @@ function show(m: Mode): void {
   ui.revived.hidden = true;
   ui.controlsPanel.hidden = true;
   $('lab').hidden = true;
+  for (const id of Object.values(PANEL_IDS)) $(id).hidden = true;
+  $('continue').hidden = !(m === 'title' && !!world.lastSaveId);
   if (m === 'title') hideTransient();
   audioDirector.syncBeds(world, m === 'playing', m);
   if (m === 'playing') canvas.focus();
@@ -200,8 +226,26 @@ function show(m: Mode): void {
 
 /** Keyboard-first menus: land focus on the primary action of the visible screen. */
 function focusDefault(): void {
-  const target = mode === 'title' ? $('play') : mode === 'paused' ? $('resume') : mode === 'result' ? ($('resume-save').hidden ? $('restart') : $('resume-save')) : null;
+  const openPanel = openTitlePanel();
+  const target = mode === 'title' ? (openPanel?.querySelector<HTMLElement>('button, input') ?? $('play')) : mode === 'paused' ? $('resume') : mode === 'result' ? ($('resume-save').hidden ? $('restart') : $('resume-save')) : null;
   target?.focus({ preventScroll: true });
+}
+
+/** Title sub-panel (settings / extras / controls) currently open, if any. */
+function openTitlePanel(): HTMLElement | null {
+  for (const id of Object.values(PANEL_IDS)) if (!$(id).hidden) return $(id);
+  return null;
+}
+
+function openPanelFor(name: TitlePanel, focusId: string): void {
+  for (const id of Object.values(PANEL_IDS)) $(id).hidden = true;
+  $(PANEL_IDS[name]).hidden = false;
+  $(focusId).focus({ preventScroll: true });
+}
+
+function closeTitlePanel(returnFocus: string): void {
+  for (const id of Object.values(PANEL_IDS)) $(id).hidden = true;
+  $(returnFocus).focus({ preventScroll: true });
 }
 
 function hideTransient(): void {
@@ -588,26 +632,36 @@ const NON_START_KEYS = new Set(['Tab', 'Escape', 'ShiftLeft', 'ShiftRight', 'Con
 /** Topmost visible menu container, used for keyboard focus navigation. */
 function activeMenu(): HTMLElement {
   for (const el of [$('lab'), ui.revived, ui.controlsPanel]) if (!el.hidden) return el;
-  return mode === 'title' ? ui.title : mode === 'paused' ? ui.pause : ui.result;
+  if (mode === 'title') return openTitlePanel() ?? ui.title;
+  return mode === 'paused' ? ui.pause : ui.result;
 }
 
 function closeSubPanels(): boolean {
+  const tp = openTitlePanel();
   if (!$('lab').hidden) $('lab').hidden = true;
   else if (!ui.revived.hidden) ui.revived.hidden = true;
   else if (!ui.controlsPanel.hidden) ui.controlsPanel.hidden = true;
-  else return false;
+  else if (tp) {
+    // Controls opens from Extras, so it goes back there; everything else returns to the main menu.
+    if (tp.id === PANEL_IDS.controls) return openPanelFor('extras', 'title-controls-open'), true;
+    closeTitlePanel(tp.id === PANEL_IDS.extras ? 'extras-open' : 'settings-open');
+    return true;
+  } else return false;
+  if (tp) return $(tp.id === PANEL_IDS.extras ? 'lab-open' : 'play').focus({ preventScroll: true }), true;
   focusDefault();
   return true;
 }
 
 function menuNavigate(e: KeyboardEvent): boolean {
-  if (e.code !== 'ArrowDown' && e.code !== 'ArrowUp') return false;
+  const act = menuKeyAction(e.code);
+  if (act !== 'next' && act !== 'prev') return false;
   const cur = document.activeElement as HTMLElement | null;
-  if (cur && /^(INPUT|SELECT|TEXTAREA)$/.test(cur.tagName) && (cur as HTMLInputElement).type !== 'checkbox') return false;
-  const items = [...activeMenu().querySelectorAll<HTMLElement>('button, input[type="checkbox"]')].filter((el) => el.offsetParent !== null);
+  if (cur && /^(SELECT|TEXTAREA)$/.test(cur.tagName)) return false;
+  // Sliders keep Left/Right for their value, so Up/Down may leave them.
+  const items = [...activeMenu().querySelectorAll<HTMLElement>('button, input[type="checkbox"], input[type="range"]')].filter((el) => el.offsetParent !== null);
   if (items.length === 0) return false;
   const i = cur ? items.indexOf(cur) : -1;
-  const next = items[(i + (e.code === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
+  const next = items[stepIndex(i, act === 'next' ? 1 : -1, items.length)];
   next.focus();
   e.preventDefault();
   return true;
@@ -630,8 +684,8 @@ window.addEventListener('keydown', (e) => {
     if (menuNavigate(e)) return;
     const t = e.target as HTMLElement | null;
     const interactive = !!t && /^(BUTTON|INPUT|SELECT|TEXTAREA)$/.test(t.tagName);
-    const panelOpen = !$('lab').hidden || !ui.revived.hidden;
-    if (!interactive && !panelOpen && !NON_START_KEYS.has(e.code) && !e.metaKey && !e.ctrlKey && !e.altKey && !e.repeat && !/^F\d+$/.test(e.code)) {
+    const panelOpen = !$('lab').hidden || !ui.revived.hidden || !!openTitlePanel();
+    if (!interactive && !panelOpen && $('loading').hidden && !NON_START_KEYS.has(e.code) && !e.metaKey && !e.ctrlKey && !e.altKey && !e.repeat && !/^F\d+$/.test(e.code)) {
       e.preventDefault();
       start();
     }
@@ -736,6 +790,22 @@ $('play').addEventListener('click', () => start());
 $('intro-skip').addEventListener('click', hideIntro);
 window.addEventListener('pointerdown', () => hideIntro());
 $('intro-open').addEventListener('click', () => start(true));
+$('settings-open').addEventListener('click', () => openPanelFor('settings', 'reduce-flash'));
+$('settings-close').addEventListener('click', () => closeTitlePanel('settings-open'));
+$('extras-open').addEventListener('click', () => openPanelFor('extras', 'title-controls-open'));
+$('extras-close').addEventListener('click', () => closeTitlePanel('extras-open'));
+$('title-controls-open').addEventListener('click', () => openPanelFor('controls', 'title-controls-close'));
+$('title-controls-close').addEventListener('click', () => openPanelFor('extras', 'title-controls-open'));
+$('continue').addEventListener('click', () => {
+  if (!world.lastSaveId) return;
+  respawnPlayer3D(world);
+  scene3d?.fx.reset();
+  audioDirector.reset();
+  releaseInput();
+  show('playing');
+});
+// Mouse hover moves the menu selection, same as the keyboard.
+for (const b of document.querySelectorAll<HTMLElement>('#title button.mi')) b.addEventListener('mouseenter', () => b.focus({ preventScroll: true }));
 $('controls-open').addEventListener('click', () => {
   ui.controlsPanel.hidden = false;
   $('controls-close').focus();
