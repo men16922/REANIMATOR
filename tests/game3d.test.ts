@@ -1187,8 +1187,10 @@ test('difficulty curve: sector damage rises toward the Core and the bot still wi
   }
   assert.equal(w.status, 'won');
   assert.ok(w.player.hp >= 60 && w.player.hp <= 140, `final HP ${w.player.hp} within 60..140`);
-  assert.ok(lost >= 80, `bot actually takes damage (lost ${lost})`);
-  assert.ok(minHp < 100, `HP dips below the base pool (min ${minHp})`);
+  // R12: the bot now dodges shots and counters lunges, so it loses less (82 on Normal, was 194) and never dips under the
+  // 100 base pool; the floor checks the sectors still land real hits on a careful player
+  assert.ok(lost >= 50, `bot actually takes damage (lost ${lost})`);
+  assert.ok(minHp < w.player.maxHp, `HP dips below the full pool (min ${minHp})`);
   const s = getRunSummary3D(w);
   assert.equal(s.won, true);
   assert.equal(s.deaths, 0);
