@@ -1,5 +1,10 @@
 # 진행 기록
 
+## 2026-11-15 — Acid 블룸·HUD 목표 줄 수정 (Kiro)
+- 원인(추정): acid 재질 emissive 1.35 + 초록 PointLight 5 + bloom threshold 0.84가 겹쳐 acid 면이 포화. HUD는 OBJ 칩이 flex-wrap 폭에 따라 첫 줄로 올라감.
+- 수정(수치): acid emissiveIntensity 1.35→0.5, acid 라이트 5/11→3/9, bloom strength 0.42→0.36·radius 0.32→0.3·threshold 0.84→0.9, 출구 링 1.9→1.3. `.hud-break`로 OBJ를 항상 둘째 줄에 고정.
+- 검증: `make check` exit 0(reach3d 3431 ticks, dist-guard PASS 13 files). 시각 확인 unverified, 절차는 NEXT_PLAN 3차.
+
 ## 2026-11-15 — 샤프트 단색 면 수정·가독성 (Kiro)
 - 원인(추정, 코드 분석): 샤프트 좌측 문 2개(blue y0–3.6, green y-11~-7.4, x≈24)의 측면이 원근으로 크게 보이고 균일 emissive 0.85에 블룸이 겹쳐 단색 사각형·삼각형이 됨. 수정: 문 `emissiveMap` 추가, 강도 0.6(펄스 0.5±0.15), HemisphereLight 1.35·지면색 0x242028.
 - 검증: `make check` exit 0(reach3d 52 waypoints 3431 ticks, dist-guard PASS 13 files 14,330,345 B). 브라우저 시각 확인은 unverified(Chrome 불가). 재확인 절차는 NEXT_PLAN 참조.

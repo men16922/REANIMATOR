@@ -235,9 +235,9 @@ export class Scene3DRenderer {
     this.composer.addPass(new RenderPass(this.scene, this.camera));
     this.bloomPass = new UnrealBloomPass(
       new THREE.Vector2(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2)),
-      0.42,
-      0.32,
-      0.84,
+      0.36,
+      0.3,
+      0.9,
     );
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(new OutputPass());
@@ -376,7 +376,7 @@ export class Scene3DRenderer {
           map: tex.acidMap,
           emissiveMap: tex.acidMap,
           emissive: 0x6dff3a,
-          emissiveIntensity: 1.35,
+          emissiveIntensity: 0.5,
           roughness: 0.15,
         }),
       );
@@ -385,7 +385,7 @@ export class Scene3DRenderer {
       this.scene.add(mesh);
       this.acidMeshes.push(mesh);
 
-      const acidLight = new THREE.PointLight(0x6dff3a, 5, 11, 1.5);
+      const acidLight = new THREE.PointLight(0x6dff3a, 3, 9, 1.5);
       acidLight.position.set(mesh.position.x, pool.surfaceY + 1.1, 0.5);
       this.scene.add(acidLight);
     }
@@ -607,7 +607,7 @@ export class Scene3DRenderer {
 
     this.exitPortalRing = new THREE.Mesh(
       new THREE.TorusGeometry(1.5, 0.08, 10, 32),
-      new THREE.MeshStandardMaterial({ color: 0x3dff9e, emissive: 0x3dff9e, emissiveIntensity: 1.9 }),
+      new THREE.MeshStandardMaterial({ color: 0x3dff9e, emissive: 0x3dff9e, emissiveIntensity: 1.3 }),
     );
     this.exitPortalRing.position.set(w.level.exitPos.x, w.level.exitPos.y + 2.05, 0.3);
     this.scene.add(this.exitPortalRing);
