@@ -111,3 +111,7 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - Verification: `make check` exit 0 (649/649, reach3d 52 waypoints 3432 ticks, dist-guard PASS 13 files 14,891,509 B). Bot unchanged by render-only branches: Normal 4978 ticks HP 126, Story 4880 HP 142, Hard 5319 HP 104 (min 100). SHOWCASE_REEL cuts 2150/4420/4920 unchanged.
 - Browser: Playwright on `http://localhost:5173`, 0 console errors or warnings, no page errors on five showcase scenes; screenshots in `docs/evidence/r14/`.
 - Caveats: no human playtest (G5 unperformed); terrain and charlight verified by tests, a no-error run and screenshots only; Meshy terrain upgrade stays in NEXT_PLAN.
+
+## 2026-11-15 · R15 Meshy terrain
+
+- `.env` gitignored (separate commit). Meshy API probe failed: could not resolve `api.meshy.ai` (HTTP 000), so no assets were generated and code is unchanged. Kiro MCP write blocked by EPERM, not added. See `docs/R15_MESHY_TERRAIN.md`.

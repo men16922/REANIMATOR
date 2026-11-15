@@ -2,6 +2,11 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R15 이후
+
+- Meshy 터레인 킷 생성은 샌드박스 DNS 실패(`api.meshy.ai`)로 보류. 네트워크 가능한 환경에서 `docs/R15_MESHY_TERRAIN.md`의 킷 계획을 실행한다.
+- `~/.kiro/settings/mcp.json`에 meshy 서버를 수동 추가한다(샌드박스 EPERM).
+
 ## R14 병합 후
 
 - [x] charlight, terrain, transit 병합(충돌 없음), `make check` 통과(649/649). 봇 Normal 4978/HP 126, Story 4880/142, Hard 5319/104(min 100). Playwright로 5개 쇼케이스 장면 콘솔 오류 0, 스크린샷 `docs/evidence/r14/`.
