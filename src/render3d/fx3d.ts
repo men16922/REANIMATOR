@@ -130,6 +130,7 @@ export class SlowMo {
 // ---------------------------------------------------------------------------------------------------------------
 export const CAM_DEADZONE_X = 0.7;
 export const CAM_DEADZONE_Y = 0.45;
+const CAM_AIR_DEADZONE_Y = 1.7;
 export const CAM_LOOK_MAX_X = 3.0;
 export const CAM_LOOK_MAX_Y = 1.3;
 
@@ -160,7 +161,8 @@ export class CameraRig {
       const ex = gx - this.fx;
       const ey = gy - this.fy;
       const dx = Math.sign(ex) * Math.max(0, Math.abs(ex) - CAM_DEADZONE_X);
-      const dy = Math.sign(ey) * Math.max(0, Math.abs(ey) - CAM_DEADZONE_Y);
+      // Airborne: wide vertical dead zone (platformer convention); landing shrinks it and re-aligns.
+      const dy = Math.sign(ey) * Math.max(0, Math.abs(ey) - (grounded ? CAM_DEADZONE_Y : CAM_AIR_DEADZONE_Y));
       this.fx += dx * (1 - Math.exp(-dt * 8));
       this.fy += dy * (1 - Math.exp(-dt * (grounded ? 6.5 : 4.5)));
     }
