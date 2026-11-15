@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import type { Level3D } from '../game3d/types3d.ts';
 import { layoutAllDecor } from './decor3d.ts';
+import { CLASSIC_ADDITIVE_SCALE } from './classicLogic.ts';
 import { beaconAngle, flickerLevel, floorBelow, isLampProp, lampMode, lampSeed, type LampMode } from './mood3d.ts';
 
 const LAMP_VERT = /* glsl */ `
@@ -30,6 +31,7 @@ void main() {
 `;
 
 const LAMP_FRAG = /* glsl */ `
+uniform float uClassic;
 varying vec4 vCol;
 varying vec3 vUvPart;
 void main() {
@@ -43,6 +45,8 @@ void main() {
     a = pow(max(0.0, 1.0 - d), 1.6) * 0.34;
   }
   a *= vCol.a;
+  // Classic: a faint, stepped (posterised) shaft so the palette pass does not turn it into a big grey cone.
+  if (uClassic > 0.0) a = floor(a * 3.0 / 0.2) / (3.0 / 0.2) * uClassic;
   if (a < 0.004) discard;
   gl_FragColor = vec4(vCol.rgb, a);
 }
@@ -87,6 +91,8 @@ interface LampSlot {
 
 export interface Mood3D {
   update(tSec: number, reduce: boolean): void;
+  /** Classic View: dim, posterised light shafts. */
+  setClassic(on: boolean): void;
   /** Number of lamp shafts and beacons built (telemetry / tests). */
   readonly lampCount: number;
   readonly beaconCount: number;
@@ -143,6 +149,7 @@ export function buildMood3D(scene: THREE.Scene, level: Level3D): Mood3D {
   geo.setAttribute('aCol', aCol);
   geo.instanceCount = n;
   const lampMat = new THREE.ShaderMaterial({
+    uniforms: { uClassic: { value: 0 } },
     vertexShader: LAMP_VERT,
     fragmentShader: LAMP_FRAG,
     transparent: true,
@@ -205,6 +212,9 @@ export function buildMood3D(scene: THREE.Scene, level: Level3D): Mood3D {
   return {
     lampCount: n,
     beaconCount: bn,
+    setClassic(on: boolean): void {
+      lampMat.uniforms.uClassic.value = on ? CLASSIC_ADDITIVE_SCALE : 0;
+    },
     update(tSec: number, reduce: boolean): void {
       const sh = aShape.array as Float32Array;
       for (const s of slots) sh[s.index * 4 + 3] = flickerLevel(s.mode, s.seed, tSec, reduce) * s.base;

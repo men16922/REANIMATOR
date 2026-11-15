@@ -13,7 +13,7 @@ import { BOSS_PHASE_COLORS, createPostParams, FxDirector, stepPostParams } from 
 import { BossTelegraph3D } from './bossTelegraph3d.ts';
 import { BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
 import { PopupLayer } from './popups3d.ts';
-import { ClassicPipeline, classicOrthoHalf, remapNdcToClassic, type ViewMode } from './classicView.ts';
+import { CLASSIC_GLOW_SPRITE_SCALE, ClassicPipeline, classicOrthoHalf, remapNdcToClassic, type ViewMode } from './classicView.ts';
 import { applyPostParams, createPostPass, ParticleLayer } from './fx3dGfx.ts';
 import type { SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
@@ -654,9 +654,22 @@ export class Scene3DRenderer {
     return this.viewMode;
   }
 
+  /** Classic: scale additive decor glow sprites (see CLASSIC_GLOW_SPRITE_SCALE); Modern restores the built opacity. */
+  private applyClassicGlow(): void {
+    const glow = this.scene.getObjectByName('decor:glow-sprite') as THREE.Mesh | undefined;
+    const mat = glow?.material as THREE.MeshBasicMaterial | undefined;
+    if (!mat) return;
+    if (mat.userData.baseOpacity === undefined) mat.userData.baseOpacity = mat.opacity;
+    const k = this.viewMode === 'classic' ? CLASSIC_GLOW_SPRITE_SCALE : 1;
+    mat.opacity = (mat.userData.baseOpacity as number) * k;
+    if (glow) glow.visible = k > 0;
+  }
+
   /** Classic View: 320x200 palette-dithered render with an orthographic side camera. Bloom and the grade pass are bypassed. */
   public setViewMode(m: ViewMode): void {
     this.viewMode = m;
+    this.mood?.setClassic(m === 'classic');
+    this.applyClassicGlow();
     if (m === 'classic' && !this.classic) this.classic = new ClassicPipeline(this.renderer);
     if (m === 'modern') {
       this.camera.aspect = this.renderer.domElement.width / this.renderer.domElement.height;
@@ -748,6 +761,8 @@ export class Scene3DRenderer {
     this.decor = buildDecor3D(this.scene, w.level, tex);
     this.mood?.dispose();
     this.mood = buildMood3D(this.scene, w.level);
+    this.mood.setClassic(this.viewMode === 'classic');
+    this.applyClassicGlow();
     for (const r of w.level.ramps) {
       const mat = new THREE.MeshStandardMaterial({
         map: tex.grateMap,
@@ -1655,7 +1670,15 @@ export class Scene3DRenderer {
       stepRiggedAnimation3D(rig, desiredAnim, dt, 1.08, 0, p.hp > 0, { ...pose, grounded: pose.grounded || !airborne });
       rig.root.updateMatrixWorld(true);
 
-      if (p.hurtFlashTicks > 0) flashRiggedMaterials3D(rig, 0xff2f2f, 0.75);
+      // Classic: the suit is lit to only a few percent in dark rooms, so any emissive tint (red hurt flash 0.35 after the
+      // clamp, even a 0.14 teal lift) outweighs the diffuse texture and the palette pass maps the whole body to one entry
+      // (the solid red silhouette while the world was paused mid-flash). Classic keeps emissive off and shows the hurt
+      // through the palette pass damage flash, plus a short visibility blink like a 90s sprite.
+      const cl = this.viewMode === 'classic';
+      // Blink on wall-clock time (15 Hz) so a paused world never freezes on a hidden frame.
+      rig.root.visible = !(cl && p.hurtFlashTicks > 0 && Math.floor(tSec * 15) % 2 === 1);
+      if (cl) flashRiggedMaterials3D(rig, 0x000000, 0);
+      else if (p.hurtFlashTicks > 0) flashRiggedMaterials3D(rig, 0xff2f2f, 0.75);
       else if (p.dashInvulnTicks > 0) flashRiggedMaterials3D(rig, 0x2bf0ff, 0.55);
       else flashRiggedMaterials3D(rig, 0x000000, 0);
 
@@ -1672,6 +1695,10 @@ export class Scene3DRenderer {
       this.reticleGroup.rotation.z = tSec * 3.2;
 
       this.fillLight.position.set(px, py + 1.8, 4.2);
+      // Classic: the palette pass crushes the dim suit to near-black grey; a stronger, cooler fill keeps the teal and grey
+      // armour panels on distinct palette ramps (same light, no extra PointLight).
+      this.fillLight.intensity = cl ? 26 : 11;
+      this.fillLight.color.setHex(cl ? 0x9fe8ff : 0xbfe6ff);
       this.muzzleLight.intensity = p.muzzleFlashTicks > 0 ? 14 : 0;
       this.muzzleLight.position.copy(muzzlePos);
 
