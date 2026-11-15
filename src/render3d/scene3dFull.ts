@@ -8,6 +8,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import type { SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
 import { getPlayerPose3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
 import {
@@ -100,6 +101,15 @@ interface PosSnap {
   y: number;
 }
 
+const SECTOR_LIGHT: Record<SectorId3D, { sky: THREE.Color; sun: THREE.Color; ambient: number; sunI: number; bloom: number }> = {
+  airlock: { sky: new THREE.Color(0x8bb6df), sun: new THREE.Color(0xdcebff), ambient: 1.35, sunI: 1.9, bloom: 0.32 },
+  shaft: { sky: new THREE.Color(0x86a9c8), sun: new THREE.Color(0xd4e4f5), ambient: 1.4, sunI: 1.8, bloom: 0.3 },
+  mines: { sky: new THREE.Color(0xb59a78), sun: new THREE.Color(0xffd9a8), ambient: 1.3, sunI: 1.7, bloom: 0.36 },
+  biolabs: { sky: new THREE.Color(0x8fd1a8), sun: new THREE.Color(0xd2f5dc), ambient: 1.35, sunI: 1.7, bloom: 0.4 },
+  security: { sky: new THREE.Color(0x9ab0d6), sun: new THREE.Color(0xe6eeff), ambient: 1.45, sunI: 1.9, bloom: 0.34 },
+  core: { sky: new THREE.Color(0xc08a8a), sun: new THREE.Color(0xffc4b0), ambient: 1.3, sunI: 1.8, bloom: 0.4 },
+};
+
 export class Scene3DRenderer {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly scene: THREE.Scene;
@@ -129,7 +139,7 @@ export class Scene3DRenderer {
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
   private readonly pickupHandles = new Map<string, THREE.Group>();
   private readonly doorMeshes = new Map<string, { mesh: THREE.Mesh; baseY: number; height: number }>();
-  private readonly upgradeMeshes = new Map<string, THREE.Mesh>();
+  private readonly upgradeMeshes = new Map<string, THREE.Object3D>();
   private readonly savePads: THREE.Mesh[] = [];
   private lastTick = -1;
   private airTime = 0;
@@ -141,6 +151,10 @@ export class Scene3DRenderer {
   private readonly occludables: OccludableMesh[] = [];
   private decor: Decor3D | null = null;
   private fogDensity = 0.012;
+  private readonly presetSky = new THREE.Color(0x8bb6df);
+  private readonly presetSun = new THREE.Color(0xdcebff);
+  private presetAmbI = 1.35;
+  private presetSunI = 1.9;
   private readonly trimSpecs: { x: number; y: number; z: number; sx: number; sy: number; sz: number; color: number }[] = [];
 
   private coreModel: THREE.Group | null = null;
@@ -164,6 +178,7 @@ export class Scene3DRenderer {
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    this.renderer.info.autoReset = false;
     this.renderer.setSize(canvas.width, canvas.height, false);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -332,6 +347,8 @@ export class Scene3DRenderer {
       failedModels: getFailedModelNames3D(),
       riggedCount: (this.operativeRig ? 1 : 0) + this.riggedEnemies.size,
       activeAnimations,
+      drawCalls: this.renderer.info.render.calls,
+      triangles: this.renderer.info.render.triangles,
     };
   }
 
@@ -469,14 +486,20 @@ export class Scene3DRenderer {
     for (const st of w.level.saveStations) {
       const pad = new THREE.Mesh(
         new THREE.CylinderGeometry(0.9, 1.0, 0.16, 24),
-        new THREE.MeshStandardMaterial({ color: 0x103a42, emissive: 0x2bf0ff, emissiveIntensity: 1.1, metalness: 0.6, roughness: 0.3 }),
+        new THREE.MeshStandardMaterial({ color: 0x103a42, emissive: 0x2bf0ff, emissiveIntensity: 0.5, metalness: 0.6, roughness: 0.4 }),
       );
       pad.position.set(st.x, st.y + 0.08, 0.2);
       this.scene.add(pad);
       this.savePads.push(pad);
+      const padBase = new THREE.Mesh(
+        new THREE.CylinderGeometry(1.15, 1.2, 0.08, 24),
+        new THREE.MeshStandardMaterial({ color: 0x151b22, metalness: 0.7, roughness: 0.6 }),
+      );
+      padBase.position.set(st.x, st.y + 0.04, 0.2);
+      this.scene.add(padBase);
       const beam = new THREE.Mesh(
         new THREE.CylinderGeometry(0.75, 0.75, 2.4, 20, 1, true),
-        new THREE.MeshBasicMaterial({ color: 0x2bf0ff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+        new THREE.MeshBasicMaterial({ color: 0x2bf0ff, transparent: true, opacity: 0.07, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
       );
       beam.position.set(st.x, st.y + 1.3, 0.2);
       this.scene.add(beam);
@@ -485,19 +508,47 @@ export class Scene3DRenderer {
     // Upgrade pedestals: Thruster Boots (amber) and Energy Tanks (green)
     for (const up of w.level.upgrades) {
       const color = up.kind === 'thruster_boots' ? 0xffb02e : 0x3dff88;
-      const gem = new THREE.Mesh(
-        up.kind === 'thruster_boots' ? new THREE.ConeGeometry(0.34, 0.7, 6) : new THREE.BoxGeometry(0.5, 0.7, 0.5),
-        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.6, roughness: 0.2, metalness: 0.4 }),
+      const gem = new THREE.Group();
+      const core = new THREE.Mesh(
+        up.kind === 'thruster_boots' ? new THREE.ConeGeometry(0.22, 0.46, 6) : new THREE.BoxGeometry(0.3, 0.46, 0.3),
+        new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.65, roughness: 0.25, metalness: 0.1 }),
       );
+      gem.add(core);
+      const cage = new THREE.Mesh(
+        up.kind === 'thruster_boots' ? new THREE.ConeGeometry(0.38, 0.78, 6) : new THREE.BoxGeometry(0.56, 0.78, 0.56),
+        new THREE.MeshStandardMaterial({
+          color: 0xbfd8e6,
+          emissive: color,
+          emissiveIntensity: 0.12,
+          roughness: 0.1,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.28,
+          depthWrite: false,
+        }),
+      );
+      gem.add(cage);
+      const cageWire = new THREE.Mesh(
+        cage.geometry,
+        new THREE.MeshBasicMaterial({ color: 0x5a6b78, wireframe: true, transparent: true, opacity: 0.7 }),
+      );
+      gem.add(cageWire);
       gem.position.set(up.x, up.y + 0.95, 0.2);
       this.scene.add(gem);
       this.upgradeMeshes.set(up.id, gem);
       const base = new THREE.Mesh(
         new THREE.CylinderGeometry(0.55, 0.65, 0.2, 18),
-        new THREE.MeshStandardMaterial({ color: 0x2a3542, emissive: color, emissiveIntensity: 0.45 }),
+        new THREE.MeshStandardMaterial({ color: 0x1b232c, emissive: color, emissiveIntensity: 0.2, metalness: 0.7, roughness: 0.5 }),
       );
       base.position.set(up.x, up.y + 0.1, 0.2);
       this.scene.add(base);
+      const ring = new THREE.Mesh(
+        new THREE.TorusGeometry(0.5, 0.03, 6, 24),
+        new THREE.MeshStandardMaterial({ color: 0x1b232c, emissive: color, emissiveIntensity: 0.6 }),
+      );
+      ring.rotation.x = Math.PI / 2;
+      ring.position.set(up.x, up.y + 0.22, 0.2);
+      this.scene.add(ring);
     }
 
     this.rebuildActorInstances(w);
@@ -821,7 +872,7 @@ export class Scene3DRenderer {
       this.consoleRing.rotation.y = tSec * 1.6;
     }
     for (const pad of this.savePads) {
-      (pad.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.8 + Math.sin(tSec * 2.4) * 0.35;
+      (pad.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.45 + Math.sin(tSec * 2.4) * 0.15;
     }
     for (const [id, gem] of this.upgradeMeshes) {
       gem.visible = !w.collectedUpgrades.has(id);
@@ -839,6 +890,16 @@ export class Scene3DRenderer {
     this.fogDensity += (fogTarget - this.fogDensity) * Math.min(1, dt * 2);
     (this.scene.fog as THREE.FogExp2).density = this.fogDensity;
     this.decor?.update(tSec, w.player.body.x, w.player.body.y);
+    const preset = SECTOR_LIGHT[room ? room.sector : 'airlock'];
+    const lk = Math.min(1, dt * 2.5);
+    this.presetSky.lerp(preset.sky, lk);
+    this.presetSun.lerp(preset.sun, lk);
+    this.presetAmbI += (preset.ambient - this.presetAmbI) * lk;
+    this.presetSunI += (preset.sunI - this.presetSunI) * lk;
+    this.bloomPass.strength += (preset.bloom - this.bloomPass.strength) * lk;
+    this.ambient.intensity = this.presetAmbI;
+    this.sun.intensity = this.presetSunI;
+    this.sun.color.copy(this.presetSun);
     if (inMeltdown) {
       const pulse = 0.5 + 0.5 * Math.sin(tSec * 8.5);
       this.alarmLight.intensity = 14 + pulse * 18;
@@ -846,7 +907,7 @@ export class Scene3DRenderer {
       this.ambient.color.setHex(0xc96b6b);
     } else {
       this.alarmLight.intensity = 0;
-      this.ambient.color.setHex(0x8bb6df);
+      this.ambient.color.copy(this.presetSky);
     }
 
     // 4. Operative: side-view root facing, velocity-locked pose, two-handed rifle IK, laser sight, R3.3 headlamp
@@ -1136,6 +1197,7 @@ export class Scene3DRenderer {
       occ.mat.depthWrite = occ.mat.opacity > 0.8;
     }
 
+    this.renderer.info.reset();
     this.composer.render();
   }
 

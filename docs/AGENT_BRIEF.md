@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: Chrome 가능한 환경에서 `make smoke-local`·showcase 재실행 후, 사용자 확인 후 `git push origin main`(미푸시), 이어서 G5 사람 플레이(`npm run dev`) 관찰을 [EVALUATION.md](EVALUATION.md)에 기록. 새 기능은 `.kiro/specs/metroidvania-3d/`를 따른다.
+▶ NEXT SESSION: 몬스터·지형 전면 개선(FEAT-001~005) 코드 완료, 브라우저 시각·fps 검증은 NEXT_PLAN 체크리스트로 unverified. Chrome 가능한 환경에서 `make smoke-local`·showcase 재실행 후, 사용자 확인 후 `git push origin main`(미푸시), 이어서 G5 사람 플레이(`npm run dev`) 관찰을 [EVALUATION.md](EVALUATION.md)에 기록. 새 기능은 `.kiro/specs/metroidvania-3d/`를 따른다.
 
 2026-11-15 · Full 3D Side-View Metroidvania Wave 2–3 완료 (Kiro)
 

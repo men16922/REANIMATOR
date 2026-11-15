@@ -30,4 +30,5 @@
 - `make smoke-local`은 이 샌드박스에서 Chrome이 abort(exit 134, `--no-sandbox`도 동일)해 최신 맵 기준 unverified. 위 29/29는 맵 변경 전 값.
 - 움직임 자연스러움(방향 전환·점프 포즈·머리 회전 수정)은 정지 캡처로만 확인, 사람 눈 확인 필요. 어두운 샤프트는 보조 조명으로 완화했으나 튜닝 여지 있음. 15 Hz는 설계값. `.kiro/settings/mcp.json` REA MCP 쓰기 차단 잔여.
 
+- 2026-11-15 몬스터·지형 전면 개선(FEAT-001~005) 완료: `make check` exit 0, 테스트 54/54, 봇 완주 3674 ticks HP 160, reach3d 52 wp 3431 ticks, dist-guard PASS(13 files 14,384,687 B). 렌더 draw call/triangles는 `__reanimator().drawCalls/triangles`로 읽도록 추가했으나 값 unverified. 시각·fps 전부 unverified.
 - 2026-11-15: 샤프트 문 emissive 단색 면 수정·ambient 상향 적용(`make check` exit 0). 브라우저 시각 재확인 unverified.

@@ -1,5 +1,11 @@
 # 진행 기록
 
+## 2026-11-15 — 몬스터·지형 전면 개선 마무리: 조명 프리셋·블룸 완화·텔레메트리 (FEAT-005, Kiro)
+- 커밋(`git log --oneline cb0d947..HEAD`): 8c9138c 계획 문서, 90a654c 몬스터 AI 상태, 4f879c6 몬스터 애니메이션 블렌딩, 506bd76 섹터 지형 세트 드레싱, 그리고 이번 `chore: lighting presets, bloom tamed pickups, telemetry, docs`.
+- 변경(`scene3dFull.ts`): 업그레이드 젬을 유리형 외곽 케이지(opacity 0.28, 와이어)와 내부 코어(emissive 0.65)로 분리, 받침대 emissive 0.2와 어두운 링 추가. Save 패드 emissive 1.1→0.5, 펄스 0.45±0.15, 빔 opacity 0.1→0.07, 어두운 베이스 링 추가. 섹터별 조명 프리셋(`SECTOR_LIGHT`: 하늘색·태양색·강도·블룸 0.30–0.40)을 방 전환 시 보간. PointLight 추가 0개. `w.light`는 여전히 시각 전용.
+- 텔레메트리: `getTelemetry()`에 `drawCalls`, `triangles` 추가(`renderer.info.autoReset=false`, 합성 직전 `info.reset()`이라 프레임 전체 합계). 값은 브라우저에서만 읽을 수 있어 아직 미측정(`window.__reanimator()`로 확인 필요).
+- 검증: `make check` exit 0. `node --test tests/` 54/54, `reference-verify` 3/3, `reach3d` 52 waypoints 3431 ticks, dist-guard PASS(13 files 14,384,687 B / 218), 봇 완주 `won` 3674 ticks HP 160. 브라우저·smoke·시각 확인은 모두 unverified(Chrome 불가).
+
 ## 2026-11-15 — Acid 블룸·HUD 목표 줄 수정 (Kiro)
 - 원인(추정): acid 재질 emissive 1.35 + 초록 PointLight 5 + bloom threshold 0.84가 겹쳐 acid 면이 포화. HUD는 OBJ 칩이 flex-wrap 폭에 따라 첫 줄로 올라감.
 - 수정(수치): acid emissiveIntensity 1.35→0.5, acid 라이트 5/11→3/9, bloom strength 0.42→0.36·radius 0.32→0.3·threshold 0.84→0.9, 출구 링 1.9→1.3. `.hud-break`로 OBJ를 항상 둘째 줄에 고정.

@@ -38,8 +38,20 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 계획: [plans/2026-11-15_MONSTERS_TERRAIN_OVERHAUL.md](plans/2026-11-15_MONSTERS_TERRAIN_OVERHAUL.md)
 
 - [x] FEAT-001 기준선 기록(테스트 45/45, reach3d 52 wp 3431 ticks, 봇 3433 ticks HP 160) 및 계획 문서.
-- [ ] FEAT-002 몬스터 AI 상태·회전·도약·순찰·가속(시뮬).
-- [ ] FEAT-003 몬스터 애니메이션 블렌딩·절차 모션·흰 실루엣 수정.
-- [ ] FEAT-004 섹터별 지형 세트 드레싱·절차 텍스처·분위기.
-- [ ] FEAT-005 조명 프리셋·블룸 완화·성능 텔레메트리·문서.
+- [x] FEAT-002 몬스터 AI 상태·회전·도약·순찰·가속(시뮬).
+- [x] FEAT-003 몬스터 애니메이션 블렌딩·절차 모션·흰 실루엣 수정.
+- [x] FEAT-004 섹터별 지형 세트 드레싱·절차 텍스처·분위기.
+- [x] FEAT-005 조명 프리셋·블룸 완화·성능 텔레메트리·문서.
 - 브라우저 검증은 모두 unverified(Chrome 불가).
+
+### 브라우저 재검증 체크리스트(오케스트레이터 Playwright, 모두 unverified)
+
+- 훅: `__reanimatorAdvance([], {x,y,boots:true,openDoors:[...]})`, `__reanimatorRunBot(maxTicks)`. 진입 tick: shaft 180, mines 490, biolabs 1390, security 1700, core 2400. 매 섹터에서 `__reanimator()`로 `drawCalls`, `triangles`, 콘솔 오류 0, fps 기록(PointLight 추가 없음, fps 60 근처 기대).
+- airlock: 차갑고 푸른 톤, 블룸 약함, 세이브 패드가 단색이 아니라 어두운 링 위 청록 발광.
+- shaft: 푸른 회색, 문 면 줄무늬 질감, 업그레이드 없음.
+- mines: 따뜻한 앰버 톤, acid가 텍스처로 보임, 부츠 젬이 유리 케이지 안 코어로 읽히고 평면 노란 덩어리가 아님.
+- biolabs: 녹색 틴트, 블룸 최대 0.4여도 젬·Energy Tank가 형태 유지.
+- security: 밝고 푸른 흰 톤, 콘솔 링, 세이브 패드.
+- core: 붉은 톤, 보스 충격파와 Meltdown 경보 시 ambient가 붉게 전환, 종료 후 프리셋 색 복귀.
+- 방 전환 시 색·강도가 약 0.4초에 걸쳐 부드럽게 변하는지(깜빡임 없음).
+- 이후 `__reanimatorRunBot(4000)`으로 완주 유지 확인(시뮬 기준 3674 ticks).
