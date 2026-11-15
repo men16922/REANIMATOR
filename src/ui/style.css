@@ -16,6 +16,15 @@
   --c-red: #ff4757;
   --c-violet: #b77dff;
   --c-gold: #f2d36b;
+  /* Layer scale (single source of truth, checked by tests/ui-panels.test.ts). Canvas sits at 0.
+     Exactly one overlay owns the top; title chrome and title sub panels live inside #title's own context. */
+  --z-hud: 1;
+  --z-title: 2;
+  --z-overlay: 3;
+  --z-subpanel: 4;
+  --z-intro: 5;
+  --z-caption: 6;
+  --z-loading: 9;
   font-family: var(--font-ui);
 }
 * { box-sizing: border-box; }
@@ -45,7 +54,7 @@ code { color: var(--c-gold); font-family: var(--font-mono); }
 /* ---- HUD ---- */
 #damage-flash { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle, transparent 48%, rgba(215, 25, 25, 0.78) 100%); opacity: 0; transition: opacity 0.06s linear; }
 #hud {
-  position: absolute; top: 0; left: 0; right: 0; padding: 0.55em 0.85em; font-size: 0.92em; letter-spacing: 0.03em;
+  z-index: var(--z-hud); position: absolute; top: 0; left: 0; right: 0; padding: 0.55em 0.85em; font-size: 0.92em; letter-spacing: 0.03em;
   text-shadow: 0 1px 3px #000; pointer-events: none; display: flex; flex-direction: column; gap: 0.34em;
   background: linear-gradient(to bottom, rgba(4, 7, 12, 0.84), rgba(4, 7, 12, 0));
 }
@@ -131,11 +140,13 @@ kbd {
 @keyframes key-tap { 50% { border-bottom-width: 1px; transform: translateY(2px); } }
 
 /* ---- overlays ---- */
-.overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.65em; background: rgba(5, 8, 14, 0.72); backdrop-filter: blur(4px); text-align: center; padding: 1.4em; }
+.overlay { position: absolute; inset: 0; z-index: var(--z-overlay); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.65em; background: rgba(5, 8, 14, 0.72); backdrop-filter: blur(4px); text-align: center; padding: 1.4em; }
 .overlay[hidden] { display: none; }
 .badge { font-size: 0.78em; letter-spacing: 0.24em; color: #6ae6ff; border: 1px solid rgba(106, 230, 255, 0.42); padding: 0.25em 0.75em; border-radius: 1px; background: rgba(12, 26, 38, 0.74); }
 .opts, .links { display: flex; gap: 1.4em; align-items: center; flex-wrap: wrap; justify-content: center; }
-.panel { justify-content: flex-start; overflow: auto; text-align: left; align-items: stretch; background: rgba(5, 7, 11, 0.96); }
+.panel { justify-content: flex-start; overflow: auto; text-align: left; align-items: stretch; background: #05070b; }
+/* Lab and How-it-was-revived open over the title (and its panels), never behind it. */
+#lab, #revived { z-index: var(--z-subpanel); }
 .panel ul { line-height: 1.55; max-width: 82ch; }
 h2 { letter-spacing: 0.2em; text-transform: uppercase; font-weight: 600; font-size: 2em; margin: 0.1em 0; }
 button { font: inherit; padding: 0.55em 1.5em; background: #182332; color: #e8f1fa; border: 1px solid #5982a8; border-radius: 1px; cursor: pointer; letter-spacing: 0.06em; transition: border-color 0.15s, background 0.15s, transform 0.1s; }
@@ -156,7 +167,7 @@ button.link { background: none; border: none; text-decoration: underline; color:
 /* ---- title: gritty industrial plate menu, cinematic grade, reactor-heart logo ---- */
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 #title, #loading { --amber: #ff9a3c; --rust: #c4421a; --plate: rgba(12, 14, 18, 0.9); gap: 0.5em; }
-#title { background: #03050a; backdrop-filter: none; z-index: 2; }
+#title { background: #03050a; backdrop-filter: none; z-index: var(--z-title); }
 /* The attract demo is the canvas under the overlay: keep the overlay translucent and grade it. */
 #title { background: rgba(3, 5, 9, 0.5); }
 #title .grade { position: absolute; inset: 0; pointer-events: none; background:
@@ -206,7 +217,9 @@ button.link { background: none; border: none; text-decoration: underline; color:
 .plate { position: relative; padding: 0.9em 1.4em; background: linear-gradient(180deg, rgba(34, 36, 40, 0.94), rgba(14, 15, 18, 0.95)); border: 1px solid #5a5148; border-top-color: #8d8072; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0.5em 1.6em rgba(0, 0, 0, 0.7);
   background-image: radial-gradient(circle at 0.55em 0.55em, #9a8d7d 0 0.14em, transparent 0.2em), radial-gradient(circle at calc(100% - 0.55em) 0.55em, #9a8d7d 0 0.14em, transparent 0.2em),
     radial-gradient(circle at 0.55em calc(100% - 0.55em), #9a8d7d 0 0.14em, transparent 0.2em), radial-gradient(circle at calc(100% - 0.55em) calc(100% - 0.55em), #9a8d7d 0 0.14em, transparent 0.2em), linear-gradient(180deg, rgba(34, 36, 40, 0.94), rgba(14, 15, 18, 0.95)); }
-.menu-list { display: flex; flex-direction: column; gap: 0.3em; min-width: 18em; animation: emblem-in 0.9s ease-out 2s both; }
+.menu-list { display: flex; flex-direction: column; gap: 0.3em; min-width: 18em; }
+/* Only the first-screen menu fades in late. Sub panel lists must be visible the moment the panel opens (they were stuck at opacity 0 for 2 s). */
+#title-menu { animation: emblem-in 0.9s ease-out 2s both; }
 button.mi { display: flex; align-items: center; gap: 0.8em; width: 100%; padding: 0.5em 1.2em 0.5em 0.8em; background: transparent; border: 1px solid transparent; border-radius: 0; color: #f1e6d4; font-size: 1.15em; font-weight: 700; letter-spacing: 0.3em; text-transform: uppercase; text-align: left; box-shadow: none; animation: none; }
 button.mi .mi-mark { flex: none; width: 0.9em; height: 0.9em; clip-path: polygon(0 0, 100% 50%, 0 100%); background: transparent; }
 button.mi:hover, button.mi:focus { background: linear-gradient(90deg, rgba(255, 154, 60, 0.28), rgba(255, 154, 60, 0.04)); border-color: #ff9a3c; color: #fff; outline: none; transform: none; }
@@ -220,8 +233,10 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 .credits { position: absolute; left: 0; right: 0; bottom: 0; height: 7.5%; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 1.4em; padding: 0 1.4em; font-size: 0.8em; color: #c3ccd6; text-align: left; }
 .kiro-badge { flex: none; color: #0b0f16; background: var(--c-violet); padding: 0.18em 0.8em; font-weight: 700; letter-spacing: 0.16em; }
 .pitch { letter-spacing: 0.1em; }
+/* While any panel is open, the title logo/menu/tagline step out of the way (class set by syncPanels in main.ts). */
+#title.covered .title-inner { visibility: hidden; }
 /* sub panels cover the title menu */
-.tpanel { position: absolute; inset: 7.5% 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.7em; background: rgba(3, 5, 9, 0.93); }
+.tpanel { position: absolute; inset: 7.5% 0; z-index: 4; overflow: auto; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.7em; background: rgba(3, 5, 9, 0.93); }
 .tpanel[hidden] { display: none; }
 .tpanel h2 { color: #ffb36b; text-shadow: 0 0 14px rgba(255, 154, 60, 0.4); }
 .form { display: flex; flex-direction: column; gap: 0.8em; min-width: 26em; text-align: left; }
@@ -230,7 +245,7 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 .form select, .settings select { background: #0b1118; color: inherit; border: 1px solid var(--c-line-dim); font: inherit; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.15em 0.5em; }
 .form input[type="checkbox"] { accent-color: #ff9a3c; width: 1.1em; height: 1.1em; }
 /* loading */
-#loading { z-index: 9; background: #03050a; transition: opacity 0.5s ease; }
+#loading { z-index: var(--z-loading); background: #03050a; transition: opacity 0.5s ease; }
 #loading.done { opacity: 0; pointer-events: none; }
 .loading-text { margin: 0.4em 0 0; letter-spacing: 0.5em; font-weight: 700; color: #ffb36b; }
 .dots::after { content: ""; animation: dots 1.2s steps(4) infinite; }
@@ -242,7 +257,7 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 .load-count { margin: 0; font-size: 0.78em; letter-spacing: 0.3em; color: #b8c6d4; }
 
 /* ---- intro ---- */
-#intro { position: absolute; inset: 0; z-index: 5; pointer-events: none; background: #000; animation: intro-bg 9.6s ease forwards; }
+#intro { position: absolute; inset: 0; z-index: var(--z-intro); pointer-events: none; background: #000; animation: intro-bg 9.6s ease forwards; }
 #intro[hidden] { display: none; }
 @keyframes intro-bg { 0%, 20% { background: #000; } 45% { background: rgba(0, 0, 0, 0.55); } 100% { background: rgba(0, 0, 0, 0); } }
 #intro .lid { position: absolute; left: 0; right: 0; height: 50%; background: #000; animation-duration: 3.2s; animation-fill-mode: forwards; animation-timing-function: ease-in-out; }
@@ -260,7 +275,7 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 .menu { display: flex; flex-direction: column; gap: 0.5em; min-width: 14em; }
 .settings { display: flex; flex-direction: column; gap: 0.5em; margin-top: 0.6em; padding: 0.8em 1.6em; border: 1px solid var(--c-line-dim); background: rgba(8, 14, 22, 0.6); }
 .settings-h { font-size: 0.75em; letter-spacing: 0.3em; color: var(--c-cyan); }
-#controls-panel { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; background: rgba(5, 8, 14, 0.96); }
+#controls-panel { position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1em; background: rgba(5, 8, 14, 0.96); }
 #controls-panel[hidden] { display: none; }
 .credits-body { max-width: 34em; text-align: left; line-height: 1.5; }
 .credits-body p { margin: 0 0 0.7em; }
@@ -284,14 +299,14 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 @keyframes signal-lost { 0%, 92%, 100% { transform: none; } 94% { transform: translateX(-0.12em); } 96% { transform: translateX(0.1em); } }
 
 /* ---- accessibility ---- */
-body.reduce-fx .logo-svg *, body.reduce-fx #title .scan, body.reduce-fx #title .scan::after, body.reduce-fx button.mi .mi-mark, body.reduce-fx .tagline, body.reduce-fx .menu-list,
+body.reduce-fx .logo-svg *, body.reduce-fx #title .scan, body.reduce-fx #title .scan::after, body.reduce-fx button.mi .mi-mark, body.reduce-fx .tagline, body.reduce-fx #title-menu,
 body.reduce-fx .letterbox, body.reduce-fx .vitals path, body.reduce-fx .dots::after,
 body.reduce-fx #hud.hit, body.reduce-fx .hp-pill.low, body.reduce-fx .meltdown-pill, body.reduce-fx #result.won, body.reduce-fx #result.lost h2, body.reduce-fx #coach kbd { animation: none; }
 body.reduce-fx .logo-svg .wm-glow, body.reduce-fx .logo-svg .heart-glow { opacity: 0.4; }
 body.reduce-fx #intro { animation-duration: 0.01s; }
 body.reduce-fx .wpn-slot.switch { animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  .logo-svg *, #title .scan, #title .scan::after, button.mi .mi-mark, .tagline, .menu-list, .letterbox, .vitals path, .dots::after, #hud.hit, #result.won { animation: none; }
+  .logo-svg *, #title .scan, #title .scan::after, button.mi .mi-mark, .tagline, #title-menu, .letterbox, .vitals path, .dots::after, #hud.hit, #result.won { animation: none; }
   .logo-svg .wm-glow, .logo-svg .heart-glow { opacity: 0.4; }
   #loading { transition: none; }
 }
