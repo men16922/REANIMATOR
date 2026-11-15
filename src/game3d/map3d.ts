@@ -15,7 +15,10 @@ import type {
   BarrelSpawn3D,
   Collider3D,
   DataLog3D,
+  CollapseSpawn3D,
+  ElevatorSpawn3D,
   EnemySpawn3D,
+  HazardSpawn3D,
   HiveSpawn3D,
   Level3D,
   MapSolid3D,
@@ -23,6 +26,7 @@ import type {
   Pillar3D,
   RoomDef3D,
   SaveStation3D,
+  SwitchSpawn3D,
   UpgradePedestal3D,
   WeaponPedestal3D,
 } from './types3d.ts';
@@ -37,6 +41,11 @@ export type {
   EnemySpawn3D,
   EnemySurface3D,
   EnemyVariant3D,
+  HazardKind3D,
+  HazardSpawn3D,
+  CollapseSpawn3D,
+  ElevatorSpawn3D,
+  SwitchSpawn3D,
   HiveSpawn3D,
   Level3D,
   MapSolid3D,
@@ -151,7 +160,13 @@ export function buildFacilityMap3D(): Level3D {
     box('cache-wall-west', 12, 13, 10.2, 14.2),
     box('cache-ceiling', 12, 24, 13.2, 14.2),
     box('airlock-balcony', 1.5, 13.5, 4.8, 5.2, 'catwalk', { color: 0x2a3542 }),
-    box('airlock-bridge', 13.5, 24.4, 4.8, 5.2, 'catwalk', { color: 0x2a3542 }),
+    // Collapse set piece: four segments that fall east to west during the meltdown escape
+    box('bridge-seg-3', 21.6, 24.4, 4.8, 5.2, 'catwalk', { color: 0x2a3542, collapseId: 'collapse:bridge-seg-3', dynamic: true }),
+    box('bridge-seg-2', 18.9, 21.6, 4.8, 5.2, 'catwalk', { color: 0x2a3542, collapseId: 'collapse:bridge-seg-2', dynamic: true }),
+    box('bridge-seg-1', 16.2, 18.9, 4.8, 5.2, 'catwalk', { color: 0x2a3542, collapseId: 'collapse:bridge-seg-1', dynamic: true }),
+    box('bridge-seg-0', 13.5, 16.2, 4.8, 5.2, 'catwalk', { color: 0x2a3542, collapseId: 'collapse:bridge-seg-0', dynamic: true }),
+    // Recovery ledge for anyone who drops with the bridge: floor -> ledge -> balcony needs the Double-Jump
+    platform('airlock-maint-ledge', 14.4, 17.0, 2.4),
     // East partition: lower doorway y0..3.6, upper doorway y5.2..8.6
     door('door-airlock-shaft', 'door_airlock_shaft', 'blue', 23.6, 24.4, 0, 3.6, 0x3a8cff),
     box('airlock-divider-mid', 23.6, 24.4, 3.6, 4.8),
@@ -181,6 +196,8 @@ export function buildFacilityMap3D(): Level3D {
     platform('shaft-down-2', 26, 34, -4.4),
     platform('shaft-down-3', 31, 39, -6.6),
     platform('shaft-down-4', 27, 35, -8.8),
+    // Cargo lift car (one-way, moved by the world): rests flush with the shaft floor, rises to the y=0 grate
+    box('lift-car-shaft', 29.4, 32.4, -11.28, -11.0, 'platform', { color: 0x6a5a1c, emissive: 0xffb02a, dynamic: true }),
     // Ascent platforms (one-way), kept on the east side
     platform('shaft-up-1', 34, 40, 2.2),
     platform('shaft-up-2', 35, 41, 4.4),
@@ -206,6 +223,8 @@ export function buildFacilityMap3D(): Level3D {
     platform('bio-plat-1', 46, 54, 2.2),
     platform('bio-plat-2', 60, 69, 2.2),
     platform('bio-plat-3', 52, 58, 4.5),
+    // Gantry over the acid basin, lowered by the Bio-Labs switch
+    box('bio-bridge', 51, 58, -0.28, 0, 'platform', { color: 0x59611f, emissive: 0x9aff3a, bridgeId: 'bridge_bio', dynamic: true }),
     platform('bio-grate-up', 62, 68, 4.4),
     box('bio-wall-east-up', 69.6, 70.4, 4.0, 8.8),
     door('door-boss', 'door_boss', 'red', 69.6, 70.4, 0, 4.0, 0xff2a3c),
@@ -275,6 +294,8 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'brl-mines-2', x: 6.5, y: -11.0, z: 0 },
     { id: 'brl-bio-1', x: 47.0, y: 0, z: 0 },
     { id: 'brl-bio-2', x: 63.0, y: 0, z: 0 },
+    { id: 'brl-bio-3', x: 59.2, y: 0, z: 0 },
+    { id: 'brl-bio-4', x: 60.1, y: 0, z: 0 },
     { id: 'brl-sec-1', x: 60.0, y: 8.8, z: 0 },
     { id: 'brl-core-1', x: 76.0, y: 0, z: 0 },
     { id: 'brl-core-2', x: 88.0, y: 0, z: 0 },
@@ -318,6 +339,10 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'e-esc-3', kind: 'spitter', x: 33.0, y: 0, z: 0, zone: 'shaft' },
     { id: 'e-esc-4', kind: 'crawler', x: 39.5, y: 0, z: 0, zone: 'shaft' },
     { id: 'e-esc-5', kind: 'spitter', x: 9.0, y: 5.2, z: 0, zone: 'airlock' },
+    // Round 4 lift ambush: dead until the cargo lift passes y -9 on its way up
+    { id: 'e-lift-1', kind: 'crawler', x: 27.2, y: -4.4, z: 0, zone: 'shaft' },
+    { id: 'e-lift-2', kind: 'stalker', x: 37.5, y: -6.6, z: 0, zone: 'shaft' },
+    { id: 'e-lift-3', kind: 'spitter', x: 34.6, y: -2.2, z: 0, zone: 'shaft' },
     // Round 3: ceiling ambushers (y = ceiling underside - 0.85 body height) and wall/ceiling climbers.
     // Appended last so the original roster order is unchanged.
     { id: 'e-drop-airlock', kind: 'crawler', x: 15.5, y: 3.95, z: 0, zone: 'airlock', variant: 'dropper', surface: 'ceiling', span: [15.5, 15.5] },
@@ -339,6 +364,35 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'hive-bio-1', sector: 'biolabs', x: 48.5, y: 0, z: 0 },
     { id: 'hive-bio-2', sector: 'biolabs', x: 66.5, y: 0, z: 0 },
     { id: 'hive-sec-1', sector: 'security', x: 58.5, y: 8.8, z: 0 },
+  ];
+
+  const hazards: HazardSpawn3D[] = [
+    // Acid Mines: crusher on the east walkway before the acid pit, steam vent on the vault ledge
+    { id: 'hz-mines-crusher', kind: 'crusher', sector: 'mines', x: 17.5, y: -11.0, width: 1.6, height: 7.0, period: 270, offset: 40, telegraph: 40, active: 26, recover: 40, damage: 40, knock: 0 },
+    { id: 'hz-mines-vent', kind: 'vent', sector: 'mines', x: 7.0, y: -8.6, width: 1.0, height: 2.6, period: 210, offset: 0, telegraph: 45, active: 40, recover: 15, damage: 12, knock: 5 },
+    // Security Deck: laser grid in front of the console, dark after the console is online
+    { id: 'hz-sec-laser', kind: 'laser', sector: 'security', x: 60.8, y: 8.8, width: 0.3, height: 3.0, period: 300, offset: 100, telegraph: 36, active: 130, recover: 0, damage: 18, knock: 4, consoleOff: true },
+    // Reactor Core: two steam vents in the arena
+    { id: 'hz-core-vent-1', kind: 'vent', sector: 'core', x: 79.0, y: 0, width: 1.2, height: 2.8, period: 240, offset: 30, telegraph: 50, active: 40, recover: 20, damage: 14, knock: 5 },
+    { id: 'hz-core-vent-2', kind: 'vent', sector: 'core', x: 88.0, y: 0, width: 1.2, height: 2.8, period: 240, offset: 150, telegraph: 50, active: 40, recover: 20, damage: 14, knock: 5 },
+    // Meltdown rockfall along the escape route: shadow first, then the rock
+    { id: 'hz-rubble-1', kind: 'rubble', sector: 'core', x: 76.0, y: 0, width: 1.8, height: 7, period: 190, offset: 20, telegraph: 50, active: 8, recover: 0, damage: 20, knock: 3, meltdownOnly: true },
+    { id: 'hz-rubble-2', kind: 'rubble', sector: 'biolabs', x: 64.5, y: 0, width: 1.8, height: 7, period: 190, offset: 90, telegraph: 50, active: 8, recover: 0, damage: 20, knock: 3, meltdownOnly: true },
+    { id: 'hz-rubble-5', kind: 'rubble', sector: 'biolabs', x: 68.0, y: 0, width: 1.8, height: 7, period: 190, offset: 120, telegraph: 50, active: 8, recover: 0, damage: 20, knock: 3, meltdownOnly: true },
+    { id: 'hz-rubble-3', kind: 'rubble', sector: 'biolabs', x: 45.5, y: 0, width: 1.8, height: 7, period: 190, offset: 150, telegraph: 50, active: 8, recover: 0, damage: 20, knock: 3, meltdownOnly: true },
+    { id: 'hz-rubble-4', kind: 'rubble', sector: 'shaft', x: 35.0, y: 0, width: 1.8, height: 7, period: 190, offset: 55, telegraph: 50, active: 8, recover: 0, damage: 20, knock: 3, meltdownOnly: true },
+  ];
+
+  const switches: SwitchSpawn3D[] = [
+    { id: 'sw-bio-bridge', sector: 'biolabs', x: 50.2, y: 0.15, z: 0, radius: 0.45, opens: 'bridge_bio', label: 'GANTRY SWITCH' },
+  ];
+
+  const elevators: ElevatorSpawn3D[] = [
+    { id: 'lift-shaft', sector: 'shaft', carId: 'lift-car-shaft', bottomY: -11.0, topY: 0, speed: 0.04, dwell: 45, topHold: 240, waveIds: ['e-lift-1', 'e-lift-2', 'e-lift-3'], waveY: -9.0 },
+  ];
+
+  const collapses: CollapseSpawn3D[] = [
+    { id: 'collapse-airlock-bridge', sector: 'airlock', segmentIds: ['bridge-seg-3', 'bridge-seg-2', 'bridge-seg-1', 'bridge-seg-0'], triggerX: 24.2, triggerMinY: 4.4, graceTicks: 20, intervalTicks: 18, crumbleTicks: 14 },
   ];
 
   const dataLogs: DataLog3D[] = [
@@ -368,6 +422,10 @@ export function buildFacilityMap3D(): Level3D {
     medStations,
     enemies,
     hives,
+    hazards,
+    switches,
+    elevators,
+    collapses,
     dataLogs,
     secrets: [
       { id: 'secret_alcove', sector: 'airlock', name: 'Cryo Alcove', doorId: 'door_secret_alcove' },
@@ -381,6 +439,7 @@ export function buildCollider3D(level: Level3D, openDoors: ReadonlySet<string>):
     solids: level.solids,
     pillars: level.pillars,
     ramps: level.ramps,
-    isSolidActive: (s) => !s.doorId || !openDoors.has(s.doorId),
+    isSolidActive: (s) =>
+      (!s.doorId || !openDoors.has(s.doorId)) && (!s.collapseId || !openDoors.has(s.collapseId)) && (!s.bridgeId || openDoors.has(s.bridgeId)),
   };
 }

@@ -5,6 +5,7 @@
 import { stepBody3D, spawnBody3D, floorHeightAt3D, resolveHorizontal3D, ABILITY_3D, type Body3D } from '../engine/motion3d.ts';
 import { newLight, tickLight, toggleLight, type Light } from '../game/light.ts';
 import { buildCollider3D, buildFacilityMap3D } from './map3d.ts';
+import { hazardHits, hazardPhase } from './hazards.ts';
 import type {
   ActorAnimAction,
   DataLog3D,
@@ -12,6 +13,7 @@ import type {
   EnemySpawn3D,
   EnemySurface3D,
   EnemyVariant3D,
+  HazardSpawn3D,
   Level3D,
   MapSolid3D,
   PlayerPoseState3D,
@@ -306,6 +308,34 @@ export interface RunSummary3D {
   won: boolean;
 }
 
+export type ElevatorPhase3D = 'bottom' | 'rising' | 'top' | 'returning';
+
+export interface ElevatorState3D {
+  id: string;
+  phase: ElevatorPhase3D;
+  /** Car top surface height */
+  y: number;
+  /** Ticks a rider has stood on the car (bottom) or ticks left before it returns (top) */
+  timer: number;
+  waveDone: boolean;
+}
+
+export interface SwitchState3D {
+  id: string;
+  on: boolean;
+  flashTicks: number;
+}
+
+export interface CollapseState3D {
+  id: string;
+  /** Tick the script started, -1 while idle */
+  startTick: number;
+  /** Segment ids that have fallen */
+  fallen: string[];
+  /** Segment ids that are crumbling (warning) */
+  crumbling: string[];
+}
+
 export interface BarrelState3D {
   id: string;
   x: number;
@@ -361,6 +391,9 @@ export interface WorldState3D {
   explosions: ExplosionFX3D[];
   beams: BeamFX3D[];
   barrels: BarrelState3D[];
+  elevators: ElevatorState3D[];
+  switches: SwitchState3D[];
+  collapses: CollapseState3D[];
   pickups: PickupState3D[];
   /** Data logs (6, one per sector) */
   collectibles: CollectibleState3D[];
@@ -521,7 +554,7 @@ export function getRunSummary3D(w: Readonly<WorldState3D>): RunSummary3D {
 function buildEnemy3D(sp: EnemySpawn3D, hiveId = ''): EnemyState3D {
   const st = ENEMY_STATS[sp.kind];
   const hpScale = sp.kind === 'warden' ? 1 : SECTOR_HP_3D[sp.zone] * (sp.id.startsWith('e-esc-') ? 2 : 1);
-  const minion = hiveId !== '' || sp.id.startsWith('e-core-m') || sp.id.startsWith('e-esc-');
+  const minion = hiveId !== '' || sp.id.startsWith('e-core-m') || sp.id.startsWith('e-esc-') || sp.id.startsWith('e-lift-');
   const surface: EnemySurface3D = sp.surface ?? 'floor';
   const wallDir: 1 | -1 = sp.wallDir ?? 1;
   const span = sp.span ?? [sp.x, sp.x];
@@ -666,6 +699,9 @@ export function newWorld3D(): WorldState3D {
     shockwaves: [],
     explosions: [],
     beams: [],
+    elevators: level.elevators.map((e) => ({ id: e.id, phase: 'bottom' as const, y: e.bottomY, timer: 0, waveDone: false })),
+    switches: level.switches.map((sw) => ({ id: sw.id, on: false, flashTicks: 0 })),
+    collapses: level.collapses.map((c) => ({ id: c.id, startTick: -1, fallen: [], crumbling: [] })),
     barrels: level.barrels.map((b) => ({ ...b, z: 0, hp: 20, alive: true, fuseTicks: -1, hitFlashTicks: 0 })),
     pickups,
     collectibles: level.dataLogs.map((l: DataLog3D) => ({
@@ -1113,6 +1149,7 @@ function fireWeapon3D(w: WorldState3D, railFrac = 0): void {
       if (pointToSegmentDistSq(b.x, b.y + 0.65, ox, oy, ex, ey) <= 0.72 * 0.72) {
         b.hp = 0;
         b.alive = false;
+        w.events.push({ type: 'barrel_explode' });
         triggerExplosion3D(w, b.x, b.y + 0.7, 0, 4.4, 92, 0xff7a2f);
       }
     }
@@ -1241,6 +1278,7 @@ function stepProjectiles3D(w: WorldState3D): void {
               b.hitFlashTicks = 6;
               if (b.hp <= 0) {
                 b.alive = false;
+                w.events.push({ type: 'barrel_explode' });
                 triggerExplosion3D(w, b.x, b.y + 0.7, 0, 4.4, 92, 0xff7a2f);
               }
             }
@@ -1984,6 +2022,169 @@ function stepHives3D(w: WorldState3D): void {
   }
 }
 
+/** Hazard clock for a cycle: world tick, meltdown elapsed ticks, or -1 while the hazard is switched off. */
+export function hazardNowTick3D(w: Readonly<WorldState3D>, h: HazardSpawn3D): number {
+  if (h.consoleOff && w.consoleUnlocked) return -1;
+  if (h.meltdownOnly) return w.meltdownTicks < 0 || w.status !== 'playing' ? -1 : MELTDOWN_TICKS - w.meltdownTicks;
+  return w.tick;
+}
+
+function carOf(w: WorldState3D, id: string): MapSolid3D {
+  return w.level.solids.find((s) => s.id === id)!;
+}
+
+/** Cargo lift: rider dwell, rise with a mid-shaft ambush, empty return. The car is a one-way solid, so the ordinary floor snap carries the rider. */
+function stepElevators3D(w: WorldState3D): void {
+  const pb = w.player.body;
+  for (const sp of w.level.elevators) {
+    const st = w.elevators.find((e) => e.id === sp.id)!;
+    const car = carOf(w, sp.carId);
+    const onCar = pb.grounded && Math.abs(pb.y - st.y) < 0.15 && pb.x > car.minX - 0.2 && pb.x < car.maxX + 0.2;
+    if (st.phase === 'bottom') {
+      st.timer = onCar ? st.timer + 1 : 0;
+      if (st.timer >= sp.dwell) {
+        st.phase = 'rising';
+        st.timer = 0;
+        w.events.push({ type: 'elevator_start' });
+      }
+    } else if (st.phase === 'rising') {
+      st.y = Math.min(sp.topY, st.y + sp.speed);
+      if (!st.waveDone && st.y >= sp.waveY) {
+        st.waveDone = true;
+        for (const id of sp.waveIds) {
+          const m = w.enemies.find((e) => e.id === id);
+          const spawn = w.level.enemies.find((e) => e.id === id);
+          if (!m || !spawn || m.alive) continue;
+          m.x = spawn.x;
+          m.y = spawn.y;
+          m.vx = 0;
+          m.vy = 0;
+          m.hp = Math.round(ENEMY_STATS[m.kind].hp * SECTOR_HP_3D[m.zone]);
+          m.maxHp = m.hp;
+          m.alive = true;
+          m.active = true;
+          m.deathTicks = 0;
+          m.anim = 'idle';
+          m.hitFlashTicks = 8;
+          m.attackCooldown = 40;
+          setEnemyState(m, 'chase', 0);
+        }
+        setHint(w, 'AMBUSH ON THE CARGO LIFT');
+      }
+      if (st.y >= sp.topY) {
+        st.phase = 'top';
+        st.timer = sp.topHold;
+        w.events.push({ type: 'elevator_stop' });
+      }
+    } else if (st.phase === 'top') {
+      if (!onCar && --st.timer <= 0) st.phase = 'returning';
+    } else {
+      st.y = Math.max(sp.bottomY, st.y - sp.speed * 2.5);
+      if (st.y <= sp.bottomY) {
+        st.phase = 'bottom';
+        st.timer = 0;
+      }
+    }
+    car.minY = st.y - 0.28;
+    car.maxY = st.y;
+  }
+}
+
+/** Shoot or press F near a switch to flip it. Opens the id it controls (a lowered bridge). */
+function stepSwitches3D(w: WorldState3D, interact: boolean): void {
+  const pb = w.player.body;
+  const dt = ABILITY_3D.dt;
+  for (const sp of w.level.switches) {
+    const st = w.switches.find((x) => x.id === sp.id)!;
+    if (st.flashTicks > 0) st.flashTicks--;
+    if (st.on) continue;
+    let hit = interact && Math.hypot(pb.x - sp.x, pb.y + 0.9 - sp.y) <= 1.7;
+    if (!hit) {
+      for (const pr of w.projectiles) {
+        if (!pr.fromPlayer || pr.kind === 'grenade') continue;
+        if (Math.sqrt(pointToSegmentDistSq(sp.x, sp.y, pr.x, pr.y, pr.x + pr.vx * dt, pr.y + pr.vy * dt)) <= sp.radius + pr.radius) {
+          hit = true;
+          break;
+        }
+      }
+    }
+    if (!hit) continue;
+    st.on = true;
+    st.flashTicks = 30;
+    w.openDoors.add(sp.opens);
+    w.events.push({ type: 'switch_on' });
+    setHint(w, `${sp.label} ONLINE`);
+  }
+}
+
+/** Cyclic hazards: telegraph events near the player and damage to the player and (once per burst) to enemies in the column. */
+function stepHazards3D(w: WorldState3D): void {
+  const pb = w.player.body;
+  for (const h of w.level.hazards) {
+    const t = hazardNowTick3D(w, h);
+    if (t < 0) continue;
+    const ph = hazardPhase(h, t);
+    const prev = t > 0 ? hazardPhase(h, t - 1) : 'idle';
+    const near = Math.abs(h.x - pb.x) < 18 && Math.abs(h.y - pb.y) < 9;
+    if (ph !== prev) {
+      if (near) {
+        if (h.kind === 'vent' && (ph === 'telegraph' || ph === 'active')) w.events.push({ type: 'hazard_vent', value: ph === 'active' ? 1 : 0 });
+        else if (h.kind === 'crusher' && (ph === 'telegraph' || ph === 'active')) w.events.push({ type: 'hazard_crush', value: ph === 'active' ? 1 : 0 });
+        else if (h.kind === 'laser' && ph === 'active') w.events.push({ type: 'laser_on' });
+        else if (h.kind === 'laser' && prev === 'active') w.events.push({ type: 'laser_off' });
+        else if (h.kind === 'rubble' && (ph === 'telegraph' || ph === 'active')) w.events.push({ type: 'collapse', value: ph === 'active' ? 2 : 0 });
+      }
+      if (ph === 'active') {
+        if (near && (h.kind === 'crusher' || h.kind === 'rubble')) {
+          w.shakeTicks = Math.max(w.shakeTicks, 12);
+          w.shakeStrength = Math.max(w.shakeStrength, h.kind === 'crusher' ? 0.4 : 0.3);
+        }
+        for (const e of w.enemies) {
+          if (!e.alive || e.kind === 'warden' || e.surface !== 'floor') continue;
+          if (hazardHits(h, t, e.x, e.y, e.radius * 0.5)) damageEnemy(w, e, h.damage * 3, Math.sign(e.x - h.x || 1) * 3, 14, 0);
+        }
+      }
+    }
+    if (hazardHits(h, t, pb.x, pb.y)) {
+      const dir = pb.x >= h.x ? 1 : -1;
+      const before = w.player.hp;
+      damagePlayer(w, h.damage, dir * h.knock);
+      if (w.player.hp < before && h.kind === 'vent') {
+        pb.grounded = false;
+        pb.vy = Math.max(pb.vy, 6.5);
+      }
+    }
+  }
+}
+
+/** Meltdown bridge collapse: starts when the player runs onto the span, segments crumble then fall east to west. */
+function stepCollapse3D(w: WorldState3D): void {
+  const pb = w.player.body;
+  for (const sp of w.level.collapses) {
+    const st = w.collapses.find((c) => c.id === sp.id)!;
+    if (st.startTick < 0) {
+      if (w.meltdownTicks >= 0 && w.coreDestroyed && pb.x < sp.triggerX && pb.y > sp.triggerMinY && w.currentRoom === sp.sector) {
+        st.startTick = w.tick;
+        w.events.push({ type: 'collapse', value: 0 });
+        setHint(w, 'THE BRIDGE IS COLLAPSING. RUN');
+      }
+      continue;
+    }
+    const el = w.tick - st.startTick;
+    sp.segmentIds.forEach((id, k) => {
+      const fallAt = sp.graceTicks + sp.intervalTicks * k;
+      if (el >= fallAt - sp.crumbleTicks && !st.crumbling.includes(id)) st.crumbling.push(id);
+      if (el >= fallAt && !st.fallen.includes(id)) {
+        st.fallen.push(id);
+        w.openDoors.add(`collapse:${id}`);
+        w.events.push({ type: 'collapse', value: 1 });
+        w.shakeTicks = Math.max(w.shakeTicks, 16);
+        w.shakeStrength = Math.max(w.shakeStrength, 0.36);
+      }
+    });
+  }
+}
+
 function stepShockwaves3D(w: WorldState3D): void {
   const dt = ABILITY_3D.dt;
   const pb = w.player.body;
@@ -2071,6 +2272,13 @@ export function respawnPlayer3D(w: WorldState3D): void {
   w.combo.ticksLeft = 0;
   w.projectiles = w.projectiles.filter((pr) => pr.fromPlayer);
   w.shockwaves = [];
+  // A dead escape run restarts the bridge script so the route can never be left broken
+  for (const c of w.collapses) {
+    for (const id of c.fallen) w.openDoors.delete(`collapse:${id}`);
+    c.fallen = [];
+    c.crumbling = [];
+    c.startTick = -1;
+  }
   if (w.meltdownTicks === 0) w.meltdownTicks = MELTDOWN_TICKS;
   w.status = 'playing';
 }
@@ -2119,6 +2327,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
   const aimDx = p.aimX - p.body.x;
   if (Math.abs(aimDx) > 0.25) p.facing = aimDx > 0 ? 1 : -1;
 
+  stepElevators3D(w);
   const prevState = p.body.state;
   const prevDash = p.body.dashTicks;
   const prevJumps = p.body.jumpsUsed;
@@ -2265,12 +2474,16 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
       b.fuseTicks--;
       if (b.fuseTicks < 0) {
         b.alive = false;
+        w.events.push({ type: 'barrel_explode' });
         triggerExplosion3D(w, b.x, b.y + 0.7, 0, 4.4, 92, 0xff7a2f);
       }
     }
   }
 
+  stepSwitches3D(w, input.interact);
   stepProjectiles3D(w);
+  stepHazards3D(w);
+  stepCollapse3D(w);
   stepHives3D(w);
   stepEnemies3D(w);
   stepShockwaves3D(w);

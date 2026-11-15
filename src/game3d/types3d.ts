@@ -37,7 +37,17 @@ export type SoundEventType3D =
   // Round 3 foes: ceiling ambush landing, hive larvae spawn, hive destruction
   | 'enemy_drop'
   | 'hive_spawn'
-  | 'hive_destroyed';
+  | 'hive_destroyed'
+  // Round 4 hazards and set pieces. value 0 = warning phase, 1 = the hazard fires (vent, crush, collapse)
+  | 'hazard_vent'
+  | 'hazard_crush'
+  | 'laser_on'
+  | 'laser_off'
+  | 'barrel_explode'
+  | 'switch_on'
+  | 'elevator_start'
+  | 'elevator_stop'
+  | 'collapse';
 
 export interface SoundEvent3D {
   type: SoundEventType3D;
@@ -102,6 +112,12 @@ export interface MapSolid3D {
   visualMaxY?: number;
   color?: number;
   emissive?: number;
+  /** Round 4: solid disappears once `openDoors` holds this id (collapsing bridge segment) */
+  collapseId?: string;
+  /** Round 4: solid only exists once `openDoors` holds this id (bridge lowered by a switch) */
+  bridgeId?: string;
+  /** Round 4: moved or toggled at runtime, so the renderer draws it from hazards3d instead of the static batches */
+  dynamic?: boolean;
 }
 
 export interface Pillar3D {
@@ -214,6 +230,79 @@ export interface HiveSpawn3D {
   z: number;
 }
 
+export type HazardKind3D = 'vent' | 'crusher' | 'laser' | 'rubble';
+
+/** Deterministic cyclic hazard. One cycle of `period` ticks: idle, telegraph, active, recover (recover is the remainder tail). */
+export interface HazardSpawn3D {
+  id: string;
+  kind: HazardKind3D;
+  sector: SectorId3D;
+  /** Centre x */
+  x: number;
+  /** Floor height it stands on (crusher: the surface the piston presses toward) */
+  y: number;
+  /** Footprint width in x */
+  width: number;
+  /** Vent/laser: column height above y. Crusher: distance from y up to the ceiling the piston hangs from. Rubble: fall height. */
+  height: number;
+  period: number;
+  offset: number;
+  telegraph: number;
+  active: number;
+  recover: number;
+  damage: number;
+  knock: number;
+  /** Laser grid goes dark for good once the Security Console is online */
+  consoleOff?: boolean;
+  /** Only runs during the reactor meltdown (cycle clock starts at the meltdown) */
+  meltdownOnly?: boolean;
+}
+
+/** Shoot or press F to flip. Sets `opens` in the world's openDoors set (a bridgeId solid appears). */
+export interface SwitchSpawn3D {
+  id: string;
+  sector: SectorId3D;
+  x: number;
+  y: number;
+  z: number;
+  radius: number;
+  opens: string;
+  label: string;
+}
+
+/** Cargo lift in the Central Shaft: rides up after a short dwell, spawns an ambush wave on the way. */
+export interface ElevatorSpawn3D {
+  id: string;
+  sector: SectorId3D;
+  /** Id of the dynamic one-way car solid in `solids` */
+  carId: string;
+  bottomY: number;
+  topY: number;
+  /** Metres per tick going up */
+  speed: number;
+  /** Ticks a rider must stand on the car at the bottom before it leaves */
+  dwell: number;
+  /** Ticks the car waits at the top (empty) before returning */
+  topHold: number;
+  /** Dead enemy slots revived once at `waveY` while rising */
+  waveIds: string[];
+  waveY: number;
+}
+
+/** Scripted bridge collapse: starts when the player runs onto it during the meltdown, segments fall east to west. */
+export interface CollapseSpawn3D {
+  id: string;
+  sector: SectorId3D;
+  /** Segment solid ids in fall order (each carries collapseId `collapse:<solid id>`) */
+  segmentIds: string[];
+  /** Player must be west of this x (and above minY) to start the script */
+  triggerX: number;
+  triggerMinY: number;
+  graceTicks: number;
+  intervalTicks: number;
+  crumbleTicks: number;
+}
+
 export interface Level3D {
   bounds: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number };
   spawn: { x: number; y: number; z: number };
@@ -234,6 +323,10 @@ export interface Level3D {
   hives: HiveSpawn3D[];
   dataLogs: DataLog3D[];
   secrets: SecretRoom3D[];
+  hazards: HazardSpawn3D[];
+  switches: SwitchSpawn3D[];
+  elevators: ElevatorSpawn3D[];
+  collapses: CollapseSpawn3D[];
 }
 
 export interface PlayerPoseState3D {

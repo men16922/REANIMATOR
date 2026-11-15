@@ -44,6 +44,16 @@ export const EVENT_SOUND: Record<SoundEventType3D, string> = {
   enemy_drop: 'enemy.crawler.land',
   hive_spawn: 'enemy.crawler.alert',
   hive_destroyed: 'enemy.warden.death',
+  // Round 4 hazards (borrowed recipes; cueForEvent softens the warning phase)
+  hazard_vent: 'enemy.crawler.land',
+  hazard_crush: 'enemy.warden.slam',
+  laser_on: 'world.light_on',
+  laser_off: 'world.light_off',
+  barrel_explode: 'world.explosion',
+  switch_on: 'world.unlock',
+  elevator_start: 'world.door_blast',
+  elevator_stop: 'world.pickup',
+  collapse: 'player.stomp',
 };
 
 export function soundIdForEvent(type: SoundEventType3D): string {
@@ -94,6 +104,10 @@ export function cueForEvent(ev: { type: SoundEventType3D; value?: number }, boss
   else if (ev.type === 'combo') pitch = comboPitch(ev.value ?? 2);
   else if (ev.type === 'boss_phase') pitch = ev.value === 3 ? 0.84 : ev.value === 2 ? 0.92 : 1;
   else if (ev.type === 'stomp') gain = 0.9;
+  else if ((ev.type === 'hazard_vent' || ev.type === 'hazard_crush' || ev.type === 'collapse') && ev.value === 0) {
+    gain = 0.45;
+    pitch = ev.type === 'hazard_vent' ? 1.5 : 1.2;
+  } else if (ev.type === 'collapse' && ev.value === 1) gain = 1.1;
   return { id, pitch, gain };
 }
 

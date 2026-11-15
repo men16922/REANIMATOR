@@ -37,6 +37,7 @@ export function renderFallback2D3D(canvas: HTMLCanvasElement, w: WorldState3D): 
 
   for (const s of w.level.solids) {
     if (s.doorId && w.openDoors.has(s.doorId)) continue;
+    if ((s.collapseId && w.openDoors.has(s.collapseId)) || (s.bridgeId && !w.openDoors.has(s.bridgeId))) continue;
     if (s.kind === 'door' && s.doorLock) ctx.fillStyle = LOCK_COLORS[s.doorLock];
     else if (s.kind === 'platform') ctx.fillStyle = '#4f6a82';
     else if (s.kind === 'catwalk') ctx.fillStyle = '#2a3542';
