@@ -47,6 +47,9 @@ import { getFacilityTextures3D } from './textures3d.ts';
 import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
 import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
 import { reactorPulse } from './mood3d.ts';
+import { bossCameraBlend, bossFramingWanted } from './bossCamera.ts';
+import { applyFrontLift } from './frontLift.ts';
+import { mergeStaticChildren } from './meshMerge.ts';
 import { buildHazards3D, type Hazards3D } from './hazards3d.ts';
 import { buildAmmoItem, buildMetroid3D, buildSlideItem, type Metroid3D } from './metroid3d.ts';
 import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
@@ -305,6 +308,8 @@ export class Scene3DRenderer {
   private introPan = 0;
   private introZoom = 0;
   private introAwake = 0;
+  /** Smoothed 0..1 weight that pulls the camera toward the Core Warden so the boss stays on screen. */
+  private bossFrameK = 0;
   private introLast: IntroState = introState(0);
   private secretDoorIds = new Set<string>();
 
@@ -625,6 +630,7 @@ export class Scene3DRenderer {
         title: r3(this.introLast.title),
         roared: this.introLast.roared,
       },
+      bossFrame: { k: r3(this.bossFrameK), camZ: r3(this.camera.position.z), focusX: r3(this.camFocus.x) },
     };
   }
 
@@ -701,6 +707,7 @@ export class Scene3DRenderer {
   public setViewMode(m: ViewMode): void {
     this.viewMode = m;
     this.mood?.setClassic(m === 'classic');
+    this.hazards3d?.setClassic(m === 'classic');
     this.applyClassicGlow();
     if (m === 'classic' && !this.classic) this.classic = new ClassicPipeline(this.renderer);
     if (m === 'modern') {
@@ -798,6 +805,7 @@ export class Scene3DRenderer {
     this.hazards3d = buildHazards3D(this.scene, w.level);
     this.metroid3d?.dispose();
     this.metroid3d = buildMetroid3D(this.scene, w.level);
+    this.hazards3d.setClassic(this.viewMode === 'classic');
     this.mood.setClassic(this.viewMode === 'classic');
     this.applyClassicGlow();
     for (const r of w.level.ramps) {
@@ -1047,6 +1055,7 @@ export class Scene3DRenderer {
         transparent: Boolean(!s.visualMaxY && s.maxY > 2.5 && s.minZ > 0),
         opacity: 1,
       });
+      applyFrontLift(mat, 0.34);
     }
 
     // Break tiling: per-solid texture offset derived from the solid id.
@@ -1137,10 +1146,12 @@ export class Scene3DRenderer {
           : new THREE.MeshStandardMaterial({ map, bumpMap: tiled(tex.deckBump), bumpScale: 0.04, vertexColors: true, roughness: 0.55, metalness: 0.45 });
       } else if (b.cls === 'crate') {
         mat = new THREE.MeshStandardMaterial({ map: tiled(tex.crateMap), vertexColors: true, roughness: 0.5, metalness: 0.55 });
+        applyFrontLift(mat, 0.26);
       } else if (b.cls === 'console') {
         mat = new THREE.MeshStandardMaterial({ vertexColors: true, emissive: 0x1cb8d6, emissiveIntensity: 0.9, roughness: 0.3, metalness: 0.65 });
       } else {
         mat = new THREE.MeshStandardMaterial({ map: tiled(surf.wall ? tex[surf.wall] : tex.wallMap), vertexColors: true, roughness: 0.52, metalness: 0.58 });
+        applyFrontLift(mat, 0.34);
       }
       const geo = buildBatchGeometry(b.items);
       if (!geo) continue;
@@ -1186,10 +1197,19 @@ export class Scene3DRenderer {
   private getPerfTelemetry() {
     const info = this.renderer.info;
     let shadowCasters = 0;
+    // Visible meshes by scene-root child (name prefix, else type) plus geometry type: where the draw calls come from.
+    const byGroup: Record<string, number> = {};
     this.scene.traverseVisible((o) => {
-      if ((o as THREE.Mesh).isMesh && o.castShadow) shadowCasters++;
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      if (o.castShadow) shadowCasters++;
+      let top: THREE.Object3D = o;
+      while (top.parent && top.parent !== this.scene) top = top.parent;
+      const key = `${top.name.split(':')[0] || top.type}/${m.geometry.type}`;
+      byGroup[key] = (byGroup[key] ?? 0) + 1;
     });
     return {
+      byGroup,
       drawCalls: info.render.calls,
       triangles: info.render.triangles,
       programs: info.programs?.length ?? 0,
@@ -1445,6 +1465,7 @@ export class Scene3DRenderer {
       const spire = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.1, 7), mat);
       spire.position.set(0.1, 1.45, 0);
       g.add(spire);
+      mergeStaticChildren(g, new Set([mound]));
       g.position.set(h.x, h.y, 0);
       this.scene.add(g);
       this.hiveHandles.set(h.id, { root: g, core: mound, mat: sacMat });
@@ -2062,13 +2083,26 @@ export class Scene3DRenderer {
     this.fx.rig.update(dt, px, anchorY, p.body.vx, p.aimX - px, p.aimY - py, p.body.grounded);
     this.camFocus.set(this.fx.rig.fx, this.fx.rig.fy, 0);
     let camDistZ = 15.5;
+    {
+      // Boss fight framing: blend toward the player+boss midpoint and zoom out (display only; Classic reuses camDistZ for its ortho zoom).
+      const introBusy = this.attractT !== null || w.bossIntroTicks > 0 || this.introPan > 0.002 || this.introZoom > 0.002;
+      const bcy = wardenE ? wardenY + wardenE.height * 0.5 : 0;
+      const want = wardenE !== null && bossFramingWanted(wardenE.alive, wardenX - this.camFocus.x, bcy - this.camFocus.y, introBusy);
+      this.bossFrameK += ((want ? 1 : 0) - this.bossFrameK) * Math.min(1, dt * (want ? 2.2 : 3.2));
+      if (this.bossFrameK < 0.002) this.bossFrameK = 0;
+      if (this.bossFrameK > 0 && wardenE) {
+        const bc = bossCameraBlend({ px: this.camFocus.x, py: this.camFocus.y, bx: wardenX, by: bcy, k: this.bossFrameK, fovDeg: this.baseFov, aspect: this.camera.aspect });
+        this.camFocus.set(bc.fx, bc.fy, 0);
+        camDistZ = bc.dist;
+      }
+    }
     if (this.attractT === null && (this.introPan > 0.002 || this.introZoom > 0.002) && wardenE) {
       // Intro: pan from the operative to the Warden and push in; eases back after the intro ends or is skipped.
       const bx = wardenX;
       const by = Math.max(room ? room.minY + 3 : 0, wardenY + 1.6);
       this.camFocus.x += (bx - this.camFocus.x) * this.introPan;
       this.camFocus.y += (by - this.camFocus.y) * this.introPan;
-      camDistZ = 15.5 - 5.5 * this.introZoom;
+      camDistZ -= 5.5 * this.introZoom;
     }
     if (this.attractT !== null) {
       // Reel shot (see ui/attract.ts): wide establishing view, then a low push-in on the action.

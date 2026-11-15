@@ -7,6 +7,8 @@
 
 import * as THREE from 'three';
 import type { RiggedInstance } from './riggedModels.ts';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeStaticChildren } from './meshMerge.ts';
 import { hpColorHex, hpPulse, hpSegments, type HeroFrame, type HeroWeapon } from './heroPose.ts';
 
 export interface GlowPart {
@@ -72,7 +74,7 @@ function ring(parent: THREE.Object3D, rad: number, tubeR: number, x: number, y: 
   return m;
 }
 
-function buildScatter(): WeaponRig {
+export function buildScatter(): WeaponRig {
   const root = new THREE.Group();
   const glow: GlowPart[] = [];
   box(root, 0.34, 0.1, 0.085, GUN_STEEL, -0.02, 0.03, 0); // receiver
@@ -91,10 +93,11 @@ function buildScatter(): WeaponRig {
   const muzzle = new THREE.Object3D();
   muzzle.position.set(-0.7, 0.035, 0);
   root.add(muzzle);
+  mergeStaticChildren(root);
   return { slot: 2, name: 'scatter-gun', root, muzzle, glow, coils: [] };
 }
 
-function buildGrenade(): WeaponRig {
+export function buildGrenade(): WeaponRig {
   const root = new THREE.Group();
   const glow: GlowPart[] = [];
   box(root, 0.3, 0.1, 0.09, GUN_STEEL, 0.04, 0.03, 0); // receiver
@@ -119,10 +122,11 @@ function buildGrenade(): WeaponRig {
   const muzzle = new THREE.Object3D();
   muzzle.position.set(-0.64, 0.03, 0);
   root.add(muzzle);
+  mergeStaticChildren(root);
   return { slot: 3, name: 'grenade-drum', root, muzzle, glow, coils: [] };
 }
 
-function buildRail(): WeaponRig {
+export function buildRail(): WeaponRig {
   const root = new THREE.Group();
   const glow: GlowPart[] = [];
   box(root, 0.36, 0.12, 0.1, GUN_STEEL, 0.02, 0.03, 0); // capacitor block
@@ -145,6 +149,7 @@ function buildRail(): WeaponRig {
   const muzzle = new THREE.Object3D();
   muzzle.position.set(-1.02, 0.05, 0);
   root.add(muzzle);
+  mergeStaticChildren(root, new Set(coils));
   return { slot: 4, name: 'rail-cannon', root, muzzle, glow, coils };
 }
 
@@ -169,12 +174,20 @@ export interface HeroGearTelemetry {
 
 const _tmpC = new THREE.Color();
 
+function fillColor(arr: Float32Array, startVertex: number, count: number, c: THREE.Color): void {
+  for (let v = startVertex; v < startVertex + count; v++) {
+    arr[v * 3] = c.r;
+    arr[v * 3 + 1] = c.g;
+    arr[v * 3 + 2] = c.b;
+  }
+}
+
 export class HeroGear {
   readonly weapons: Partial<Record<HeroWeapon, WeaponRig>> = {};
   private shown: HeroWeapon = 1;
   private readonly lensMat: THREE.MeshBasicMaterial;
-  private readonly packSeg: THREE.MeshBasicMaterial[] = [];
-  private readonly packBeacon: THREE.MeshBasicMaterial;
+  /** Pack colors live in one vertex-colored mesh: 4 segments (2 faces each) then the beacon. */
+  private packCol: THREE.BufferAttribute | null = null;
   private lastLens = 0;
   private lastPackColor = 0x3dff7a;
   private lastSegments = 4;
@@ -191,8 +204,6 @@ export class HeroGear {
       w.root.visible = false;
     }
     this.lensMat = new THREE.MeshBasicMaterial({ color: 0x0a0c0e });
-    this.packBeacon = new THREE.MeshBasicMaterial({ color: 0x3dff7a });
-    for (let i = 0; i < 4; i++) this.packSeg.push(new THREE.MeshBasicMaterial({ color: 0x3dff7a }));
     this.attachLens(inst);
     this.attachPack(inst);
     this.setShown(1);
@@ -230,6 +241,7 @@ export class HeroGear {
       led.position.set(s * 0.036, 0, 0.0165);
       g.add(led);
     }
+    mergeStaticChildren(g);
     this.mount(inst.head, g, new THREE.Vector3(0, 0.09, 0.182));
   }
 
@@ -240,17 +252,30 @@ export class HeroGear {
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.3, 0.1), GUN_DARK);
     body.castShadow = true;
     g.add(body);
-    // four HP segments on both side faces (the camera sees one or the other depending on facing)
+    // Four HP segments on both side faces (the camera sees one or the other depending on facing) and the top beacon:
+    // one vertex-colored mesh instead of nine, recolored per frame in update().
+    const parts: THREE.BufferGeometry[] = [];
     for (let i = 0; i < 4; i++) {
       for (const s of [-1, 1]) {
-        const seg = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.05, 0.05), this.packSeg[i]);
-        seg.position.set(s * 0.127, 0.105 - i * 0.07, 0);
-        g.add(seg);
+        const seg = new THREE.BoxGeometry(0.012, 0.05, 0.05);
+        seg.translate(s * 0.127, 0.105 - i * 0.07, 0);
+        parts.push(seg);
       }
     }
-    const beacon = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.02, 0.05), this.packBeacon);
-    beacon.position.set(0, 0.16, 0);
-    g.add(beacon);
+    const beaconGeo = new THREE.BoxGeometry(0.1, 0.02, 0.05);
+    beaconGeo.translate(0, 0.16, 0);
+    parts.push(beaconGeo);
+    const vertsPer = parts[0].attributes.position.count;
+    const lit = new Float32Array((parts.length - 1) * vertsPer * 3 + beaconGeo.attributes.position.count * 3).fill(1);
+    for (const p of parts) p.deleteAttribute('uv');
+    const geo = mergeGeometries(parts);
+    parts.forEach((p) => p.dispose());
+    if (geo) {
+      this.packCol = new THREE.BufferAttribute(lit, 3);
+      this.packCol.setUsage(THREE.DynamicDrawUsage);
+      geo.setAttribute('color', this.packCol);
+      g.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true })));
+    }
     this.mount(bone, g, new THREE.Vector3(0, -0.02, -0.265));
   }
 
@@ -308,13 +333,19 @@ export class HeroGear {
     const pulse = hpPulse(f.hpFrac, tSec, f.alive);
     this.lastPackColor = hex;
     this.lastSegments = lit;
-    for (let i = 0; i < 4; i++) {
-      // segments drain from the bottom up: index 0 is the top segment and stays lit longest
-      const on = i < lit;
-      _tmpC.setHex(hex).multiplyScalar(on ? 2.2 * pulse : 0.06);
-      this.packSeg[i].color.copy(_tmpC);
+    const col = this.packCol;
+    if (col) {
+      const arr = col.array as Float32Array;
+      const segVerts = 24; // BoxGeometry vertex count
+      for (let i = 0; i < 4; i++) {
+        // segments drain from the bottom up: index 0 is the top segment and stays lit longest
+        _tmpC.setHex(hex).multiplyScalar(i < lit ? 2.2 * pulse : 0.06);
+        for (let face = 0; face < 2; face++) fillColor(arr, (i * 2 + face) * segVerts, segVerts, _tmpC);
+      }
+      _tmpC.setHex(hex).multiplyScalar(f.alive ? 2.6 * pulse : 0.03);
+      fillColor(arr, 8 * segVerts, segVerts, _tmpC);
+      col.needsUpdate = true;
     }
-    this.packBeacon.color.setHex(hex).multiplyScalar(f.alive ? 2.6 * pulse : 0.03);
   }
 
   telemetry(): HeroGearTelemetry {
