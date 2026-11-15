@@ -56,6 +56,8 @@ import { CAM_BASE_DIST, clampFocusToRect, dynamicZoomTarget, frameHalfExtents, F
 import { applyFrontLift } from './frontLift.ts';
 import { mergeStaticChildren } from './meshMerge.ts';
 import { buildHazards3D, type Hazards3D } from './hazards3d.ts';
+import { HunterView } from './hunterView.ts';
+import { hunterHud } from '../game3d/hunter3d.ts';
 import { buildAmmoItem, buildMetroid3D, buildSlideItem, type Metroid3D } from './metroid3d.ts';
 import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 import { buildVista3D, type Vista3D } from './vista3d.ts';
@@ -240,6 +242,8 @@ function makeCrackedWallTextures(w: number, h: number): { color: THREE.CanvasTex
 
 const _MELT_BG = new THREE.Color(0x3a0508);
 const _MELT_RED = new THREE.Color(0xff2a2a);
+const _HUNTER_BG = new THREE.Color(0x3a0a08);
+const _HUNTER_RED = new THREE.Color(0xd24a3a);
 const _FLASH_TMP = new THREE.Color();
 const _PHASE_TMP = new THREE.Color();
 const BOSS_PHASE_HEX = [0x33ffe0, 0xff8c26, 0xff2418] as const;
@@ -370,6 +374,10 @@ export class Scene3DRenderer {
   private vista: Vista3D | null = null;
   private hazards3d: Hazards3D | null = null;
   private metroid3d: Metroid3D | null = null;
+  /** Round 10: the Reclaimer hunter and its zone gates (built lazily once the rig model is available). */
+  private hunterView: HunterView | null = null;
+  /** Smoothed 0..1 alarm that tints the zone red while the hunter is on the trail. */
+  private hunterTint = 0;
   private slideSquash = 0;
   private fogDensity = 0.012;
   private readonly presetSky = new THREE.Color(0x8bb6df);
@@ -1033,6 +1041,8 @@ export class Scene3DRenderer {
     this.hazards3d = null;
     this.metroid3d?.dispose();
     this.metroid3d = null;
+    this.hunterView?.dispose();
+    this.hunterView = null;
     // Textures on level materials (tiled clones, cracked-wall canvases, shield maps) belong to the level unless they
     // are the shared facility atlas.
     const shared = new Set<unknown>(Object.values(getFacilityTextures3D()));
@@ -1487,6 +1497,13 @@ export class Scene3DRenderer {
     this.trimSpecs.length = 0;
   }
 
+  /** Round 10: Reclaimer rig and zone gates. The view is built the first time the world is drawn after a (re)build. */
+  private updateHunter(w: WorldState3D, a: number, dt: number, tSec: number, px: number, py: number): void {
+    if (!w.hunter) return;
+    if (!this.hunterView) this.hunterView = new HunterView(this.scene, w.level.hunterZone, w.hunter);
+    this.hunterView.update(w.hunter, w.tick, a, dt, tSec, { x: px, y: py }, this.reduceMotion);
+  }
+
   private rebuildActorInstances(w: WorldState3D | { level: WorldState3D['level']; enemies?: WorldState3D['enemies']; barrels?: WorldState3D['barrels']; pickups?: WorldState3D['pickups'] }): void {
     // Clear existing model nodes on model load finish and on every level rebuild. Each clone owns its materials, skeleton
     // bone texture and procedural geometry (hero gear, pick proxy); glTF geometry is shared with the cache and kept.
@@ -1503,6 +1520,8 @@ export class Scene3DRenderer {
       disposeActor3D(r.root, r.mixer, r.modelRoot);
     }
     this.riggedEnemies.clear();
+    this.hunterView?.dispose();
+    this.hunterView = null;
     for (const st of this.staticEnemies.values()) {
       this.scene.remove(st.root);
       disposeActor3D(st.root);
@@ -1827,6 +1846,12 @@ export class Scene3DRenderer {
     const bg = new THREE.Color(room ? room.ambientColor : 0x090e14).multiplyScalar(0.28);
     const sirenPulse = this.reduceMotion ? 0.6 : 0.5 + 0.5 * Math.sin(tSec * 6.2);
     if (inMeltdown) bg.lerp(_MELT_BG, 0.25 + 0.3 * sirenPulse);
+    // Reclaimer: the zone drifts red while the unit hunts you (colour only, no lights)
+    const hz = w.level.hunterZone;
+    const hud = hunterHud(w.hunter, hz, w.currentRoom === hz.sector, w.player.body.x, w.player.body.y);
+    const hunterWant = this.reduceMotion ? hud.alarm * 0.7 : hud.alarm;
+    this.hunterTint += (hunterWant - this.hunterTint) * Math.min(1, dt * 4);
+    if (this.hunterTint > 0.005) bg.lerp(_HUNTER_BG, 0.5 * this.hunterTint);
     (this.scene.background as THREE.Color).lerp(bg, Math.min(1, dt * 3));
     (this.scene.fog as THREE.FogExp2).color.copy(this.scene.background as THREE.Color);
     const fogTarget = Math.min(0.02, room ? SECTOR_FOG[room.sector] : 0.012);
@@ -1862,6 +1887,10 @@ export class Scene3DRenderer {
     } else {
       this.alarmLight.intensity = 0;
       this.ambient.color.copy(this.presetSky);
+      if (this.hunterTint > 0.005) {
+        this.ambient.color.lerp(_HUNTER_RED, 0.55 * this.hunterTint);
+        this.ambient.intensity *= 1 + 0.12 * this.hunterTint * (this.reduceMotion ? 0.6 : 0.5 + 0.5 * Math.sin(tSec * 9));
+      }
     }
     if (this.fx.envPulse > 0.001) {
       const pc = BOSS_PHASE_COLORS[this.fx.bossPhase - 1];
@@ -1872,6 +1901,7 @@ export class Scene3DRenderer {
     if (typeof document !== 'undefined') {
       document.body.classList.toggle('meltdown-alert', inMeltdown);
       document.body.classList.toggle('meltdown-calm', this.reduceMotion);
+      document.body.classList.toggle('hunter-alarm', this.hunterTint > 0.4);
     }
 
     // 4. Operative: side-view root facing, velocity-locked pose, two-handed rifle IK, laser sight, R3.3 headlamp
@@ -2189,6 +2219,7 @@ export class Scene3DRenderer {
     for (let i = decalIdx; i < this.lungeDecals.length; i++) this.lungeDecals[i].visible = false;
     for (let i = glowIdx; i < this.muzzleGlows.length; i++) this.muzzleGlows[i].visible = false;
 
+    this.updateHunter(w, a, dt, tSec, px, py);
     if (telegraphWarden && telegraphWarden.bossPattern === 'slam') {
       this.wardenTelegraphRing.visible = true;
       const pct = 1 - telegraphWarden.windupTicks / (telegraphWarden.phase >= 2 ? 28 : 36);

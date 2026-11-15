@@ -2,6 +2,12 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R10 Hunter 후
+
+- [x] Reclaimer 구역, 봇 카운터·구역 이탈 경로, 테스트 33개, `make check` 통과(493/493). 상세와 unverified 목록은 [R10_HUNTER](R10_HUNTER.md).
+- [ ] 브라우저 확인(unverified): 리그 틴트·바이저 막대·게이트 막대 모양, HUNTER ZONE pill과 소음 막대, 스팅·포효 음, Ctrl/Alt 살금걸음(OS 단축키 충돌 여부), 카운터 8틱 창의 체감, 160 HP에서 구역 공정성.
+- [ ] 게임패드 아날로그 살금걸음 연결. Hard 봇이 Warden 구간 타이밍에 민감함(R8과 같은 성질)이므로 봇 경로를 바꿀 때 세 난이도를 함께 재측정(`node tools/game/hunter.ts`).
+
 ## R9 병합 후
 
 - [x] fix → world → abuse → parry 병합, `make check` 통과(459/459).

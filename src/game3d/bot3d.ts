@@ -82,9 +82,10 @@ function buildSteps(w: WorldState3D): BotStep[] {
     { label: 'security grate back', x: 65, y: 8.8, leap: true },
     { label: 'bio grate back', x: 65, y: 4.4 },
     { label: 'rail', x: rl.x, y: rl.y, tolX: 0.9, tolY: 0.4, done: has(4) },
-    { label: 'bio floor', x: 62, y: 0 },
-    { label: 'hive bio east', x: 60.5, y: 0, tolX: 0.8, done: hiveDown('hive-bio-2') },
-    { label: 'red door', x: 61, y: 0, fire: { weapon: 4, aimX: 70, aimY: 2.0 }, done: door('door_boss') },
+    // Round 10: leaving the Reclaimer zone with the Rail-Cannon retires the hunter, so the rest of the Bio-Labs work happens west of it
+    { label: 'zone exit', x: 57.2, y: 0, tolX: 0.5 },
+    { label: 'hive bio east', x: 56.0, y: 0, tolX: 0.8, done: hiveDown('hive-bio-2') },
+    { label: 'red door', x: 56.0, y: 0, fire: { weapon: 4, aimX: 70, aimY: 2.0 }, done: door('door_boss') },
     { label: 'core arena', x: 73, y: 0, tolX: 0.8 },
     { label: 'warden', x: 73, y: 0, mode: 'boss', done: (s) => !s.enemies.some((e) => e.kind === 'warden' && e.alive) },
     { label: 'reactor core', x: 87.5, y: 0, mode: 'core', done: (s) => s.coreDestroyed },
@@ -261,6 +262,10 @@ export function createBot3D(w0: WorldState3D): Bot3D {
         inp.aimX = b.x + (nav.moveX || p.facing) * 8;
         inp.aimY = b.y + 1.12;
       }
+
+      // Reclaimer catch: press the Melee Counter while the grab windup is inside its window (the bot never wastes a press)
+      const hu = w.hunter;
+      if (hu.alive && hu.parryOpen && Math.abs(hu.x - b.x) <= 3.4) inp.counter = true;
 
       // Console / save interaction
       inp.interact = true;

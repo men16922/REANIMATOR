@@ -89,6 +89,13 @@ export const SOUND_BANK = {
   'stinger.lose': r(10, 1, o(220, 1.4, 'triangle', 0.2, 40), o(165, 1.6, 'sawtooth', 0.08, 30, 0.15), n(1.0, 0.06, 500, 'lowpass', 80)),
   'stinger.meltdown': r(10, 1, o(523, 0.15, 'sine', 0.2), o(392, 0.28, 'sawtooth', 0.14, 220, 0.12), o(784, 0.25, 'triangle', 0.16, undefined, 0.22), n(0.5, 0.1, 800, 'lowpass', 100, 0.1)),
 
+  // ---- Round 10 Reclaimer hunter: a dissonant tritone sting, a rising catch roar, plating pings ----
+  'stinger.hunter': r(10, 1, o(185, 0.9, 'sawtooth', 0.15, 120), o(262, 0.9, 'square', 0.07, 170, 0.03), o(370, 0.7, 'sawtooth', 0.05, 250, 0.06), o(46, 1.2, 'sine', 0.2, 38), n(0.6, 0.08, 2400, 'bandpass', 500, 0, 3)),
+  'hunter.grab': r(9, 0.3, o(120, 0.55, 'sawtooth', 0.15, 520), o(240, 0.55, 'square', 0.06, 1000), n(0.55, 0.1, 1800, 'bandpass', 4200, 0, 4)),
+  'hunter.ping': r(4, 0.05, o(2300, 0.08, 'square', 0.07, 1500), o(3450, 0.1, 'sine', 0.05, 2400, 0.01), n(0.05, 0.06, 6000, 'highpass', 3000)),
+  'hunter.counter': r(10, 0.1, o(1500, 0.14, 'square', 0.14, 500), o(70, 0.5, 'triangle', 0.22, 30), o(2200, 0.3, 'sine', 0.09, 1100, 0.02), n(0.3, 0.14, 4800, 'highpass', 1200), n(0.4, 0.1, 700, 'lowpass', 90, 0.03)),
+  'hunter.off': r(10, 1, o(310, 0.9, 'sawtooth', 0.12, 40), o(96, 1.1, 'triangle', 0.16, 28), ...arp([392, 330, 262, 196], 0.14, 0.4, 'sine', 0.07), n(0.8, 0.08, 1400, 'lowpass', 80)),
+
   // ---- movement tech (round 2) ----
   'player.wall_jump': r(3, 0.08, n(0.14, 0.09, 1800, 'bandpass', 700, 0, 2), o(260, 0.1, 'sine', 0.08, 620, 0.03), o(120, 0.08, 'triangle', 0.07, 70)),
   'player.dash_cancel': r(3, 0.06, o(900, 0.07, 'sine', 0.08, 220), n(0.04, 0.07, 5200, 'highpass'), o(160, 0.06, 'square', 0.04, 90)),

@@ -84,6 +84,16 @@ code { color: var(--c-gold); font-family: var(--font-mono); }
 .upgrade-pill[hidden] { display: none; }
 .scan-pill { color: #8fe9ff; border-color: #2a8ba6; }
 .scan-pill.active { background: rgba(20, 70, 90, 0.85); box-shadow: 0 0 8px rgba(82, 229, 255, 0.45); }
+.hunter-pill { color: #ffc27a; border-color: #a8601c; background: rgba(60, 30, 8, 0.82); font-weight: 700; }
+.hunter-pill[hidden] { display: none; }
+.hunter-pill b { color: #ffd9a0; margin: 0 0.3em; }
+.hunter-pill.alarm { color: #ffd4d4; border-color: var(--c-red); border-left-color: var(--c-red); background: rgba(110, 14, 18, 0.88); animation: low-hp 0.5s ease-in-out infinite; }
+.hunter-pill.exposed { color: #c8fbff; border-color: #3ab7c8; background: rgba(12, 60, 70, 0.88); }
+.hunter-pill.off { color: #b8ffd4; border-color: #2fae68; background: rgba(10, 52, 30, 0.86); }
+.hunter-pill #hunter-noise { background: #ff7a3a; }
+body.hunter-alarm #hud::after { content: ''; position: fixed; inset: 0; pointer-events: none; box-shadow: inset 0 0 140px 30px rgba(190, 20, 20, 0.38); animation: hunter-vignette 0.9s ease-in-out infinite; }
+body.meltdown-calm.hunter-alarm #hud::after { animation: none; }
+@keyframes hunter-vignette { 50% { box-shadow: inset 0 0 170px 46px rgba(210, 20, 20, 0.5); } }
 .etank-pill { color: #9fe9ff; }
 .etank-pill b { color: var(--c-green); }
 .bar { position: relative; display: inline-block; width: 5.5em; height: 0.62em; border: 1px solid #5c768e; background: #0a1017; vertical-align: middle; overflow: hidden; border-radius: 1px; }
