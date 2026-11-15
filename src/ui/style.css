@@ -227,6 +227,7 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 .form { display: flex; flex-direction: column; gap: 0.8em; min-width: 26em; text-align: left; }
 .form .row { display: flex; align-items: center; justify-content: space-between; gap: 1.4em; letter-spacing: 0.12em; text-transform: uppercase; font-size: 0.95em; }
 .form input[type="range"] { width: 14em; accent-color: #ff9a3c; }
+.form select, .settings select { background: #0b1118; color: inherit; border: 1px solid var(--c-line-dim); font: inherit; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.15em 0.5em; }
 .form input[type="checkbox"] { accent-color: #ff9a3c; width: 1.1em; height: 1.1em; }
 /* loading */
 #loading { z-index: 9; background: #03050a; transition: opacity 0.5s ease; }

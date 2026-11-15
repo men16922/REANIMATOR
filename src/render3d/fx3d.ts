@@ -6,6 +6,7 @@
 import { RAIL_CHARGE_TICKS } from '../game3d/world3d.ts';
 import type { EnemyKind3D, EnemyState3D, WorldState3D } from '../game3d/world3d.ts';
 import { PopupPool } from './popups3d.ts';
+import { GoreSim, goreScale, type GoreKind } from './gore3d.ts';
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 
@@ -354,7 +355,15 @@ export interface FxTelemetry {
 
 export class FxDirector {
   readonly add = new ParticlePool(1400);
+  /** Chunks and decals (Abuse-style gore). The renderer reads `gore.level`; UI sets it. */
+  readonly gore = new GoreSim();
+  /** Smoke columns left by explosions, emitted per frame. */
+  private readonly columns: { x: number; y: number; t: number; life: number; r: number }[] = [];
+  /** Last muzzle position and remaining seconds of barrel smoke. */
+  private barrel = { x: 0, y: 0, t: 0 };
   readonly alpha = new ParticlePool(700);
+  /** Soft round smoke puffs (normal blending), separate from the boxy debris pool. */
+  readonly smoke = new ParticlePool(480);
   readonly trauma = new Trauma();
   readonly hitstop = new HitStop();
   readonly slowmo = new SlowMo();
@@ -421,6 +430,10 @@ export class FxDirector {
   reset(): void {
     this.add.clear();
     this.alpha.clear();
+    this.smoke.clear();
+    this.gore.clear();
+    this.columns.length = 0;
+    this.barrel.t = 0;
     this.trauma.value = 0;
     this.hitstop.reset();
     this.slowmo.reset();
@@ -470,9 +483,9 @@ export class FxDirector {
         const cy = e.y + e.height * 0.55;
         const dir = e.x >= px ? 1 : -1;
         if (s.alive && !e.alive) {
-          this.onKill(e.kind, cx, cy, dir, px, py);
+          this.onKill(e.kind, cx, cy, dir, px, py, e.y);
         } else if (s.alive && e.hp < s.hp) {
-          this.onEnemyHit(e.kind, cx, cy, dir, s.hp - e.hp);
+          this.onEnemyHit(e.kind, cx, cy, dir, s.hp - e.hp, e.y);
           this.damagePopup(e, s.hp - e.hp, s.exposed);
         }
       }
@@ -629,12 +642,15 @@ export class FxDirector {
       }
     }
     this.frameEmitters(dt, w);
+    this.gore.update(dt);
+    this.smokeEmitters(dt);
     this.phaseFlash = Math.max(0, this.phaseFlash - dt * 2.4);
     this.envPulse = Math.max(0, this.envPulse - dt * 1.3);
     if (this.deathT >= 0) this.stepDeathSeq(dt, w);
     this.popups.update(dt);
     this.add.update(dt);
     this.alpha.update(dt);
+    this.smoke.update(dt);
   }
 
   telemetry(): FxTelemetry {
@@ -917,11 +933,12 @@ export class FxDirector {
   // ---------------------------------------------------------------------------------------------------------
   // Effect recipes
   // ---------------------------------------------------------------------------------------------------------
-  private onEnemyHit(kind: EnemyKind3D, x: number, y: number, dir: number, dmg: number): void {
+  private onEnemyHit(kind: EnemyKind3D, x: number, y: number, dir: number, dmg: number, floorY: number): void {
     const f = KIND_FLUID[kind];
+    this.gore.spawnHit(kind as GoreKind, x, y, floorY, dir);
     const heavy = kind === 'warden' || dmg >= 30;
     this.sparkFan(x, y, dir, 1.0, 0.85, 0.5, heavy ? 12 : 7, heavy ? 10 : 7);
-    const n = heavy ? 12 : 7;
+    const n = Math.round((heavy ? 12 : 7) * goreScale(this.gore.level));
     for (let i = 0; i < n; i++) {
       const a = this.rr(-0.9, 0.9);
       const sp = this.rr(2, 7);
@@ -935,11 +952,15 @@ export class FxDirector {
     }
   }
 
-  private onKill(kind: EnemyKind3D, x: number, y: number, dir: number, _px: number, _py: number): void {
+  private onKill(kind: EnemyKind3D, x: number, y: number, dir: number, _px: number, _py: number, floorY: number): void {
     const f = KIND_FLUID[kind];
     const boss = kind === 'warden';
+    this.gore.spawnKill(kind as GoreKind, x, y, floorY, dir);
+    if (kind === 'crawler' || kind === 'spitter') this.acidSteam(x, floorY + 0.2, kind === 'crawler' ? 6 : 4);
+    const gs = goreScale(this.gore.level);
     const n = boss ? 80 : 26;
     for (let i = 0; i < n; i++) {
+      if (i % 3 !== 0 && this.rnd() >= gs) continue; // low/off: fewer fluid droplets, sparks stay
       const a = this.rr(0, Math.PI * 2);
       const sp = this.rr(2, boss ? 15 : 10);
       const vx = Math.cos(a) * sp + dir * 2;
@@ -981,6 +1002,7 @@ export class FxDirector {
       this.alpha.emit(x + this.rr(-0.5, 0.5) * radius * 0.4, y + this.rr(-0.2, 0.3), 0.3, this.rr(-1, 1), this.rr(0.8, 2.4), 0, this.rr(0.9, 1.6), 0.4, radius * 0.7, 0.2, 0.18, 0.17, 0.5, -0.5, 1.2, 1);
     }
     this.ring(x, y, radius * 0.6, Math.max(cr, 0.8), Math.max(cg, 0.5), cb);
+    if (this.columns.length < 8) this.columns.push({ x, y, t: 0, life: 2.2 + radius * 0.35, r: radius });
   }
 
   private onProjectileGone(kind: string, x: number, y: number, fromPlayer: boolean): void {
@@ -1000,6 +1022,7 @@ export class FxDirector {
     const dx = vx / len;
     const dy = vy / len;
     const dir = dx >= 0 ? 1 : -1;
+    this.muzzleSmoke(kind, x, y, dx, dy);
     if (kind === 'pulse') {
       this.add.emit(x, y, 0.5, dx, dy, 0, 0.06, 0.26, 0.08, 0.25, 0.7, 1.0, 0.8, 0, 0, 1);
       for (let i = 0; i < 4; i++) {
@@ -1052,6 +1075,53 @@ export class FxDirector {
       this.alpha.emit(x, y, 0.4, Math.cos(a) * sp, Math.sin(a) * sp, this.rr(-0.6, 0.6), this.rr(0.4, 0.8), this.rr(0.07, 0.14), 0.03, 0.3, 1.0, 0.18, 0.95, 18, 0.2, 1.3);
     }
     this.add.emit(x, y + 0.1, 0.4, 0, 0, 0, 0.18, 0.7, 0.2, 0.3, 1.0, 0.3, 0.7, 0, 0, 1);
+  }
+
+  /** Gun smoke: a soft puff that spreads from the muzzle, plus wisps that keep rising from the barrel for a moment. */
+  private muzzleSmoke(kind: 'pulse' | 'scatter' | 'grenade', x: number, y: number, dx: number, dy: number): void {
+    const heavy = kind !== 'pulse';
+    const n = kind === 'scatter' ? 5 : kind === 'grenade' ? 4 : 2;
+    for (let i = 0; i < n; i++) {
+      const sp = this.rr(0.6, heavy ? 3.4 : 2.0);
+      this.smoke.emit(x, y, 0.42, dx * sp + this.rr(-0.5, 0.5), dy * sp + this.rr(0.1, 0.8), this.rr(-0.4, 0.4), this.rr(0.7, 1.3), this.rr(0.1, 0.18), this.rr(0.5, heavy ? 0.9 : 0.6), 0.55, 0.52, 0.5, heavy ? 0.4 : 0.28, -0.7, 1.9, 1, this.rr(0, 6), this.rr(-1.5, 1.5));
+    }
+    this.barrel.x = x;
+    this.barrel.y = y;
+    this.barrel.t = heavy ? 0.9 : 0.5;
+  }
+
+  /** Green vapour rising from a dissolving acid creature. */
+  private acidSteam(x: number, y: number, n: number): void {
+    for (let i = 0; i < n; i++) {
+      this.smoke.emit(x + this.rr(-0.5, 0.5), y, 0.4, this.rr(-0.4, 0.4), this.rr(0.8, 2.0), this.rr(-0.3, 0.3), this.rr(0.9, 1.6), 0.2, this.rr(0.7, 1.2), 0.3, 0.55, 0.16, 0.38, -0.8, 1.1, 1, this.rr(0, 6), this.rr(-1, 1));
+    }
+  }
+
+  /** Per-frame smoke: explosion columns that rise and widen, and barrel wisps after a shot. */
+  private smokeEmitters(dt: number): void {
+    if (this.barrel.t > 0) {
+      this.barrel.t -= dt;
+      if (this.rnd() < dt * 22) {
+        this.smoke.emit(this.barrel.x + this.rr(-0.1, 0.1), this.barrel.y, 0.42, this.rr(-0.25, 0.25), this.rr(0.5, 1.1), 0, this.rr(0.8, 1.4), 0.07, 0.4, 0.5, 0.48, 0.46, 0.2, -0.5, 1.6, 1, this.rr(0, 6), this.rr(-1, 1));
+      }
+    }
+    for (let i = this.columns.length - 1; i >= 0; i--) {
+      const c = this.columns[i];
+      c.t += dt;
+      if (c.t >= c.life) {
+        this.columns.splice(i, 1);
+        continue;
+      }
+      const k = 1 - c.t / c.life;
+      if (this.rnd() < dt * 26 * k) {
+        const w = Math.max(0.5, c.r * 0.28);
+        this.smoke.emit(c.x + this.rr(-w, w), c.y + this.rr(0, 0.4) + c.t * 0.5, 0.35, this.rr(-0.35, 0.35), this.rr(1.6, 3.0), this.rr(-0.3, 0.3), this.rr(1.2, 2.0), 0.35 + c.r * 0.12, 0.9 + c.r * 0.35, 0.16 + 0.14 * k, 0.15 + 0.12 * k, 0.14 + 0.1 * k, 0.5 * k + 0.15, -0.3, 1.2, 1, this.rr(0, 6), this.rr(-0.8, 0.8));
+      }
+      if (c.t < 0.8 && this.rnd() < dt * 18) {
+        // glowing embers at the base while it is still hot
+        this.add.emit(c.x + this.rr(-0.5, 0.5), c.y, 0.4, this.rr(-1, 1), this.rr(1, 3), 0, this.rr(0.3, 0.7), 0.08, 0.02, 1.4, 0.6, 0.2, 0.8, 4, 1, 1);
+      }
+    }
   }
 
   private casing(x: number, y: number, dir: number, size: number): void {
@@ -1113,12 +1183,13 @@ export interface Grade {
 }
 
 export const SECTOR_GRADE: Record<string, Grade> = {
-  airlock: { gain: [0.96, 1.0, 1.07], lift: [0, 0.004, 0.012], sat: 1.05, contrast: 1.04, vignette: 0.42 },
-  shaft: { gain: [0.98, 1.0, 1.03], lift: [0.002, 0.004, 0.008], sat: 1.0, contrast: 1.05, vignette: 0.46 },
-  mines: { gain: [1.08, 0.99, 0.88], lift: [0.012, 0.006, 0], sat: 1.1, contrast: 1.07, vignette: 0.52 },
-  biolabs: { gain: [0.93, 1.07, 0.98], lift: [0, 0.01, 0.004], sat: 1.12, contrast: 1.05, vignette: 0.46 },
-  security: { gain: [0.93, 0.99, 1.1], lift: [0, 0.004, 0.014], sat: 1.04, contrast: 1.07, vignette: 0.48 },
-  core: { gain: [1.1, 0.93, 0.93], lift: [0.014, 0, 0.004], sat: 1.14, contrast: 1.09, vignette: 0.55 },
+  // Round 3 mood pass: rust brown, drab green, orange highlights (Abuse palette). Lift stays low so shadows go deep.
+  airlock: { gain: [1.0, 1.0, 0.97], lift: [0.004, 0.004, 0.006], sat: 0.92, contrast: 1.1, vignette: 0.5 },
+  shaft: { gain: [1.08, 1.0, 0.86], lift: [0.008, 0.004, 0], sat: 0.98, contrast: 1.12, vignette: 0.54 },
+  mines: { gain: [1.14, 0.98, 0.78], lift: [0.012, 0.005, 0], sat: 1.05, contrast: 1.14, vignette: 0.6 },
+  biolabs: { gain: [0.92, 1.07, 0.86], lift: [0, 0.008, 0.002], sat: 1.0, contrast: 1.11, vignette: 0.54 },
+  security: { gain: [1.04, 0.96, 0.96], lift: [0.004, 0.002, 0.006], sat: 0.96, contrast: 1.12, vignette: 0.56 },
+  core: { gain: [1.16, 0.9, 0.8], lift: [0.014, 0, 0.002], sat: 1.1, contrast: 1.16, vignette: 0.62 },
 };
 
 export interface PostParams {
