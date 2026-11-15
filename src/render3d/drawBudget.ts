@@ -20,6 +20,8 @@ export interface ViewParts {
   decor: { setView(minX: number, maxX: number, minY: number, maxY: number): void };
   vistaRoot: THREE.Object3D;
   vista: { setView(minX: number, maxX: number, minY: number, maxY: number): void };
+  ambientRoot: THREE.Object3D;
+  ambient: { setView(minX: number, maxX: number, minY: number, maxY: number): void };
   hazardsRoot: THREE.Object3D;
 }
 
@@ -28,6 +30,7 @@ export interface SectorDrawEstimate {
   solids: number;
   decor: number;
   vista: number;
+  ambient: number;
   hazards: number;
   dressing: number;
   allowance: number;
@@ -120,10 +123,12 @@ export function estimateSectorDrawCalls(level: Level3D, parts: ViewParts): Secto
           const vy1 = fy + WINDOW_HALF_H;
           parts.decor.setView(vx0, vx1, vy0, vy1);
           parts.vista.setView(vx0, vx1, vy0, vy1);
+          parts.ambient.setView(vx0, vx1, vy0, vy1);
           const d = countVisibleMeshes(parts.decorRoot);
           const v = countVisibleMeshes(parts.vistaRoot);
+          const a = countVisibleMeshes(parts.ambientRoot);
           const solids = units.filter((u) => u.maxX >= vx0 && u.minX <= vx1 && u.maxY >= vy0 && u.minY <= vy1).length;
-          const total = solids + d.meshes + v.meshes + hazards + DRESSING_MESHES + ACTOR_FX_ALLOWANCE;
+          const total = solids + d.meshes + v.meshes + a.meshes + hazards + DRESSING_MESHES + ACTOR_FX_ALLOWANCE;
           if (!best || total > best.total) {
             const casters = d.casters + Math.ceil(solids * 0.5);
             best = {
@@ -131,6 +136,7 @@ export function estimateSectorDrawCalls(level: Level3D, parts: ViewParts): Secto
               solids,
               decor: d.meshes,
               vista: v.meshes,
+              ambient: a.meshes,
               hazards,
               dressing: DRESSING_MESHES,
               allowance: ACTOR_FX_ALLOWANCE,

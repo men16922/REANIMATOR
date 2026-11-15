@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { buildFacilityMap3D } from '../src/game3d/map3d.ts';
 import { buildDecor3D } from '../src/render3d/decor3d.ts';
 import { buildHazards3D } from '../src/render3d/hazards3d.ts';
+import { buildAmbient3D } from '../src/render3d/ambient3d.ts';
 import { buildVista3D } from '../src/render3d/vista3d.ts';
 import { SECTOR_DRAW_BUDGET, estimateSectorDrawCalls, countVisibleMeshes } from '../src/render3d/drawBudget.ts';
 
@@ -27,9 +28,10 @@ function build() {
   const tex = new Proxy({}, { get: () => new THREE.Texture() }) as never;
   const decor = buildDecor3D(scene, level, tex);
   const vista = buildVista3D(scene, level);
+  const ambient = buildAmbient3D(scene, level);
   const hz = buildHazards3D(scene, level);
   const root = (n: string) => scene.getObjectByName(n) as THREE.Object3D;
-  return { scene, decor, vista, hz, parts: { decor, vista, decorRoot: root('decor3d'), vistaRoot: root('vista3d'), hazardsRoot: root('hazards3d') } };
+  return { scene, decor, vista, ambient, hz, parts: { decor, vista, ambient, ambientRoot: root('ambient3d'), decorRoot: root('decor3d'), vistaRoot: root('vista3d'), hazardsRoot: root('hazards3d') } };
 }
 
 test('every sector stays within the draw-call budget', () => {
@@ -39,7 +41,7 @@ test('every sector stays within the draw-call budget', () => {
     assert.equal(est.length, 6);
     for (const e of est) {
       assert.ok(e.total <= SECTOR_DRAW_BUDGET, `${e.sector} estimate ${e.total} > ${SECTOR_DRAW_BUDGET} (${JSON.stringify(e)})`);
-      assert.ok(e.solids > 0 && e.decor > 0 && e.vista > 0, `${e.sector} counts every layer`);
+      assert.ok(e.solids > 0 && e.decor > 0 && e.vista > 0 && e.ambient > 0, `${e.sector} counts every layer`);
     }
     b.hz.dispose();
   });

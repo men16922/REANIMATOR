@@ -90,10 +90,23 @@ export interface ProcPose {
 
 export const CRAWLER_REF_SPEED = 5;
 
-/** Gait rate in rad/s: legs cycle with ground speed, never faster than the 6.5 Hz cap. */
+/** Metres the crawler covers per full scuttle cycle. Constant, so body swing is locked to ground travel at every speed. */
+export const CRAWLER_STRIDE = 0.95;
+
+/**
+ * Gait rate in rad/s. Crawler: speed / stride, so cadence is proportional to ground speed (R13: the old 6 rad/s
+ * offset made slow crawlers scuttle in place at 0.33 m per cycle). Capped at 6.5 Hz.
+ */
 export function gaitStep(kind: 'crawler' | 'spitter', speed: number): number {
   if (kind === 'spitter') return 2.2;
-  return Math.min(2 * Math.PI * 6.5, 6 + (speed / CRAWLER_REF_SPEED) * 28);
+  return Math.min(2 * Math.PI * 6.5, (2 * Math.PI * Math.max(0, speed)) / CRAWLER_STRIDE);
+}
+
+/** Speed along the surface the enemy actually travels on: floor uses the sim's achieved speed, walls and ceilings use |v|. */
+export function enemyTravelSpeed(e: { surface: string; dropping?: boolean; state: string; speedNow: number; vx: number; vy: number }): number {
+  if (e.surface === 'floor' && !e.dropping && e.state !== 'attack') return e.speedNow;
+  if (e.surface !== 'floor' && !e.dropping) return Math.hypot(e.vx, e.vy);
+  return Math.abs(e.vx);
 }
 
 // ---- R12 pure motion helpers (display only) ----
