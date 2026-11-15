@@ -6,6 +6,7 @@ import type { MapSolid3D } from '../game3d/map3d.ts';
 import type { Level3D, SectorId3D } from '../game3d/types3d.ts';
 import { batchKeyFor, classifySolid } from './solidBatches.ts';
 import { buildTerrainDetail } from './terrainDetail.ts';
+import { planKitUnits } from './terrainKit.ts';
 
 export const SECTOR_DRAW_BUDGET = 300;
 /** Player rig, enemies, pickups, projectiles and fx pools that are alive in a typical frame. */
@@ -31,6 +32,8 @@ export interface SectorDrawEstimate {
   solids: number;
   /** R14 terrain relief strips (merged rock, rib and conduit meshes). */
   terrain: number;
+  /** R15 Meshy kit InstancedMeshes (one per piece, sector and 24 m strip). */
+  kit: number;
   decor: number;
   vista: number;
   ambient: number;
@@ -112,6 +115,7 @@ export function estimateSectorDrawCalls(level: Level3D, parts: ViewParts): Secto
   };
   const units = planSolidUnits(level.solids, sectorAt);
   const detail = buildTerrainDetail(level, sectorAt);
+  const kitUnits = planKitUnits(level, sectorAt);
   const hazards = countVisibleMeshes(parts.hazardsRoot).meshes;
   const out: SectorDrawEstimate[] = [];
   const sectors = [...new Set(level.rooms.map((r) => r.sector))];
@@ -133,13 +137,15 @@ export function estimateSectorDrawCalls(level: Level3D, parts: ViewParts): Secto
           const a = countVisibleMeshes(parts.ambientRoot);
           const solids = units.filter((u) => u.maxX >= vx0 && u.minX <= vx1 && u.maxY >= vy0 && u.minY <= vy1).length;
           const terrain = detail.filter((u) => u.maxX >= vx0 && u.minX <= vx1 && u.maxY >= vy0 && u.minY <= vy1).length;
-          const total = solids + terrain + d.meshes + v.meshes + a.meshes + hazards + DRESSING_MESHES + ACTOR_FX_ALLOWANCE;
+          const kit = kitUnits.filter((u) => u.sector === sector && u.maxX >= vx0 && u.minX <= vx1 && u.maxY >= vy0 && u.minY <= vy1).length;
+          const total = solids + terrain + kit + d.meshes + v.meshes + a.meshes + hazards + DRESSING_MESHES + ACTOR_FX_ALLOWANCE;
           if (!best || total > best.total) {
             const casters = d.casters + Math.ceil(solids * 0.5);
             best = {
               sector,
               solids,
               terrain,
+              kit,
               decor: d.meshes,
               vista: v.meshes,
               ambient: a.meshes,

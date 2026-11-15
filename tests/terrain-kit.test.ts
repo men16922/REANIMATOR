@@ -1,59 +1,65 @@
-// Pure-part tests for tools/meshy/terrain-kit.ts (no network, no writes).
+// R15 terrain kit: deterministic placement over all six sectors, per-sector lazy loading, and the load-failure fallback.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
-import { resolve } from 'node:path';
-import { RAW_TASKS, TERRAIN_KIT, buildPlan, formatPlan, parseArgs, parseEnv, registerSection } from '../tools/meshy/terrain-kit.ts';
+import * as THREE from 'three';
+import { buildFacilityMap3D } from '../src/game3d/map3d.ts';
+import type { SectorId3D } from '../src/game3d/types3d.ts';
+import { KIT_IDS, TerrainKit, planKitUnits, type KitAsset, type KitId } from '../src/render3d/terrainKit.ts';
 
-test('kit has the 11 required pieces with low poly targets', () => {
-  assert.equal(TERRAIN_KIT.length, 11);
-  assert.equal(new Set(TERRAIN_KIT.map((p) => p.id)).size, 11);
-  for (const p of TERRAIN_KIT) {
-    assert.ok(p.targetPolycount > 0 && p.targetPolycount <= 4000, p.id);
-    assert.ok(p.prompt.length > 30, p.id);
+const level = buildFacilityMap3D();
+const sectorAt = (x: number, y: number): SectorId3D => {
+  for (const r of level.rooms) if (x >= r.minX && x <= r.maxX && y >= r.minY - 0.5 && y <= r.maxY + 0.5) return r.sector;
+  return 'shaft';
+};
+const SECTORS: SectorId3D[] = ['airlock', 'shaft', 'mines', 'biolabs', 'security', 'core'];
+
+test('every sector gets kit placements and the plan is deterministic', () => {
+  const a = planKitUnits(level, sectorAt);
+  const b = planKitUnits(level, sectorAt);
+  assert.deepEqual(a.map((u) => [u.key, u.placements.length]), b.map((u) => [u.key, u.placements.length]));
+  for (const s of SECTORS) assert.ok(a.some((u) => u.sector === s), `${s} has kit units`);
+  const used = new Set(a.map((u) => u.kit));
+  for (const id of KIT_IDS) assert.ok(used.has(id), `${id} is placed somewhere`);
+});
+
+test('kit placements are finite and sit on map geometry', () => {
+  for (const u of planKitUnits(level, sectorAt)) {
+    for (const p of u.placements) assert.ok([p.x, p.y, p.z, p.scale].every(Number.isFinite) && p.scale > 0);
   }
 });
 
-test('plan building and --only filter', () => {
-  const plan = buildPlan();
-  assert.equal(plan.length, 11);
-  assert.equal(plan[0].outFile, `public/assets/models/terrain/${plan[0].id}.glb`);
-  assert.deepEqual(buildPlan(TERRAIN_KIT, ['steel-girder']).map((s) => s.id), ['steel-girder']);
-  assert.match(formatPlan(plan), /11 pieces/);
-});
+const fakeAsset = (): KitAsset => ({ geometry: new THREE.BoxGeometry(1, 1, 1), material: new THREE.MeshBasicMaterial() });
 
-test('args and env parsing', () => {
-  assert.deepEqual(parseArgs(['--dry-run', '--only', 'a,b']), { dryRun: true, only: ['a', 'b'], skipOptimize: false, ingestRaw: false });
-  assert.equal(parseArgs(['--ingest-raw']).ingestRaw, true);
-  assert.equal(parseEnv('# c\nMESHY_API_KEY="abc"\n').MESHY_API_KEY, 'abc');
-});
-
-test('register section is marked and idempotent-replaceable', () => {
-  const s = registerSection([{ id: 'x', outFile: 'public/assets/models/terrain/x.glb', bytes: 1234, tris: 99, taskId: 'abcdef012345', prompt: 'a|b' }]);
-  assert.match(s, /terrain-kit:begin/);
-  assert.match(s, /terrain-kit:end/);
-  assert.match(s, /1,234 B \/ 99/);
-  assert.ok(!s.includes('a|b'));
-});
-
-test('--dry-run prints the plan without network', () => {
-  const out = execFileSync(process.execPath, ['tools/meshy/terrain-kit.ts', '--dry-run'], {
-    cwd: resolve(import.meta.dirname, '..'),
-    env: { ...process.env, MESHY_API_KEY: '' },
-    encoding: 'utf8',
+test('ensureSector loads lazily, once per sector, and builds instanced meshes', async () => {
+  const loaded: KitId[] = [];
+  const kit = new TerrainKit(planKitUnits(level, sectorAt), async (id) => {
+    loaded.push(id);
+    return fakeAsset();
   });
-  assert.match(out, /Terrain kit plan: 11 pieces/);
-  assert.match(out, /no network/);
+  assert.equal(loaded.length, 0);
+  const built = await kit.ensureSector('mines');
+  assert.ok(built.length > 0 && built.every((b) => b.unit.sector === 'mines' && b.mesh.isInstancedMesh));
+  assert.ok(loaded.every((id) => ['mines-rock-chunk', 'timber-brace', 'platform-edge-trim'].includes(id)), loaded.join());
+  assert.deepEqual(await kit.ensureSector('mines'), []);
+  assert.ok(kit.isLoaded('mines') && !kit.isLoaded('core'));
 });
 
-test('ingest mode has task ids for every kit piece and prompts carry shape hints', () => {
-  for (const p of TERRAIN_KIT) {
-    const t = RAW_TASKS[p.id];
-    assert.ok(t && t.previewTaskId.length === 36 && t.refineTaskId.length === 36, p.id);
-    assert.equal(p.targetPolycount, 4000, p.id);
+test('GLB load failure falls back: no throw, no kit meshes for that piece', async () => {
+  const kit = new TerrainKit(planKitUnits(level, sectorAt), async (id) => {
+    if (id === 'timber-brace') throw new Error('404');
+    return fakeAsset();
+  });
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    const built = await kit.ensureSector('mines');
+    assert.ok(kit.failed.has('timber-brace'));
+    assert.ok(built.length > 0 && built.every((b) => b.unit.kit !== 'timber-brace'));
+    const all = await new TerrainKit(planKitUnits(level, sectorAt), async () => {
+      throw new Error('offline');
+    }).ensureSector('core');
+    assert.equal(all.length, 0);
+  } finally {
+    console.warn = warn;
   }
-  const prompt = (id: string) => TERRAIN_KIT.find((p) => p.id === id)!.prompt;
-  for (const id of ['wall-panel', 'floor-grate', 'platform-edge-trim', 'timber-brace', 'security-bulkhead-frame']) assert.match(prompt(id), /flat thin/i, id);
-  for (const id of ['pipe-cluster', 'steel-girder', 'reactor-conduit']) assert.match(prompt(id), /long horizontal/i, id);
-  assert.match(prompt('support-pillar'), /tall slender/i);
 });

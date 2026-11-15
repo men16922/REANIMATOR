@@ -86,6 +86,7 @@ import { buildVista3D, type Vista3D } from './vista3d.ts';
 import { buildAmbient3D, type Ambient3D } from './ambient3d.ts';
 import type { OpeningView } from '../ui/opening.ts';
 import { buildTerrainDetail, makeTerrainDetailMaterial } from './terrainDetail.ts';
+import { TerrainKit, planKitUnits } from './terrainKit.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
 /** Static scenery that is hidden while it is outside the camera window (render-only). */
@@ -436,6 +437,9 @@ export class Scene3DRenderer {
   private readonly occludables: OccludableMesh[] = [];
   private readonly pendingBatches = new Map<string, PendingBatch>();
   private readonly cullEntries: CullEntry[] = [];
+  /** R15 terrain kit (lazy per sector, visual-only). Null until a level is built. */
+  private terrainKit: TerrainKit | null = null;
+  private readonly kitMeshes: THREE.InstancedMesh[] = [];
   private decor: Decor3D | null = null;
   private vista: Vista3D | null = null;
   private ambientLife: Ambient3D | null = null;
@@ -1159,6 +1163,13 @@ export class Scene3DRenderer {
     this.doorLamps = null;
     this.consoleRing = null;
     this.occludables.length = 0;
+    for (const m of this.kitMeshes) {
+      this.scene.remove(m);
+      m.dispose();
+    }
+    this.kitMeshes.length = 0;
+    this.terrainKit?.dispose();
+    this.terrainKit = null;
     this.cullEntries.length = 0;
     this.acidMeshes.length = 0;
     this.savePads.length = 0;
@@ -1437,6 +1448,23 @@ export class Scene3DRenderer {
       this.scene.add(mesh);
       this.cullEntries.push({ obj: mesh, minX: u.minX, maxX: u.maxX, minY: u.minY, maxY: u.maxY });
     }
+    this.terrainKit = new TerrainKit(planKitUnits(level, (x, y) => this.sectorAt(x, y)));
+  }
+
+  /** R15: load the terrain kit GLBs of the sector the camera is in (once). A load failure leaves the R14 relief in place. */
+  private ensureKitForCamera(): void {
+    const kit = this.terrainKit;
+    if (!kit) return;
+    const sector = this.sectorAt(this.camFocus.x, this.camFocus.y);
+    if (kit.isLoaded(sector)) return;
+    void kit.ensureSector(sector).then((built) => {
+      if (this.terrainKit !== kit) return;
+      for (const b of built) {
+        this.scene.add(b.mesh);
+        this.kitMeshes.push(b.mesh);
+        this.cullEntries.push({ obj: b.mesh, minX: b.unit.minX, maxX: b.unit.maxX, minY: b.unit.minY, maxY: b.unit.maxY });
+      }
+    });
   }
 
   private addCullPoint(obj: THREE.Object3D, x: number, y: number, r: number): void {
@@ -2698,6 +2726,7 @@ export class Scene3DRenderer {
       occ.mat.depthWrite = occ.mat.opacity > 0.8;
     }
 
+    this.ensureKitForCamera();
     this.applyViewCulling(w);
     this.renderer.info.reset();
     const drawT0 = performance.now();

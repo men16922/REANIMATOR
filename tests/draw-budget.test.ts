@@ -85,3 +85,12 @@ test('R14 terrain relief is counted, merged per strip, and light-free', () => {
     b.hz.dispose();
   });
 });
+
+test('R15 terrain kit is counted per sector and stays within its own share', () => {
+  withStubDom(() => {
+    const b = build();
+    const est = estimateSectorDrawCalls(level, b.parts);
+    for (const e of est) assert.ok(e.kit > 0 && e.kit <= 16, `${e.sector} kit meshes ${e.kit}`);
+    b.hz.dispose();
+  });
+});
