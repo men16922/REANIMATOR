@@ -22,7 +22,8 @@ void main() {
     float v = 1.0 - u.y;
     p = vec3((u.x - 0.5) * mix(0.5, aShape.x, v), -v * aPos.w, 0.12);
   } else {
-    p = vec3((u.x - 0.5) * aShape.y, -aPos.w + 0.05, (u.y - 0.5) * 2.4);
+    // floor pool: centred on the z=0 lane, lying on the floor found under the lamp
+    p = vec3((u.x - 0.5) * aShape.y, -aPos.w + 0.05, -aPos.z + (u.y - 0.5) * 2.8);
   }
   gl_Position = projectionMatrix * modelViewMatrix * vec4(aPos.xyz + p, 1.0);
 }
@@ -104,7 +105,7 @@ export function buildMood3D(scene: THREE.Scene, level: Level3D): Mood3D {
     for (const p of lay.props) {
       if (!isLampProp(p)) continue;
       const floor = floorBelow(level.solids, p.x, p.y, room.minY);
-      const len = Math.min(7, Math.max(1.6, p.y - floor - 0.1));
+      const len = Math.min(7, Math.max(1.6, p.y - p.sy * 0.5 - floor));
       const seed = lampSeed(p.x, p.y);
       lamps.push({
         x: p.x, y: p.y - p.sy * 0.5, z: p.z + 0.2, len,
@@ -133,7 +134,8 @@ export function buildMood3D(scene: THREE.Scene, level: Level3D): Mood3D {
     col.setHex(l.color);
     // pull the tint toward warm white so rust-orange lamps and cold ones both read as light, not paint
     aCol.setXYZ(i, col.r * 0.8 + 0.2, col.g * 0.8 + 0.2, col.b * 0.8 + 0.2);
-    aShape.setXYZW(i, l.width, l.pool, 0, 1);
+    // a capped (very tall) drop has no real floor under it: skip the pool rather than float it in mid air
+    aShape.setXYZW(i, l.width, l.len >= 7 ? 0 : l.pool, 0, 1);
     if (l.mode !== 'steady') slots.push({ index: i, mode: l.mode, seed: l.seed, base: l.base });
   });
   geo.setAttribute('aPos', aPos);

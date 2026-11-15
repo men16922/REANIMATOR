@@ -493,6 +493,7 @@ export class Scene3DRenderer {
     this.fxAlpha = new ParticleLayer(this.fx.alpha, false, true);
     this.fxSmoke = new ParticleLayer(this.fx.smoke, false, false);
     this.fxSmoke.mesh.renderOrder = 18;
+    this.fxSmoke.mesh.name = 'fx-particles-smoke';
     this.goreChunks = new ChunkLayer(this.fx.gore.chunks);
     this.goreDecals = new DecalLayer(this.fx.gore.decals);
     this.scene.add(this.goreDecals.mesh);
