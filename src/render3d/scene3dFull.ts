@@ -1410,6 +1410,17 @@ export class Scene3DRenderer {
           for (let x = s.minX + 0.3; x < s.maxX - 0.2; x += 2) push(x, top + 0.45, s.minZ + 0.1, 0.05, 0.9, 0.05, look.rivet);
         }
       }
+    } else if (s.kind === 'crate' || s.kind === 'console') {
+      // Crate and console tops: bright lip, corner straps and a cross brace so they read as built objects, not boxes.
+      const fz = s.kind === 'crate' ? Math.max(s.minZ + 0.4, Math.min(s.maxZ, -0.55)) : s.maxZ;
+      push(cx, top + 0.015, fz - 0.08, sx, 0.04, 0.16, look.lip);
+      push(s.minX + 0.07, cy, fz + 0.015, 0.14, sy + 0.02, 0.05, look.flange);
+      push(s.maxX - 0.07, cy, fz + 0.015, 0.14, sy + 0.02, 0.05, look.flange);
+      push(cx, s.minY + 0.07, fz + 0.015, sx, 0.14, 0.05, look.flange);
+      if (sx >= 0.9 && sy >= 0.6) {
+        const len = Math.hypot(sx - 0.3, sy - 0.3);
+        push(cx, cy, fz + 0.02, len, 0.07, 0.04, look.brace, Math.atan2(sy - 0.3, sx - 0.3));
+      }
     } else if (s.kind === 'door') {
       const j = 0.4;
       const zf = front + 0.08;
@@ -1821,6 +1832,7 @@ export class Scene3DRenderer {
     const fogTarget = Math.min(0.02, room ? SECTOR_FOG[room.sector] : 0.012);
     this.fogDensity += (fogTarget - this.fogDensity) * Math.min(1, dt * 2);
     (this.scene.fog as THREE.FogExp2).density = this.fogDensity;
+    this.decor?.setMeltdown(inMeltdown, tSec, this.reduceMotion);
     this.decor?.update(tSec, w.player.body.x, w.player.body.y, this.reduceMotion);
     this.vista?.update(tSec, { playerX: w.player.body.x, playerY: w.player.body.y, reduce: this.reduceMotion, meltdown: inMeltdown });
     this.mood?.update(tSec, this.reduceMotion);
