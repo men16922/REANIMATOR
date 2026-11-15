@@ -1,0 +1,47 @@
+;; REANIMATOR level observation harness (work copy only; not original data).
+;; Derived from HARNESS.v8.LSP constraints: no string literals inside defuns, globals in perm-space.
+;; State machine: h_s = stage (0..4 = LEVEL00..04 as reached), h_t = calls since the stage began.
+;; t<20 observe; t>=20 put the player on the level's NEXT_LEVEL object (coords from the static survey)
+;; and, from t>=25, hold "down" (pressing_action_key = player_y_suggest > 0, LISP/PEOPLE.LSP).
+;; A stage ends when (level_name) changes (natural transition); no forced loads.
+(load "abuse.lsp")
+(perm-space)
+(setq h_file "hlog.txt")
+(setq h_mode "ab")
+(setq h_n 0)
+(setq h_s -1)
+(setq h_t 0)
+(setq h_ln "")
+(setq h_end 700)
+(setq h_ex (list 1635 2715 105 2505 2625))
+(setq h_ey (list 936 306 876 1296 456))
+(tmp-space)
+(defun h_log (tag)
+  (open_file h_file h_mode
+             (print (list tag h_n h_s h_t (game_tick) (level_name)
+                          (with_object (bg) (list (x) (y) (xvel) (yvel) (state) (hp)))))))
+(defun h_bump ()
+  (perm-space)
+  (setq h_n (+ h_n 1))
+  (setq h_t (+ h_t 1))
+  (tmp-space))
+(defun h_newlevel ()
+  (perm-space)
+  (setq h_ln (level_name))
+  (setq h_s (+ h_s 1))
+  (setq h_t 0)
+  (tmp-space))
+(defun get_local_input ()
+  (if (bg)
+      (progn
+        
+        (if (not (equal h_ln (level_name)))
+            (progn (h_log 1) (h_newlevel)))
+        (if (and (> h_t 19) (> h_s -1) (< h_s 5))
+            (with_object (bg) (progn (set_x (nth h_s h_ex)) (set_y (nth h_s h_ey)))))
+        (if (or (eq h_t 0) (eq h_t 19) (eq h_t 40) (eq h_t 60) (eq h_t 99))
+            (h_log 0))
+        (h_bump)
+        (if (or (> h_n h_end) (> h_t 140)) (progn (h_log 2) (quit)))
+        (list 0 (if (> h_t 24) 1 0) nil nil 0 0 0))
+    (list 0 0 nil nil 0 0 0)))

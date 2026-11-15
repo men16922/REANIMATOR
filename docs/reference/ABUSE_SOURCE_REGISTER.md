@@ -41,3 +41,7 @@
 checkout의 `docs/providers/ghidra-dos.md`는 Ghidra 12.x(>=12.1)와 해당 릴리스가 요구하는 JDK, 16비트 DOS MZ/COM 경로를 기술한다. NE/LE/LX는 명시적으로 미지원이며 MZ real-mode 진입을 벗어나는 DOS extender도 경계 밖이다. 파일 끝 overlay는 해시에 포함돼도 초기 로드 코드 분석 범위에서 제외될 수 있다.
 
 따라서 Abuse 파일을 받기 전에는 REA 지원을 확정하지 않는다. 원본 stub의 분석 성공과 게임 코드 복원 성공을 별도로 판정한다.
+
+## 레벨 관찰 (2026-11-16)
+
+- `LEVELS/LEVEL00~04.SPE`(+`.CPF`)를 읽기 전용으로 파싱(개수·크기·좌표만 기록)하고 작업 사본(`reference/work/levels_obs/`, gitignored)에서 DOSBox로 실행했다. 원본 바이트·화면은 저장소와 `dist/`에 없다. 방법별 결과: [ABUSE_LEVEL_OBSERVATION.md](ABUSE_LEVEL_OBSERVATION.md).

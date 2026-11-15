@@ -2,6 +2,10 @@
 
 최종 갱신: 2026-11-15 · R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## Abuse 레벨 관찰 (2026-11-16)
+
+- LEVEL00~04 정적 조사(`tools/reference/spe-survey.ts`)와 DOSBox 실행(`HARNESS.levels.LSP`, `scripts/observe_levels.sh`). 00→01→02→03→04 전환을 `level_name` 로그로 확인, 04 출구는 엔딩 진입 추정. 스크린샷·팔레트는 윈도 서버 없음으로 unverified. [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md)
+
 ## R16 (2026-11-16)
 
 - 능력 3종, 튜토리얼 모드·최소 HUD, 일시 DATA LOG 토스트, 레트로 UI, 차분해진 인트로, 릴리스용 텍스트 정리. `make check` exit 0(672/672). 요약 [R16_RETRO_TUTORIAL_UI](R16_RETRO_TUTORIAL_UI.md). 미검증: `make smoke-local`, G5 사람 플레이.

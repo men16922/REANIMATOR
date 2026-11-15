@@ -11,6 +11,11 @@
 - [x] **Intro review**: the user found the intro busy. The opening is an intentional alarm set piece (red vent burst, caption lines) but it has not been judged against the "too hectic" note. Reduce overlapping effects and re-check.
 - [ ] Bio-Labs draws 299 calls on fresh load (limit 300): trim kit instances or merge before adding more pieces.
 
+## Abuse 레벨 관찰 후
+
+- [ ] GUI 세션에서 `scripts/observe_levels.sh`(dummy 제거)로 레벨별 스크린샷·팔레트 관찰, 레벨 04 엔딩 화면 확인.
+- [ ] [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md) 7절 다단계 설계안을 spec(`metroidvania-3d`)에 반영할지 결정.
+
 ## R15 이후
 
 - Meshy 터레인 킷 생성은 샌드박스 DNS 실패(`api.meshy.ai`)로 보류. 네트워크 가능한 환경에서 `docs/R15_MESHY_TERRAIN.md`의 킷 계획을 실행한다.

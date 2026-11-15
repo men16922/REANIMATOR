@@ -84,3 +84,7 @@
 | `terrain/reactor-conduit` | `public/assets/models/terrain/reactor-conduit.glb` | 206,920 B / 3,816 | Meshy text-to-3D (refine `01a1df78…`) | Long horizontal core reactor energy conduit, thick armoured cable trunk with glowing amber coupling rings and insulators, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background |
 
 <!-- terrain-kit:end -->
+
+## Abuse 레벨 관찰 증거 (분석용, 배포 제외)
+
+- `docs/evidence/abuse_levels/{survey.json,SURVEY.md,run/}`: 수치·로그만 포함(원본 바이트·스크린샷 없음). `dist/`에 넣지 않는다.

@@ -11,6 +11,12 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - 11-15 R2 통합: fix/boss/audio/brand. `main.ts` 충돌 2곳 수동 해결.
 - 11-15 R3 통합: foes/fix/mood/classic. 충돌 2곳(`main.ts` import, `index.html`+Classic 블록) 수동 해결. `make check` exit 0(211/211, reach3d 52 waypoints, dist-guard 13 files).
 
+## 2026-11-16 — Abuse 레벨 관찰
+
+- Changed: `tools/reference/spe-survey.ts`, `reference/harness/HARNESS.levels.LSP`, `scripts/observe_levels.sh`, `docs/reference/ABUSE_LEVEL_OBSERVATION.md`, `docs/evidence/abuse_levels/`.
+- Observed: DOSBox(`SDL_VIDEODRIVER=dummy`)에서 레벨 00→04 자연 전환(아래 입력). 스폰이 정적 START와 일치. 레벨 04 출구 후 입력 훅 정지(엔딩 추정).
+- Unverified: 스크린샷·팔레트(윈도 서버 없음), 실제 플레이 길이.
+
 ## 2026-11-15 — Post-R13 수정 (Judge Reel, 적 달리기)
 
 - Judge Reel: DOM 호스트가 랩 열림을 내부 플래그로 기억해 외부에서 `#lab`이 바뀌면 훅 컷 종료 시 닫기를 건너뛸 수 있었다. 이제 매 프레임 DOM 기준으로 "랩은 훅 컷에서만" 불변식을 재확인한다. 릴 시계는 실제 dt(프레임당 최대 0.5 s)를 쓰고 월드는 프레임당 30틱까지 따라잡는다. 모드가 showcase를 벗어나면 릴을 멈추고, 종료 시 랩 mutation 체크를 해제한다. `tests/r13-reel-player.test.ts` 6개. 브라우저 2 s 샘플 표는 [R13_REEL](R13_REEL.md).

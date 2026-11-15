@@ -1,0 +1,924 @@
+{
+  "schema": "reanimator-abuse-level-survey-v1",
+  "source": "Abuse shareware 1.05 LEVELS/LEVEL00..04.SPE (private, not committed)",
+  "note": "Derived statistics only. No original bytes.",
+  "totals": {
+    "levels": 5,
+    "objects": 1678
+  },
+  "levels": [
+    {
+      "file": "LEVEL00.SPE",
+      "method": "binary parse",
+      "bytes": 47335,
+      "cpfBytes": 9638,
+      "sections": 45,
+      "trailingBytes": 0,
+      "extraSections": [],
+      "sectionSizes": {
+        "fgmap": 20008,
+        "bgmap": 2186,
+        "area_list.v1": 533,
+        "object_list": 4,
+        "lights": 1458,
+        "object_links": 661
+      },
+      "fgmap": {
+        "width": 100,
+        "height": 100,
+        "tiles": 10000,
+        "nonZeroTiles": 10000,
+        "highBitTiles": 6128,
+        "distinctTileValues": 84,
+        "note": "high-bit (0x8000) meaning unverified"
+      },
+      "bgmap": {
+        "width": 33,
+        "height": 33,
+        "distinctTileValues": 1
+      },
+      "objectCount": 259,
+      "objectTypesDistinct": 39,
+      "objectBounds": {
+        "minX": 58,
+        "maxX": 2785,
+        "minY": 27,
+        "maxY": 1439,
+        "unit": "pixels (assumed; unverified)"
+      },
+      "objectCountsByName": {
+        "LAVA": 71,
+        "HEALTH": 30,
+        "SENSOR": 20,
+        "HIDDEN_WALL3": 18,
+        "TRAIN_MSG": 14,
+        "DEATH_SENSOR": 11,
+        "HIDDEN_WALL_2x2": 10,
+        "ROCKET_ICON2": 8,
+        "AMBIENT_SOUND": 6,
+        "NEXT_LEVEL": 6,
+        "TELE_BEAM": 6,
+        "NEXT_LEVEL_TOP": 6,
+        "WHO": 6,
+        "MBULLET_ICON20": 5,
+        "SWITCH_DOOR": 4,
+        "TELE2": 4,
+        "GRENADE_ICON10": 4,
+        "HIDDEN_WALL_3WAL": 3,
+        "HIDDEN_WALL4": 3,
+        "TP_DOOR": 2,
+        "LADDER": 2,
+        "HIDDEN_WALL2": 2,
+        "GATE_AND": 2,
+        "RESTART_POSITION": 1,
+        "SWITCH": 1,
+        "SWITCH_MOVER": 1,
+        "GATE_OR": 1,
+        "SWITCH_DIMMER": 1,
+        "POINTER": 1,
+        "FORCE_FIELD": 1,
+        "HIDDEN_WALL1": 1,
+        "HIDDEN_WALL5": 1,
+        "SPRING": 1,
+        "TRAP_DOOR2": 1,
+        "SMART_PLAT_SMALL": 1,
+        "GATE_XOR": 1,
+        "SWITCH_BALL": 1,
+        "START": 1,
+        "POWER_FAST": 1
+      },
+      "objectCountsByCategory": {
+        "enemy": 6,
+        "pickup": 31,
+        "door": 8,
+        "switch": 35,
+        "gate": 4,
+        "level_exit": 12,
+        "checkpoint": 1,
+        "hazard": 71,
+        "mover": 7,
+        "weapon_pickup": 17,
+        "hidden_wall": 38,
+        "other": 29
+      },
+      "keyObjects": {
+        "RESTART_POSITION": [
+          {
+            "x": 2253,
+            "y": 548,
+            "aistate": 0
+          }
+        ],
+        "NEXT_LEVEL": [
+          {
+            "x": 2025,
+            "y": 936,
+            "aistate": 4
+          },
+          {
+            "x": 1935,
+            "y": 936,
+            "aistate": 3
+          },
+          {
+            "x": 1725,
+            "y": 936,
+            "aistate": 2
+          },
+          {
+            "x": 1635,
+            "y": 936,
+            "aistate": 1
+          },
+          {
+            "x": 105,
+            "y": 651,
+            "aistate": 1
+          },
+          {
+            "x": 2655,
+            "y": 1431,
+            "aistate": 1
+          }
+        ],
+        "NEXT_LEVEL_TOP": [
+          {
+            "x": 2025,
+            "y": 891,
+            "aistate": 0
+          },
+          {
+            "x": 1935,
+            "y": 891,
+            "aistate": 0
+          },
+          {
+            "x": 1725,
+            "y": 891,
+            "aistate": 0
+          },
+          {
+            "x": 1635,
+            "y": 891,
+            "aistate": 0
+          },
+          {
+            "x": 105,
+            "y": 591,
+            "aistate": 0
+          },
+          {
+            "x": 2655,
+            "y": 1386,
+            "aistate": 0
+          }
+        ],
+        "START": [
+          {
+            "x": 58,
+            "y": 61,
+            "aistate": 0
+          }
+        ]
+      },
+      "levelExits": [
+        {
+          "x": 2025,
+          "y": 936,
+          "aistate": 4,
+          "targetLevel": 4
+        },
+        {
+          "x": 1935,
+          "y": 936,
+          "aistate": 3,
+          "targetLevel": 3
+        },
+        {
+          "x": 1725,
+          "y": 936,
+          "aistate": 2,
+          "targetLevel": 2
+        },
+        {
+          "x": 1635,
+          "y": 936,
+          "aistate": 1,
+          "targetLevel": 1
+        },
+        {
+          "x": 105,
+          "y": 651,
+          "aistate": 1,
+          "targetLevel": 1
+        },
+        {
+          "x": 2655,
+          "y": 1431,
+          "aistate": 1,
+          "targetLevel": 1
+        }
+      ],
+      "levelExitMethod": "binary parse (NEXT_LEVEL aistate) + Lisp reading (PEOPLE.LSP next_level_ai: \"levels/level\"+digstr(aistate,2)+\".spe\"; aistate==end_level(5) -> request_end_game)",
+      "areas": 12,
+      "lights": 58,
+      "objectLinks": 82,
+      "lightLinks": 1,
+      "unverified": [
+        "area_list record field meanings beyond count",
+        "lights record layout (25 B each assumed)",
+        "tile high-bit meaning",
+        "object coordinate units"
+      ]
+    },
+    {
+      "file": "LEVEL01.SPE",
+      "method": "binary parse",
+      "bytes": 59377,
+      "cpfBytes": 9148,
+      "sections": 45,
+      "trailingBytes": 0,
+      "extraSections": [],
+      "sectionSizes": {
+        "fgmap": 24008,
+        "bgmap": 2516,
+        "area_list.v1": 313,
+        "object_list": 4,
+        "lights": 2383,
+        "object_links": 3413
+      },
+      "fgmap": {
+        "width": 100,
+        "height": 120,
+        "tiles": 12000,
+        "nonZeroTiles": 12000,
+        "highBitTiles": 5570,
+        "distinctTileValues": 139,
+        "note": "high-bit (0x8000) meaning unverified"
+      },
+      "bgmap": {
+        "width": 33,
+        "height": 38,
+        "distinctTileValues": 31
+      },
+      "objectCount": 317,
+      "objectTypesDistinct": 44,
+      "objectBounds": {
+        "minX": 81,
+        "maxX": 2715,
+        "minY": 29,
+        "maxY": 1649,
+        "unit": "pixels (assumed; unverified)"
+      },
+      "objectCountsByName": {
+        "HIDDEN_WALL3": 36,
+        "SENSOR": 35,
+        "HIDDEN_WALL_2x2": 31,
+        "HEALTH": 22,
+        "ANT_ROOF": 19,
+        "SPRAY_GUN": 16,
+        "HIDDEN_ANT": 13,
+        "GATE_DELAY": 11,
+        "MBULLET_ICON20": 11,
+        "HIDDEN_WALL4": 10,
+        "ANT_CRACK": 10,
+        "HIDDEN_WALL_3FLR": 9,
+        "AMBIENT_SOUND": 8,
+        "GRENADE_ICON2": 8,
+        "HIDDEN_WALL1": 7,
+        "DEATH_SENSOR": 6,
+        "SWITCH_DOOR": 5,
+        "BOLDER": 5,
+        "TP_DOOR": 4,
+        "HIDDEN_WALL5": 4,
+        "HIDDEN_WALL2": 4,
+        "FBOMB_ICON1": 4,
+        "SWITCH_DIMMER": 3,
+        "SWITCH": 3,
+        "RESTART_POSITION": 3,
+        "GRENADE_ICON10": 3,
+        "FORCE_FIELD": 3,
+        "ROCKET_ICON2": 3,
+        "SMART_PLAT_SMALL": 2,
+        "TRAP_DOOR2": 2,
+        "GATE_NOT": 2,
+        "TELE2": 2,
+        "TRAP_DOOR3": 2,
+        "SWITCH_ONCE": 1,
+        "NEXT_LEVEL": 1,
+        "TELE_BEAM": 1,
+        "HIDDEN_WALL_3WAL": 1,
+        "GATE_PULSE": 1,
+        "SWITCH_MOVER": 1,
+        "GATE_AND": 1,
+        "NEXT_LEVEL_TOP": 1,
+        "START": 1,
+        "GATE_XOR": 1,
+        "MBULLET_ICON5": 1
+      },
+      "objectCountsByCategory": {
+        "enemy": 58,
+        "pickup": 22,
+        "door": 16,
+        "switch": 49,
+        "gate": 16,
+        "level_exit": 2,
+        "checkpoint": 3,
+        "hazard": 5,
+        "mover": 2,
+        "weapon_pickup": 30,
+        "hidden_wall": 102,
+        "other": 12
+      },
+      "keyObjects": {
+        "RESTART_POSITION": [
+          {
+            "x": 1413,
+            "y": 639,
+            "aistate": 0
+          },
+          {
+            "x": 81,
+            "y": 111,
+            "aistate": 0
+          },
+          {
+            "x": 841,
+            "y": 828,
+            "aistate": 0
+          }
+        ],
+        "NEXT_LEVEL": [
+          {
+            "x": 2715,
+            "y": 306,
+            "aistate": 2
+          }
+        ],
+        "NEXT_LEVEL_TOP": [
+          {
+            "x": 2715,
+            "y": 261,
+            "aistate": 0
+          }
+        ],
+        "START": [
+          {
+            "x": 167,
+            "y": 43,
+            "aistate": 0
+          }
+        ]
+      },
+      "levelExits": [
+        {
+          "x": 2715,
+          "y": 306,
+          "aistate": 2,
+          "targetLevel": 2
+        }
+      ],
+      "levelExitMethod": "binary parse (NEXT_LEVEL aistate) + Lisp reading (PEOPLE.LSP next_level_ai: \"levels/level\"+digstr(aistate,2)+\".spe\"; aistate==end_level(5) -> request_end_game)",
+      "areas": 7,
+      "lights": 95,
+      "objectLinks": 426,
+      "lightLinks": 3,
+      "unverified": [
+        "area_list record field meanings beyond count",
+        "lights record layout (25 B each assumed)",
+        "tile high-bit meaning",
+        "object coordinate units"
+      ]
+    },
+    {
+      "file": "LEVEL02.SPE",
+      "method": "binary parse",
+      "bytes": 82291,
+      "cpfBytes": 7573,
+      "sections": 45,
+      "trailingBytes": 0,
+      "extraSections": [],
+      "sectionSizes": {
+        "fgmap": 45008,
+        "bgmap": 4058,
+        "area_list.v1": 489,
+        "object_list": 4,
+        "lights": 2558,
+        "object_links": 1389
+      },
+      "fgmap": {
+        "width": 150,
+        "height": 150,
+        "tiles": 22500,
+        "nonZeroTiles": 22188,
+        "highBitTiles": 6265,
+        "distinctTileValues": 146,
+        "note": "high-bit (0x8000) meaning unverified"
+      },
+      "bgmap": {
+        "width": 45,
+        "height": 45,
+        "distinctTileValues": 55
+      },
+      "objectCount": 346,
+      "objectTypesDistinct": 43,
+      "objectBounds": {
+        "minX": 30,
+        "maxX": 3115,
+        "minY": 231,
+        "maxY": 1409,
+        "unit": "pixels (assumed; unverified)"
+      },
+      "objectCountsByName": {
+        "SENSOR": 43,
+        "HEALTH": 40,
+        "ANT_ROOF": 31,
+        "HIDDEN_ANT": 27,
+        "LADDER": 21,
+        "MARKER": 17,
+        "SWITCH_DOOR": 13,
+        "MBULLET_ICON20": 13,
+        "SPRAY_GUN": 11,
+        "BLOCK": 11,
+        "MBULLET_ICON5": 11,
+        "SWITCH_ONCE": 8,
+        "SWITCH": 8,
+        "SMART_PLAT_SMALL": 7,
+        "RESTART_POSITION": 6,
+        "GATE_AND": 6,
+        "SPRING": 6,
+        "AMBIENT_SOUND": 5,
+        "SWITCH_DIMMER": 5,
+        "JUGGER": 5,
+        "GRENADE_ICON2": 5,
+        "TP_DOOR": 4,
+        "TELE2": 4,
+        "LAVA": 4,
+        "GATE_DELAY": 4,
+        "INDICATOR": 4,
+        "GRENADE_ICON10": 4,
+        "TRAP_DOOR2": 3,
+        "STEP": 2,
+        "TRACK_GUN": 2,
+        "PUSHER": 2,
+        "DEATH_SENSOR": 2,
+        "ROB1": 2,
+        "NEXT_LEVEL": 1,
+        "TELE_BEAM": 1,
+        "NEXT_LEVEL_TOP": 1,
+        "GATE_XOR": 1,
+        "GATE_NOT": 1,
+        "GATE_OR": 1,
+        "START": 1,
+        "POWER_FAST": 1,
+        "BOLDER": 1,
+        "ROCKET_ICON2": 1
+      },
+      "objectCountsByCategory": {
+        "enemy": 78,
+        "pickup": 41,
+        "door": 20,
+        "switch": 66,
+        "gate": 17,
+        "level_exit": 2,
+        "checkpoint": 6,
+        "hazard": 5,
+        "mover": 35,
+        "weapon_pickup": 34,
+        "hidden_wall": 0,
+        "other": 42
+      },
+      "keyObjects": {
+        "RESTART_POSITION": [
+          {
+            "x": 1591,
+            "y": 833,
+            "aistate": 0
+          },
+          {
+            "x": 91,
+            "y": 700,
+            "aistate": 1
+          },
+          {
+            "x": 464,
+            "y": 1255,
+            "aistate": 0
+          },
+          {
+            "x": 1330,
+            "y": 1387,
+            "aistate": 0
+          },
+          {
+            "x": 2449,
+            "y": 1388,
+            "aistate": 0
+          },
+          {
+            "x": 741,
+            "y": 386,
+            "aistate": 0
+          }
+        ],
+        "NEXT_LEVEL": [
+          {
+            "x": 105,
+            "y": 876,
+            "aistate": 3
+          }
+        ],
+        "NEXT_LEVEL_TOP": [
+          {
+            "x": 105,
+            "y": 831,
+            "aistate": 0
+          }
+        ],
+        "START": [
+          {
+            "x": 55,
+            "y": 683,
+            "aistate": 0
+          }
+        ]
+      },
+      "levelExits": [
+        {
+          "x": 105,
+          "y": 876,
+          "aistate": 3,
+          "targetLevel": 3
+        }
+      ],
+      "levelExitMethod": "binary parse (NEXT_LEVEL aistate) + Lisp reading (PEOPLE.LSP next_level_ai: \"levels/level\"+digstr(aistate,2)+\".spe\"; aistate==end_level(5) -> request_end_game)",
+      "areas": 11,
+      "lights": 102,
+      "objectLinks": 173,
+      "lightLinks": 4,
+      "unverified": [
+        "area_list record field meanings beyond count",
+        "lights record layout (25 B each assumed)",
+        "tile high-bit meaning",
+        "object coordinate units"
+      ]
+    },
+    {
+      "file": "LEVEL03.SPE",
+      "method": "binary parse",
+      "bytes": 67491,
+      "cpfBytes": 7405,
+      "sections": 46,
+      "trailingBytes": 58,
+      "extraSections": [
+        "first name"
+      ],
+      "sectionSizes": {
+        "fgmap": 30008,
+        "bgmap": 2978,
+        "area_list.v1": 577,
+        "object_list": 4,
+        "lights": 2133,
+        "object_links": 1885
+      },
+      "fgmap": {
+        "width": 100,
+        "height": 150,
+        "tiles": 15000,
+        "nonZeroTiles": 14809,
+        "highBitTiles": 5046,
+        "distinctTileValues": 145,
+        "note": "high-bit (0x8000) meaning unverified"
+      },
+      "bgmap": {
+        "width": 33,
+        "height": 45,
+        "distinctTileValues": 32
+      },
+      "objectCount": 358,
+      "objectTypesDistinct": 48,
+      "objectBounds": {
+        "minX": 30,
+        "maxX": 2820,
+        "minY": 54,
+        "maxY": 1296,
+        "unit": "pixels (assumed; unverified)"
+      },
+      "objectCountsByName": {
+        "SENSOR": 36,
+        "HEALTH": 35,
+        "HIDDEN_ANT": 29,
+        "ANT_ROOF": 25,
+        "SPRAY_GUN": 25,
+        "HIDDEN_WALL3": 20,
+        "LAVA": 20,
+        "HIDDEN_WALL_2x2": 15,
+        "MBULLET_ICON20": 12,
+        "GRENADE_ICON2": 11,
+        "SWITCH_MOVER": 10,
+        "SWITCH_DOOR": 8,
+        "GATE_DELAY": 8,
+        "ROCKET_ICON2": 8,
+        "SMART_PLAT_SMALL": 7,
+        "MBULLET_ICON5": 7,
+        "AMBIENT_SOUND": 6,
+        "HIDDEN_WALL_3WAL": 6,
+        "RESTART_POSITION": 5,
+        "HIDDEN_WALL1": 5,
+        "MARKER": 5,
+        "FBOMB_ICON1": 5,
+        "SWITCH": 3,
+        "SWITCH_ONCE": 3,
+        "GATE_OR": 3,
+        "TELE2": 3,
+        "HIDDEN_WALL4": 3,
+        "GATE_NOT": 3,
+        "TRAP_DOOR2": 3,
+        "SWITCH_DIMMER": 3,
+        "INDICATOR": 3,
+        "TP_DOOR": 2,
+        "HIDDEN_WALL5": 2,
+        "TRAP_DOOR3": 2,
+        "GATE_AND": 2,
+        "JUGGER": 2,
+        "GRENADE_ICON10": 2,
+        "NEXT_LEVEL": 1,
+        "TELE_BEAM": 1,
+        "ANT_CRACK": 1,
+        "DEATH_SENSOR": 1,
+        "NEXT_LEVEL_TOP": 1,
+        "TRACK_GUN": 1,
+        "PUSHER": 1,
+        "LADDER": 1,
+        "SPRING": 1,
+        "START": 1,
+        "POWER_FAST": 1
+      },
+      "objectCountsByCategory": {
+        "enemy": 83,
+        "pickup": 36,
+        "door": 15,
+        "switch": 56,
+        "gate": 19,
+        "level_exit": 2,
+        "checkpoint": 5,
+        "hazard": 20,
+        "mover": 6,
+        "weapon_pickup": 45,
+        "hidden_wall": 51,
+        "other": 20
+      },
+      "keyObjects": {
+        "RESTART_POSITION": [
+          {
+            "x": 1319,
+            "y": 807,
+            "aistate": 0
+          },
+          {
+            "x": 464,
+            "y": 993,
+            "aistate": 0
+          },
+          {
+            "x": 1105,
+            "y": 529,
+            "aistate": 0
+          },
+          {
+            "x": 2236,
+            "y": 231,
+            "aistate": 0
+          },
+          {
+            "x": 716,
+            "y": 115,
+            "aistate": 0
+          }
+        ],
+        "NEXT_LEVEL": [
+          {
+            "x": 2505,
+            "y": 1296,
+            "aistate": 4
+          }
+        ],
+        "NEXT_LEVEL_TOP": [
+          {
+            "x": 2505,
+            "y": 1251,
+            "aistate": 0
+          }
+        ],
+        "START": [
+          {
+            "x": 629,
+            "y": 94,
+            "aistate": 0
+          }
+        ]
+      },
+      "levelExits": [
+        {
+          "x": 2505,
+          "y": 1296,
+          "aistate": 4,
+          "targetLevel": 4
+        }
+      ],
+      "levelExitMethod": "binary parse (NEXT_LEVEL aistate) + Lisp reading (PEOPLE.LSP next_level_ai: \"levels/level\"+digstr(aistate,2)+\".spe\"; aistate==end_level(5) -> request_end_game)",
+      "areas": 13,
+      "lights": 85,
+      "objectLinks": 235,
+      "lightLinks": 2,
+      "unverified": [
+        "area_list record field meanings beyond count",
+        "lights record layout (25 B each assumed)",
+        "tile high-bit meaning",
+        "object coordinate units"
+      ]
+    },
+    {
+      "file": "LEVEL04.SPE",
+      "method": "binary parse",
+      "bytes": 75788,
+      "cpfBytes": 8483,
+      "sections": 45,
+      "trailingBytes": 0,
+      "extraSections": [],
+      "sectionSizes": {
+        "fgmap": 35208,
+        "bgmap": 3368,
+        "area_list.v1": 665,
+        "object_list": 4,
+        "lights": 2433,
+        "object_links": 2053
+      },
+      "fgmap": {
+        "width": 110,
+        "height": 160,
+        "tiles": 17600,
+        "nonZeroTiles": 8547,
+        "highBitTiles": 3613,
+        "distinctTileValues": 167,
+        "note": "high-bit (0x8000) meaning unverified"
+      },
+      "bgmap": {
+        "width": 35,
+        "height": 48,
+        "distinctTileValues": 61
+      },
+      "objectCount": 398,
+      "objectTypesDistinct": 52,
+      "objectBounds": {
+        "minX": 30,
+        "maxX": 2858,
+        "minY": 44,
+        "maxY": 1394,
+        "unit": "pixels (assumed; unverified)"
+      },
+      "objectCountsByName": {
+        "ANT_ROOF": 62,
+        "HEALTH": 39,
+        "HIDDEN_WALL3": 35,
+        "SENSOR": 34,
+        "HIDDEN_ANT": 27,
+        "HIDDEN_WALL4": 11,
+        "LAVA": 11,
+        "SWITCH_DOOR": 10,
+        "GATE_DELAY": 10,
+        "MBULLET_ICON20": 10,
+        "TELE2": 9,
+        "BOLDER": 9,
+        "ROCKET_ICON2": 9,
+        "AMBIENT_SOUND": 8,
+        "OBJ_MOVER": 8,
+        "RESTART_POSITION": 6,
+        "SPRAY_GUN": 6,
+        "SMART_PLAT_SMALL": 6,
+        "JUGGER": 5,
+        "CONC": 5,
+        "PUSHER": 5,
+        "GRENADE_ICON2": 5,
+        "SWITCH_ONCE": 4,
+        "CONC_AIR": 4,
+        "HIDDEN_WALL2": 4,
+        "LIGHTHOLD": 4,
+        "INDICATOR": 4,
+        "GRENADE_ICON10": 4,
+        "DEATH_RESPAWNER": 3,
+        "SWITCH_MOVER": 3,
+        "DEATH_SENSOR": 3,
+        "MARKER": 3,
+        "LADDER": 3,
+        "TP_DOOR": 2,
+        "GATE_OR": 2,
+        "HIDDEN_WALL_3FLR": 2,
+        "ROB1": 2,
+        "GATE_NOT": 2,
+        "SWITCH_DIMMER": 2,
+        "GATE_AND": 2,
+        "LIGHTIN": 2,
+        "FBOMB_ICON1": 2,
+        "ROCKET_ICON5": 2,
+        "SWITCH": 1,
+        "NEXT_LEVEL": 1,
+        "TELE_BEAM": 1,
+        "TRACK_GUN": 1,
+        "NEXT_LEVEL_TOP": 1,
+        "SPRING": 1,
+        "GATE_XOR": 1,
+        "START": 1,
+        "POWER_FAST": 1
+      },
+      "objectCountsByCategory": {
+        "enemy": 103,
+        "pickup": 40,
+        "door": 12,
+        "switch": 47,
+        "gate": 21,
+        "level_exit": 2,
+        "checkpoint": 6,
+        "hazard": 31,
+        "mover": 26,
+        "weapon_pickup": 32,
+        "hidden_wall": 52,
+        "other": 26
+      },
+      "keyObjects": {
+        "RESTART_POSITION": [
+          {
+            "x": 1300,
+            "y": 685,
+            "aistate": 0
+          },
+          {
+            "x": 1080,
+            "y": 971,
+            "aistate": 0
+          },
+          {
+            "x": 2559,
+            "y": 1027,
+            "aistate": 0
+          },
+          {
+            "x": 127,
+            "y": 104,
+            "aistate": 0
+          },
+          {
+            "x": 270,
+            "y": 678,
+            "aistate": 0
+          },
+          {
+            "x": 2460,
+            "y": 318,
+            "aistate": 0
+          }
+        ],
+        "NEXT_LEVEL": [
+          {
+            "x": 2625,
+            "y": 456,
+            "aistate": 5
+          }
+        ],
+        "NEXT_LEVEL_TOP": [
+          {
+            "x": 2625,
+            "y": 411,
+            "aistate": 0
+          }
+        ],
+        "START": [
+          {
+            "x": 58,
+            "y": 88,
+            "aistate": 0
+          }
+        ]
+      },
+      "levelExits": [
+        {
+          "x": 2625,
+          "y": 456,
+          "aistate": 5,
+          "targetLevel": 5
+        }
+      ],
+      "levelExitMethod": "binary parse (NEXT_LEVEL aistate) + Lisp reading (PEOPLE.LSP next_level_ai: \"levels/level\"+digstr(aistate,2)+\".spe\"; aistate==end_level(5) -> request_end_game)",
+      "areas": 15,
+      "lights": 97,
+      "objectLinks": 256,
+      "lightLinks": 6,
+      "unverified": [
+        "area_list record field meanings beyond count",
+        "lights record layout (25 B each assumed)",
+        "tile high-bit meaning",
+        "object coordinate units"
+      ]
+    }
+  ]
+}
