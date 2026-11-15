@@ -1419,11 +1419,11 @@ export interface Grade {
 
 export const SECTOR_GRADE: Record<string, Grade> = {
   // Round 3 mood pass: rust brown, drab green, orange highlights (Abuse palette). Lift stays low so shadows go deep.
-  airlock: { gain: [1.0, 1.0, 0.97], lift: [0.004, 0.004, 0.006], sat: 0.92, contrast: 1.1, vignette: 0.5 },
+  airlock: { gain: [0.96, 1.02, 1.07], lift: [0.002, 0.006, 0.012], sat: 0.96, contrast: 1.1, vignette: 0.5 },
   shaft: { gain: [1.08, 1.0, 0.86], lift: [0.008, 0.004, 0], sat: 0.98, contrast: 1.12, vignette: 0.54 },
-  mines: { gain: [1.14, 0.98, 0.78], lift: [0.012, 0.005, 0], sat: 1.05, contrast: 1.14, vignette: 0.6 },
-  biolabs: { gain: [0.92, 1.07, 0.86], lift: [0, 0.008, 0.002], sat: 1.0, contrast: 1.11, vignette: 0.54 },
-  security: { gain: [1.04, 0.96, 0.96], lift: [0.004, 0.002, 0.006], sat: 0.96, contrast: 1.12, vignette: 0.56 },
+  mines: { gain: [1.16, 0.98, 0.76], lift: [0.012, 0.005, 0], sat: 1.08, contrast: 1.16, vignette: 0.6 },
+  biolabs: { gain: [0.9, 1.1, 0.9], lift: [0, 0.01, 0.006], sat: 1.05, contrast: 1.11, vignette: 0.54 },
+  security: { gain: [0.95, 0.98, 1.1], lift: [0.006, 0.002, 0.012], sat: 0.98, contrast: 1.12, vignette: 0.56 },
   core: { gain: [1.16, 0.9, 0.8], lift: [0.014, 0, 0.002], sat: 1.1, contrast: 1.16, vignette: 0.62 },
 };
 
