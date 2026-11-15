@@ -27,6 +27,7 @@ import {
   flashMaterials3D,
   flashRiggedMaterials3D,
   getFailedModelNames3D,
+  disposeActor3D,
   getLoadedModelNames3D,
   instantiateRiggedModel3D,
   instantiateStaticModel3D,
@@ -1476,14 +1477,11 @@ export class Scene3DRenderer {
   }
 
   private rebuildActorInstances(w: WorldState3D | { level: WorldState3D['level']; enemies?: WorldState3D['enemies']; barrels?: WorldState3D['barrels']; pickups?: WorldState3D['pickups'] }): void {
-    // Clear existing model nodes cleanly on model load finish. Cloned materials are ours to free; geometry is shared with the glTF cache.
-    const freeMats = (mats: readonly THREE.Material[] | undefined): void => {
-      if (mats) for (const m of mats) m.dispose();
-    };
+    // Clear existing model nodes on model load finish and on every level rebuild. Each clone owns its materials, skeleton
+    // bone texture and procedural geometry (hero gear, pick proxy); glTF geometry is shared with the cache and kept.
     if (this.operativeRig) {
       this.scene.remove(this.operativeRig.root);
-      freeMats(this.operativeRig.materials);
-      if (this.heroGear) freeMats(this.heroGear.materials);
+      disposeActor3D(this.operativeRig.root, this.operativeRig.mixer, this.operativeRig.modelRoot);
       this.operativeRig = null;
       this.heroGear = null;
       this.heroFrame = null;
@@ -1491,22 +1489,19 @@ export class Scene3DRenderer {
     }
     for (const r of this.riggedEnemies.values()) {
       this.scene.remove(r.root);
-      freeMats(r.materials);
-      r.root.traverse((o) => {
-        if ((o as THREE.Mesh).name.startsWith('enemy-proxy:')) (o as THREE.Mesh).geometry.dispose();
-      });
+      disposeActor3D(r.root, r.mixer, r.modelRoot);
     }
     this.riggedEnemies.clear();
     for (const st of this.staticEnemies.values()) {
       this.scene.remove(st.root);
-      freeMats(st.materials);
+      disposeActor3D(st.root);
     }
     this.staticEnemies.clear();
     this.enemyViz.clear();
     this.enemyRenderInfo.clear();
     for (const b of this.barrelHandles.values()) {
       this.scene.remove(b.root);
-      freeMats(b.materials);
+      disposeActor3D(b.root);
     }
     this.barrelHandles.clear();
     for (const h of this.hiveHandles.values()) {
@@ -1516,6 +1511,7 @@ export class Scene3DRenderer {
     this.hiveHandles.clear();
     if (this.coreModel) {
       this.scene.remove(this.coreModel);
+      disposeActor3D(this.coreModel);
       this.coreModel = null;
     }
     if (this.coreShield) {
@@ -1525,6 +1521,7 @@ export class Scene3DRenderer {
     }
     if (this.exitModel) {
       this.scene.remove(this.exitModel);
+      disposeActor3D(this.exitModel);
       this.exitModel = null;
     }
     if (this.exitPortalRing) {
