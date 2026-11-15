@@ -30,3 +30,8 @@ docs/evidence/g1/insn_*.txt
 docs/evidence/g1/runs/**/*.png
 docs/evidence/g2/runs/**/*.png
 docs/evidence/g3/c01_attempts/**/*.png
+
+# Secrets
+.env
+.env.*
+!.env.example
