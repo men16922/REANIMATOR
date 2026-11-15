@@ -20,6 +20,8 @@ import { fallbackScreenToWorld, renderFallback2D3D } from '../render3d/fallback2
 import { Scene3DRenderer } from '../render3d/scene3dFull.ts';
 import { getAudioDebug, setBgmVolume, setSfxVolume, setVolume, sfx } from './audio.ts';
 import { AudioDirector, snapshotPre } from './audioDirector.ts';
+import { Attract, freshWorld } from './attract.ts';
+import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type Hint } from './flow.ts';
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
 import { renderMinimap } from './minimap.ts';
 
@@ -67,11 +69,48 @@ const ui = {
   resultTitle: $('result-title'),
   resultDetail: $('result-detail'),
   reduceFlash: $<HTMLInputElement>('reduce-flash'),
+  reduceFlashP: $<HTMLInputElement>('reduce-flash-p'),
+  hpGhost: $('hp-ghost'),
+  hpPill: $('hp-pill'),
+  intro: $('intro'),
+  sectorCard: $('sector-card'),
+  pickupBanner: $('pickup-banner'),
+  coach: $('coach'),
+  controlsPanel: $('controls-panel'),
+  rank: $('rank'),
 };
+
+// ---- persisted preferences (localStorage may be unavailable, e.g. private mode) ----
+const STORE = { intro: 'reanimator.introSeen.v1', hints: 'reanimator.hints.v1', reduce: 'reanimator.reduceFlash.v1', volume: 'reanimator.volume.v1' } as const;
+function store(key: string, value?: string): string | null {
+  try {
+    if (value !== undefined) localStorage.setItem(key, value);
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
 
 type Mode = 'title' | 'playing' | 'paused' | 'result';
 let mode: Mode = 'title';
-let world: WorldState3D = newWorld3D();
+let world: WorldState3D = freshWorld();
+const attract = new Attract();
+let deaths = 0;
+let introActive = false;
+let introTimer = 0;
+let coachId = '';
+let hitTimer = 0;
+const onboarding = new Onboarding(((): string[] => {
+  try {
+    return JSON.parse(store(STORE.hints) ?? '[]') as string[];
+  } catch {
+    return [];
+  }
+})());
+let onboardingSaved = onboarding.done.size;
+/** Per-world observation for sector cards, pickup banners and weapon-switch animation. */
+const seen = { world: null as WorldState3D | null, room: '' as string, collected: 0, unlocked: '', weapon: 0 as number };
 let acc = 0;
 let last = 0;
 let flash = 0;
@@ -115,7 +154,7 @@ function buildInput(): InputState3D {
   weaponQueue = 0;
 
   const aim = currentAim3D();
-  return {
+  const input: InputState3D = {
     moveX,
     jump: keys.has('Space') || keys.has('KeyW') || keys.has('ArrowUp'),
     dash,
@@ -127,6 +166,8 @@ function buildInput(): InputState3D {
     aimX: aim.x,
     aimY: aim.y,
   };
+  onboarding.observe(input);
+  return input;
 }
 
 function releaseInput(): void {
@@ -146,20 +187,173 @@ function show(m: Mode): void {
   ui.result.hidden = m !== 'result';
   ui.hud.hidden = m === 'title';
   ui.revived.hidden = true;
+  ui.controlsPanel.hidden = true;
   $('lab').hidden = true;
+  if (m === 'title') hideTransient();
   audioDirector.syncBeds(world, m === 'playing');
   if (m === 'playing') canvas.focus();
+  else focusDefault();
+}
+
+/** Keyboard-first menus: land focus on the primary action of the visible screen. */
+function focusDefault(): void {
+  const target = mode === 'title' ? $('play') : mode === 'paused' ? $('resume') : mode === 'result' ? ($('resume-save').hidden ? $('restart') : $('resume-save')) : null;
+  target?.focus({ preventScroll: true });
+}
+
+function hideTransient(): void {
+  for (const el of [ui.sectorCard, ui.pickupBanner, ui.coach]) {
+    el.hidden = true;
+    el.classList.remove('show');
+  }
+  coachId = '';
 }
 
 function start(): void {
   manualHold = false;
-  world = newWorld3D();
+  world = freshWorld();
   audioDirector.reset();
   bot = null;
   acc = 0;
   flash = 0;
+  deaths = 0;
+  seen.world = null;
+  hideTransient();
   releaseInput();
   show('playing');
+  if (store(STORE.intro) !== '1' && !navigator.webdriver) showIntro();
+}
+
+// ---- intro (first run only, skippable, under 10 s) ----
+function showIntro(): void {
+  store(STORE.intro, '1');
+  introActive = true;
+  ui.intro.hidden = false;
+  // Re-trigger the CSS timeline: clone the node's animation by toggling a reflow.
+  ui.intro.style.animation = 'none';
+  void ui.intro.offsetWidth;
+  ui.intro.style.animation = '';
+  for (const el of ui.intro.querySelectorAll<HTMLElement>('.lid, p')) {
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+  }
+  window.clearTimeout(introTimer);
+  introTimer = window.setTimeout(hideIntro, 9800);
+}
+
+function hideIntro(): void {
+  if (!introActive) return;
+  introActive = false;
+  window.clearTimeout(introTimer);
+  ui.intro.hidden = true;
+  seen.room = ''; // let the sector card appear now that the intro is gone
+}
+
+function applyReduceFx(on: boolean): void {
+  document.body.classList.toggle('reduce-fx', on);
+  ui.reduceFlash.checked = on;
+  ui.reduceFlashP.checked = on;
+  store(STORE.reduce, on ? '1' : '0');
+}
+
+function popClass(el: HTMLElement, cls: string, ms: number, timerKey?: 'hit'): void {
+  el.classList.remove(cls);
+  void el.offsetWidth;
+  el.classList.add(cls);
+  if (timerKey === 'hit') {
+    window.clearTimeout(hitTimer);
+    hitTimer = window.setTimeout(() => el.classList.remove(cls), ms);
+  }
+}
+
+function showSectorCard(): void {
+  const r = world.level.rooms.find((x) => x.sector === world.currentRoom);
+  if (!r) return;
+  const idx = world.level.rooms.indexOf(r) + 1;
+  $('sc-eyebrow').textContent = `SECTOR ${String(idx).padStart(2, '0')}`;
+  $('sc-name').textContent = r.name.toUpperCase();
+  $('sc-sub').textContent = SECTOR_SUBTITLE[r.sector] ?? r.hint;
+  ui.sectorCard.hidden = false;
+  popClass(ui.sectorCard, 'show', 0);
+}
+
+const WEAPON_BANNER: Record<number, { title: string; desc: string }> = {
+  2: { title: 'SCATTERGUN', desc: 'Wide spread. Opens green locks. Press 2 to equip.' },
+  3: { title: 'GRENADE LAUNCHER', desc: 'Splash damage. Opens yellow locks and Cracked Bio-Walls. Press 3 to equip.' },
+  4: { title: 'RAIL-CANNON', desc: 'Heavy shot. Opens red locks once the Security Console is armed. Press 4 to equip.' },
+};
+const UPGRADE_BANNER: Record<string, { title: string; desc: string }> = {
+  thruster_boots: { title: 'THRUSTER BOOTS', desc: 'Press jump again in mid-air for a second jump. Reach the high ledge in the Central Shaft.' },
+  energy_tank: { title: 'ENERGY TANK', desc: 'Maximum hull +30. Hull fully restored.' },
+};
+
+function showPickupBanner(b: { title: string; desc: string }): void {
+  $('pb-title').textContent = b.title;
+  $('pb-desc').textContent = b.desc;
+  ui.pickupBanner.hidden = false;
+  popClass(ui.pickupBanner, 'show', 0);
+}
+
+/** Detects sector changes, new pickups and weapon switches by diffing against the last frame. */
+function observeWorld(): void {
+  const p = world.player;
+  const unlocked = ([1, 2, 3, 4] as const).map((s) => (p.unlocked[s] ? '1' : '0')).join('');
+  if (seen.world !== world) {
+    seen.world = world;
+    seen.room = '';
+    seen.collected = world.collectedUpgrades.size;
+    seen.unlocked = unlocked;
+    seen.weapon = p.weapon;
+  }
+  if (mode !== 'playing' || manualHold) return;
+  if (seen.room !== world.currentRoom && !introActive) {
+    seen.room = world.currentRoom;
+    showSectorCard();
+  }
+  if (world.collectedUpgrades.size !== seen.collected) {
+    if (world.collectedUpgrades.size > seen.collected) {
+      const last = [...world.collectedUpgrades].pop();
+      const kind = world.level.upgrades.find((u) => u.id === last)?.kind;
+      if (kind && UPGRADE_BANNER[kind]) showPickupBanner(UPGRADE_BANNER[kind]);
+    }
+    seen.collected = world.collectedUpgrades.size;
+  }
+  if (unlocked !== seen.unlocked) {
+    for (const s of [2, 3, 4] as const) {
+      if (unlocked[s - 1] === '1' && seen.unlocked[s - 1] === '0') showPickupBanner(WEAPON_BANNER[s]);
+    }
+    seen.unlocked = unlocked;
+  }
+  if (seen.weapon !== p.weapon) {
+    seen.weapon = p.weapon;
+    popClass($(`wpn-${p.weapon}`), 'switch', 0);
+  }
+}
+
+function updateCoach(): void {
+  const hint: Hint | null = mode === 'playing' && !manualHold && !introActive ? onboarding.update(world) : null;
+  if (onboarding.done.size !== onboardingSaved) {
+    onboardingSaved = onboarding.done.size;
+    store(STORE.hints, JSON.stringify([...onboarding.done]));
+  }
+  const id = hint?.id ?? '';
+  if (id === coachId) return;
+  coachId = id;
+  if (!hint) {
+    ui.coach.hidden = true;
+    return;
+  }
+  const keysEl = $('coach-keys');
+  keysEl.textContent = '';
+  for (const k of hint.keys) {
+    const kb = document.createElement('kbd');
+    kb.textContent = k;
+    keysEl.append(kb);
+  }
+  $('coach-text').textContent = hint.text;
+  ui.coach.hidden = false;
+  popClass(ui.coach, 'coach-pop', 0);
 }
 
 function zoneMeta(): { name: string; hint: string } {
@@ -194,7 +388,10 @@ function drawMinimap(): void {
 function hud(): void {
   const p = world.player;
   ui.hp.textContent = String(p.hp);
-  ui.hpBar.style.width = `${Math.max(0, Math.min(100, (p.hp / p.maxHp) * 100))}%`;
+  const hpPct = `${Math.max(0, Math.min(100, (p.hp / p.maxHp) * 100))}%`;
+  ui.hpBar.style.width = hpPct;
+  ui.hpGhost.style.width = hpPct;
+  ui.hpPill.classList.toggle('low', p.hp > 0 && p.hp / p.maxHp <= 0.3);
   ui.hpBar.style.background = p.hp > 60 ? '#3dff88' : p.hp > 30 ? '#f5b942' : '#ff4757';
 
   const dashPct = ((ABILITY_3D.dashCooldownTicks - p.body.dashCooldown) / ABILITY_3D.dashCooldownTicks) * 100;
@@ -261,8 +458,37 @@ function renderWorld(alpha = 1): void {
 }
 
 function handlePostStepAudio(pre: ReturnType<typeof snapshotPre>): void {
-  if (world.player.hp < pre.hp) flash = 1;
+  if (world.player.hp < pre.hp) {
+    flash = 1;
+    if (!ui.reduceFlash.checked) popClass(ui.hud, 'hit', 340, 'hit');
+  }
   audioDirector.afterStep(world, pre);
+}
+
+function showResult(): void {
+  const won = world.status === 'won';
+  if (!won) {
+    deaths++;
+    sfx.lose();
+  }
+  const st = buildRunStats(world, deaths, SIM_HZ_3D);
+  const canResume = !won && !!world.lastSaveId;
+  ui.resultTitle.textContent = won ? 'Escaped with the core' : 'Signal lost';
+  const cp = won ? '' : canResume ? 'Press C or Enter to resume at the last Save station.' : 'No Save station reached yet. Play again restarts the run.';
+  ui.resultDetail.textContent = `Weapon [${WEAPON_META[world.player.weapon].name}]${cp ? ' · ' + cp : ''}`;
+  $('rs-time').textContent = formatClock(st.seconds);
+  $('rs-kills').textContent = String(st.kills);
+  $('rs-deaths').textContent = String(st.deaths);
+  $('rs-collect').textContent = `${st.collectionPct}%`;
+  ui.rank.hidden = !won;
+  ui.rank.textContent = st.rank;
+  ui.rank.className = `rank r-${st.rank}`;
+  $('result-tip').textContent = won ? '' : retryTip(deaths);
+  $('result-tip').hidden = won;
+  ui.result.classList.toggle('won', won);
+  ui.result.classList.toggle('lost', !won);
+  $('resume-save').hidden = !canResume;
+  show('result');
 }
 
 function frame(t: number): void {
@@ -279,22 +505,25 @@ function frame(t: number): void {
       acc -= stepDt;
       steps++;
       if (world.status !== 'playing') {
-        const secs = (world.tick / SIM_HZ_3D).toFixed(1);
-        ui.resultTitle.textContent = world.status === 'won' ? 'Escaped with the core' : 'Signal lost';
-        const lost = world.status === 'lost';
-        const canResume = lost && !!world.lastSaveId;
-        const cp = lost ? (canResume ? ' · press C or use the button to resume at the last Save station' : ' · no Save station reached yet, Play again restarts the run') : '';
-        ui.resultDetail.textContent = `${secs}s · ${world.player.kills} hostiles eliminated · weapon [${WEAPON_META[world.player.weapon].name}]${cp}`;
-        $('resume-save').hidden = !canResume;
-        if (world.status === 'lost') sfx.lose();
-        show('result');
+        showResult();
         break;
       }
     }
     flash = Math.max(0, flash - dt * 3.2);
   }
-  renderWorld(mode === 'playing' && !manualHold ? Math.min(1, acc * SIM_HZ_3D) : 1);
-  hud();
+  if (mode === 'title') {
+    // Attract mode: a bot plays a private world behind the title. Never touches `world` or human input.
+    attract.advance(dt);
+    scene3d?.setAttractCamera(attract.time);
+    if (scene3d) scene3d.render(attract.world, attract.alpha);
+    else renderFallback2D3D(canvas, attract.world);
+  } else {
+    scene3d?.setAttractCamera(null);
+    renderWorld(mode === 'playing' && !manualHold ? Math.min(1, acc * SIM_HZ_3D) : 1);
+    hud();
+    observeWorld();
+    updateCoach();
+  }
   requestAnimationFrame(frame);
 }
 
@@ -309,7 +538,71 @@ function resumeAtSave(): boolean {
 
 // ---- Input Listeners ----
 canvas.tabIndex = 0;
+const NON_START_KEYS = new Set(['Tab', 'Escape', 'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight', 'AltLeft', 'AltRight', 'MetaLeft', 'MetaRight', 'CapsLock']);
+
+/** Topmost visible menu container, used for keyboard focus navigation. */
+function activeMenu(): HTMLElement {
+  for (const el of [$('lab'), ui.revived, ui.controlsPanel]) if (!el.hidden) return el;
+  return mode === 'title' ? ui.title : mode === 'paused' ? ui.pause : ui.result;
+}
+
+function closeSubPanels(): boolean {
+  if (!$('lab').hidden) $('lab').hidden = true;
+  else if (!ui.revived.hidden) ui.revived.hidden = true;
+  else if (!ui.controlsPanel.hidden) ui.controlsPanel.hidden = true;
+  else return false;
+  focusDefault();
+  return true;
+}
+
+function menuNavigate(e: KeyboardEvent): boolean {
+  if (e.code !== 'ArrowDown' && e.code !== 'ArrowUp') return false;
+  const cur = document.activeElement as HTMLElement | null;
+  if (cur && /^(INPUT|SELECT|TEXTAREA)$/.test(cur.tagName) && (cur as HTMLInputElement).type !== 'checkbox') return false;
+  const items = [...activeMenu().querySelectorAll<HTMLElement>('button, input[type="checkbox"]')].filter((el) => el.offsetParent !== null);
+  if (items.length === 0) return false;
+  const i = cur ? items.indexOf(cur) : -1;
+  const next = items[(i + (e.code === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
+  next.focus();
+  e.preventDefault();
+  return true;
+}
+
 window.addEventListener('keydown', (e) => {
+  if (introActive) {
+    hideIntro();
+    if (mode === 'title') {
+      e.preventDefault();
+      return;
+    }
+    if (e.code === 'Escape') return;
+  }
+  if (mode === 'title') {
+    if (e.code === 'Escape' && closeSubPanels()) {
+      e.preventDefault();
+      return;
+    }
+    if (menuNavigate(e)) return;
+    const t = e.target as HTMLElement | null;
+    const interactive = !!t && /^(BUTTON|INPUT|SELECT|TEXTAREA)$/.test(t.tagName);
+    const panelOpen = !$('lab').hidden || !ui.revived.hidden;
+    if (!interactive && !panelOpen && !NON_START_KEYS.has(e.code) && !e.metaKey && !e.ctrlKey && !e.altKey && !e.repeat && !/^F\d+$/.test(e.code)) {
+      e.preventDefault();
+      start();
+    }
+    return;
+  }
+  if (mode === 'paused' && e.code === 'Escape' && !ui.controlsPanel.hidden) {
+    closeSubPanels();
+    e.preventDefault();
+    return;
+  }
+  if (mode !== 'playing' && menuNavigate(e)) return;
+  if (mode === 'result' && e.code === 'KeyR') {
+    start();
+    e.preventDefault();
+    return;
+  }
   if (e.code === 'Escape' || e.code === 'KeyP') {
     if (mode === 'playing') {
       releaseInput();
@@ -386,12 +679,33 @@ document.addEventListener('visibilitychange', () => {
 });
 
 $('play').addEventListener('click', start);
+$('intro-skip').addEventListener('click', hideIntro);
+window.addEventListener('pointerdown', () => hideIntro());
+$('intro-open').addEventListener('click', showIntro);
+$('controls-open').addEventListener('click', () => {
+  ui.controlsPanel.hidden = false;
+  $('controls-close').focus();
+});
+$('controls-close').addEventListener('click', () => {
+  ui.controlsPanel.hidden = true;
+  $('controls-open').focus();
+});
+for (const el of [ui.reduceFlash, ui.reduceFlashP]) el.addEventListener('change', () => applyReduceFx(el.checked));
+applyReduceFx(store(STORE.reduce) === '1' || window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 for (const id of ['volume', 'volume-p']) {
   const el = $<HTMLInputElement>(id);
   el.addEventListener('input', () => {
     setVolume(Number(el.value) / 100);
+    store(STORE.volume, el.value);
     for (const other of ['volume', 'volume-p']) $<HTMLInputElement>(other).value = el.value;
   });
+}
+{
+  const saved = store(STORE.volume);
+  if (saved !== null && Number.isFinite(Number(saved))) {
+    for (const id of ['volume', 'volume-p']) $<HTMLInputElement>(id).value = saved;
+    setVolume(Number(saved) / 100);
+  }
 }
 $<HTMLInputElement>('volume-bgm').addEventListener('input', (e) => setBgmVolume(Number((e.target as HTMLInputElement).value) / 100));
 $<HTMLInputElement>('volume-sfx').addEventListener('input', (e) => setSfxVolume(Number((e.target as HTMLInputElement).value) / 100));

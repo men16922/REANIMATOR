@@ -236,6 +236,8 @@ export class Scene3DRenderer {
   private readonly beamMeshes = new Map<number, THREE.Mesh>();
 
   private readonly camFocus = new THREE.Vector3(3.5, 1.2, 0);
+  /** Title attract mode: seconds driving a slow cinematic camera drift, or null for the normal follow camera. */
+  private attractT: number | null = null;
   private modelsReady = false;
   private lastRenderMs = performance.now();
 
@@ -1064,6 +1066,11 @@ export class Scene3DRenderer {
     return grp;
   }
 
+  /** Title attract mode: pass elapsed seconds for a cinematic camera drift, or null to restore the follow camera. */
+  public setAttractCamera(t: number | null): void {
+    this.attractT = t;
+  }
+
   /** Snapshot positions once per simulation tick so render() can interpolate at the display rate. */
   private captureTick(w: WorldState3D): void {
     if (w.tick === this.lastTick) return;
@@ -1430,8 +1437,18 @@ export class Scene3DRenderer {
 
     const sx = w.shakeTicks > 0 ? Math.sin(w.tick * 2.1) * w.shakeStrength : 0;
     const sy = w.shakeTicks > 0 ? Math.cos(w.tick * 2.7) * w.shakeStrength : 0;
-    this.camera.position.set(this.camFocus.x + sx, this.camFocus.y + 1.7 + sy, 15.5);
-    this.camera.lookAt(this.camFocus.x, this.camFocus.y, 0);
+    if (this.attractT !== null) {
+      // Cinematic drift: slow dolly in/out and lateral sway around the followed bot (title screen only).
+      const t = this.attractT;
+      const dolly = 15.5 - 4.2 * (0.5 + 0.5 * Math.sin(t * 0.21));
+      const sway = Math.sin(t * 0.33) * 3.4;
+      const lift = 1.2 + Math.sin(t * 0.17 + 1.3) * 1.1;
+      this.camera.position.set(this.camFocus.x + sway, this.camFocus.y + lift, dolly);
+      this.camera.lookAt(this.camFocus.x, this.camFocus.y + 0.4, 0);
+    } else {
+      this.camera.position.set(this.camFocus.x + sx, this.camFocus.y + 1.7 + sy, 15.5);
+      this.camera.lookAt(this.camFocus.x, this.camFocus.y, 0);
+    }
 
     this.sun.position.set(px + 6, py + 14, 16);
     this.sun.target.position.set(px, py, 0);
