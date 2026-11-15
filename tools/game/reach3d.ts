@@ -5,6 +5,7 @@ import { ABILITY_3D, floorHeightAt3D, stepBody3D, spawnBody3D, type Body3D } fro
 import { buildCollider3D, buildFacilityMap3D, type Level3D } from '../../src/game3d/map3d.ts';
 import { navReached, navSteer, type NavTarget } from '../../src/game3d/nav3d.ts';
 import { hazardCrossHorizon, hazardHits, hazardHold, hazardSafeWindow } from '../../src/game3d/hazards.ts';
+import { MELTDOWN_TICKS, SEAL_FINAL_CLOSED_TICKS, SEAL_FINAL_ID, SEAL_FINAL_WARN_TICKS, ESCAPE_BEATS_3D } from '../../src/game3d/world3d.ts';
 
 export interface ReachStep extends NavTarget {
   label: string;
@@ -445,6 +446,205 @@ export function checkHazardRoute(level: Level3D): string[] {
   return problems;
 }
 
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Round 5 (Metroid systems): Crawl Slide tunnels, breakable blocks, completion reachability and escape fairness.
+// ---------------------------------------------------------------------------------------------------------------------------
+
+/**
+ * Walks toward `target` holding ground dash + S the whole way (the way a player slides under a low tunnel). With `crawlSlide` false the
+ * same inputs are a plain dash, so this doubles as the "no ability" bypass probe.
+ */
+export function slideWalk(
+  start: Body3D,
+  target: NavTarget,
+  level: Level3D,
+  openDoors: ReadonlySet<string>,
+  maxJumps: number,
+  crawlSlide: boolean,
+  maxTicks = 700,
+): WalkResult {
+  const col = buildCollider3D(level, openDoors);
+  const tolX = target.tolX ?? 0.5;
+  let b = { ...start };
+  for (let t = 0; t < maxTicks; t++) {
+    if (navReached(b, target) && b.grounded) return { reached: true, body: b, ticks: t };
+    const dx = target.x - b.x;
+    const dir = Math.abs(dx) > tolX ? Math.sign(dx) : 0;
+    b = stepBody3D(b, { moveX: dir, moveZ: 0, jump: false, dash: true, aimDirX: dir || 1, aimDirZ: 0, dropDown: true, maxJumps, crawlSlide }, col);
+  }
+  return { reached: false, body: b, ticks: maxTicks };
+}
+
+/** Every way a player without the module could try to enter a tunnel: walking, double-jump walking, jet-dash schedules, wall hops, slide inputs. */
+export function tunnelBypassable(level: Level3D, openDoors: ReadonlySet<string>, from: { x: number; y: number }, target: NavTarget): string[] {
+  const hits: string[] = [];
+  const start = spawnBody3D(from.x, from.y, 0);
+  for (const mj of [1, 2]) {
+    if (walkTo(start, target, level, openDoors, mj, 900).reached) hits.push(`walk maxJumps=${mj}`);
+    if (slideWalk(start, target, level, openDoors, mj, false, 900).reached) hits.push(`dash+S maxJumps=${mj}`);
+    if (dashReaches(start, target, level, openDoors, mj, 900)) hits.push(`jet-dash maxJumps=${mj}`);
+  }
+  if (wallHopReaches(start, target, level, openDoors, 2, 900)) hits.push('wall hop / dash cancel');
+  return hits;
+}
+
+/** Tunnel layout and gate checks. Returns human-readable problems (empty = OK). */
+export function checkTunnels(level: Level3D): string[] {
+  const problems: string[] = [];
+  const doors = new Set(level.solids.filter((s) => s.doorId).map((s) => s.doorId!));
+  const purposes = new Set(level.tunnels.map((t) => t.purpose));
+  if (!purposes.has('reward') || !purposes.has('shortcut')) problems.push('need at least one reward and one shortcut tunnel');
+  for (const tn of level.tunnels) {
+    const from = tn.approach;
+    const exitT: NavTarget = { x: tn.exit.x, y: tn.exit.y, tolX: 0.7, tolY: 0.5 };
+    const back: NavTarget = { x: tn.approach.x, y: tn.approach.y, tolX: 0.7, tolY: 0.5 };
+    const hits = tunnelBypassable(level, doors, from, exitT);
+    if (hits.length) problems.push(`${tn.id}: reachable without Crawl Slide (${hits.join(', ')})`);
+    const ok = slideWalk(spawnBody3D(from.x, from.y, 0), exitT, level, doors, 2, true, 900);
+    if (!ok.reached) problems.push(`${tn.id}: Crawl Slide cannot cross the tunnel`);
+    if (tn.purpose === 'shortcut') {
+      const rev = slideWalk(spawnBody3D(tn.exit.x, tn.exit.y, 0), back, level, doors, 2, true, 900);
+      if (!rev.reached) problems.push(`${tn.id}: shortcut cannot be crossed back`);
+      const revNo = tunnelBypassable(level, doors, tn.exit, back);
+      if (revNo.length) problems.push(`${tn.id}: reverse reachable without Crawl Slide (${revNo.join(', ')})`);
+    }
+    // The clearance must be below a standing body and above a sliding one
+    if (!(tn.clearance < ABILITY_3D.height && tn.clearance > ABILITY_3D.slideHeight)) problems.push(`${tn.id}: clearance ${tn.clearance} out of range`);
+  }
+  return problems;
+}
+
+export interface BreakCheck {
+  label: string;
+  breakId: string;
+  from: { x: number; y: number };
+  target: NavTarget;
+  maxJumps: number;
+  /** Also require the way back out from `target` to `from` (no softlock inside) */
+  back?: NavTarget[];
+}
+
+export function buildBreakChecks(): BreakCheck[] {
+  return [
+    // Rail plate: shaft up-2 platform to the Bio-Labs west ledge
+    { label: 'plate-shaft', breakId: 'break_plate_shaft', from: { x: 38, y: 4.4 }, target: { x: 44.2, y: 4.4, tolX: 0.6, tolY: 0.5 }, maxJumps: 2, back: [{ x: 38, y: 4.4, tolX: 0.6, tolY: 0.5 }] },
+    // Rail plate: Mines vault to the pocket
+    { label: 'plate-mines', breakId: 'break_plate_mines', from: { x: 3, y: -8.6 }, target: { x: -4, y: -8.6, tolX: 0.6, tolY: 0.5 }, maxJumps: 1, back: [{ x: 3, y: -8.6, tolX: 0.6, tolY: 0.5 }] },
+    // Stomp floor: Core arena floor to the cache, and back out even without the boots
+    { label: 'stomp-core', breakId: 'break_stomp_core', from: { x: 96, y: 0 }, target: { x: 97.5, y: -3.4, tolX: 0.8, tolY: 0.5 }, maxJumps: 1, back: [{ x: 95.8, y: -1.9, tolX: 0.5, tolY: 0.4 }, { x: 92, y: 0, tolX: 0.8, tolY: 0.5 }] },
+  ];
+}
+
+export function checkBreakables(level: Level3D): string[] {
+  const problems: string[] = [];
+  const doors = new Set(level.solids.filter((s) => s.doorId).map((s) => s.doorId!));
+  for (const c of buildBreakChecks()) {
+    const sol = level.solids.find((s) => s.breakId === c.breakId);
+    if (!sol || !sol.breakBy) { problems.push(`${c.label}: no breakable solid ${c.breakId}`); continue; }
+    const closed = new Set(doors);
+    const open = new Set(doors).add(c.breakId);
+    // Sealed: no walking, jumping, dashing or wall hopping gets through (the break itself needs the weapon or the stomp)
+    const hits = tunnelBypassable(level, closed, c.from, c.target);
+    if (hits.length) problems.push(`${c.label}: reachable while intact (${hits.join(', ')})`);
+    if (!walkTo(spawnBody3D(c.from.x, c.from.y, 0), c.target, level, open, c.maxJumps, 1200).reached) problems.push(`${c.label}: not reachable once broken`);
+    if (c.back) {
+      let b = spawnBody3D(c.target.x, c.target.y, 0);
+      let out = true;
+      for (const leg of c.back) {
+        const r = walkTo(b, leg, level, open, c.maxJumps, 1500);
+        b = r.body;
+        if (!r.reached) { out = false; break; }
+      }
+      if (!out) problems.push(`${c.label}: no way back out once broken`);
+    }
+  }
+  return problems;
+}
+
+export interface CompletionLeg {
+  label: string;
+  from: { x: number; y: number };
+  target: NavTarget;
+  doors: string[];
+  maxJumps: number;
+  slide?: boolean;
+}
+
+/**
+ * Every collectible that is not on the main route has an explicit leg here: the 100% path. Together with buildReachRoute (main route
+ * pickups) and buildCollectibleChecks (data logs) every upgrade, log, secret and weapon is covered by `checkCompletion`.
+ */
+export function buildCompletionLegs(level: Level3D): CompletionLeg[] {
+  const up = (id: string) => level.upgrades.find((u) => u.id === id)!;
+  const all = level.solids.filter((s) => s.doorId).map((s) => s.doorId!);
+  const tn = (id: string) => level.tunnels.find((t) => t.id === id)!;
+  const t = (id: string, tol = 0.9): NavTarget => ({ x: up(id).x, y: up(id).y, tolX: tol, tolY: 0.5 });
+  const under = tn('tun-underfloor');
+  return [
+    // Crawl Slide module: Security Deck west end, no ability needed
+    { label: 'crawl_slide', from: { x: 52, y: 8.8 }, target: t('crawl_slide'), doors: all, maxJumps: 2 },
+    // Backtrack 1: Airlock Underfloor Duct (Energy Tank 3). Walk to the ledge, then slide
+    { label: 'etank_underfloor (walk west)', from: { x: 33, y: -4.4 }, target: { x: 27.8, y: -4.4, tolX: 0.3, tolY: 0.5 }, doors: all, maxJumps: 2 },
+    { label: 'etank_underfloor (hop onto ledge)', from: { x: 27.8, y: -4.4 }, target: { x: under.approach.x, y: under.approach.y, tolX: 0.5, tolY: 0.5 }, doors: all, maxJumps: 2 },
+    { label: 'etank_underfloor (slide)', from: under.approach, target: t('etank_underfloor'), doors: all, maxJumps: 2, slide: true },
+    // Backtrack 2: Mines pocket behind the Rail plate
+    { label: 'ammo_ex_mines', from: { x: 3, y: -8.6 }, target: t('ammo_ex_mines'), doors: [...all, 'break_plate_mines'], maxJumps: 1 },
+    // Backtrack 3: Core cache under the stomp floor
+    { label: 'ammo_ex_core', from: { x: 96, y: 0 }, target: t('ammo_ex_core'), doors: [...all, 'break_stomp_core'], maxJumps: 1 },
+  ];
+}
+
+export function checkCompletion(level: Level3D): string[] {
+  const problems: string[] = [];
+  for (const leg of buildCompletionLegs(level)) {
+    const start = spawnBody3D(leg.from.x, leg.from.y, 0);
+    const doors = new Set(leg.doors);
+    const r = leg.slide ? slideWalk(start, leg.target, level, doors, leg.maxJumps, true, 900) : walkTo(start, leg.target, level, doors, leg.maxJumps, 1500);
+    if (!r.reached) problems.push(`completion leg "${leg.label}" unreachable (ended at ${r.body.x.toFixed(2)}, ${r.body.y.toFixed(2)})`);
+  }
+  // Coverage: every upgrade is either on the main route or has a leg here
+  const mainRoute = new Set(['thruster_boots', 'etank_mines', 'etank_biolabs']);
+  const covered = new Set(buildCompletionLegs(level).map((l) => l.label.split(' ')[0]));
+  for (const u of level.upgrades) {
+    if (!mainRoute.has(u.id) && !covered.has(u.id)) problems.push(`upgrade ${u.id} is not on any completion leg`);
+  }
+  return problems;
+}
+
+/**
+ * Escape fairness: the walking route from the reactor to the exit (no dash, no bot) must finish with at least 20 s to spare before
+ * the final hatch shutter closes, the beats must be ordered, and the shutter must block the route once shut.
+ */
+export function checkEscapeFairness(level: Level3D): { problems: string[]; routeTicks: number; spareTicks: number } {
+  const problems: string[] = [];
+  const route = buildReachRoute(level);
+  const startIdx = route.findIndex((r) => r.label === 'Core -> Bio-Labs');
+  const legs = route.slice(startIdx);
+  const open = new Set(level.solids.filter((s) => s.doorId).map((s) => s.doorId!));
+  let body = spawnBody3D(level.corePos.x - 2.2, 0, 0);
+  let routeTicks = 0;
+  for (const step of legs) {
+    const res = walkTo(body, step, level, open, 2);
+    routeTicks += res.ticks;
+    body = res.body;
+    if (!res.reached) problems.push(`escape route stuck at "${step.label}"`);
+  }
+  const spareTicks = MELTDOWN_TICKS - SEAL_FINAL_CLOSED_TICKS - routeTicks;
+  if (spareTicks < 20 * 60) problems.push(`final hatch closes with only ${(spareTicks / 60).toFixed(1)} s to spare (need 20 s)`);
+  if (SEAL_FINAL_WARN_TICKS - SEAL_FINAL_CLOSED_TICKS < 180) problems.push('final hatch warning shorter than 3 s');
+  const ats = ESCAPE_BEATS_3D.map((b) => b.at);
+  if (!ats.every((a, i) => i === 0 || a < ats[i - 1])) problems.push('escape beats are not in descending time order');
+  if (ats[ats.length - 1] !== SEAL_FINAL_WARN_TICKS) problems.push('last beat must be the final hatch warning');
+  // The shutter sits on the route and blocks it once shut
+  const shut = new Set([...open, SEAL_FINAL_ID]);
+  const blocked = walkTo(spawnBody3D(22, 5.2, 0), { x: level.exitPos.x, y: level.exitPos.y, tolX: 1.5 }, level, shut, 2, 900);
+  if (blocked.reached) problems.push('shut final hatch does not block the route');
+  const free = walkTo(spawnBody3D(22, 5.2, 0), { x: level.exitPos.x, y: level.exitPos.y, tolX: 1.5 }, level, open, 2, 900);
+  if (!free.reached) problems.push('open final hatch route is blocked');
+  return { problems, routeTicks, spareTicks };
+}
+
 // Only run when executed directly (tests import walkTo/buildReachRoute).
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const total = runRoute();
@@ -457,6 +657,13 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   const hzRoute = checkHazardRoute(buildFacilityMap3D());
   console.log(hzLayout.length + hzRoute.length === 0 ? 'HAZARDS layout, safe windows and timed crossings: OK' : `HAZARDS FAILED: ${[...hzLayout, ...hzRoute].join('; ')}`);
   if (hzLayout.length + hzRoute.length > 0) process.exit(1);
+  const lvl = buildFacilityMap3D();
+  const r5 = [...checkTunnels(lvl), ...checkBreakables(lvl), ...checkCompletion(lvl)];
+  console.log(r5.length === 0 ? `METROID tunnels (${lvl.tunnels.length}, no bypass without Crawl Slide), breakables, 100% completion legs: OK` : `METROID FAILED: ${r5.join('; ')}`);
+  if (r5.length > 0) process.exit(1);
+  const esc = checkEscapeFairness(lvl);
+  console.log(esc.problems.length === 0 ? `ESCAPE fairness: walking route ${(esc.routeTicks / 60).toFixed(1)} s, ${(esc.spareTicks / 60).toFixed(1)} s spare before the final hatch shuts: OK` : `ESCAPE FAILED: ${esc.problems.join('; ')}`);
+  if (esc.problems.length > 0) process.exit(1);
   const n = buildReachRoute(buildFacilityMap3D()).length;
   console.log(`REACH3D PASS: ${n} waypoints, ${total} ticks (${(total / 60).toFixed(1)} s), Thruster Boots gate verified.`);
 }

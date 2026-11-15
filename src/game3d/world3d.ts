@@ -19,6 +19,7 @@ import type {
   PlayerPoseState3D,
   SectorId3D,
   SoundEvent3D,
+  UpgradePickupKind3D,
   WeaponSlot3D,
 } from './types3d.ts';
 
@@ -49,6 +50,8 @@ export interface InputState3D {
 
 export interface PlayerAbilities3D {
   thrusterBoots: boolean;
+  /** Crawl Slide module: ground dash + S slides under 1.0 m tunnels */
+  crawlSlide: boolean;
 }
 
 export interface PlayerState3D {
@@ -57,6 +60,8 @@ export interface PlayerState3D {
   maxHp: number;
   abilities: PlayerAbilities3D;
   energyTanks: number;
+  /** Ammo expansions found: each raises the Save/Recharge refill level by half the starting ammo */
+  ammoExpansions: number;
   aimX: number;
   aimY: number;
   /** +1 east, -1 west; hysteresis-stable facing derived from the aim point */
@@ -378,6 +383,8 @@ export interface WorldState3D {
   /** Sector the player currently stands in */
   currentRoom: SectorId3D;
   visitedRooms: SectorId3D[];
+  /** Sectors whose full layout a map terminal has revealed on the minimap */
+  mapRevealed: SectorId3D[];
   collectedUpgrades: Set<string>;
   lastSaveId: string | null;
   saveCooldown: number;
@@ -668,8 +675,9 @@ export function newWorld3D(): WorldState3D {
       body,
       hp: BASE_MAX_HP,
       maxHp: BASE_MAX_HP,
-      abilities: { thrusterBoots: false },
+      abilities: { thrusterBoots: false, crawlSlide: false },
       energyTanks: 0,
+      ammoExpansions: 0,
       aimX: spawn.x + 8,
       aimY: spawn.y + MUZZLE_HEIGHT,
       facing: 1,
@@ -687,6 +695,7 @@ export function newWorld3D(): WorldState3D {
     },
     currentRoom: 'airlock',
     visitedRooms: ['airlock'],
+    mapRevealed: [],
     collectedUpgrades: new Set<string>(),
     lastSaveId: null,
     saveCooldown: 0,
@@ -1134,6 +1143,12 @@ function fireWeapon3D(w: WorldState3D, railFrac = 0): void {
     for (const s of doorSolids(w)) {
       const t = raySolidEntry(s, ox, oy, dx, dy);
       if (t >= 0 && t <= hitDist + 0.02) tryOpenDoor3D(w, s, 4);
+    }
+    // Rail plates are the first obstacle the beam meets; the shot ends on them
+    for (const s of w.level.solids) {
+      if (s.breakBy !== 'rail' || !s.breakId || w.openDoors.has(s.breakId)) continue;
+      const t = raySolidEntry(s, ox, oy, dx, dy);
+      if (t >= 0 && t <= hitDist + 0.02) breakBlock3D(w, s);
     }
     for (const e of w.enemies) {
       if (!e.alive) continue;
@@ -2211,11 +2226,20 @@ export function roomAt3D(level: Level3D, x: number, y: number): SectorId3D | nul
   return null;
 }
 
-function applyUpgrade(w: WorldState3D, id: string, kind: 'thruster_boots' | 'energy_tank'): void {
+function applyUpgrade(w: WorldState3D, id: string, kind: UpgradePickupKind3D): void {
   const p = w.player;
   w.collectedUpgrades.add(id);
   if (kind === 'thruster_boots') {
     p.abilities.thrusterBoots = true;
+  } else if (kind === 'crawl_slide') {
+    p.abilities.crawlSlide = true;
+    setHint(w, 'CRAWL SLIDE ONLINE: GROUND DASH + S UNDER LOW TUNNELS');
+  } else if (kind === 'ammo_expansion') {
+    p.ammoExpansions++;
+    for (const sl of [2, 3, 4] as const) {
+      if (p.unlocked[sl]) p.ammo[sl] += Math.ceil(WEAPON_META[sl].initialAmmo * 0.5);
+    }
+    setHint(w, 'AMMO EXPANSION: RECHARGE LEVEL +50%');
   } else {
     p.energyTanks++;
     p.maxHp = BASE_MAX_HP + ENERGY_TANK_HP * p.energyTanks;
@@ -2244,13 +2268,36 @@ function stompBlast(w: WorldState3D): void {
     if (br.alive && br.fuseTicks < 0 && Math.abs(br.x - b.x) <= STOMP_RADIUS && Math.abs(br.y - b.y) <= 1.5) br.fuseTicks = 5;
   }
   if (hit) b.dashCooldown = 0;
+  for (const s of w.level.solids) {
+    if (s.breakBy !== 'stomp' || !s.breakId || w.openDoors.has(s.breakId)) continue;
+    if (b.x + 0.3 > s.minX && b.x - 0.3 < s.maxX && Math.abs(b.y - s.maxY) <= 0.6) breakBlock3D(w, s);
+  }
+}
+
+/** Break a breakable block: it leaves the collider, raises `block_break` and counts a secret if one hides behind it. */
+export function breakBlock3D(w: WorldState3D, s: MapSolid3D): boolean {
+  if (!s.breakId || w.openDoors.has(s.breakId)) return false;
+  w.openDoors.add(s.breakId);
+  w.events.push({ type: 'block_break', value: s.breakBy === 'rail' ? 1 : 0 });
+  w.shakeTicks = Math.max(w.shakeTicks, 10);
+  w.shakeStrength = Math.max(w.shakeStrength, 0.24);
+  const secret = w.level.secrets.find((sr) => sr.doorId === s.breakId);
+  if (secret && !w.secretsFound.includes(secret.id)) {
+    w.secretsFound.push(secret.id);
+    w.events.push({ type: 'secret', value: w.secretsFound.length });
+    w.run.score += 500;
+    setHint(w, `SECRET FOUND: ${secret.name.toUpperCase()}`);
+  } else {
+    setHint(w, s.breakBy === 'rail' ? 'PLATE SHATTERED' : 'FLOOR BROKE');
+  }
+  return true;
 }
 
 function activateSave(w: WorldState3D, id: string): void {
   const p = w.player;
   p.hp = p.maxHp;
   for (const s of [2, 3, 4] as const) {
-    if (p.unlocked[s]) p.ammo[s] = Math.max(p.ammo[s], WEAPON_META[s].initialAmmo);
+    if (p.unlocked[s]) p.ammo[s] = Math.max(p.ammo[s], Math.round(WEAPON_META[s].initialAmmo * (1 + 0.5 * p.ammoExpansions)));
   }
   w.lastSaveId = id;
   w.saveCooldown = 90;
@@ -2284,6 +2331,54 @@ export function respawnPlayer3D(w: WorldState3D): void {
 }
 
 export const BOSS_INTRO_TICKS = 210;
+
+/**
+ * Escape sequence beats, keyed to the ticks LEFT on the meltdown clock. Sector bulkheads only warn (index 0..3, core to airlock).
+ * The final hatch shutter at the airlock balcony lowers from `SEAL_FINAL_WARN_TICKS` and blocks the route from
+ * `SEAL_FINAL_CLOSED_TICKS`. The clock is 90 s and a clean run reaches the hatch in about 15 s, so the shutter never decides a fair run;
+ * tools/game/reach3d.ts keeps that margin honest. Everything is a pure function of `meltdownTicks` (no extra state to save or reset).
+ */
+export const SEAL_FINAL_WARN_TICKS = 12 * 60;
+export const SEAL_FINAL_CLOSED_TICKS = 9 * 60;
+export const SEAL_FINAL_ID = 'seal_final';
+export const ESCAPE_BEATS_3D: readonly { at: number; index: 0 | 1 | 2 | 3 | 4; text: string }[] = [
+  { at: 80 * 60, index: 0, text: 'CORE BULKHEAD SEALED. KEEP MOVING' },
+  { at: 62 * 60, index: 1, text: 'BIO-LABS BULKHEAD SEALING BEHIND YOU' },
+  { at: 44 * 60, index: 2, text: 'SHAFT BULKHEAD SEALING. HEAD FOR THE AIRLOCK' },
+  { at: 28 * 60, index: 3, text: 'AIRLOCK BULKHEAD SEALING. FINAL HATCH CLOSES SOON' },
+  { at: SEAL_FINAL_WARN_TICKS, index: 4, text: 'FINAL HATCH CLOSING. RUN' },
+];
+
+/** Shutter view for the HUD and renderer: 0 = open, 1 = shut, and whether it blocks the route yet. */
+export function escapeSealView3D(w: Readonly<WorldState3D>): { progress: number; closed: boolean; warning: boolean } {
+  const t = w.meltdownTicks;
+  if (t <= 0 || t > SEAL_FINAL_WARN_TICKS) return { progress: 0, closed: false, warning: false };
+  const progress = Math.min(1, (SEAL_FINAL_WARN_TICKS - t) / (SEAL_FINAL_WARN_TICKS - SEAL_FINAL_CLOSED_TICKS));
+  return { progress, closed: t <= SEAL_FINAL_CLOSED_TICKS, warning: true };
+}
+
+function stepEscapeBeats3D(w: WorldState3D): void {
+  for (const b of ESCAPE_BEATS_3D) {
+    if (w.meltdownTicks === b.at) {
+      w.events.push({ type: 'seal_warn', value: b.index });
+      w.hint = b.text;
+      w.hintTicks = 150;
+      w.shakeTicks = Math.max(w.shakeTicks, 10);
+      w.shakeStrength = Math.max(w.shakeStrength, b.index === 4 ? 0.34 : 0.18);
+    }
+  }
+  const closed = w.meltdownTicks > 0 && w.meltdownTicks <= SEAL_FINAL_CLOSED_TICKS;
+  if (closed && !w.openDoors.has(SEAL_FINAL_ID)) {
+    w.openDoors.add(SEAL_FINAL_ID);
+    w.events.push({ type: 'seal_close' });
+    w.hint = 'HATCH SHUT';
+    w.hintTicks = 120;
+    w.shakeTicks = Math.max(w.shakeTicks, 16);
+    w.shakeStrength = Math.max(w.shakeStrength, 0.4);
+  } else if (!closed && w.openDoors.has(SEAL_FINAL_ID)) {
+    w.openDoors.delete(SEAL_FINAL_ID);
+  }
+}
 
 /** Skip the Core Warden intro (display-side request; the bot never calls it, so replays stay deterministic). */
 export function skipBossIntro3D(w: WorldState3D): void {
@@ -2344,9 +2439,11 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
       dropDown: input.dropDown,
       maxJumps: p.abilities.thrusterBoots ? 2 : 1,
       lockZ: true,
+      crawlSlide: p.abilities.crawlSlide,
     },
     col,
   );
+  if (p.body.slideStarted) w.events.push({ type: 'slide' });
   if (p.body.dashTicks > prevDash) {
     p.dashInvulnTicks = ABILITY_3D.dashTicks + 4;
     w.events.push({ type: 'dash' });
@@ -2454,6 +2551,18 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
     }
   }
 
+  // Map terminals: F reveals the whole sector on the minimap (one-time per sector)
+  if (input.interact) {
+    for (const ms of w.level.mapStations) {
+      if (w.mapRevealed.includes(ms.sector)) continue;
+      if (Math.hypot(p.body.x - ms.x, p.body.y - ms.y) <= ms.radius) {
+        w.mapRevealed.push(ms.sector);
+        w.events.push({ type: 'map_reveal', value: w.mapRevealed.length });
+        setHint(w, `MAP DATA DOWNLOADED: ${ms.sector.toUpperCase()}`);
+      }
+    }
+  }
+
   // Security console
   if (!w.consoleUnlocked) {
     const c = w.level.consolePos;
@@ -2494,6 +2603,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
 
   if (w.meltdownTicks > 0) {
     w.meltdownTicks--;
+    stepEscapeBeats3D(w);
     if (w.meltdownTicks === 0 && w.status === 'playing') w.status = 'lost';
   }
   if (w.coreDestroyed && w.status === 'playing') {

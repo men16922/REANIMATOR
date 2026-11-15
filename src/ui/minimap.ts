@@ -1,5 +1,5 @@
 // Metroid-style sector grid minimap (NEW-DESIGN). Pure canvas 2D, reads only the view state.
-import type { DoorLockKind3D, RoomDef3D } from '../game3d/types3d.ts';
+import type { DoorLockKind3D, Level3D, RoomDef3D } from '../game3d/types3d.ts';
 
 export interface MinimapViewState {
   rooms: readonly RoomDef3D[];
@@ -14,6 +14,19 @@ export interface MinimapViewState {
   bossAlive: boolean;
   exitPos: { x: number; y: number };
   expanded: boolean;
+  /** Rooms whose map terminal was used: shown in full even when never visited (distinct colour) */
+  revealedRooms?: ReadonlySet<string>;
+  /** '?' markers for items and secrets not yet found, only inside revealed or visited rooms */
+  markers?: readonly MinimapMarker[];
+  showMarkers?: boolean;
+  /** Map terminals (shown as 'M' once their room is visible) */
+  mapStations?: readonly { x: number; y: number }[];
+}
+
+export interface MinimapMarker {
+  x: number;
+  y: number;
+  kind: 'item' | 'secret';
 }
 
 const BASE_W = 224;
@@ -54,6 +67,8 @@ export function renderMinimap(canvas: HTMLCanvasElement, state: MinimapViewState
   const byId = new Map<string, RoomDef3D>();
   for (const r of state.rooms) byId.set(r.id, r);
   const visible = new Set<string>();
+  const revealed = state.revealedRooms ?? new Set<string>();
+  for (const id of revealed) if (byId.has(id)) visible.add(id);
   for (const id of state.visitedRooms) {
     const r = byId.get(id);
     if (!r) continue;
@@ -113,6 +128,15 @@ export function renderMinimap(canvas: HTMLCanvasElement, state: MinimapViewState
   for (const r of shown) {
     if (state.visitedRooms.has(r.id) || r.id === state.currentRoomId) continue;
     const rc = rects.get(r.id)!;
+    if (revealed.has(r.id)) {
+      // Mapped but never visited: solid teal-grey fill instead of the dashed unknown outline
+      g.fillStyle = '#1d3b3f';
+      g.fillRect(rc.x, rc.y, rc.w, rc.h);
+      g.strokeStyle = 'rgba(120, 200, 190, 0.75)';
+      g.setLineDash([]);
+      g.strokeRect(rc.x + 0.5, rc.y + 0.5, rc.w - 1, rc.h - 1);
+      continue;
+    }
     g.setLineDash([3 * scale, 3 * scale]);
     g.strokeStyle = 'rgba(90, 140, 175, 0.45)';
     g.strokeRect(rc.x + 0.5, rc.y + 0.5, rc.w - 1, rc.h - 1);
@@ -171,10 +195,28 @@ export function renderMinimap(canvas: HTMLCanvasElement, state: MinimapViewState
   g.textBaseline = 'middle';
   for (const s of state.saveStations) {
     const r = roomFor(s.x, s.y);
-    if (!r || !state.visitedRooms.has(r.id)) continue;
+    if (!r || !(state.visitedRooms.has(r.id) || revealed.has(r.id))) continue;
     const p = pos(r, s.x, s.y);
     g.fillStyle = '#3dff88';
     g.fillText('S', Math.round(p.x), Math.round(p.y));
+  }
+  // map terminals
+  for (const m of state.mapStations ?? []) {
+    const r = roomFor(m.x, m.y);
+    if (!r || !(state.visitedRooms.has(r.id) || revealed.has(r.id))) continue;
+    const p = pos(r, m.x, m.y);
+    g.fillStyle = revealed.has(r.id) ? '#78c8be' : '#52e5ff';
+    g.fillText('M', Math.round(p.x), Math.round(p.y));
+  }
+  // '?' markers: uncollected items (amber) and unopened secrets (magenta), only where the map knows the room
+  if (state.showMarkers !== false) {
+    for (const mk of state.markers ?? []) {
+      const r = roomFor(mk.x, mk.y);
+      if (!r || !(state.visitedRooms.has(r.id) || revealed.has(r.id))) continue;
+      const p = pos(r, mk.x, mk.y);
+      g.fillStyle = mk.kind === 'secret' ? '#ff7ad9' : '#ffc83d';
+      g.fillText('?', Math.round(p.x), Math.round(p.y));
+    }
   }
 
   // boss icon
@@ -246,4 +288,27 @@ export function renderMinimap(canvas: HTMLCanvasElement, state: MinimapViewState
       g.fillText(cur.name.toUpperCase(), 6, 5);
     }
   }
+}
+
+/** Minimal world view the marker builder needs (a WorldState3D satisfies it). */
+export interface MarkerSource {
+  level: Level3D;
+  collectedUpgrades: ReadonlySet<string>;
+  collectibles: readonly { x: number; y: number; taken: boolean }[];
+  secretsFound: readonly string[];
+  pickups: readonly { kind: string; x: number; y: number; taken: boolean }[];
+}
+
+/** '?' markers: every upgrade, data log and weapon not yet taken (amber) and every secret not yet found (magenta). Pure. */
+export function collectMinimapMarkers(w: MarkerSource): MinimapMarker[] {
+  const out: MinimapMarker[] = [];
+  for (const u of w.level.upgrades) if (!w.collectedUpgrades.has(u.id)) out.push({ x: u.x, y: u.y + 0.9, kind: 'item' });
+  for (const c of w.collectibles) if (!c.taken) out.push({ x: c.x, y: c.y + 0.9, kind: 'item' });
+  for (const pk of w.pickups) if (pk.kind === 'weapon' && !pk.taken) out.push({ x: pk.x, y: pk.y + 0.9, kind: 'item' });
+  for (const sr of w.level.secrets) {
+    if (w.secretsFound.includes(sr.id)) continue;
+    const s = w.level.solids.find((x) => x.doorId === sr.doorId || x.breakId === sr.doorId);
+    if (s) out.push({ x: (s.minX + s.maxX) / 2, y: (s.minY + s.maxY) / 2, kind: 'secret' });
+  }
+  return out;
 }

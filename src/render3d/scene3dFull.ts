@@ -48,6 +48,7 @@ import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
 import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
 import { reactorPulse } from './mood3d.ts';
 import { buildHazards3D, type Hazards3D } from './hazards3d.ts';
+import { buildAmmoItem, buildMetroid3D, buildSlideItem, type Metroid3D } from './metroid3d.ts';
 import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
@@ -346,6 +347,8 @@ export class Scene3DRenderer {
   private readonly cullEntries: CullEntry[] = [];
   private decor: Decor3D | null = null;
   private hazards3d: Hazards3D | null = null;
+  private metroid3d: Metroid3D | null = null;
+  private slideSquash = 0;
   private fogDensity = 0.012;
   private readonly presetSky = new THREE.Color(0x8bb6df);
   private readonly presetSun = new THREE.Color(0xdcebff);
@@ -781,7 +784,7 @@ export class Scene3DRenderer {
     this.rooms = w.level.rooms;
     this.secretDoorIds = new Set(w.level.secrets.map((sr) => sr.doorId));
     for (const s of w.level.solids) {
-      if (s.dynamic) continue; // drawn by hazards3d (moves or toggles at runtime)
+      if (s.dynamic) continue; // drawn by hazards3d / metroid3d (moves or toggles at runtime)
       this.addSolidMesh(s, tex);
     }
     this.flushSolidBatches(tex);
@@ -793,6 +796,8 @@ export class Scene3DRenderer {
     this.mood = buildMood3D(this.scene, w.level);
     this.hazards3d?.dispose();
     this.hazards3d = buildHazards3D(this.scene, w.level);
+    this.metroid3d?.dispose();
+    this.metroid3d = buildMetroid3D(this.scene, w.level);
     this.mood.setClassic(this.viewMode === 'classic');
     this.applyClassicGlow();
     for (const r of w.level.ramps) {
@@ -913,10 +918,12 @@ export class Scene3DRenderer {
 
     // Upgrade pedestals: Thruster Boots (amber) and Energy Tanks (green)
     for (const up of w.level.upgrades) {
-      const color = up.kind === 'thruster_boots' ? 0xffb02e : 0x3dff88;
+      const color = up.kind === 'thruster_boots' ? 0xffb02e : up.kind === 'crawl_slide' ? 0x2bf0ff : up.kind === 'ammo_expansion' ? 0xff8a2a : 0x3dff88;
       // Procedural item silhouette on the pedestal (boots / energy tank), spinning and bobbing in render().
       const gem = new THREE.Group();
-      gem.add(up.kind === 'thruster_boots' ? buildBootsItem(color) : buildEnergyTankItem(color));
+      gem.add(
+        up.kind === 'thruster_boots' ? buildBootsItem(color) : up.kind === 'crawl_slide' ? buildSlideItem(color) : up.kind === 'ammo_expansion' ? buildAmmoItem(color) : buildEnergyTankItem(color),
+      );
       const halo = new THREE.Mesh(
         new THREE.CircleGeometry(0.6, 24),
         new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.045, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
@@ -1643,6 +1650,7 @@ export class Scene3DRenderer {
     this.decor?.update(tSec, w.player.body.x, w.player.body.y, this.reduceMotion);
     this.mood?.update(tSec, this.reduceMotion);
     this.hazards3d?.update(w, tSec, dt, this.fx.smoke, this.reduceMotion);
+    this.metroid3d?.update(w, tSec, dt, this.reduceMotion);
     const preset = SECTOR_LIGHT[room ? room.sector : 'airlock'];
     const lk = Math.min(1, dt * 2.5);
     this.presetSky.lerp(preset.sky, lk);
@@ -1688,6 +1696,10 @@ export class Scene3DRenderer {
     if (this.operativeRig) {
       const rig = this.operativeRig;
       rig.root.position.set(px, py, 0);
+      // Crawl Slide: squash the operative to a crouch while the body is low (visual only)
+      const baseSy = (rig.root.userData.baseScaleY ??= rig.root.scale.y) as number;
+      this.slideSquash += ((pb.sliding ? 1 : 0) - this.slideSquash) * Math.min(1, dt * 18);
+      rig.root.scale.y = baseSy * (1 - 0.42 * this.slideSquash);
       // Smooth turn-around instead of a hard 180 degree snap
       const faceYaw = pose.aimSignX > 0 ? Math.PI * 0.5 : -Math.PI * 0.5;
       rig.root.rotation.y = w.tick <= 2 ? faceYaw : turnToward(rig.root.rotation.y, faceYaw, dt, 18);

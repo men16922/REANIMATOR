@@ -96,7 +96,7 @@ test('map: six sectors, symmetric neighbors, every room reachable, <= 1 save per
   for (const p of props) {
     assert.ok(roomAt3D(level, p.x, p.y + 0.9), `${p.id} must lie inside a room`);
   }
-  assert.equal(level.upgrades.filter((u) => u.kind === 'energy_tank').length, 2);
+  assert.equal(level.upgrades.filter((u) => u.kind === 'energy_tank').length, 3, 'Mines, Bio-Labs and the Underfloor Duct');
   assert.equal(level.upgrades.filter((u) => u.kind === 'thruster_boots').length, 1);
 });
 
@@ -1080,9 +1080,10 @@ test('Core Warden: two identical runs produce identical boss state (deterministi
 
 test('exploration: secret walls (Cracked Bio-Wall) open with a Grenade blast and are counted', () => {
   const w = newWorld3D();
-  assert.equal(w.level.secrets.length, 2);
+  // Two Cracked Bio-Walls (Grenade) plus two breakable-block secrets added in round 5 (see tests/metroid.test.ts)
+  assert.equal(w.level.secrets.length, 4);
   assert.equal(w.secretsFound.length, 0);
-  for (const sr of w.level.secrets) {
+  for (const sr of w.level.secrets.filter((x) => !x.doorId.startsWith('break_'))) {
     const d = doorSolid(w, sr.doorId);
     assert.equal(d.doorLock, 'yellow', `${sr.id} is a Grenade lock`);
   }
@@ -1113,7 +1114,7 @@ test('exploration: six data logs (one per sector), completion percent and run su
   stepN(w, 1);
   assert.equal(w.completion.percent, 0);
   assert.equal(w.completion.logsTotal, 6);
-  assert.equal(w.completion.total, 6 + 2 + 3 + 3);
+  assert.equal(w.completion.total, 6 + 4 + 7 + 3, 'logs + secrets + upgrades + weapons');
 
   const log = w.collectibles.find((c) => c.id === 'log_mines')!;
   place(w, log.x, log.y);
@@ -1121,7 +1122,7 @@ test('exploration: six data logs (one per sector), completion percent and run su
   assert.ok(log.taken);
   assert.ok(w.events.some((e) => e.type === 'collect'));
   assert.equal(w.completion.logsFound, 1);
-  assert.equal(w.completion.percent, Math.round((100 * 1) / 14));
+  assert.equal(w.completion.percent, Math.round((100 * 1) / 20));
   // Taking it again does nothing
   stepN(w, 2);
   assert.equal(w.completion.logsFound, 1);

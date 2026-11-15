@@ -28,7 +28,7 @@ import { AudioDirector, snapshotPre } from './audioDirector.ts';
 import { Attract, freshWorld } from './attract.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, SECTOR_SUBTITLE, type Hint } from './flow.ts';
 import { labFields, labScenarios, plot, runCase, type LabCase } from './lab.ts';
-import { renderMinimap } from './minimap.ts';
+import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
 import { objectiveFor } from './objective.ts';
 import { parseGoreLevel, type GoreLevel } from '../render3d/gore3d.ts';
@@ -149,6 +149,10 @@ let last = 0;
 let flash = 0;
 let manualHold = false;
 let mapExpanded = false;
+/** Minimap '?' markers for unfound items and secrets (M toggles) */
+let mapMarkers = true;
+/** Metroid-style item freeze: seconds the display clock stays stopped after an upgrade pickup */
+let itemFreeze = 0;
 let bot: Bot3D | null = null;
 const audioDirector = new AudioDirector();
 
@@ -392,7 +396,11 @@ const WEAPON_BANNER: Record<number, { title: string; desc: string }> = {
 const UPGRADE_BANNER: Record<string, { title: string; desc: string }> = {
   thruster_boots: { title: 'THRUSTER BOOTS', desc: 'Press jump again in mid-air for a second jump. Reach the high ledge in the Central Shaft.' },
   energy_tank: { title: 'ENERGY TANK', desc: 'Maximum hull +30. Hull fully restored.' },
+  crawl_slide: { title: 'CRAWL SLIDE', desc: 'Hold S and press Shift on the ground to slide under low tunnels. Look for 1 m ducts marked with hazard stripes.' },
+  ammo_expansion: { title: 'AMMO EXPANSION', desc: 'Save stations now recharge 50% more ammo. Reserves topped up.' },
 };
+/** Seconds of display freeze per pickup kind (the simulation does not advance, so replays stay deterministic) */
+const ITEM_FREEZE_S = 0.85;
 
 function showPickupBanner(b: { title: string; desc: string }): void {
   $('pb-title').textContent = b.title;
@@ -424,7 +432,12 @@ function observeWorld(): void {
     if (world.collectedUpgrades.size > seen.collected) {
       const last = [...world.collectedUpgrades].pop();
       const kind = world.level.upgrades.find((u) => u.id === last)?.kind;
-      if (kind && UPGRADE_BANNER[kind]) showPickupBanner(UPGRADE_BANNER[kind]);
+      if (kind && UPGRADE_BANNER[kind]) {
+        showPickupBanner(UPGRADE_BANNER[kind]);
+        itemFreeze = ITEM_FREEZE_S;
+        // Fanfare: the simulation already played world.upgrade, the banner plays ui.banner, this adds the rising stinger
+        setTimeout(() => playSound('ui.rank', { pitch: rankPitch('A') }), 260);
+      }
     }
     seen.collected = world.collectedUpgrades.size;
   }
@@ -506,6 +519,10 @@ function drawMinimap(): void {
     bossAlive: world.enemies.some((e) => e.kind === 'warden' && e.alive),
     exitPos: L.exitPos,
     expanded: mapExpanded,
+    revealedRooms: new Set(L.rooms.filter((r) => world.mapRevealed.includes(r.sector)).map((r) => r.id)),
+    markers: collectMinimapMarkers(world),
+    showMarkers: mapMarkers,
+    mapStations: L.mapStations,
   });
 }
 
@@ -638,6 +655,10 @@ function frame(t: number): void {
   if (mode === 'playing' && !manualHold) {
     // Hit-stop and kill slow-motion only retime the display clock. Every simulation tick still runs, in order.
     frozen = fx ? fx.hitstop.step() : false;
+    if (itemFreeze > 0) {
+      itemFreeze = Math.max(0, itemFreeze - dt);
+      frozen = true;
+    }
     const clock = fx ? fx.slowmo.step(dt) : 1;
     if (!frozen) acc += dt * clock;
     const stepDt = 1 / SIM_HZ_3D;
@@ -798,6 +819,7 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'Digit4' && !e.repeat) weaponQueue = 4;
   if (e.code === 'KeyQ' && !e.repeat) cycleWeapon(1);
   if (e.code === 'KeyR' && !e.repeat) start();
+  if (e.code === 'KeyM' && !e.repeat) mapMarkers = !mapMarkers;
   if (e.code === 'Tab') {
     if (!e.repeat) mapExpanded = !mapExpanded;
     e.preventDefault();
@@ -1004,6 +1026,9 @@ function buildSnapshot() {
     maxHp: world.player.maxHp,
     energyTanks: world.player.energyTanks,
     abilities: { ...world.player.abilities },
+    sliding: b.sliding,
+    mapRevealed: [...world.mapRevealed],
+    ammoExpansions: world.player.ammoExpansions,
     currentRoom: world.currentRoom,
     visitedRooms: [...world.visitedRooms],
     collectedUpgrades: [...world.collectedUpgrades],
@@ -1038,6 +1063,10 @@ export interface DebugSetup3D {
   boots?: boolean;
   tanks?: number;
   weapons?: WeaponSlot3D[];
+  /** Debug: grant the Crawl Slide module */
+  slide?: boolean;
+  /** Debug: reactor already destroyed, this many meltdown ticks left (escape sequence beats, final hatch) */
+  meltdownTicks?: number;
   openDoors?: string[];
   console?: boolean;
   hp?: number;
@@ -1055,6 +1084,19 @@ function applyDebugSetup(w: WorldState3D, o: DebugSetup3D): void {
     p.body = spawnBody3D(o.x ?? p.body.x, o.y ?? p.body.y, 0);
   }
   if (o.boots) p.abilities.thrusterBoots = true;
+  if (o.slide) p.abilities.crawlSlide = true;
+  if (o.meltdownTicks !== undefined) {
+    w.coreDestroyed = true;
+    w.coreHp = 0;
+    w.phase = 'escape';
+    w.openDoors.add('door_escape');
+    w.meltdownTicks = o.meltdownTicks;
+    const wd = w.enemies.find((e) => e.kind === 'warden' && !e.minion);
+    if (wd) {
+      wd.alive = false;
+      wd.hp = 0;
+    }
+  }
   if (o.tanks !== undefined) {
     p.energyTanks = o.tanks;
     p.maxHp = 100 + 30 * o.tanks;

@@ -107,6 +107,8 @@ const DOOR_RULE: Record<DoorLockKind3D, Hint | null> = {
 
 const NEAR_DOOR = 5.5;
 const NEAR_SAVE = 4;
+/** Terminals only announce themselves up close, so the spawn-side airlock terminal never pre-empts the opening tutorial */
+const NEAR_MAP = 2.4;
 
 /** Tracks which hints are finished and chooses the one to show now (at most one at a time). */
 export class Onboarding {
@@ -159,6 +161,23 @@ export class Onboarding {
         break;
       }
       if (Math.hypot(st.x - p.x, st.y - p.y) < NEAR_SAVE) return { id: 'save', keys: ['F'], text: 'SAVE STATION: restores hull and ammo, sets your respawn' };
+    }
+
+    for (const ms of w.level.mapStations) {
+      if (this.done.has('map')) break;
+      if (w.mapRevealed.length > 0) {
+        this.done.add('map');
+        break;
+      }
+      if (Math.hypot(ms.x - p.x, ms.y - p.y) < NEAR_MAP) return { id: 'map', keys: ['F'], text: 'MAP TERMINAL: reveals this whole sector on the minimap' };
+    }
+    if (w.player.abilities.crawlSlide && !this.done.has('slide')) {
+      if (w.player.body.sliding) this.done.add('slide');
+      else {
+        for (const tn of w.level.tunnels) {
+          if (Math.hypot(tn.approach.x - p.x, tn.approach.y - p.y) < NEAR_SAVE) return { id: 'slide', keys: ['S', 'SHIFT'], text: `${tn.label}: hold S and press Shift on the ground to slide under` };
+        }
+      }
     }
 
     if (w.tick < 90) return null;

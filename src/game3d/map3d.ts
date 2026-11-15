@@ -16,12 +16,14 @@ import type {
   Collider3D,
   DataLog3D,
   CollapseSpawn3D,
+  CrawlTunnel3D,
   ElevatorSpawn3D,
   EnemySpawn3D,
   HazardSpawn3D,
   HiveSpawn3D,
   Level3D,
   MapSolid3D,
+  MapStation3D,
   MedStation3D,
   Pillar3D,
   RoomDef3D,
@@ -44,11 +46,13 @@ export type {
   HazardKind3D,
   HazardSpawn3D,
   CollapseSpawn3D,
+  CrawlTunnel3D,
   ElevatorSpawn3D,
   SwitchSpawn3D,
   HiveSpawn3D,
   Level3D,
   MapSolid3D,
+  MapStation3D,
   MedStation3D,
   Pillar3D,
   Ramp3D,
@@ -105,7 +109,7 @@ export function buildFacilityMap3D(): Level3D {
     {
       id: 'room_airlock', sector: 'airlock', name: 'Airlock Bay',
       hint: 'Cryo airlock. The extraction balcony above is sealed until the reactor goes critical.',
-      minX: -9, maxX: 24, minY: 0, maxY: 14.2,
+      minX: -9, maxX: 24, minY: -3.4, maxY: 14.2,
       gridX: 0, gridY: 1, gridW: 3, gridH: 1, ambientColor: 0x1a2a3a,
       hasExit: true, neighbors: ['room_shaft'],
     },
@@ -119,14 +123,14 @@ export function buildFacilityMap3D(): Level3D {
     {
       id: 'room_mines', sector: 'mines', name: 'Acid Mines',
       hint: 'Acid pit with a stepping stone. The vault ledge holds the Thruster Boots.',
-      minX: 0, maxX: 24, minY: -12, maxY: -4,
+      minX: -7, maxX: 24, minY: -12, maxY: -4,
       gridX: 0, gridY: 3, gridW: 3, gridH: 1, ambientColor: 0x1f3a22,
       hasSave: true, neighbors: ['room_shaft'],
     },
     {
       id: 'room_biolabs', sector: 'biolabs', name: 'Bio-Labs',
       hint: 'Acid basin, tiered grates and the Rail-Cannon. A grate leads up to Security.',
-      minX: 42, maxX: 70, minY: -1, maxY: 8,
+      minX: 42, maxX: 70, minY: -4.8, maxY: 8,
       gridX: 5, gridY: 1, gridW: 3, gridH: 2, ambientColor: 0x2b3a1a,
       neighbors: ['room_shaft', 'room_security', 'room_core'],
     },
@@ -140,7 +144,7 @@ export function buildFacilityMap3D(): Level3D {
     {
       id: 'room_core', sector: 'core', name: 'Reactor Core',
       hint: 'Core Warden arena. The reactor sits at the east end.',
-      minX: 70, maxX: 98, minY: -1, maxY: 10,
+      minX: 70, maxX: 98, minY: -3.8, maxY: 10,
       gridX: 8, gridY: 1, gridW: 3, gridH: 2, ambientColor: 0x3a1a1a,
       hasBoss: true, neighbors: ['room_biolabs'],
     },
@@ -173,19 +177,32 @@ export function buildFacilityMap3D(): Level3D {
     door('door-escape', 'door_escape', 'escape', 23.6, 24.4, 5.2, 8.6, 0xff3a2a),
     box('airlock-divider-top', 23.6, 24.4, 8.6, 10.2),
     box('airlock-crate', 9.0, 10.6, 0, 1.4, 'crate', { color: 0x3a434e }),
+    // Underfloor Duct (reward): crawl 1.0 m high from the shaft (x 24 -> 8), then a 2.0 m chamber under the airlock floor (x 8 -> 1.6).
+    // Floor is the Mines ceiling top (y -3.2); the roof of the chamber is the airlock floor underside (y -1.2).
+    box('duct-roof', 8.0, 23.6, -2.2, -1.2, 'wall', { color: 0x2a3542 }),
+    box('duct-end', 0.6, 1.6, -3.2, -1.2, 'wall', { color: 0x2a3542 }),
+    // Final extraction hatch shutter: only exists while the meltdown clock says it is shut (derived, see world3d)
+    box('final-shutter', 11.0, 11.6, 5.2, 9.0, 'wall', { sealId: 'seal_final', dynamic: true, color: 0x3a3f4a, emissive: 0xff2a2a }),
 
     // ===== 2. room_shaft =====
     box('shaft-floor', 24, 42, -12.2, -11.0, 'catwalk', { color: 0x1d252d }),
     box('shaft-ceiling', 24, 42, 13.8, 14.8),
-    box('shaft-wall-west-low', 23.6, 24.4, -7.4, 0),
+    // Crawl tunnel mouth (Underfloor Duct): 1.0 m opening at y -3.2..-2.2, lintel above it
+    box('shaft-wall-west-low-a', 23.6, 24.4, -7.4, -3.2),
+    box('shaft-wall-west-low-b', 23.6, 24.4, -2.2, 0),
     box('shaft-wall-west-bottom', 23.6, 24.4, -12, -11),
     door('door-shaft-mines', 'door_shaft_mines', 'green', 23.6, 24.4, -11, -7.4, 0x3aff6a),
     box('shaft-wall-west-up', 23.6, 24.4, 8.8, 10.2),
     door('door-secret-cache', 'door_secret_cache', 'yellow', 23.6, 24.4, 10.2, 13.2, 0xffd23a),
     box('shaft-wall-west-top', 23.6, 24.4, 13.2, 14),
-    box('shaft-wall-east-low', 41.6, 42.4, -12, 0),
+    // Crawl tunnel mouth (Service Duct): 1.0 m opening at y -4.4..-3.4, lintel above it
+    box('shaft-wall-east-low-a', 41.6, 42.4, -12, -4.4),
+    box('shaft-wall-east-low-b', 41.6, 42.4, -3.4, 0),
     door('door-shaft-biolabs', 'door_shaft_biolabs', 'yellow', 41.6, 42.4, 0, 3.6, 0xffd23a),
-    box('shaft-wall-east-mid', 41.6, 42.4, 3.6, 8.8),
+    // Rail plate: a metal panel (cracked seams) that only a Rail-Cannon shot breaks. Opens a Bio-Labs <-> Shaft shortcut at y 4.4
+    box('shaft-wall-east-mid-a', 41.6, 42.4, 3.6, 4.4),
+    box('plate-shaft', 41.6, 42.4, 4.4, 6.6, 'wall', { breakId: 'break_plate_shaft', breakBy: 'rail', dynamic: true, color: 0x4a4f58, emissive: 0xff7a2a }),
+    box('shaft-wall-east-mid-b', 41.6, 42.4, 6.6, 8.8),
     box('shaft-wall-east-top', 41.6, 42.4, 12.4, 13.8),
     // y=0 landing: solid side ledges and a one-way centre grate
     box('shaft-ledge-west-0', 24, 29, -0.5, 0, 'catwalk'),
@@ -198,9 +215,12 @@ export function buildFacilityMap3D(): Level3D {
     platform('shaft-down-4', 27, 35, -8.8),
     // Cargo lift car (one-way, moved by the world): rests flush with the shaft floor, rises to the y=0 grate
     box('lift-car-shaft', 29.4, 32.4, -11.28, -11.0, 'platform', { color: 0x6a5a1c, emissive: 0xffb02a, dynamic: true }),
+    // Footing in front of the two crawl tunnels (one-way)
+    platform('shaft-crawl-ledge', 24.4, 27.4, -3.2),
+    platform('shaft-duct-ledge', 35, 41.6, -4.4),
     // Ascent platforms (one-way), kept on the east side
     platform('shaft-up-1', 34, 40, 2.2),
-    platform('shaft-up-2', 35, 41, 4.4),
+    platform('shaft-up-2', 35, 41.6, 4.4),
     // Upper deck at y=8.8: 4.4 m above shaft-up-2 -> Double-Jump gate
     platform('shaft-upper-grate', 28, 37, 8.8),
     box('shaft-upper-floor-east', 37, 42, 8.4, 8.8, 'catwalk'),
@@ -208,7 +228,13 @@ export function buildFacilityMap3D(): Level3D {
     platform('shaft-escape-ledge', 24.4, 28, 5.2),
 
     // ===== 3. room_mines =====
-    box('mines-wall-west', -1.5, 0, -12.2, -3.5),
+    box('mines-wall-west-a', -1.5, 0, -12.2, -8.6),
+    // Rail plate hides a pocket west of the vault (ammo expansion)
+    box('plate-mines', -1.5, 0, -8.6, -6.6, 'wall', { breakId: 'break_plate_mines', breakBy: 'rail', dynamic: true, color: 0x4a4f58, emissive: 0xff7a2a }),
+    box('mines-wall-west-b', -1.5, 0, -6.6, -3.5),
+    box('pocket-floor', -6.5, -1.5, -9.0, -8.6, 'catwalk', { color: 0x2a3542 }),
+    box('pocket-roof', -6.5, -1.5, -6.6, -6.2, 'wall', { color: 0x2a3542 }),
+    box('pocket-wall', -6.9, -6.5, -9.0, -6.2, 'wall', { color: 0x2a3542 }),
     box('mines-ceiling', 0, 24, -4.0, -3.2),
     box('mines-floor-west', 0, 9.2, -12.2, -11.0, 'catwalk', { color: 0x1d252d }),
     box('mines-floor-pit', 9.0, 16.7, -12.6, -11.4, 'catwalk', { color: 0x12261a }),
@@ -217,7 +243,14 @@ export function buildFacilityMap3D(): Level3D {
     box('mines-vault', 1.0, 10.5, -9.0, -8.6, 'catwalk', { color: 0x2a3542 }),
 
     // ===== 4. room_biolabs =====
-    box('bio-floor-west', 42, 51, -1.2, 0, 'catwalk', { color: 0x1d252d }),
+    box('bio-floor-west-a', 42, 43.2, -1.2, 0, 'catwalk', { color: 0x1d252d }),
+    // Service grate over the Service Duct (shortcut): walkable like floor, passable from below, drop through with S
+    platform('bio-service-grate', 43.2, 45.4, 0, { color: 0x3a434e }),
+    box('bio-floor-west-b', 45.4, 51, -1.2, 0, 'catwalk', { color: 0x1d252d }),
+    box('service-floor', 42.4, 46.2, -4.7, -4.4, 'catwalk', { color: 0x1d252d }),
+    box('service-wall-e', 45.4, 46.2, -4.4, -1.2, 'wall', { color: 0x2a3542 }),
+    platform('service-step', 43.4, 45.2, -2.2),
+    platform('bio-ledge-w', 42.4, 45.6, 4.4),
     box('bio-floor-basin', 50.8, 58.2, -1.5, -0.45, 'catwalk', { color: 0x12261a }),
     box('bio-floor-east', 58, 70, -1.2, 0, 'catwalk', { color: 0x1d252d }),
     platform('bio-plat-1', 46, 54, 2.2),
@@ -240,7 +273,14 @@ export function buildFacilityMap3D(): Level3D {
     }),
 
     // ===== 6. room_core =====
-    box('core-floor', 70, 98, -1.2, 0, 'catwalk', { color: 0x1c212a }),
+    box('core-floor-a', 70, 94.6, -1.2, 0, 'catwalk', { color: 0x1c212a }),
+    // Stomp floor: cracked slab over the Core Cache. A down-dash stomp breaks it.
+    box('stomp-core', 94.6, 97.4, -1.2, 0, 'catwalk', { breakId: 'break_stomp_core', breakBy: 'stomp', dynamic: true, color: 0x1c212a, emissive: 0xffb02a }),
+    box('core-floor-b', 97.4, 98, -1.2, 0, 'catwalk', { color: 0x1c212a }),
+    box('core-cache-floor', 94.2, 99.5, -3.7, -3.4, 'catwalk', { color: 0x1c212a }),
+    box('core-cache-wall-w', 93.8, 94.2, -3.7, -1.2, 'wall', { color: 0x2a3542 }),
+    box('core-cache-wall-e', 98, 99.5, -3.7, -1.2, 'wall', { color: 0x2a3542 }),
+    platform('core-cache-step', 95.0, 96.6, -1.9),
     box('core-ceiling', 70, 98, 9.6, 10.8),
     box('core-wall-east', 98, 99.5, -1.2, 10.8),
     platform('core-plat-1', 73, 79, 2.4),
@@ -279,6 +319,31 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'thruster_boots', kind: 'thruster_boots', x: 3.0, y: -8.6, z: 0 },
     { id: 'etank_mines', kind: 'energy_tank', x: 5.5, y: -8.6, z: 0 },
     { id: 'etank_biolabs', kind: 'energy_tank', x: 55.0, y: 4.5, z: 0 },
+    // Round 5 Metroid systems. The module sits in the Security Deck; the rest are backtracking rewards in earlier sectors.
+    { id: 'crawl_slide', kind: 'crawl_slide', x: 44.0, y: 8.8, z: 0 },
+    { id: 'etank_underfloor', kind: 'energy_tank', x: 4.0, y: -3.2, z: 0 },
+    { id: 'ammo_ex_mines', kind: 'ammo_expansion', x: -4.0, y: -8.6, z: 0 },
+    { id: 'ammo_ex_core', kind: 'ammo_expansion', x: 97.5, y: -3.4, z: 0 },
+  ];
+
+  const mapStations: MapStation3D[] = [
+    { id: 'map_airlock', sector: 'airlock', x: 6.4, y: 0, z: 0, radius: 1.6 },
+    { id: 'map_shaft', sector: 'shaft', x: 25.6, y: 0, z: 0, radius: 1.6 },
+    { id: 'map_mines', sector: 'mines', x: 22.8, y: -11.0, z: 0, radius: 1.6 },
+    { id: 'map_biolabs', sector: 'biolabs', x: 44.0, y: 0, z: 0, radius: 1.6 },
+    { id: 'map_security', sector: 'security', x: 47.4, y: 8.8, z: 0, radius: 1.6 },
+    { id: 'map_core', sector: 'core', x: 74.2, y: 0, z: 0, radius: 1.6 },
+  ];
+
+  const tunnels: CrawlTunnel3D[] = [
+    {
+      id: 'tun-underfloor', sector: 'airlock', purpose: 'reward', floorY: -3.2, clearance: 1.0, mouthX: 24.0, minX: 8.0, maxX: 24.4,
+      approach: { x: 26.0, y: -3.2 }, exit: { x: 4.0, y: -3.2 }, label: 'UNDERFLOOR DUCT',
+    },
+    {
+      id: 'tun-service', sector: 'shaft', purpose: 'shortcut', floorY: -4.4, clearance: 1.0, mouthX: 42.0, minX: 41.6, maxX: 42.4,
+      approach: { x: 39.0, y: -4.4 }, exit: { x: 44.3, y: -4.4 }, label: 'SERVICE DUCT',
+    },
   ];
 
   const pedestals: WeaponPedestal3D[] = [
@@ -349,7 +414,7 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'e-drop-mines-1', kind: 'crawler', x: 21.5, y: -4.85, z: 0, zone: 'mines', variant: 'dropper', surface: 'ceiling', span: [21.5, 21.5] },
     { id: 'e-drop-mines-2', kind: 'crawler', x: 6.0, y: -4.85, z: 0, zone: 'mines', variant: 'dropper', surface: 'ceiling', span: [6, 6] },
     { id: 'e-climb-mines', kind: 'crawler', x: 0.45, y: -7.0, z: 0, zone: 'mines', variant: 'climber', surface: 'wall', wallDir: 1, span: [-10.6, -5.6] },
-    { id: 'e-climb-shaft', kind: 'crawler', x: 41.15, y: 6.0, z: 0, zone: 'shaft', variant: 'climber', surface: 'wall', wallDir: -1, span: [3.9, 7.6] },
+    { id: 'e-climb-shaft', kind: 'crawler', x: 41.15, y: 6.0, z: 0, zone: 'shaft', variant: 'climber', surface: 'wall', wallDir: -1, span: [4.5, 7.6] },
     { id: 'e-drop-bio-1', kind: 'crawler', x: 44.5, y: 7.55, z: 0, zone: 'biolabs', variant: 'dropper', surface: 'ceiling', span: [44.5, 44.5] },
     { id: 'e-drop-bio-2', kind: 'crawler', x: 60.5, y: 7.55, z: 0, zone: 'biolabs', variant: 'dropper', surface: 'ceiling', span: [60.5, 60.5] },
     { id: 'e-climb-bio', kind: 'crawler', x: 52.0, y: 7.55, z: 0, zone: 'biolabs', variant: 'climber', surface: 'ceiling', span: [47, 61.5] },
@@ -426,10 +491,14 @@ export function buildFacilityMap3D(): Level3D {
     switches,
     elevators,
     collapses,
+    mapStations,
+    tunnels,
     dataLogs,
     secrets: [
       { id: 'secret_alcove', sector: 'airlock', name: 'Cryo Alcove', doorId: 'door_secret_alcove' },
       { id: 'secret_cache', sector: 'shaft', name: 'Roof Cache', doorId: 'door_secret_cache' },
+      { id: 'secret_mines_pocket', sector: 'mines', name: 'Rail Plate Pocket', doorId: 'break_plate_mines' },
+      { id: 'secret_core_cache', sector: 'core', name: 'Core Cache', doorId: 'break_stomp_core' },
     ],
   };
 }
@@ -440,6 +509,10 @@ export function buildCollider3D(level: Level3D, openDoors: ReadonlySet<string>):
     pillars: level.pillars,
     ramps: level.ramps,
     isSolidActive: (s) =>
-      (!s.doorId || !openDoors.has(s.doorId)) && (!s.collapseId || !openDoors.has(s.collapseId)) && (!s.bridgeId || openDoors.has(s.bridgeId)),
+      (!s.doorId || !openDoors.has(s.doorId)) &&
+      (!s.collapseId || !openDoors.has(s.collapseId)) &&
+      (!s.bridgeId || openDoors.has(s.bridgeId)) &&
+      (!s.breakId || !openDoors.has(s.breakId)) &&
+      (!s.sealId || openDoors.has(s.sealId)),
   };
 }
