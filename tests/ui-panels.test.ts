@@ -149,7 +149,7 @@ test('lab and revived panels are opaque so the title cannot show through', () =>
 });
 
 test('smoke test DOM ids still exist', () => {
-  for (const id of ['extras-open', 'revived-open', 'revived-close', 'lab-open', 'lab-close', 'lab-scenario', 'lab-mutation', 'extras-close', 'play', 'resume', 'volume', 'volume-p', 'minimap', 'boots-pill', 'etank-count']) {
+  for (const id of ['extras-open', 'revived-open', 'revived-close', 'lab-open', 'lab-close', 'lab-scenario', 'lab-mutation', 'extras-close', 'play', 'resume', 'volume', 'volume-p', 'minimap', 'etank-count', 'tutorial-toggle', 'coach-skip']) {
     assert.ok(dom.has(id), `#${id} missing from index.html`);
   }
 });

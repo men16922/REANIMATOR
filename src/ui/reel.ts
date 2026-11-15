@@ -141,7 +141,7 @@ const DEFS: Omit<ReelCut, 'start'>[] = [
   {
     id: 'endcard', duration: 8, target: 'endcard', flashy: false,
     caption: 'REANIMATOR',
-    sub: 'Built with Kiro · spec-driven. Abuse physics restored frame-exact, six-sector 3D metroidvania, deterministic sim, open repo. Press any key to play.',
+    sub: 'Abuse physics restored frame-exact, six-sector 3D metroidvania, deterministic sim. Press any key to play.',
   },
 ];
 

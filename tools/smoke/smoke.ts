@@ -266,7 +266,7 @@ try {
     for (let i = 0; i < 6; i++) f.push({ jump: true });
     return (window as unknown as Hook).__reanimatorAdvance(f, { x: 6, y: 0, boots: true });
   });
-  check('Thruster Boots allow a second jump and show the boots pill', dj.jumpsUsed === 2 && dj.abilities.thrusterBoots && (await page.locator('#boots-pill').isVisible()), { jumpsUsed: dj.jumpsUsed });
+  check('Thruster Boots allow a second jump (no always-on pill in the minimal HUD)', dj.jumpsUsed === 2 && dj.abilities.thrusterBoots && (await page.locator('#boots-pill').count()) === 0, { jumpsUsed: dj.jumpsUsed });
   const noBoots = await page.evaluate(() => {
     const f: Record<string, unknown>[] = [];
     for (let i = 0; i < 14; i++) f.push({ jump: true });

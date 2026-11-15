@@ -161,8 +161,8 @@ export function endingText(collectionPct: number, lang: Lang): EndingText {
 export const CREDITS_LINES: readonly Bilingual[] = [
   { en: '# REANIMATOR' },
   { en: 'A side-view 3D metroidvania' },
-  { en: '# Built with Kiro' },
-  { en: 'Specs, steering files, parallel agent tracks' },
+  { en: '# Technology' },
+  { en: 'Three.js, WebGL2, procedural audio' },
   { en: '# Restored' },
   { en: 'Movement physics of DOS Abuse 1.05, checked field by field' },
   { en: '# New design' },

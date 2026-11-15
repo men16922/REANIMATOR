@@ -2,6 +2,10 @@
 
 최종 갱신: 2026-11-15 · R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R16 (2026-11-16)
+
+- 능력 3종, 튜토리얼 모드·최소 HUD, 일시 DATA LOG 토스트, 레트로 UI, 차분해진 인트로, 릴리스용 텍스트 정리. `make check` exit 0(672/672). 요약 [R16_RETRO_TUTORIAL_UI](R16_RETRO_TUTORIAL_UI.md). 미검증: `make smoke-local`, G5 사람 플레이.
+
 ## 구현 상태
 
 - **복원(G0–G2)**: `src/engine/motion.ts`(15 Hz 설계값)가 S1·S2·S3와 sealed holdout M05에서 11개 필드 exact 일치. 브라우저 `#lab`(Restoration Lab)이 원본 로그와 엔진 재생을 나란히 보여 준다. 복원 범위는 이동 물리뿐.

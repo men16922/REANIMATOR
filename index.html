@@ -4,11 +4,11 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>REANIMATOR — Full 3D Side-View Metroidvania</title>
-    <meta name="description" content="1996 DOS physics, verified frame-exact, reborn as a full 3D side-view metroidvania. Built with Kiro." />
+    <meta name="description" content="1996 DOS physics, verified frame-exact, reborn as a full 3D side-view metroidvania." />
     <meta name="theme-color" content="#05080d" />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="REANIMATOR: a 1996 DOS shooter, reborn in full 3D" />
-    <meta property="og:description" content="Movement physics restored frame-exact from a 1996 DOS classic, then rebuilt as a full 3D side-view metroidvania. Spec-driven, built with Kiro." />
+    <meta property="og:description" content="Movement physics restored frame-exact from a 1996 DOS classic, then rebuilt as a full 3D side-view metroidvania." />
     <meta name="twitter:card" content="summary" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Cpolygon%20points='32%2C3%2058%2C18%2058%2C46%2032%2C61%206%2C46%206%2C18'%20fill='%230a0f16'%20stroke='%239aa4ae'%20stroke-width='4'/%3E%3Cpath%20d='M32%2047C16%2036%2014%2027%2014%2024C14%2016%2025%2014%2032%2024C39%2014%2050%2016%2050%2024C50%2027%2048%2036%2032%2047Z'%20fill='%23e8501a'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/src/ui/style.css" />
@@ -29,20 +29,16 @@
           <ul><li>Restoration Lab: 11 fields, 4/4 PASS with a sealed holdout</li><li>Six-sector 3D metroidvania on a deterministic 60 Hz sim</li><li>Classic View 1996 mode, Core Warden counter, Meltdown escape</li><li>github.com/men16922/REANIMATOR</li></ul>
           <em>PRESS ANY KEY TO PLAY</em>
         </div>
-        <div id="coach" hidden aria-live="polite"><span id="coach-keys"></span><span id="coach-text"></span></div>
+        <div id="coach" hidden aria-live="polite"><span id="coach-keys"></span><span id="coach-text"></span><span id="coach-skip" hidden><kbd>T</kbd> skip tutorial</span></div>
         <div id="hud" hidden>
           <div class="hud-top">
             <span class="pill hp-pill" id="hp-pill">HP <b id="hp">120</b><span class="bar bar-sm"><i id="hp-ghost"></i><i id="hp-bar"></i></span></span>
             <span class="pill pill-ability">DASH <span class="bar bar-sm"><i id="dash-bar"></i></span></span>
-            <span class="pill pill-ability">LIGHT [E] <span class="bar bar-sm"><i id="battery"></i></span></span>
+            <span class="pill pill-ability">LIGHT <span class="bar bar-sm"><i id="battery"></i></span></span>
             <span class="pill kills-pill">KILLS <b id="kills">0</b></span>
             <span class="pill combo-pill" id="combo-pill" hidden>COMBO <b id="combo-count">0</b></span>
             <span class="pill rail-pill" id="rail-pill" hidden>RAIL CHARGE <span class="bar bar-sm"><i id="rail-bar"></i></span></span>
-            <span class="pill upgrade-pill pill-ability" id="boots-pill" hidden>THRUSTER 2X</span>
-            <span class="pill upgrade-pill pill-ability" id="blast-pill" hidden>BLAST CORE</span>
-            <span class="pill upgrade-pill pill-ability" id="lens-pill" hidden>SCAN LENS</span>
-            <span class="pill upgrade-pill pill-ability" id="thermal-pill" hidden>THERMAL</span>
-            <span class="pill scan-pill pill-ability" id="scan-pill">SCAN [Z] <b id="scan-state">READY</b></span>
+            <span class="pill scan-pill pill-ability" id="scan-pill" hidden>SCAN <b id="scan-state">READY</b></span>
             <span class="pill hunter-pill" id="hunter-pill" hidden>HUNTER <b id="hunter-state">QUIET</b><span class="bar bar-xs" title="Noise you make. Hold Ctrl or Alt to sneak."><i id="hunter-noise"></i></span></span>
             <span class="pill etank-pill" id="etank-pill">E-TANK <b id="etank-count">0/2</b></span>
             <span class="pill classic-status" id="classic-status" hidden></span>
@@ -62,7 +58,7 @@
           </div>
           <div class="hud-sub">
             <span id="sector">ZONE A · CRYO BAY</span>
-            <span id="sector-hint">A/D run · W/Space jump (2x with Thruster Boots) · S drop through grate · Shift dash · Mouse 360° aim + LMB · 1-6/Q weapons · E light · F save/console · Tab map</span>
+            <span id="sector-hint"></span>
           </div>
           <div id="warden-hud" hidden>
             <span>CORE WARDEN</span>
@@ -115,7 +111,7 @@
             <p class="hint-line"><kbd>&uarr;</kbd><kbd>&darr;</kbd> select <kbd>ENTER</kbd> confirm <kbd>ESC</kbd> back &middot; keyboard and mouse on a PC required</p>
           </div>
           <footer class="credits">
-            <span class="kiro-badge">BUILT WITH KIRO &middot; Spec-driven</span>
+            <span class="credit-badge">WEBGL2 &middot; KEYBOARD + MOUSE</span>
             <span class="pitch">1996 DOS physics, verified frame-exact &middot; reborn in full 3D</span>
           </footer>
           <div id="settings-panel" class="tpanel" hidden>
@@ -143,10 +139,11 @@
             <div class="plate menu-list">
               <button id="demo-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Demo tour</button>
               <button id="showcase-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Watch showcase</button>
-              <button id="reel-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Judge Reel</button>
+              <button id="reel-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Trailer reel</button>
               <button id="title-controls-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Controls</button>
               <button id="revived-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>How it was revived</button>
               <button id="lab-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Restoration Lab</button>
+              <button id="tutorial-toggle" class="mi"><span class="mi-mark" aria-hidden="true"></span>Tutorial</button>
               <button id="intro-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Watch intro</button>
               <button id="credits-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Credits</button>
             </div>
@@ -161,7 +158,7 @@
           <div id="title-credits" class="tpanel" hidden>
             <h2>Credits</h2>
             <div class="plate credits-body">
-              <p><b>Built with Kiro.</b> Spec-driven development (<code>.kiro/specs/</code>), steering files, parallel sub-agent tracks, and browser-driven verification.</p>
+              <p><b>Technology.</b> Deterministic 60 Hz simulation, tested against recorded runs and bot playthroughs, and browser-driven verification.</p>
               <p><b>Stack.</b> TypeScript, Three.js (WebGL2), Vite, WebAudio procedural music and effects, Meshy-generated rigged models. No game engine.</p>
               <p><b>What was restored.</b> Only the movement physics of the 1996 DOS shareware <i>Abuse</i> 1.05, checked field by field against original run logs. Everything else, including the 3D side-view metroidvania, is new design. No original Abuse assets are included.</p>
             </div>
@@ -176,7 +173,7 @@
               <span><kbd>SHIFT</kbd> dash (i-frames)</span>
               <span><kbd>CTRL</kbd> sneak (slow and silent)</span>
               <span><kbd>MOUSE</kbd><kbd>LMB</kbd> aim and fire</span>
-              <span><kbd>1</kbd>-<kbd>4</kbd><kbd>Q</kbd> weapons</span>
+              <span><kbd>1</kbd>-<kbd>6</kbd><kbd>Q</kbd> weapons</span>
               <span><kbd>E</kbd> headlamp</span>
               <span><kbd>V</kbd> classic 1996 view</span>
               <span><kbd>X</kbd> counter (parry the flash)</span>
@@ -184,6 +181,7 @@
               <span><kbd>F</kbd> save / console</span>
               <span><kbd>TAB</kbd> sector map</span>
               <span><kbd>ESC</kbd> pause</span>
+              <span><kbd>T</kbd> skip tutorial prompts</span>
             </div>
             <button id="title-controls-close" class="mi back">Back</button>
           </div>
@@ -207,6 +205,7 @@
             <label><input type="checkbox" id="assist-hazard-p" /> Hazard warning</label>
           </div>
           <div id="controls-panel" hidden>
+            <p id="pause-abilities" class="hint-line"></p>
             <div class="ctrl-grid">
               <span><kbd>A</kbd><kbd>D</kbd> run</span>
               <span><kbd>W</kbd><kbd>SPACE</kbd> jump (2x with Boots)</span>
@@ -214,7 +213,7 @@
               <span><kbd>SHIFT</kbd> dash (i-frames)</span>
               <span><kbd>CTRL</kbd> sneak (slow and silent)</span>
               <span><kbd>MOUSE</kbd><kbd>LMB</kbd> aim and fire</span>
-              <span><kbd>1</kbd>-<kbd>4</kbd><kbd>Q</kbd> weapons</span>
+              <span><kbd>1</kbd>-<kbd>6</kbd><kbd>Q</kbd> weapons</span>
               <span><kbd>E</kbd> headlamp</span>
               <span><kbd>V</kbd> classic 1996 view</span>
               <span><kbd>X</kbd> counter (parry the flash)</span>
@@ -222,6 +221,7 @@
               <span><kbd>F</kbd> save / console</span>
               <span><kbd>TAB</kbd> sector map</span>
               <span><kbd>ESC</kbd> pause</span>
+              <span><kbd>T</kbd> skip tutorial prompts</span>
             </div>
             <button id="controls-close">Close</button>
           </div>

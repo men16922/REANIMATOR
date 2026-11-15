@@ -5,7 +5,7 @@ export const BRAND = {
   name: 'REANIMATOR',
   tagline: 'The reactor still burns. Reach the core. Get out.',
   pitch: '1996 DOS physics, verified frame-exact · reborn in full 3D',
-  credit: 'BUILT WITH KIRO · Spec-driven',
+  credit: 'WEBGL2 · KEYBOARD + MOUSE',
 } as const;
 
 interface Glyph {

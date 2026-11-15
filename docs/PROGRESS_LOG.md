@@ -121,3 +121,7 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 ## 2026-11-16 · R16 Metroid abilities (FEAT-002)
 
 - Three optional-route abilities added: Blast Core (blast plate, Blast Cache), Scan Lens (scan hatch, Lens Cache), Thermal Plating (heat seal, Heat Cache). Design, coordinates, reach3d impact and the two count-based test updates are in `docs/R16_METROID_ABILITIES.md`. Bot pins unchanged. Tutorial (FEAT-003) not started. Browser view unverified.
+
+## 2026-11-16 · R16 tutorial mode, minimal HUD, release text (FEAT-003)
+
+- `src/ui/tutorial.ts` (pure) plus wiring: one skippable prompt at a time, ability prompts on pickup, `T` skip, `Extras > Tutorial` replay. Default HUD no longer lists controls or skills. Player-facing text scrubbed of development-tool mentions, README rewritten as a game README. `make check` exit 0 (672/672). `make smoke-local` not run (Chrome unavailable in the sandbox). Summary: [R16_RETRO_TUTORIAL_UI](R16_RETRO_TUTORIAL_UI.md).

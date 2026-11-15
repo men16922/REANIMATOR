@@ -4,11 +4,11 @@
 
 ## 사용자 신규 요청 (다음 작업)
 
-- [ ] **Metroid-style special abilities**: add more ability gates beyond Thruster Boots (e.g. Morph-ball-like slide pass, Speed-boost-like dash run, Missile-style locks), with pickups and gated routes in `map3d.ts` and tests. Needs a design pass first.
-- [ ] **Tutorial mode**: stop showing every skill and control on screen. Teach moves one at a time in an optional tutorial mode and keep the HUD minimal.
-- [ ] **Transient DATA LOG text**: log and hint text should appear briefly when something is selected or picked up, then fade, and must not block gameplay (no modal, no input capture).
-- [ ] **Retro UI**: restyle the HUD in a more retro look (pixel font, CRT-style frames).
-- [ ] **Intro review**: the user found the intro busy. The opening is an intentional alarm set piece (red vent burst, caption lines) but it has not been judged against the "too hectic" note. Reduce overlapping effects and re-check.
+- [x] **Metroid-style special abilities**: add more ability gates beyond Thruster Boots (e.g. Morph-ball-like slide pass, Speed-boost-like dash run, Missile-style locks), with pickups and gated routes in `map3d.ts` and tests. Needs a design pass first.
+- [x] **Tutorial mode**: stop showing every skill and control on screen. Teach moves one at a time in an optional tutorial mode and keep the HUD minimal.
+- [x] **Transient DATA LOG text**: log and hint text should appear briefly when something is selected or picked up, then fade, and must not block gameplay (no modal, no input capture).
+- [x] **Retro UI**: restyle the HUD in a more retro look (pixel font, CRT-style frames).
+- [x] **Intro review**: the user found the intro busy. The opening is an intentional alarm set piece (red vent burst, caption lines) but it has not been judged against the "too hectic" note. Reduce overlapping effects and re-check.
 - [ ] Bio-Labs draws 299 calls on fresh load (limit 300): trim kit instances or merge before adding more pieces.
 
 ## R15 이후
@@ -22,7 +22,7 @@
 - [ ] **Meshy terrain upgrade**: Meshy was unreachable here (api.meshy.ai, no key), so terrain is procedural. Replace or augment with Meshy-generated terrain pieces when network and a key are available, then record them in `docs/reference/ASSET_REGISTER.md`.
 - [ ] G5 human playtest (unperformed). Judge three user notes by hand: room transition pace (42-tick walk-through, 150-tick entry grace, title card), terrain quality, and whether characters read as shapes and not only outlines.
 - [ ] Enemy running feel in human play is still unverified (handled in R13, untouched in R14).
-- [ ] `make smoke-local` on real Chrome (agent sandbox cannot launch Chrome), including showcase recapture.
+- [ ] (R16: smoke.ts updated, still not run) `make smoke-local` on real Chrome (agent sandbox cannot launch Chrome), including showcase recapture.
 - [ ] `r14/*` branches and their worktrees are for the user to clean up.
 - [ ] 푸시 대기: 사용자가 직접 실행.
 

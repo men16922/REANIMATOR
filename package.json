@@ -2,7 +2,7 @@
   "name": "reanimator",
   "private": true,
   "description": "REANIMATOR: a frame-verified restoration of Abuse (1996) movement physics, extended into a 3D side-view metroidvania built with Three.js.",
-  "keywords": ["abuse", "game-restoration", "reverse-engineering", "metroidvania", "threejs", "webgl", "typescript", "kiro", "kiroween"],
+  "keywords": ["abuse", "game-restoration", "reverse-engineering", "metroidvania", "threejs", "webgl", "typescript"],
   "license": "MIT",
   "type": "module",
   "engines": {

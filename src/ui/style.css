@@ -328,7 +328,7 @@ button.mi.back { width: auto; margin-top: 0.6em; padding-left: 1.4em; justify-co
 .hint-line { margin: 0.3em 0 0; font-size: 0.78em; letter-spacing: 0.08em; color: #b8c6d4; text-shadow: 0 1px 4px #000; }
 .hint-line kbd { font-size: 0.8em; }
 .credits { position: absolute; left: 0; right: 0; bottom: 0; height: 7.5%; z-index: 3; display: flex; align-items: center; justify-content: center; gap: 1.4em; padding: 0 1.4em; font-size: 0.8em; color: #c3ccd6; text-align: left; }
-.kiro-badge { flex: none; color: #0b0f16; background: var(--c-violet); padding: 0.18em 0.8em; font-weight: 700; letter-spacing: 0.16em; }
+.credit-badge { flex: none; color: #0b0f16; background: var(--c-violet); padding: 0.18em 0.8em; font-weight: 700; letter-spacing: 0.16em; }
 .pitch { letter-spacing: 0.1em; }
 /* While any panel is open, the title logo/menu/tagline step out of the way (class set by syncPanels in main.ts). */
 #title.covered .title-inner { visibility: hidden; }
@@ -544,3 +544,7 @@ body:not(.classic) .bar::after { content: ''; position: absolute; inset: 0; poin
 #stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 50; opacity: 0.16; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0, rgba(0, 0, 0, 0.55) 1px, transparent 1px, transparent 3px), radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.5) 100%); }
 body.reduce-fx #stage::after { opacity: 0.08; background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.55) 0, rgba(0, 0, 0, 0.55) 1px, transparent 1px, transparent 3px); }
 @media (prefers-reduced-motion: reduce) { #stage::after { opacity: 0.08; } .log-toast { transition: none; } }
+
+/* R16: tutorial skip chip inside the coach prompt */
+#coach-skip { margin-left: 0.9em; padding-left: 0.9em; border-left: 2px solid var(--c-line); font-size: 0.7em; opacity: 0.7; }
+#coach-skip[hidden] { display: none; }

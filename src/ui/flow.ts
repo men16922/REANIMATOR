@@ -136,7 +136,7 @@ export class Onboarding {
   }
 
   /** Returns the hint to show, or null. Marks hints done when the player performs the action. */
-  update(w: WorldState3D): Hint | null {
+  update(w: WorldState3D, basics = true): Hint | null {
     if (w.tick > ONBOARDING_WINDOW_TICKS || w.status !== 'playing') return null;
     const u = this.usage;
     const finish = (id: string, cond: boolean): boolean => {
@@ -206,7 +206,7 @@ export class Onboarding {
       }
     }
 
-    if (w.tick < 90) return null;
+    if (!basics || w.tick < 90) return null;
     if (!finish('move', u.moved)) return { id: 'move', keys: ['A', 'D'], text: 'RUN' };
     if (!finish('jump', u.jumped)) return { id: 'jump', keys: ['SPACE'], text: 'JUMP' };
     if (!finish('fire', u.fired)) return { id: 'fire', keys: ['MOUSE', 'LMB'], text: 'AIM AND FIRE' };

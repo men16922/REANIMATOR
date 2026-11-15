@@ -36,6 +36,7 @@ import { Attract, freshWorld, REEL_SEGMENT_SECONDS, Showcase } from './attract.t
 import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type DebugSetup3D, type DemoStop } from './demo.ts';
 import { OPENING_BEATS, OPENING_ENEMY_ID, OPENING_VENT, OpeningClock, openingView } from './opening.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, type Hint } from './flow.ts';
+import { Tutorial, TUTORIAL_STORE_KEY, parseTutorialSaved } from './tutorial.ts';
 import { initLab } from './labView.ts';
 import { createReelHost, ReelPlayer } from './reelPlayer.ts';
 import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
@@ -130,10 +131,6 @@ const ui = {
   pause: $('pause'),
   result: $('result'),
   revived: $('revived'),
-  bootsPill: $('boots-pill'),
-  blastPill: $('blast-pill'),
-  lensPill: $('lens-pill'),
-  thermalPill: $('thermal-pill'),
   etankCount: $('etank-count'),
   minimap: $<HTMLCanvasElement>('minimap'),
   minimapWrap: $('minimap-wrap'),
@@ -215,6 +212,19 @@ const onboarding = new Onboarding(((): string[] => {
   }
 })());
 let onboardingSaved = onboarding.done.size;
+/** Optional tutorial: one prompt at a time, skippable (T), replayable from Extras. First run starts on. */
+const tutorial = new Tutorial(parseTutorialSaved((() => { try { return localStorage.getItem(TUTORIAL_STORE_KEY); } catch { return null; } })()));
+let tutorialSaved = JSON.stringify(tutorial);
+function saveTutorial(): void {
+  const j = JSON.stringify(tutorial);
+  if (j === tutorialSaved) return;
+  tutorialSaved = j;
+  try { localStorage.setItem(TUTORIAL_STORE_KEY, j); } catch { /* storage unavailable */ }
+}
+function syncTutorialButton(): void {
+  const b = document.getElementById('tutorial-toggle');
+  if (b) b.textContent = tutorial.on ? 'Tutorial: ON (skip)' : 'Tutorial: OFF (replay)';
+}
 /** Per-world observation for sector cards, pickup banners and weapon-switch animation. */
 const seen = { world: null as WorldState3D | null, room: '' as string, logs: 0, secrets: 0, collected: 0, unlocked: '', weapon: 0 as number };
 let acc = 0;
@@ -296,6 +306,7 @@ function buildInput(): InputState3D {
     aimY: aim.y,
   };
   onboarding.observe(input);
+  tutorial.observe(input, world.player.body.grounded, world.player.weapon);
   return input;
 }
 
@@ -826,13 +837,15 @@ function updateCoach(): void {
     const crawler = world.enemies.find((e) => e.id === OPENING_ENEMY_ID);
     if (onboarding.usage.fired || !crawler || !crawler.alive || world.tick > 720 || mode !== 'playing') openingShoot = false;
   }
-  const hint: Hint | null = mode === 'playing' && !manualHold && !introActive ? (openingShoot ? OPENING_SHOOT_HINT : onboarding.update(world)) : null;
+  const hint: Hint | null = mode === 'playing' && !manualHold && !introActive ? (openingShoot ? OPENING_SHOOT_HINT : (onboarding.update(world, false) ?? tutorial.update(world))) : null;
   if (onboarding.done.size !== onboardingSaved) {
     onboardingSaved = onboarding.done.size;
     store(STORE.hints, JSON.stringify([...onboarding.done]));
   }
+  saveTutorial();
   const id = hint?.id ?? '';
   if (id === coachId) return;
+  $('coach-skip').hidden = !(hint && tutorial.on && !hint.id.startsWith('door') && ['move','jump','fire','weapon','dash','counter','scan','boots','blast','lens','thermal'].includes(hint.id));
   coachId = id;
   if (!hint) {
     ui.coach.hidden = true;
@@ -965,10 +978,8 @@ function hud(): void {
   const railOn = p.weapon === 4 && p.railCharge > 0;
   $('rail-pill').hidden = !railOn;
   if (railOn) $('rail-bar').style.width = `${Math.min(100, (p.railCharge / RAIL_CHARGE_TICKS) * 100)}%`;
-  ui.bootsPill.hidden = !p.abilities.thrusterBoots;
-  ui.blastPill.hidden = !p.abilities.blastCore;
-  ui.lensPill.hidden = !p.abilities.scanLens;
-  ui.thermalPill.hidden = !p.abilities.thermalPlating;
+  // Minimal HUD: acquired abilities are listed on the pause Controls page, not on screen.
+  $('scan-pill').hidden = !(p.scanTicks > 0 || p.scanCooldown > 0);
   $('scan-pill').classList.toggle('active', p.scanTicks > 0);
   $('scan-state').textContent = p.scanTicks > 0 ? 'ACTIVE' : p.scanCooldown > 0 ? `${(p.scanCooldown / 60).toFixed(0)}s` : 'READY';
   {
@@ -1382,6 +1393,11 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyF' && !e.repeat) interactQueued = true;
   if ((e.code === 'KeyX' || e.code === 'KeyC') && !e.repeat) counterQueued = true;
   if (e.code === 'KeyZ' && !e.repeat) scanQueued = true;
+  if (e.code === 'KeyT' && !e.repeat && tutorial.on) {
+    tutorial.skip();
+    saveTutorial();
+    syncTutorialButton();
+  }
   if (e.code === 'Digit1' && !e.repeat) weaponQueue = 1;
   if (e.code === 'Digit2' && !e.repeat) weaponQueue = 2;
   if (e.code === 'Digit3' && !e.repeat) weaponQueue = 3;
@@ -1453,6 +1469,13 @@ document.addEventListener('click', (e) => {
   playSound(/close|resume$|^resume$/.test(b.id) ? 'ui.back' : 'ui.select');
 });
 $('play').addEventListener('click', () => start());
+$('tutorial-toggle').addEventListener('click', () => {
+  if (tutorial.on) tutorial.skip();
+  else tutorial.replay();
+  saveTutorial();
+  syncTutorialButton();
+});
+syncTutorialButton();
 $('intro-skip').addEventListener('click', hideIntro);
 window.addEventListener('pointerdown', () => {
   hideIntro();
@@ -1496,6 +1519,9 @@ $('continue').addEventListener('click', () => {
 // Mouse hover moves the menu selection, same as the keyboard.
 for (const b of document.querySelectorAll<HTMLElement>('#title button.mi')) b.addEventListener('mouseenter', () => b.focus({ preventScroll: true }));
 $('controls-open').addEventListener('click', () => {
+  const ab = world.player.abilities;
+  const got = [ab.thrusterBoots && 'Thruster Boots (double jump)', ab.crawlSlide && 'Crawl Slide', ab.blastCore && 'Blast Core (blast plates)', ab.scanLens && 'Scan Lens (scan hatches)', ab.thermalPlating && 'Thermal Plating (heat seals)'].filter(Boolean);
+  $('pause-abilities').textContent = got.length ? `ABILITIES: ${got.join(' · ')}` : 'ABILITIES: none yet';
   ui.controlsPanel.hidden = false;
   $('controls-close').focus();
 });

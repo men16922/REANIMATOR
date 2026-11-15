@@ -81,8 +81,7 @@ test('hunter cut puts the operative in the hunter zone; warden cut has a live Wa
 test('end card text, English only, no Math.random', () => {
   const end = REEL_CUTS[REEL_CUTS.length - 1];
   const text = `${end.caption} ${end.sub}`;
-  assert.ok(text.includes('Built with Kiro'));
-  assert.ok(text.includes('spec-driven'));
+  assert.ok(text.includes('Abuse physics restored'));
   for (const c of REEL_CUTS) assert.ok(/^[\x20-\x7E·]+$/.test(`${c.caption}${c.sub}`), `${c.id} English`);
   assert.ok(!readFileSync(new URL('../src/ui/reel.ts', import.meta.url), 'utf8').includes('Math.random'));
 });
