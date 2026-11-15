@@ -146,3 +146,12 @@ test('bot playthrough: smoothed enemy yaw has no >=0.5 rad frame jump at 60 and 
     assert.ok(totalSkate / moving < 0.02, `stride ${stride} skate fraction ${totalSkate / moving}`);
   }
 });
+
+test('R13: crawler scuttle stride is constant across ground speeds (no in-place scuttling when slow)', async () => {
+  const { gaitStep } = await import('../src/render3d/enemyMotion.ts');
+  const strides = [0.45, 1, 2, 3, 4, 5, 6.1].map((v) => v / (gaitStep('crawler', v) / (2 * Math.PI)));
+  const lo = Math.min(...strides);
+  const hi = Math.max(...strides);
+  assert.ok(hi / lo < 1.05, `stride spread ${lo.toFixed(2)}..${hi.toFixed(2)} m`);
+  assert.ok(gaitStep('crawler', 6.1) / (2 * Math.PI) <= 6.5);
+});
