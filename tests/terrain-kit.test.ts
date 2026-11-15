@@ -3,13 +3,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import { TERRAIN_KIT, buildPlan, formatPlan, parseArgs, parseEnv, registerSection } from '../tools/meshy/terrain-kit.ts';
+import { RAW_TASKS, TERRAIN_KIT, buildPlan, formatPlan, parseArgs, parseEnv, registerSection } from '../tools/meshy/terrain-kit.ts';
 
 test('kit has the 11 required pieces with low poly targets', () => {
   assert.equal(TERRAIN_KIT.length, 11);
   assert.equal(new Set(TERRAIN_KIT.map((p) => p.id)).size, 11);
   for (const p of TERRAIN_KIT) {
-    assert.ok(p.targetPolycount > 0 && p.targetPolycount <= 3000, p.id);
+    assert.ok(p.targetPolycount > 0 && p.targetPolycount <= 4000, p.id);
     assert.ok(p.prompt.length > 30, p.id);
   }
 });
@@ -23,7 +23,8 @@ test('plan building and --only filter', () => {
 });
 
 test('args and env parsing', () => {
-  assert.deepEqual(parseArgs(['--dry-run', '--only', 'a,b']), { dryRun: true, only: ['a', 'b'], skipOptimize: false });
+  assert.deepEqual(parseArgs(['--dry-run', '--only', 'a,b']), { dryRun: true, only: ['a', 'b'], skipOptimize: false, ingestRaw: false });
+  assert.equal(parseArgs(['--ingest-raw']).ingestRaw, true);
   assert.equal(parseEnv('# c\nMESHY_API_KEY="abc"\n').MESHY_API_KEY, 'abc');
 });
 
@@ -43,4 +44,16 @@ test('--dry-run prints the plan without network', () => {
   });
   assert.match(out, /Terrain kit plan: 11 pieces/);
   assert.match(out, /no network/);
+});
+
+test('ingest mode has task ids for every kit piece and prompts carry shape hints', () => {
+  for (const p of TERRAIN_KIT) {
+    const t = RAW_TASKS[p.id];
+    assert.ok(t && t.previewTaskId.length === 36 && t.refineTaskId.length === 36, p.id);
+    assert.equal(p.targetPolycount, 4000, p.id);
+  }
+  const prompt = (id: string) => TERRAIN_KIT.find((p) => p.id === id)!.prompt;
+  for (const id of ['wall-panel', 'floor-grate', 'platform-edge-trim', 'timber-brace', 'security-bulkhead-frame']) assert.match(prompt(id), /flat thin/i, id);
+  for (const id of ['pipe-cluster', 'steel-girder', 'reactor-conduit']) assert.match(prompt(id), /long horizontal/i, id);
+  assert.match(prompt('support-pillar'), /tall slender/i);
 });

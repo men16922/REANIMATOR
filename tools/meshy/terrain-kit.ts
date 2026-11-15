@@ -49,20 +49,36 @@ const STYLE =
 const TEX = 'dark weathered metal, muted desaturated palette, scratches, oil stains, no bright colours';
 
 export const TERRAIN_KIT: readonly TerrainPiece[] = [
-  { id: 'wall-panel', role: 'Sci-fi wall panel', prompt: `Modular sci-fi wall panel with recessed seams, bolts and a small vent, flat rectangular slab, ${STYLE}`, texturePrompt: TEX, targetPolycount: 1500 },
-  { id: 'floor-grate', role: 'Floor grate tile', prompt: `Square metal floor grate tile with diamond-pattern openings and a thick frame, ${STYLE}`, texturePrompt: TEX, targetPolycount: 1500 },
-  { id: 'support-pillar', role: 'Support pillar', prompt: `Tall industrial support pillar with a base plate, rib collars and a capital bracket, ${STYLE}`, texturePrompt: TEX, targetPolycount: 2000 },
-  { id: 'pipe-cluster', role: 'Pipe cluster', prompt: `Cluster of three thick industrial pipes with flanges, valves and clamps, ${STYLE}`, texturePrompt: TEX, targetPolycount: 2500 },
-  { id: 'steel-girder', role: 'Steel girder', prompt: `Horizontal steel I-beam girder with rivets and cross bracing, ${STYLE}`, texturePrompt: TEX, targetPolycount: 1500 },
-  { id: 'platform-edge-trim', role: 'Platform edge trim', prompt: `Long platform edge trim strip with hazard chevron plating and a raised lip, ${STYLE}`, texturePrompt: TEX, targetPolycount: 1000 },
-  { id: 'mines-rock-chunk', role: 'Mines rock chunk', prompt: `Jagged dark cave rock chunk with ore veins and faceted edges, subterranean mine, matte stone, low poly, single object, no ground, no background`, texturePrompt: 'dark basalt rock, faint rust-orange ore veins, matte', targetPolycount: 1500 },
-  { id: 'timber-brace', role: 'Timber brace', prompt: `Old mine timber support brace, two posts and a crossbeam with iron brackets, weathered dark wood, low poly, single object, no ground, no background`, texturePrompt: 'dark weathered timber, iron brackets, dust', targetPolycount: 1200 },
-  { id: 'specimen-tank', role: 'Lab specimen tank', prompt: `Bio-lab specimen tank, cylindrical glass cylinder with steel base and cap, murky green fluid, pipes on top, ${STYLE}`, texturePrompt: `${TEX}, murky green glass`, targetPolycount: 3000 },
-  { id: 'security-bulkhead-frame', role: 'Security bulkhead frame', prompt: `Heavy security bulkhead door frame with thick armoured jambs, hazard stripes and a lock housing, open doorway, ${STYLE}`, texturePrompt: TEX, targetPolycount: 3000 },
-  { id: 'reactor-conduit', role: 'Reactor conduit', prompt: `Core reactor energy conduit, thick armoured cable trunk with glowing amber coupling rings and insulators, ${STYLE}`, texturePrompt: `${TEX}, faint amber glow in rings`, targetPolycount: 2500 },
+  { id: 'wall-panel', role: 'Sci-fi wall panel', prompt: `Modular sci-fi wall panel with recessed seams, bolts and a small vent, flat thin rectangular slab with shallow depth, ${STYLE}`, texturePrompt: TEX, targetPolycount: 4000 },
+  { id: 'floor-grate', role: 'Floor grate tile', prompt: `Flat thin square metal floor grate tile with shallow depth, diamond-pattern openings and a thick frame, ${STYLE}`, texturePrompt: TEX, targetPolycount: 4000 },
+  { id: 'support-pillar', role: 'Support pillar', prompt: `Tall slender industrial support pillar with a base plate, rib collars and a capital bracket, ${STYLE}`, texturePrompt: TEX, targetPolycount: 4000 },
+  { id: 'pipe-cluster', role: 'Pipe cluster', prompt: `Long horizontal cluster of three thick industrial pipes with flanges, valves and clamps, ${STYLE}`, texturePrompt: TEX, targetPolycount: 4000 },
+  { id: 'steel-girder', role: 'Steel girder', prompt: `Long horizontal steel I-beam girder with rivets and cross bracing, ${STYLE}`, texturePrompt: TEX, targetPolycount: 4000 },
+  { id: 'platform-edge-trim', role: 'Platform edge trim', prompt: `Flat thin long platform edge trim strip with shallow depth, with hazard chevron plating and a raised lip, ${STYLE}`, texturePrompt: TEX, targetPolycount: 4000 },
+  { id: 'mines-rock-chunk', role: 'Mines rock chunk', prompt: `Jagged dark cave rock chunk with ore veins and faceted edges, subterranean mine, matte stone, low poly, single object, no ground, no background`, texturePrompt: 'dark basalt rock, faint rust-orange ore veins, matte', targetPolycount: 4000 },
+  { id: 'timber-brace', role: 'Timber brace', prompt: `Flat thin old mine timber support brace with shallow depth, two posts and a crossbeam with iron brackets, weathered dark wood, low poly, single object, no ground, no background`, texturePrompt: 'dark weathered timber, iron brackets, dust', targetPolycount: 4000 },
+  { id: 'specimen-tank', role: 'Lab specimen tank', prompt: `Bio-lab specimen tank, cylindrical glass cylinder with steel base and cap, murky green fluid, pipes on top, ${STYLE}`, texturePrompt: `${TEX}, murky green glass`, targetPolycount: 4000 },
+  { id: 'security-bulkhead-frame', role: 'Security bulkhead frame', prompt: `Flat thin heavy security bulkhead door frame with shallow depth with thick armoured jambs, hazard stripes and a lock housing, open doorway, ${STYLE}`, texturePrompt: TEX, targetPolycount: 4000 },
+  { id: 'reactor-conduit', role: 'Reactor conduit', prompt: `Long horizontal core reactor energy conduit, thick armoured cable trunk with glowing amber coupling rings and insulators, ${STYLE}`, texturePrompt: `${TEX}, faint amber glow in rings`, targetPolycount: 4000 },
 ];
 
 export const CREDITS_PER_PIECE = 30; // conservative: preview + refine
+export const ACTUAL_CREDITS_PER_PIECE = 15; // observed: meshy-t2.5 smart topology preview 5 + refine 10
+
+// Task ids of the 11 pieces generated once (meshy-t2.5, target_polycount 4000, refine enable_pbr). Used by --ingest-raw.
+export const RAW_TASKS: Readonly<Record<string, { previewTaskId: string; refineTaskId: string }>> = {
+  'wall-panel': { previewTaskId: '01a1df76-ee0d-743c-97ae-7ec62274193b', refineTaskId: '01a1df77-50fc-7299-9593-17eabb707273' },
+  'floor-grate': { previewTaskId: '01a1df76-f008-757f-a757-ddfa54b19a1a', refineTaskId: '01a1df77-7dd5-75cc-b4c7-57fc0e5d73a9' },
+  'support-pillar': { previewTaskId: '01a1df76-f54f-7149-8e95-564c8545ebb6', refineTaskId: '01a1df77-98c3-73c8-8a61-1af0ac0a0bf2' },
+  'pipe-cluster': { previewTaskId: '01a1df76-f9e8-7240-a82b-d20a58592068', refineTaskId: '01a1df77-ad40-76ad-9e68-2c3411d2fc35' },
+  'steel-girder': { previewTaskId: '01a1df76-ffa9-721d-ab3a-e46fcf4789be', refineTaskId: '01a1df77-cd82-7344-b41b-0802b0a6a220' },
+  'platform-edge-trim': { previewTaskId: '01a1df77-05bb-757c-905a-5233be1af007', refineTaskId: '01a1df77-e6e7-767a-981c-89b5d24d3ec4' },
+  'mines-rock-chunk': { previewTaskId: '01a1df77-0ab8-744d-af6f-4e7e6a186b49', refineTaskId: '01a1df78-0373-7778-978d-a17d7bc34687' },
+  'timber-brace': { previewTaskId: '01a1df77-109a-763f-8254-73af44fbe3c6', refineTaskId: '01a1df78-24c6-72a8-b473-051bc04c4d4d' },
+  'specimen-tank': { previewTaskId: '01a1df77-16e8-74cb-ae4f-de91807d350f', refineTaskId: '01a1df78-402a-704c-bd78-a911b4a2093c' },
+  'security-bulkhead-frame': { previewTaskId: '01a1df77-1d21-7299-b62c-209f0ef332e2', refineTaskId: '01a1df78-5f7b-75a1-9800-9d0dce1acf06' },
+  'reactor-conduit': { previewTaskId: '01a1df77-4c60-7578-a6b5-a2d0aea77c7a', refineTaskId: '01a1df78-8ba6-7484-b59f-ba52285aabaf' },
+};
 
 export function buildPlan(kit: readonly TerrainPiece[] = TERRAIN_KIT, only?: string[]): PlanStep[] {
   const picked = only && only.length ? kit.filter((p) => only.includes(p.id)) : kit;
@@ -84,16 +100,18 @@ export function formatPlan(plan: PlanStep[]): string {
   return lines.join('\n');
 }
 
-export function parseArgs(argv: string[]): { dryRun: boolean; only: string[]; skipOptimize: boolean } {
+export function parseArgs(argv: string[]): { dryRun: boolean; only: string[]; skipOptimize: boolean; ingestRaw: boolean } {
   const only: string[] = [];
   let dryRun = false;
   let skipOptimize = false;
+  let ingestRaw = false;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--dry-run') dryRun = true;
     else if (argv[i] === '--skip-optimize') skipOptimize = true;
+    else if (argv[i] === '--ingest-raw') ingestRaw = true;
     else if (argv[i] === '--only' && argv[i + 1]) only.push(...argv[++i].split(','));
   }
-  return { dryRun, only, skipOptimize };
+  return { dryRun, only, skipOptimize, ingestRaw };
 }
 
 export function parseEnv(text: string): Record<string, string> {
@@ -220,12 +238,67 @@ async function optimizeOne(step: PlanStep) {
   };
 }
 
+async function finalize(plan: PlanStep[], state: KitState, save: () => void) {
+  const byId = new Map(TERRAIN_KIT.map((p) => [p.id, p]));
+  const manifest = readJson<{ schema: string; assets: Record<string, unknown>[] }>(PATHS.manifest, { schema: 'reanimator-meshy-assets-v2', assets: [] });
+  const rows: Parameters<typeof registerSection>[0] = [];
+  for (const s of plan) {
+    const st = state[s.id];
+    if (!st?.rawFile) continue;
+    const o = await optimizeOne(s);
+    st.optimized = true;
+    save();
+    const piece = byId.get(s.id)!;
+    const entry = {
+      id: `terrain/${s.id}`,
+      role: `Terrain kit: ${piece.role}`,
+      generator: 'Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify',
+      license: 'Private',
+      pose: 'none',
+      prompt: s.prompt,
+      taskId: st.refineTaskId,
+      previewTaskId: st.previewTaskId,
+      credits: ACTUAL_CREDITS_PER_PIECE,
+      targetPolycount: s.targetPolycount,
+      rawFile: s.rawFile,
+      ...o,
+      optimizedFile: s.outFile,
+    };
+    manifest.assets = manifest.assets.filter((a) => a.id !== entry.id);
+    manifest.assets.push(entry);
+    rows.push({ id: s.id, outFile: s.outFile, bytes: o.optimizedBytes, tris: o.optimizedTriangles, taskId: st.refineTaskId!, prompt: s.prompt });
+    console.log(`  ${s.id}: ${o.rawTriangles} -> ${o.optimizedTriangles} tris | ${(o.optimizedBytes / 1024).toFixed(0)} KB`);
+  }
+  manifest.schema = 'reanimator-meshy-assets-v2';
+  (manifest as Record<string, unknown>).generatedAt = new Date().toISOString();
+  writeFileSync(PATHS.manifest, JSON.stringify(manifest, null, 2) + '\n');
+
+  const reg = readFileSync(PATHS.register, 'utf8');
+  const section = registerSection(rows);
+  const re = /<!-- terrain-kit:begin -->[\s\S]*<!-- terrain-kit:end -->/;
+  writeFileSync(PATHS.register, re.test(reg) ? reg.replace(re, () => section) : `${reg.trimEnd()}\n\n${section}\n`);
+  const failed = plan.filter((s) => state[s.id]?.error).map((s) => s.id);
+  console.log(failed.length ? `Done with failures: ${failed.join(', ')} (re-run to resume).` : 'Done. Next: review GLBs, then wire into the renderer.');
+}
+
 async function run() {
   const args = parseArgs(process.argv.slice(2));
   const plan = buildPlan(TERRAIN_KIT, args.only);
   console.log(formatPlan(plan));
   if (args.dryRun) {
     console.log('\n--dry-run: no network, no files written.');
+    return;
+  }
+  if (args.ingestRaw) {
+    // Offline: read assets/meshy-raw/terrain/<id>.glb, no network, no API key, no optimize-glb.ts.
+    const ingestState: KitState = {};
+    for (const s of plan) {
+      const t = RAW_TASKS[s.id];
+      if (!t || !existsSync(join(PATHS.root, s.rawFile))) throw new Error(`raw GLB or task ids missing for ${s.id}`);
+      ingestState[s.id] = { ...t, rawFile: s.rawFile };
+    }
+    mkdirSync(PATHS.outDir, { recursive: true });
+    await finalize(plan, ingestState, () => {});
     return;
   }
   const key = process.env.MESHY_API_KEY || parseEnv(existsSync(PATHS.env) ? readFileSync(PATHS.env, 'utf8') : '').MESHY_API_KEY;
@@ -273,7 +346,7 @@ async function run() {
         const r = await api<{ result: string }>(key, '/v2/text-to-3d', {
           mode: 'refine',
           preview_task_id: st.previewTaskId,
-          enable_pbr: false,
+          enable_pbr: true,
           texture_prompt: piece.texturePrompt,
         });
         st.refineTaskId = r.result;
@@ -301,45 +374,7 @@ async function run() {
 
   if (args.skipOptimize) return console.log('--skip-optimize: stopping before optimize.');
 
-  // 4) optimize + manifest + register
-  const manifest = readJson<{ schema: string; assets: Record<string, unknown>[] }>(PATHS.manifest, { schema: 'reanimator-meshy-assets-v2', assets: [] });
-  const rows: Parameters<typeof registerSection>[0] = [];
-  for (const s of plan) {
-    const st = state[s.id];
-    if (!st?.rawFile) continue;
-    const o = await optimizeOne(s);
-    st.optimized = true;
-    save();
-    const piece = byId.get(s.id)!;
-    const entry = {
-      id: `terrain/${s.id}`,
-      role: `Terrain kit: ${piece.role}`,
-      generator: 'Meshy text-to-3D (preview + refine, no PBR), WebP 512 + weld/simplify',
-      license: 'Private',
-      pose: 'none',
-      prompt: s.prompt,
-      taskId: st.refineTaskId,
-      previewTaskId: st.previewTaskId,
-      targetPolycount: s.targetPolycount,
-      rawFile: s.rawFile,
-      ...o,
-      optimizedFile: s.outFile,
-    };
-    manifest.assets = manifest.assets.filter((a) => a.id !== entry.id);
-    manifest.assets.push(entry);
-    rows.push({ id: s.id, outFile: s.outFile, bytes: o.optimizedBytes, tris: o.optimizedTriangles, taskId: st.refineTaskId!, prompt: s.prompt });
-    console.log(`  ${s.id}: ${o.rawTriangles} -> ${o.optimizedTriangles} tris | ${(o.optimizedBytes / 1024).toFixed(0)} KB`);
-  }
-  manifest.schema = 'reanimator-meshy-assets-v2';
-  (manifest as Record<string, unknown>).generatedAt = new Date().toISOString();
-  writeFileSync(PATHS.manifest, JSON.stringify(manifest, null, 2) + '\n');
-
-  const reg = readFileSync(PATHS.register, 'utf8');
-  const section = registerSection(rows);
-  const re = /<!-- terrain-kit:begin -->[\s\S]*<!-- terrain-kit:end -->/;
-  writeFileSync(PATHS.register, re.test(reg) ? reg.replace(re, () => section) : `${reg.trimEnd()}\n\n${section}\n`);
-  const failed = plan.filter((s) => state[s.id]?.error).map((s) => s.id);
-  console.log(failed.length ? `Done with failures: ${failed.join(', ')} (re-run to resume).` : 'Done. Next: review GLBs, then wire into the renderer.');
+  await finalize(plan, state, save);
 }
 
 if (import.meta.main) {

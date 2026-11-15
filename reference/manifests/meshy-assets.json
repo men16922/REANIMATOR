@@ -1,6 +1,6 @@
 {
   "schema": "reanimator-meshy-assets-v2",
-  "generatedAt": "2026-11-14T12:31:19.329Z",
+  "generatedAt": "2026-11-15T13:52:27.488Z",
   "classification": "new-design (non-Abuse original 3D rigged & static assets)",
   "assets": [
     {
@@ -382,6 +382,380 @@
           0.114
         ]
       }
+    },
+    {
+      "id": "terrain/wall-panel",
+      "role": "Terrain kit: Sci-fi wall panel",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Modular sci-fi wall panel with recessed seams, bolts and a small vent, flat thin rectangular slab with shallow depth, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background",
+      "taskId": "01a1df77-50fc-7299-9593-17eabb707273",
+      "previewTaskId": "01a1df76-ee0d-743c-97ae-7ec62274193b",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/wall-panel.glb",
+      "rawBytes": 5803152,
+      "rawSha256": "fcb2e30f4f47a60f453d8373062b9a2e17157edad9b10caa812851f6e0e46be3",
+      "rawTriangles": 3591,
+      "optimizedBytes": 172540,
+      "optimizedSha256": "d32a5cf4d658be5beda736348127f8d6867da16d151fe332668737b1edaab577",
+      "optimizedTriangles": 3591,
+      "optimizedVertices": 3060,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.0265
+        ],
+        "max": [
+          0.5,
+          0.6463,
+          0.0265
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/wall-panel.glb"
+    },
+    {
+      "id": "terrain/floor-grate",
+      "role": "Terrain kit: Floor grate tile",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Flat thin square metal floor grate tile with shallow depth, diamond-pattern openings and a thick frame, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background",
+      "taskId": "01a1df77-7dd5-75cc-b4c7-57fc0e5d73a9",
+      "previewTaskId": "01a1df76-f008-757f-a757-ddfa54b19a1a",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/floor-grate.glb",
+      "rawBytes": 5410456,
+      "rawSha256": "26632807848761c39af115b7520a3221176c00956bc47897e32bf4d2ba37b383",
+      "rawTriangles": 4762,
+      "optimizedBytes": 235768,
+      "optimizedSha256": "d4dbe672d9e1bb1f9fa8479c84430a87ec7280473b59a42c4c46bbf2adca1c50",
+      "optimizedTriangles": 3999,
+      "optimizedVertices": 5942,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.4992
+        ],
+        "max": [
+          0.5,
+          0.0475,
+          0.4992
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/floor-grate.glb"
+    },
+    {
+      "id": "terrain/support-pillar",
+      "role": "Terrain kit: Support pillar",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Tall slender industrial support pillar with a base plate, rib collars and a capital bracket, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background",
+      "taskId": "01a1df77-98c3-73c8-8a61-1af0ac0a0bf2",
+      "previewTaskId": "01a1df76-f54f-7149-8e95-564c8545ebb6",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/support-pillar.glb",
+      "rawBytes": 3102124,
+      "rawSha256": "0882be3e2ad259c4af9ecee0a0cfe83486e2eb6cfa4dfbd17d0555d5b38c3776",
+      "rawTriangles": 3549,
+      "optimizedBytes": 171940,
+      "optimizedSha256": "9188b6040ed1f3177683e059d5bc01ab143a49163fbf05cedbe492bbd6fa4152",
+      "optimizedTriangles": 3549,
+      "optimizedVertices": 4290,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.1187,
+          0,
+          -0.1187
+        ],
+        "max": [
+          0.1187,
+          1,
+          0.1187
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/support-pillar.glb"
+    },
+    {
+      "id": "terrain/pipe-cluster",
+      "role": "Terrain kit: Pipe cluster",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Long horizontal cluster of three thick industrial pipes with flanges, valves and clamps, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background",
+      "taskId": "01a1df77-ad40-76ad-9e68-2c3411d2fc35",
+      "previewTaskId": "01a1df76-f9e8-7240-a82b-d20a58592068",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/pipe-cluster.glb",
+      "rawBytes": 6785304,
+      "rawSha256": "ce6f6939afdfa25a136a8cd6bbb952f3f5dd976bc869465d0ecc0cf7e7654a06",
+      "rawTriangles": 4119,
+      "optimizedBytes": 201664,
+      "optimizedSha256": "590d8bdcb319eee199e178e647dcc38acd7f09212bde2db19abbfb45f879c3fd",
+      "optimizedTriangles": 3999,
+      "optimizedVertices": 4614,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.212
+        ],
+        "max": [
+          0.5,
+          0.5872,
+          0.212
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/pipe-cluster.glb"
+    },
+    {
+      "id": "terrain/steel-girder",
+      "role": "Terrain kit: Steel girder",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Long horizontal steel I-beam girder with rivets and cross bracing, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background",
+      "taskId": "01a1df77-cd82-7344-b41b-0802b0a6a220",
+      "previewTaskId": "01a1df76-ffa9-721d-ab3a-e46fcf4789be",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/steel-girder.glb",
+      "rawBytes": 5254276,
+      "rawSha256": "b9492dec6efe80c99e071d23033f9d1e34ebdbb9ce49ce1a37db1d5d560cb126",
+      "rawTriangles": 3825,
+      "optimizedBytes": 211156,
+      "optimizedSha256": "5b56765248596988e66e19ae4594d6b18c677f2bb733e824f0d38a8a6416c314",
+      "optimizedTriangles": 3825,
+      "optimizedVertices": 4736,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.0953
+        ],
+        "max": [
+          0.5,
+          0.1988,
+          0.0953
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/steel-girder.glb"
+    },
+    {
+      "id": "terrain/platform-edge-trim",
+      "role": "Terrain kit: Platform edge trim",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Flat thin long platform edge trim strip with shallow depth, with hazard chevron plating and a raised lip, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background",
+      "taskId": "01a1df77-e6e7-767a-981c-89b5d24d3ec4",
+      "previewTaskId": "01a1df77-05bb-757c-905a-5233be1af007",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/platform-edge-trim.glb",
+      "rawBytes": 4660972,
+      "rawSha256": "1a6954eb9b7061aaa4788a96bc3bc57a5a19fd179d26280656ccab7688864be8",
+      "rawTriangles": 3288,
+      "optimizedBytes": 157496,
+      "optimizedSha256": "49a3dab1d859480fdf20c681db7f7ff76b1901282d8bc8eafada621b925f23b9",
+      "optimizedTriangles": 3288,
+      "optimizedVertices": 2858,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.1889
+        ],
+        "max": [
+          0.5,
+          0.0776,
+          0.1889
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/platform-edge-trim.glb"
+    },
+    {
+      "id": "terrain/mines-rock-chunk",
+      "role": "Terrain kit: Mines rock chunk",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Jagged dark cave rock chunk with ore veins and faceted edges, subterranean mine, matte stone, low poly, single object, no ground, no background",
+      "taskId": "01a1df78-0373-7778-978d-a17d7bc34687",
+      "previewTaskId": "01a1df77-0ab8-744d-af6f-4e7e6a186b49",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/mines-rock-chunk.glb",
+      "rawBytes": 6671436,
+      "rawSha256": "25bf41254a1faa51be4cf29987db64e23ebdcf944744da228818a21ea8b2e461",
+      "rawTriangles": 4210,
+      "optimizedBytes": 164420,
+      "optimizedSha256": "9cd6af3dfef818e1c30598d4ac6ba8ea5d1f55996aaf0925b5e0bf6ae5673a26",
+      "optimizedTriangles": 4000,
+      "optimizedVertices": 3343,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.4098,
+          0,
+          -0.5
+        ],
+        "max": [
+          0.4098,
+          0.7384,
+          0.5
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/mines-rock-chunk.glb"
+    },
+    {
+      "id": "terrain/timber-brace",
+      "role": "Terrain kit: Timber brace",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Flat thin old mine timber support brace with shallow depth, two posts and a crossbeam with iron brackets, weathered dark wood, low poly, single object, no ground, no background",
+      "taskId": "01a1df78-24c6-72a8-b473-051bc04c4d4d",
+      "previewTaskId": "01a1df77-109a-763f-8254-73af44fbe3c6",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/timber-brace.glb",
+      "rawBytes": 7355100,
+      "rawSha256": "51b98b5a104c63227b0819582a098f90a25e1356d992754ad842bd7a232baa4f",
+      "rawTriangles": 4178,
+      "optimizedBytes": 199072,
+      "optimizedSha256": "4de729055ebbc31446df67f0c12c801a813a48288e3815ea71de80b7bad561fa",
+      "optimizedTriangles": 4000,
+      "optimizedVertices": 4198,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.0783
+        ],
+        "max": [
+          0.5,
+          0.7307,
+          0.0783
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/timber-brace.glb"
+    },
+    {
+      "id": "terrain/specimen-tank",
+      "role": "Terrain kit: Lab specimen tank",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Bio-lab specimen tank, cylindrical glass cylinder with steel base and cap, murky green fluid, pipes on top, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background",
+      "taskId": "01a1df78-402a-704c-bd78-a911b4a2093c",
+      "previewTaskId": "01a1df77-16e8-74cb-ae4f-de91807d350f",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/specimen-tank.glb",
+      "rawBytes": 4895404,
+      "rawSha256": "b53919f9e771cd69540b4bbf24c8dcdcf4f58f1ab3c815f269fb4c9ac8296874",
+      "rawTriangles": 4113,
+      "optimizedBytes": 181132,
+      "optimizedSha256": "5a800ab5be2af87df2829d3544acaf482664bbaa894204f7bb0d3f4a6f64ae9c",
+      "optimizedTriangles": 3999,
+      "optimizedVertices": 4115,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.1572,
+          0,
+          -0.16
+        ],
+        "max": [
+          0.1572,
+          1,
+          0.16
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/specimen-tank.glb"
+    },
+    {
+      "id": "terrain/security-bulkhead-frame",
+      "role": "Terrain kit: Security bulkhead frame",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Flat thin heavy security bulkhead door frame with shallow depth with thick armoured jambs, hazard stripes and a lock housing, open doorway, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background",
+      "taskId": "01a1df78-5f7b-75a1-9800-9d0dce1acf06",
+      "previewTaskId": "01a1df77-1d21-7299-b62c-209f0ef332e2",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/security-bulkhead-frame.glb",
+      "rawBytes": 5243908,
+      "rawSha256": "9771fbd02aff7772e645b14214ea57e71d06e6c310317bf22f3e0d377b2785e5",
+      "rawTriangles": 3398,
+      "optimizedBytes": 195512,
+      "optimizedSha256": "176840caf4f9b56be2e9b32e9424fe889a13ad65f158e2b75aea58e82c59f012",
+      "optimizedTriangles": 3398,
+      "optimizedVertices": 4611,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.0745
+        ],
+        "max": [
+          0.5,
+          0.8185,
+          0.0745
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/security-bulkhead-frame.glb"
+    },
+    {
+      "id": "terrain/reactor-conduit",
+      "role": "Terrain kit: Reactor conduit",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Long horizontal core reactor energy conduit, thick armoured cable trunk with glowing amber coupling rings and insulators, dark industrial sci-fi, worn gunmetal steel, grime and rust streaks, subtle teal and amber accent details, hard-surface, game-ready low poly modular kit piece, single object, no ground, no background",
+      "taskId": "01a1df78-8ba6-7484-b59f-ba52285aabaf",
+      "previewTaskId": "01a1df77-4c60-7578-a6b5-a2d0aea77c7a",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/reactor-conduit.glb",
+      "rawBytes": 6850896,
+      "rawSha256": "8e6cc27d24441fe2a024d489706f72b2986e62f49b241dedf67bf89749976919",
+      "rawTriangles": 3816,
+      "optimizedBytes": 206920,
+      "optimizedSha256": "0bdaa99f35bdb4dc2e574a0aa4819bb79c6ee19b7342b593bb15a38d55da14de",
+      "optimizedTriangles": 3816,
+      "optimizedVertices": 4032,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.1181
+        ],
+        "max": [
+          0.5,
+          0.3235,
+          0.1181
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/reactor-conduit.glb"
     }
   ]
 }
