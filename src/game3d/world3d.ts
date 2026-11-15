@@ -498,6 +498,8 @@ export interface WorldState3D {
   meltdownTicks: number; // -1 until triggered, then 5400 -> 0
   /** Core Warden intro: ticks left (player input ignored, boss dormant). 0 = not running. */
   bossIntroTicks: number;
+  /** R12 onboarding: tick the first tutorial crawler woke (-1 until then); the follow-up hold counts from here. */
+  tutorialWakeTick: number;
   /** True once the intro has played (never replays, also not after a respawn). */
   bossIntroDone: boolean;
   player: PlayerState3D;
@@ -896,6 +898,7 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
     coreDestroyed: false,
     meltdownTicks: -1,
     bossIntroTicks: 0,
+    tutorialWakeTick: -1,
     bossIntroDone: false,
     player: {
       body,
@@ -1151,9 +1154,11 @@ function tutorialSoft(w: Readonly<WorldState3D>, e: Readonly<EnemyState3D>): boo
 }
 /** Follow-up foes wait for the first crawler to die (or a timeout) so the first fight is one-on-one. */
 function tutorialHeld(w: Readonly<WorldState3D>, e: Readonly<EnemyState3D>): boolean {
-  if (!TUTORIAL_FOLLOW_IDS.includes(e.id) || w.difficulty === 'hard' || w.tick >= TUTORIAL_HOLD_TICKS || e.hitFlashTicks > 0) return false;
+  if (!TUTORIAL_FOLLOW_IDS.includes(e.id) || w.difficulty === 'hard' || e.hitFlashTicks > 0) return false;
   const first = w.enemies.find((o) => o.id === TUTORIAL_FIRST_ID);
-  return !!first && first.alive;
+  if (!first || !first.alive) return false;
+  // The hold counts from the first crawler's wake-up (menus and the opening do not burn it); an unwoken first foe keeps them asleep
+  return w.tutorialWakeTick < 0 || w.tick - w.tutorialWakeTick < TUTORIAL_HOLD_TICKS;
 }
 function alertTicksFor(w: Readonly<WorldState3D>, e: Readonly<EnemyState3D>): number {
   return tutorialSoft(w, e) ? TUTORIAL_ALERT_TICKS : ENEMY_ALERT_TICKS_3D;
@@ -2007,6 +2012,7 @@ function stepEnemies3D(w: WorldState3D): void {
     const stats = ENEMY_STATS[e.kind];
     const isWarden = e.kind === 'warden';
 
+    if (w.tutorialWakeTick < 0 && e.id === TUTORIAL_FIRST_ID && e.active) w.tutorialWakeTick = w.tick;
     if (e.surface !== 'floor') {
       stepHanging(w, e);
       e.speedNow = Math.abs(e.vx);
@@ -2380,7 +2386,7 @@ function stepEnemies3D(w: WorldState3D): void {
             }
             // A flanker that is blocked (wall, pillar, ledge) gives up the run-around and fights from where it stands
             const crossing = flankSide !== 0 && (e.x - pb.x) * flankSide < 0.8 && e.stuckTicks < 8;
-            if (dist <= reach && Math.abs(dy) < 2.2 && e.attackCooldown === 0 && !turning && !crossing && attackSlotFree) {
+            if (dist <= reach && dy > -0.7 && dy < 2.2 && e.attackCooldown === 0 && !turning && !crossing && attackSlotFree) {
               e.facing = dirX;
               e.turnTicks = 0;
               const wt = tutorialSoft(w, e) ? TUTORIAL_WINDUP_TICKS : e.kind === 'crawler' ? 14 : 18;
@@ -2396,7 +2402,7 @@ function stepEnemies3D(w: WorldState3D): void {
               const tx = pb.x + flankSide * 3.8;
               wantVx = Math.sign(tx - e.x) * spd * 1.1;
             } else if (turning) wantVx = 0;
-            else if (e.attackCooldown > 0 && dist < 2.2) wantVx = -e.facing * spd * 0.55; // back off while the lunge recharges
+            else if (e.attackCooldown > 0 && dist < 2.2 && dy > -0.7) wantVx = -e.facing * spd * 0.55; // back off while the lunge recharges
             else if (dist > 0.95) wantVx = e.facing * spd * rage;
             if (separation !== 0 && !turning) wantVx += Math.max(-3, Math.min(3, separation));
             if (

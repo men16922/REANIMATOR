@@ -227,8 +227,8 @@ export const SHOWCASE_REEL: readonly ShowCut[] = [
   { tick: 1900, sector: 'biolabs', caption: 'Locks that need the right weapon', sub: 'Pulse, Scattergun, Grenade and Rail open different doors' },
   { tick: 3000, sector: 'security', caption: 'Classic View: press V', sub: '320x200, 256 colours, Bayer dither. Same sim, 1996 look', view: 'classic' },
   { tick: 4100, sector: 'core', caption: 'Core Warden', sub: 'Three phases, telegraphed attacks, a weak-point window', view: 'modern' },
-  { tick: 4750, sector: 'biolabs', caption: 'Meltdown: 90 seconds', sub: 'The reactor is gone. Get to the hatch.' },
-  { tick: 5400, sector: 'airlock', caption: 'Built with Kiro', sub: 'Spec-driven, steering files, parallel sub-agents. Press any key to play.' },
+  { tick: 4700, sector: 'biolabs', caption: 'Meltdown: 90 seconds', sub: 'The reactor is gone. Get to the hatch.' },
+  { tick: 5110, sector: 'airlock', caption: 'Built with Kiro', sub: 'Spec-driven, steering files, parallel sub-agents. Press any key to play.' },
 ];
 
 /** Index of the showcase cut for an elapsed time, clamped to the last cut. */

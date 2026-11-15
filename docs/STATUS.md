@@ -98,3 +98,5 @@
 
 - All game text is English: `lore.ts` KO tables, locale detection and the LOGS language toggle were removed (`pickLang` always returns `en`; `__reanimatorShowLog` unchanged). README Korean summary removed.
 - Frozen enemies: crawlers, droppers, climbers and spitters are single-mesh GLBs without bones, and their procedural gait moved only 0.05 m / 0.05 rad, which read as a frozen pose. Stalker and warden rigs were already animating (telemetry showed walk/run/attack weights). `proceduralEnemyPose` now drives a stride-locked scuttle (bob, roll, yaw swing, stretch) scaled by ground speed, plus stronger idle motion. Display only. Test: `tests/enemy-locomotion.test.ts`. Visual check in Chrome was limited to telemetry plus one screenshot, no before/after frame comparison (partly unverified).
+
+- R12 post-fix: airlock crate crawlers now drop down and engage an idle player; tutorial hold counts from e-airlock-1 wake-up. Bot Normal 5123 / HP 118. Browser check unverified.

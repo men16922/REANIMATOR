@@ -55,8 +55,9 @@ test('Normal is the identity preset and keeps the pinned bot result', () => {
   // R12 integrated (onboard softened first encounter + robust bot): 5444 / HP 140. Robust alone was 5708 / 126.
   // R12 robust bot (dodges hostile shots on the dash i-frames, counters open windows): 5708 / HP 126.
   // R12 enemy locomotion was 5522 / 95; R10 was 5533; 5362 before the Reclaimer
-  assert.equal(w.tick, 5444);
-  assert.equal(w.player.hp, 140);
+  // R12 fix (foes drop from crates, hold counts from wake-up): 5123 / HP 118. Before: 5444 / 140.
+  assert.equal(w.tick, 5123);
+  assert.equal(w.player.hp, 118);
   assert.equal(deaths, 0);
   const d = newWorld3D();
   assert.equal(d.difficulty, 'normal');
@@ -65,7 +66,7 @@ test('Normal is the identity preset and keeps the pinned bot result', () => {
 
 test('default reckless probe is unchanged on Normal', () => {
   const r = runReckless(3600);
-  assert.equal(r.hpLost, 245);
+  assert.equal(r.hpLost, 281);
   assert.equal(r.deaths, 2);
   assert.deepEqual(r, runReckless(3600, 'normal'));
 });
@@ -316,4 +317,52 @@ test('stored preferences parse safely', () => {
   assert.deepEqual(parseAssist('{"aim":true,"slow":true,"x":1}'), { aim: true, autoFire: false, slow: true, hazardWarn: false });
   assert.deepEqual(parseAssist('{oops'), { aim: false, autoFire: false, slow: false, hazardWarn: false });
   for (const d of DIFFICULTIES_3D) assert.ok(difficultyNote(d).length > 10);
+});
+
+// R12 fix: crawlers that hop onto the airlock crate must come down to an idle player, stay apart, and the tutorial hold must be real
+function idleAirlock(startTick: number, difficulty: Difficulty3D = 'normal') {
+  const w = newWorld3D({ difficulty });
+  w.player.body = spawnBody3D(7, 0, 0);
+  w.player.maxHp = w.player.hp = 100000;
+  w.tick = startTick;
+  return w;
+}
+const airlockFoes = (w: WorldState3D) => w.enemies.filter((e) => e.id === 'e-airlock-1' || e.id === 'e-airlock-2');
+
+test('crate crawlers come down to an idle player and engage, never parked on the crate', () => {
+  const w = idleAirlock(1300);
+  let onCrateRun = 0;
+  let maxOnCrateRun = 0;
+  let engaged = false;
+  let closeRun = 0;
+  let maxCloseRun = 0;
+  for (let t = 0; t < 1800; t++) {
+    stepWorld3D(w, emptyInput3D());
+    const f = airlockFoes(w).filter((e) => e.alive && e.active);
+    if (f.some((e) => e.y > 1.0 && e.state === 'chase' && e.x > 6.9 && e.x < 10.7 && Math.abs(e.y - 1.4) < 0.01)) onCrateRun++;
+    else onCrateRun = 0;
+    maxOnCrateRun = Math.max(maxOnCrateRun, onCrateRun);
+    if (f.some((e) => e.state === 'windup' || e.state === 'attack') && f.some((e) => e.y < 0.2)) engaged = true;
+    if (f.length === 2 && Math.abs(f[0].y - f[1].y) < 1 && Math.abs(f[0].x - f[1].x) < 0.6) closeRun++;
+    else closeRun = 0;
+    maxCloseRun = Math.max(maxCloseRun, closeRun);
+  }
+  assert.ok(engaged, 'a crawler reaches the player on the floor and attacks');
+  assert.ok(maxOnCrateRun < 240, `no foe sits on the crate for long (${maxOnCrateRun} ticks)`);
+  assert.ok(maxCloseRun < 180, `foes keep apart (${maxCloseRun} ticks within 0.6 m)`);
+});
+
+test('tutorial hold: the second crawler and dropper sleep while the first lives, counted from its wake-up', () => {
+  const w = idleAirlock(5000); // a late start (menus, opening) must not burn the hold
+  for (let t = 0; t < 1100; t++) {
+    stepWorld3D(w, emptyInput3D());
+    const e2 = w.enemies.find((e) => e.id === 'e-airlock-2')!;
+    const d = w.enemies.find((e) => e.id === 'e-drop-airlock')!;
+    assert.equal(e2.active, false, `e-airlock-2 asleep at hold tick ${t}`);
+    assert.equal(d.active, false);
+    assert.equal(e2.x, 18);
+  }
+  assert.ok(w.enemies.find((e) => e.id === 'e-airlock-1')!.alive);
+  for (let t = 0; t < 400; t++) stepWorld3D(w, emptyInput3D());
+  assert.equal(w.enemies.find((e) => e.id === 'e-airlock-2')!.active, true, 'released after the hold');
 });

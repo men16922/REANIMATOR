@@ -79,3 +79,10 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 ## 2026-11-15 — R12 integration
 
 - Status: merged r12/look, r12/motion, r12/onboard, r12/robust with `--no-ff`, no push, sealed files untouched. Onboard behaviour won the no-save resume conflict. `debug.stoppedOn` fixed. Re-pinned bot: Normal 5444 HP 140, Story 5812 HP 143, Hard 5121 HP 133 (min 100). SHOWCASE_REEL ticks 4750/5400. `make check` exit 0 (568/568, reach3d 52 waypoints 3432 ticks).
+
+## R12 post-fix: crate crawlers and tutorial hold
+
+- Root cause 1: floor foes lunged and backed off from the 1.4 m airlock crate at a player on the floor (the `abs(dy) < 2.2` attack gate and the back-off while the lunge recharged), so they oscillated at the crate edge in place. Foes now attack and back off only when the player is not more than 0.7 m below them; otherwise they walk off and drop down (within the existing 1.5 m ledge guard).
+- Root cause 2: the onboarding hold compared against the world tick, which keeps counting through menus and the opening, so e-airlock-2 and e-drop-airlock were already released in the browser. `tutorialWakeTick` now starts the 1200-tick hold when e-airlock-1 wakes.
+- Bot: Normal won 5123 ticks HP 118 (re-pinned, was 5444/140), Story won 5812, Hard won 5121 min HP 100. Reckless probe hpLost 281. SHOWCASE_REEL cuts 6 and 7 retimed to 4700 and 5110. reach3d PASS 52 waypoints 3432 ticks.
+- Tests: two new deterministic tests in tests/assist.test.ts. Real-time browser check: unverified (not run).
