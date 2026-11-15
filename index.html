@@ -12,6 +12,7 @@
     <meta name="twitter:card" content="summary" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Cpolygon%20points='32%2C3%2058%2C18%2058%2C46%2032%2C61%206%2C46%206%2C18'%20fill='%230a0f16'%20stroke='%239aa4ae'%20stroke-width='4'/%3E%3Cpath%20d='M32%2047C16%2036%2014%2027%2014%2024C14%2016%2025%2014%2032%2024C39%2014%2050%2016%2050%2024C50%2027%2048%2036%2032%2047Z'%20fill='%23e8501a'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/src/ui/style.css" />
+    <link rel="stylesheet" href="/src/ui/demo.css" />
   </head>
   <body>
     <main id="app">
@@ -20,6 +21,8 @@
         <div id="damage-flash" aria-hidden="true"></div>
         <div id="sector-card" hidden aria-live="polite"><span class="sc-eyebrow" id="sc-eyebrow">SECTOR 01</span><h3 id="sc-name">AIRLOCK BAY</h3><p id="sc-sub"></p></div>
         <div id="pickup-banner" hidden aria-live="polite"><span class="pb-eyebrow">ACQUIRED</span><b id="pb-title">THRUSTER BOOTS</b><span id="pb-desc"></span></div>
+        <div id="demo-badge" hidden aria-live="polite"><b>DEMO</b><span id="demo-badge-text"></span></div>
+        <div id="showcase-caption" hidden aria-live="polite"><b id="showcase-title"></b><span id="showcase-sub"></span><em>PRESS ANY KEY TO EXIT</em></div>
         <div id="coach" hidden aria-live="polite"><span id="coach-keys"></span><span id="coach-text"></span></div>
         <div id="hud" hidden>
           <div class="hud-top">
@@ -112,6 +115,8 @@
           <div id="extras-panel" class="tpanel" hidden>
             <h2>Extras</h2>
             <div class="plate menu-list">
+              <button id="demo-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Demo tour</button>
+              <button id="showcase-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Watch showcase</button>
               <button id="title-controls-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Controls</button>
               <button id="revived-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>How it was revived</button>
               <button id="lab-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Restoration Lab</button>
@@ -119,6 +124,12 @@
               <button id="credits-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Credits</button>
             </div>
             <button id="extras-close" class="mi back">Back</button>
+          </div>
+          <div id="demo-panel" class="tpanel" hidden>
+            <h2>Demo tour</h2>
+            <p class="demo-lead">Jump straight into a playable checkpoint. Esc pauses, R restarts the checkpoint.</p>
+            <div id="demo-list" class="plate menu-list demo-list" role="menu"></div>
+            <button id="demo-close" class="mi back">Back</button>
           </div>
           <div id="title-credits" class="tpanel" hidden>
             <h2>Credits</h2>

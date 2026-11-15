@@ -4,18 +4,26 @@ Setup: `npm install && npm run dev`, then open the printed URL in Chrome. Use he
 
 ## 3-minute demo script
 
+Every stop below is in `Extras` > `Demo tour`. Each one drops you into the normal play loop (not a debug mode) at a fixed, deterministic checkpoint with a small `DEMO` badge at the top. `R` restarts the checkpoint, `Esc` pauses. Menus take Up/Down, Enter and Esc.
+
 | Time | Do | What to point out |
 |---|---|---|
 | 0:00 | Load the page. Wait on the title screen about 10 s. | The title plays an attract reel of a bot playing the real game, not a pre-rendered video. Procedural music is already running (no audio files in the repo). |
-| 0:20 | `Extras` > `Restoration Lab`. | The core claim. The left side is the numeric log captured from the 1996 original. The right side is our `motion.ts` replaying the same input. 11 fields per tick match exactly on S1, S2, S3 and the sealed holdout M05. Tick the "Demo mutation" box: a wall moves 3 px and the comparator flags the first mismatch. It is a demo, not an original bug. |
-| 1:00 | Back to the menu. `Extras` > `Credits`, then back. Press `Play`. | Honest scope: only movement physics is restored. Everything else is new design. No original Abuse assets ship. |
-| 1:15 | Run right with `D`, aim with the mouse, fire with left click. Press `Shift` to dash. | 60 Hz deterministic sim, hit-stop and screen shake on kills, combo kills refund the dash. |
-| 1:35 | Press `V`. Then press `V` again. | Classic View: 320x200, 256-colour palette with Bayer dither, orthographic camera, pixel HUD. One keypress swaps the whole render path. |
-| 1:50 | Press `Tab`. | Sector map of a six-sector metroidvania with weapon-locked doors and a Thruster Boots height gate. |
-| 2:00 | Show the boss (see the shortcut below). | Core Warden: intro cinematic, telegraphed attacks, three phases, weak-point window, damage numbers. |
-| 2:40 | Open `docs/KIRO_USAGE.md` and `.kiro/specs/`. | Five specs, steering, a hook, and four parallel sub-agent rounds with browser verification. |
+| 0:15 | `Extras` > `Watch showcase`. Let it run, or press any key to leave. | One minute of captioned cuts by the same deterministic bot: "1996 physics, frame-exact", sector tour, weapon locks, Classic View, Core Warden, Meltdown. |
+| 0:25 | `Extras` > `Restoration Lab`. | The core claim. The left side is the numeric log captured from the 1996 original. The right side is our `motion.ts` replaying the same input. 11 fields per tick match exactly on S1, S2, S3 and the sealed holdout M05. Tick "Demo mutation": a wall moves 3 px and the comparator flags the first mismatch. It is a demo, not an original bug. |
+| 1:00 | `Demo tour` > `Airlock start`. Run right with `D`, aim with the mouse, fire with left click, `Shift` dashes. | 60 Hz deterministic sim, hit-stop and screen shake on kills, combo kills refund the dash. Only movement physics is restored; everything else is new design. |
+| 1:15 | `Demo tour` > `Mines: crusher and hive`. | Telegraphed crusher, vents, acid, a hive that spawns larvae. Hazards warn before they hurt. |
+| 1:30 | `Demo tour` > `Bio-Labs: switch and barrels`. | Explosive barrels chain, the gantry switch (`F`) extends a bridge, four weapons each open a different lock. |
+| 1:45 | `Demo tour` > `Security: laser grid`. | Lasers cycle on a timer; the Security Console turns them off. |
+| 1:55 | `Demo tour` > `Crawl Slide tunnel`. Hold `S` and dash. | Ability-gated shortcut: the Crawl Slide module opens a 1 m duct. |
+| 2:05 | `Demo tour` > `Core Warden: phase II`. (I and III are also listed.) | Telegraphed attacks, weak-point window, damage numbers, three phases, no cinematic needed. |
+| 2:30 | `Demo tour` > `Meltdown: collapsing bridge`, then `extraction hatch`. | 90-second timer, rubble hazards, the bridge crumbling behind you, the hatch as the win condition. |
+| 2:45 | `Demo tour` > `Classic View (press V)`. Press `V` twice. | 320x200, 256-colour palette with Bayer dither, orthographic camera, pixel HUD. One keypress swaps the whole render path. |
+| 2:55 | Open `docs/KIRO_USAGE.md` and `.kiro/specs/`. | Specs, steering, a hook, and parallel sub-agent rounds with browser verification. |
 
-**Boss shortcut.** Playing to the boss takes several minutes. After pressing `Play`, run `__reanimatorRunBot(2400)` in the browser console. This steps the deterministic bot forward to about the Core Vault entry (the tick comes from the earlier debugging checklist in `docs/archive/NEXT_PLAN_through_R3.md`). It enters the debug manual mode, which holds the live loop, so use it to show the boss state and not for live play. Say that it is a debug hook when you use it.
+**Demo tour list** (DOM ids `demo-<id>`): `airlock`, `mines`, `biolabs`, `security`, `slide`, `boss1`, `boss2`, `boss3`, `collapse`, `hatch`, `classic`. The same checkpoints are reachable from the console with `__reanimatorDemo('<id>')`. Definitions live in `src/ui/demo.ts` and `tests/demo.test.ts` checks that each one starts alive in the right sector.
+
+**README scenes.** `await __reanimatorShowcase('<name>')` builds a deterministic scene and resolves once the renderer has settled. Names: `title`, `classic`, `combat`, `boss`, `mines`, `biolabs`, `security`, `slide`, `escape`, `lab`. `tools/smoke/capture-showcase.ts` uses it to write `docs/evidence/showcase/*.png` (needs Chrome).
 
 ## Technical highlights (top 5)
 

@@ -1,0 +1,16 @@
+/* Demo tour list, DEMO badge and showcase captions (judge-facing extras). */
+
+.demo-lead { margin: 0; max-width: 34em; text-align: center; color: #b9ad9a; font-size: 0.95em; letter-spacing: 0.04em; }
+.demo-list { max-height: 54vh; overflow-y: auto; min-width: 24em; scrollbar-width: thin; scrollbar-color: #5a5148 transparent; animation: none; }
+.demo-list button.mi { font-size: 1em; letter-spacing: 0.2em; padding-top: 0.4em; padding-bottom: 0.4em; }
+.demo-list button.mi small { margin-left: auto; padding-left: 1.2em; color: #8d8072; font-size: 0.7em; letter-spacing: 0.12em; }
+
+#demo-badge { position: absolute; top: 1.2%; left: 50%; transform: translateX(-50%); z-index: 6; display: flex; align-items: center; gap: 0.7em; padding: 0.25em 0.9em 0.25em 0.3em; background: rgba(8, 9, 12, 0.82); border: 1px solid #ff9a3c; color: #f1e6d4; font-size: 0.8em; letter-spacing: 0.14em; text-transform: uppercase; pointer-events: none; }
+#demo-badge[hidden] { display: none; }
+#demo-badge b { padding: 0.15em 0.6em; background: #ff9a3c; color: #14100a; letter-spacing: 0.3em; }
+
+#showcase-caption { position: absolute; left: 0; right: 0; bottom: 9%; z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 0.35em; padding: 0 6%; text-align: center; text-shadow: 0 2px 10px #000, 0 0 2px #000; pointer-events: none; opacity: 0; }
+#showcase-caption[hidden] { display: none; }
+#showcase-caption b { font-size: 2.1em; letter-spacing: 0.16em; text-transform: uppercase; color: #ffb36b; }
+#showcase-caption span { font-size: 1.05em; letter-spacing: 0.06em; color: #f1e6d4; }
+#showcase-caption em { margin-top: 0.8em; font-style: normal; font-size: 0.7em; letter-spacing: 0.3em; color: #8d8072; }
