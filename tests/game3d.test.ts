@@ -541,6 +541,7 @@ function soloEnemy(kind: EnemyState3D['kind']): { w: WorldState3D; e: EnemyState
   const w = newWorld3D();
   const e = w.enemies.find((x) => x.kind === kind)!;
   w.enemies = [e];
+  (e as { id: string }).id = `solo-${e.id}`; // generic AI tests must not hit the R12 tutorial-encounter tuning
   w.currentRoom = e.zone;
   // These tests are about facing and pacing, not sight lines: no door stands between foe and player
   for (const s of w.level.solids) if (s.doorId) w.openDoors.add(s.doorId);
