@@ -561,6 +561,10 @@ export class FxDirector {
           case 'upgrade': this.ring(px, py + 1.0, 0.5, 1.0, 0.85, 0.3); this.burst(px, py + 1.0, 1, 0.9, 0.3, 0.5, 18, 5); break;
           case 'pickup': this.burst(px, py + 1.0, 0.4, 1, 0.8, 0.3, 8, 3); break;
           case 'win': this.trauma.add(0.5); break;
+          case 'hazard_crush': if (ev.value === 1) { this.trauma.add(0.35); this.dustAt(px, py + 0.1, 6, 4, 0); } break;
+          case 'barrel_explode': this.trauma.add(0.25); break;
+          case 'elevator_start': this.trauma.add(0.12); break;
+          case 'collapse': this.trauma.add(ev.value === 1 ? 0.45 : ev.value === 2 ? 0.3 : 0.15); break;
           case 'boss_phase': this.onBossPhase(w, ev.value ?? 2); break;
           case 'boss_exposed': this.onBossExposed(w); break;
           case 'boss_charge': this.onBossCharge(w); break;

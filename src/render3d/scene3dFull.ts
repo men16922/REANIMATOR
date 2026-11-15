@@ -44,6 +44,7 @@ import { getFacilityTextures3D } from './textures3d.ts';
 import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
 import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
 import { reactorPulse } from './mood3d.ts';
+import { buildHazards3D, type Hazards3D } from './hazards3d.ts';
 import { buildDecor3D, buildDoorDressingMeshes, SECTOR_FOG, type Decor3D } from './decor3d.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
@@ -332,6 +333,7 @@ export class Scene3DRenderer {
   private readonly pendingBatches = new Map<string, PendingBatch>();
   private readonly cullEntries: CullEntry[] = [];
   private decor: Decor3D | null = null;
+  private hazards3d: Hazards3D | null = null;
   private fogDensity = 0.012;
   private readonly presetSky = new THREE.Color(0x8bb6df);
   private readonly presetSun = new THREE.Color(0xdcebff);
@@ -739,6 +741,7 @@ export class Scene3DRenderer {
     this.rooms = w.level.rooms;
     this.secretDoorIds = new Set(w.level.secrets.map((sr) => sr.doorId));
     for (const s of w.level.solids) {
+      if (s.dynamic) continue; // drawn by hazards3d (moves or toggles at runtime)
       this.addSolidMesh(s, tex);
     }
     this.flushSolidBatches(tex);
@@ -748,6 +751,8 @@ export class Scene3DRenderer {
     this.decor = buildDecor3D(this.scene, w.level, tex);
     this.mood?.dispose();
     this.mood = buildMood3D(this.scene, w.level);
+    this.hazards3d?.dispose();
+    this.hazards3d = buildHazards3D(this.scene, w.level);
     for (const r of w.level.ramps) {
       const mat = new THREE.MeshStandardMaterial({
         map: tex.grateMap,
@@ -1591,6 +1596,7 @@ export class Scene3DRenderer {
     (this.scene.fog as THREE.FogExp2).density = this.fogDensity;
     this.decor?.update(tSec, w.player.body.x, w.player.body.y, this.reduceMotion);
     this.mood?.update(tSec, this.reduceMotion);
+    this.hazards3d?.update(w, tSec, dt, this.fx.smoke, this.reduceMotion);
     const preset = SECTOR_LIGHT[room ? room.sector : 'airlock'];
     const lk = Math.min(1, dt * 2.5);
     this.presetSky.lerp(preset.sky, lk);

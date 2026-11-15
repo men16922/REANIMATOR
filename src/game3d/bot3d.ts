@@ -2,7 +2,8 @@
 // Walks the six-sector progression (blue -> green -> Mines upgrades -> yellow -> Bio-Labs -> Security -> red -> Core -> escape)
 // by driving the real stepWorld3D. Shared by tools/game/playthrough.ts and tools/smoke/capture-showcase.ts.
 
-import { castRaySolidDistance3D, emptyInput3D, type InputState3D, type WorldState3D } from './world3d.ts';
+import { castRaySolidDistance3D, emptyInput3D, hazardNowTick3D, type InputState3D, type WorldState3D } from './world3d.ts';
+import { hazardHold } from './hazards.ts';
 import { navReached, navSteer, type NavTarget } from './nav3d.ts';
 import type { WeaponSlot3D } from './types3d.ts';
 
@@ -13,6 +14,8 @@ interface BotStep extends NavTarget {
   done?: (w: WorldState3D) => boolean;
   /** Special behaviour handlers */
   mode?: 'boss' | 'core';
+  /** Stand still on the cargo lift car until it has carried the bot to the target height */
+  ride?: boolean;
 }
 
 export interface Bot3D {
@@ -46,7 +49,7 @@ function buildSteps(w: WorldState3D): BotStep[] {
     { label: 'down 4', x: 33, y: -8.8 },
     { label: 'floor', x: 33, y: -11 },
     { label: 'scattergun', x: sc.x, y: sc.y, tolX: 0.9, tolY: 0.4, done: has(2) },
-    { label: 'green door', x: 31, y: -11, fire: { weapon: 2, aimX: 24, aimY: -9.4 }, done: door('door_shaft_mines') },
+    { label: 'green door', x: 28.5, y: -11, fire: { weapon: 2, aimX: 24, aimY: -9.4 }, done: door('door_shaft_mines') },
     { label: 'mines', x: 20, y: -11 },
     { label: 'hive mines', x: 22.5, y: -11, tolX: 0.8, done: hiveDown('hive-mines-1') },
     { label: 'save mines', x: sv('save_mines').x, y: -11, tolX: 1.0, done: (s) => s.lastSaveId === 'save_mines' },
@@ -60,14 +63,14 @@ function buildSteps(w: WorldState3D): BotStep[] {
     { label: 'stone back', x: 13, y: -9.6, leap: true },
     { label: 'mines floor', x: 18, y: -11, leap: true },
     { label: 'shaft floor', x: 33, y: -11 },
-    { label: 'up 4', x: 33, y: -8.8 },
-    { label: 'up 3', x: 33, y: -6.6 },
-    { label: 'up 2', x: 33, y: -4.4 },
-    { label: 'up 1', x: 33, y: -2.2 },
+    // Cargo lift: board the car, wait out the dwell, fight the mid-shaft ambush on the way up
+    { label: 'lift board', x: 30.9, y: -11, tolX: 0.4 },
+    { label: 'lift ride', x: 30.9, y: 0, ride: true },
     { label: 'grate back', x: 33, y: 0 },
     { label: 'yellow door', x: 36, y: 0, fire: { weapon: 3, aimX: 42, aimY: 1.9 }, done: door('door_shaft_biolabs') },
     { label: 'bio-labs', x: 46, y: 0 },
     { label: 'hive bio west', x: 43.5, y: 0, tolX: 0.8, done: hiveDown('hive-bio-1') },
+    { label: 'bio switch', x: 49.4, y: 0, tolX: 0.4, done: (s) => s.switches.some((x) => x.id === 'sw-bio-bridge' && x.on) },
     { label: 'plat 1', x: 50, y: 2.2 },
     { label: 'tank bio', x: 55, y: 4.5, tolX: 0.9, tolY: 0.4, leap: true, done: upgrade('etank_biolabs') },
     { label: 'bio grate', x: 65, y: 4.4, leap: true },
@@ -188,10 +191,31 @@ export function createBot3D(w0: WorldState3D): Bot3D {
       }
 
       const nav = navSteer(b, target, prevJump, { maxJumps });
-      prevJump = nav.jump;
       inp.moveX = nav.moveX;
       inp.jump = nav.jump;
       inp.dropDown = nav.dropDown;
+      if (step.ride) {
+        inp.moveX = 0;
+        inp.jump = false;
+        inp.dropDown = false;
+      }
+      // Cautious walker: stop short of a hazard column that will be dangerous during the crossing
+      let holding = false;
+      if (!step.mode && !step.ride && b.grounded) {
+        for (const h of w.level.hazards) {
+          // The meltdown run does not wait for falling rock: the bot trusts its dash and takes the odd hit
+          if (h.kind === 'rubble') continue;
+          if (hazardHold(h, hazardNowTick3D(w, h), b.x, b.y, inp.moveX)) {
+            holding = true;
+            break;
+          }
+        }
+      }
+      if (holding) {
+        inp.moveX = 0;
+        inp.jump = false;
+      }
+      prevJump = inp.jump;
 
       // Hop incoming shockwaves
       for (const sw of w.shockwaves) {
@@ -211,7 +235,7 @@ export function createBot3D(w0: WorldState3D): Bot3D {
       }
       // Dash long flat stretches during the meltdown run and to cross the Warden
       const flat = Math.abs(target.y - b.y) < 0.5 && Math.abs(target.x - b.x) > 9;
-      if (b.dashCooldown === 0 && b.grounded && ((w.phase === 'escape' && flat) || (step.mode === 'boss' && bossSide === 1 && Math.abs(b.x - target.x) > 6))) {
+      if (!holding && b.dashCooldown === 0 && b.grounded && ((w.phase === 'escape' && flat) || (step.mode === 'boss' && bossSide === 1 && Math.abs(b.x - target.x) > 6))) {
         inp.dash = true;
       }
 

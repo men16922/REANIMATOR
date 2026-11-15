@@ -4,6 +4,7 @@
 import { ABILITY_3D, floorHeightAt3D, stepBody3D, spawnBody3D, type Body3D } from '../../src/engine/motion3d.ts';
 import { buildCollider3D, buildFacilityMap3D, type Level3D } from '../../src/game3d/map3d.ts';
 import { navReached, navSteer, type NavTarget } from '../../src/game3d/nav3d.ts';
+import { hazardCrossHorizon, hazardHits, hazardHold, hazardSafeWindow } from '../../src/game3d/hazards.ts';
 
 export interface ReachStep extends NavTarget {
   label: string;
@@ -166,7 +167,7 @@ export function buildReachRoute(level: Level3D): ReachStep[] {
     { label: 'Scattergun', x: sc.x, y: sc.y, tolX: 0.9, tolY: 0.4 },
     { label: 'Shaft green door', x: 30, y: -11 },
     { label: 'Shaft -> Mines', x: 20, y: saveM.y, opens: ['door_shaft_mines'] },
-    { label: 'Save (Mines)', x: saveM.x, y: saveM.y, tolX: 1.2 },
+    { label: 'Save (Mines)', x: saveM.x, y: saveM.y, tolX: 1.0 },
     { label: 'Mines east edge', x: 16.9, y: -11, tolX: 0.3 },
     { label: 'Mines stone', x: 13, y: -9.6, leap: true },
     { label: 'Mines vault', x: 9.5, y: -8.6, leap: true },
@@ -190,7 +191,7 @@ export function buildReachRoute(level: Level3D): ReachStep[] {
     { label: 'Security grate', x: 65, y: 8.8 },
     { label: 'Security console', x: 55.8, y: 8.8, tolX: 0.4 },
     { label: 'Past console', x: 52, y: 8.8, leap: true },
-    { label: 'Save (Security)', x: saveS.x, y: saveS.y, tolX: 1.2 },
+    { label: 'Save (Security)', x: saveS.x, y: saveS.y, tolX: 1.0 },
     { label: 'Security grate (return)', x: 65, y: 8.8, leap: true },
     { label: 'Bio grate up (return)', x: 65, y: 4.4 },
     { label: 'Rail-Cannon', x: rl.x, y: rl.y, tolX: 0.9, tolY: 0.4 },
@@ -331,6 +332,119 @@ export function checkFoePlacement(level: Level3D): string[] {
   return problems;
 }
 
+/**
+ * Round 4 layout checks: every hazard stands on real floor with a telegraph and a safe crossing window, the crusher hangs from a
+ * real ceiling, the lift lane is clear of non-platform solids, the gantry makes the acid basin walkable, and the collapse leaves
+ * a recovery route (floor -> maint ledge -> balcony needs the Double-Jump).
+ */
+export function checkHazardLayout(level: Level3D): string[] {
+  const problems: string[] = [];
+  const col = buildCollider3D(level, new Set());
+  for (const h of level.hazards) {
+    const fy = floorHeightAt3D(h.x, 0, h.y + 0.5, 0.3, col);
+    if (!(Math.abs(fy - h.y) < 0.05)) problems.push(`${h.id}: floor ${fy} != ${h.y}`);
+    if (h.telegraph < 30) problems.push(`${h.id}: telegraph ${h.telegraph} < 30 ticks`);
+    if (hazardSafeWindow(h) < hazardCrossHorizon(h) + 20) problems.push(`${h.id}: safe window ${hazardSafeWindow(h)} too short`);
+    if (h.kind === 'crusher') {
+      const top = h.y + h.height;
+      if (!level.solids.some((s) => s.kind !== 'platform' && Math.abs(s.minY - top) < 0.05 && h.x >= s.minX && h.x <= s.maxX)) problems.push(`${h.id}: no ceiling at ${top}`);
+    }
+  }
+  for (const e of level.elevators) {
+    const car = level.solids.find((s) => s.id === e.carId);
+    if (!car) { problems.push(`${e.id}: car solid missing`); continue; }
+    const blockers = level.solids.filter(
+      (s) => s.kind !== 'platform' && s.id !== car.id && s.maxX > car.minX && s.minX < car.maxX && s.maxY > e.bottomY && s.minY < e.topY + 2,
+    );
+    for (const b of blockers) if (!(b.maxY <= e.bottomY + 0.01)) problems.push(`${e.id}: lane blocked by ${b.id}`);
+    const top = floorHeightAt3D((car.minX + car.maxX) / 2, 0, e.topY + 0.3, 0.3, col);
+    if (!(Math.abs(top - e.topY) < 0.05)) problems.push(`${e.id}: top landing ${top} != ${e.topY}`);
+  }
+  // Gantry: with the bridge down the basin is walkable at y = 0 (no acid contact), without it the floor is the sunken basin
+  const sw = level.switches[0];
+  if (sw) {
+    const down = walkTo(spawnBody3D(49.5, 0, 0), { x: 59, y: 0 }, level, new Set([sw.opens]), 1, 400);
+    if (!down.reached) problems.push('gantry: not walkable once lowered');
+  }
+  // Collapse recovery: after every segment fell, floor -> ledge -> balcony works with the Double-Jump
+  for (const c of level.collapses) {
+    const fallen = new Set(c.segmentIds.map((id) => `collapse:${id}`));
+    const climb = (maxJumps: number): boolean => {
+      let b = walkTo(spawnBody3D(15.5, 0, 0), { x: 15.5, y: 2.4, tolX: 0.6, tolY: 0.3 }, level, fallen, maxJumps, 300).body;
+      if (Math.abs(b.y - 2.4) > 0.3) return false;
+      const col = buildCollider3D(level, fallen);
+      let prevJump = false;
+      for (let t = 0; t < 400; t++) {
+        const high = b.y > 5.0;
+        const nav = navSteer(b, high ? { x: 8, y: 5.2 } : { x: 15.5, y: 8, tolX: 0.6 }, prevJump, { maxJumps });
+        prevJump = nav.jump;
+        b = stepBody3D(b, { moveX: nav.moveX, moveZ: 0, jump: nav.jump, dash: false, aimDirX: 1, aimDirZ: 0, dropDown: false, maxJumps }, col);
+        if (b.grounded && Math.abs(b.y - 5.2) < 0.1 && b.x < 13) return true;
+      }
+      return false;
+    };
+    const up = { reached: climb(2) };
+    const sealed = { reached: climb(1) };
+    if (!up.reached) problems.push(`${c.id}: no recovery route after the fall`);
+    if (sealed.reached) problems.push(`${c.id}: recovery must need the Double-Jump`);
+  }
+  return problems;
+}
+
+const HAZARD_CROSSINGS: Record<string, { from: NavTarget; via: NavTarget[] }[]> = {
+  'hz-mines-crusher': [
+    { from: { x: 23.5, y: -11 }, via: [{ x: 16.9, y: -11, tolX: 0.3 }] },
+  ],
+  'hz-mines-vent': [
+    { from: { x: 9.8, y: -8.6 }, via: [{ x: 3, y: -8.6, tolX: 0.9 }] },
+    { from: { x: 3, y: -8.6 }, via: [{ x: 9.8, y: -8.6, tolX: 0.3 }] },
+  ],
+  'hz-sec-laser': [
+    { from: { x: 65, y: 8.8 }, via: [{ x: 55.8, y: 8.8, tolX: 0.4 }] },
+    { from: { x: 55.8, y: 8.8 }, via: [{ x: 65, y: 8.8 }] },
+  ],
+  'hz-core-vent-1': [
+    { from: { x: 73, y: 0 }, via: [{ x: 87.5, y: 0, tolX: 0.8 }] },
+    { from: { x: 87.5, y: 0 }, via: [{ x: 73, y: 0 }] },
+  ],
+  'hz-core-vent-2': [
+    { from: { x: 73, y: 0 }, via: [{ x: 94, y: 0, tolX: 0.8 }] },
+    { from: { x: 94, y: 0 }, via: [{ x: 73, y: 0 }] },
+  ],
+};
+
+/** A cautious walker (the bot's hold rule) crosses every hazard with zero hits from every cycle phase, in both directions. */
+export function checkHazardRoute(level: Level3D): string[] {
+  const problems: string[] = [];
+  const doors = new Set(level.solids.filter((s) => s.doorId).map((s) => s.doorId!));
+  const col = buildCollider3D(level, doors);
+  for (const h of level.hazards) {
+    for (const cr of HAZARD_CROSSINGS[h.id] ?? []) {
+      for (let off = 0; off < h.period; off += 3) {
+        let b = spawnBody3D(cr.from.x, cr.from.y, 0);
+        let prevJump = false;
+        let hits = 0;
+        let leg = 0;
+        let done = false;
+        for (let t = 0; t < 1400 && !done; t++) {
+          const tgt = cr.via[leg];
+          if (navReached(b, tgt) && b.grounded && ++leg >= cr.via.length) { done = true; break; }
+          const nav = navSteer(b, cr.via[Math.min(leg, cr.via.length - 1)], prevJump, { maxJumps: 2 });
+          let moveX = nav.moveX;
+          let jump = nav.jump;
+          if (b.grounded && hazardHold(h, off + t, b.x, b.y, moveX)) { moveX = 0; jump = false; }
+          prevJump = jump;
+          b = stepBody3D(b, { moveX, moveZ: 0, jump, dash: false, aimDirX: 1, aimDirZ: 0, dropDown: nav.dropDown, maxJumps: 2 }, col);
+          if (hazardHits(h, off + t, b.x, b.y)) hits++;
+        }
+        if (!done) { problems.push(`${h.id}: crossing from x=${cr.from.x} never completes (offset ${off})`); break; }
+        if (hits > 0) { problems.push(`${h.id}: ${hits} hit ticks crossing from x=${cr.from.x} (offset ${off})`); break; }
+      }
+    }
+  }
+  return problems;
+}
+
 // Only run when executed directly (tests import walkTo/buildReachRoute).
 if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).href) {
   const total = runRoute();
@@ -339,6 +453,10 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   const foe = checkFoePlacement(buildFacilityMap3D());
   console.log(foe.length === 0 ? 'FOES placement (hives on floor, hangers on ceiling/wall): OK' : `FOES placement FAILED: ${foe.join('; ')}`);
   if (foe.length > 0) process.exit(1);
+  const hzLayout = checkHazardLayout(buildFacilityMap3D());
+  const hzRoute = checkHazardRoute(buildFacilityMap3D());
+  console.log(hzLayout.length + hzRoute.length === 0 ? 'HAZARDS layout, safe windows and timed crossings: OK' : `HAZARDS FAILED: ${[...hzLayout, ...hzRoute].join('; ')}`);
+  if (hzLayout.length + hzRoute.length > 0) process.exit(1);
   const n = buildReachRoute(buildFacilityMap3D()).length;
   console.log(`REACH3D PASS: ${n} waypoints, ${total} ticks (${(total / 60).toFixed(1)} s), Thruster Boots gate verified.`);
 }
