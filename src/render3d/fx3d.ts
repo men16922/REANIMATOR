@@ -3,7 +3,9 @@
 // diffs. Everything here is display-side. It reads the simulation and never writes to it, so determinism of
 // stepWorld3D is untouched. GPU upload lives in fx3dGfx.ts.
 
-import type { EnemyKind3D, WorldState3D } from '../game3d/world3d.ts';
+import { RAIL_CHARGE_TICKS } from '../game3d/world3d.ts';
+import type { EnemyKind3D, EnemyState3D, WorldState3D } from '../game3d/world3d.ts';
+import { PopupPool } from './popups3d.ts';
 
 const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
 
@@ -312,7 +314,14 @@ export class ParticlePool {
 // Director: turns world-state diffs into effects. Call observe() once per simulation tick (human play),
 // update() once per display frame.
 // ---------------------------------------------------------------------------------------------------------------
-interface EnemySeen { hp: number; alive: boolean; stamp: number }
+interface EnemySeen { hp: number; alive: boolean; stamp: number; exposed: boolean }
+
+/** Core Warden phase colours (linear HDR-ish): I cyan, II orange, III red. */
+export const BOSS_PHASE_COLORS: ReadonlyArray<readonly [number, number, number]> = [
+  [0.2, 1.0, 0.9],
+  [1.0, 0.55, 0.15],
+  [1.0, 0.14, 0.1],
+];
 interface ProjSeen { x: number; y: number; kind: string; fromPlayer: boolean; stamp: number }
 
 /** Per-kind blood/ichor colours, linear HDR-ish RGB. */
@@ -335,6 +344,12 @@ export interface FxTelemetry {
   slowmo: number;
   chroma: number;
   fovKick: number;
+  popups: number;
+  popupsSpawned: number;
+  phaseFlash: number;
+  envPulse: number;
+  deathSeq: number;
+  bossPhase: number;
 }
 
 export class FxDirector {
@@ -348,6 +363,34 @@ export class FxDirector {
   chroma = 0;
   /** Set from the "Reduce flashing" option. */
   reduce = false;
+  /** World-space number popups (damage, combo). */
+  readonly popups = new PopupPool();
+  /** Screen flash 0..1 (boss phase change / death). Decays in update(); the renderer tints the post pass. */
+  phaseFlash = 0;
+  /** Environment light pulse 0..1 after a boss phase change. */
+  envPulse = 0;
+  /** Boss phase last announced (colour of the core glow). */
+  bossPhase = 1;
+  /** Intro roar beat: shockwave ring, shake and a burst at the awakened Warden. */
+  bossRoar(x: number, y: number): void {
+    const c = BOSS_PHASE_COLORS[0];
+    this.ring(x, y, 2.2, c[0], c[1], c[2]);
+    this.ring(x, y - 0.8, 4.0, c[0] * 0.7, c[1] * 0.7, c[2] * 0.7);
+    this.burst(x, y, c[0], c[1], c[2], 1, 36, 12);
+    this.add.emit(x, y, 0.5, 0, 0, 0, 0.35, 2, 10, c[0] * 1.5, c[1] * 1.5, c[2] * 1.5, 0.7, 0, 0, 1);
+    for (let i = 0; i < 12; i++) this.dustAt(x + this.rr(-3, 3), y - 2, 1, 6, 0);
+    this.trauma.add(0.85);
+    this.chroma = Math.max(this.chroma, 0.6);
+    this.envPulse = 0.8;
+    if (!this.reduce) this.phaseFlash = Math.max(this.phaseFlash, 0.35);
+  }
+
+  /** Boss death sequence clock in display seconds, -1 when idle. */
+  deathT = -1;
+  deathX = 0;
+  deathY = 0;
+  private deathNext = 0;
+  private emitClock = 0;
 
   private seed = 0x9e3779b9;
   private lastTick = -1;
@@ -383,6 +426,11 @@ export class FxDirector {
     this.slowmo.reset();
     this.rig.reset();
     this.chroma = 0;
+    this.phaseFlash = 0;
+    this.envPulse = 0;
+    this.bossPhase = 1;
+    this.deathT = -1;
+    this.popups.clear();
     this.lastTick = -1;
     this.enemies.clear();
     this.projs.clear();
@@ -412,7 +460,7 @@ export class FxDirector {
     for (const e of w.enemies) {
       let s = this.enemies.get(e.id);
       if (!s) {
-        s = { hp: e.hp, alive: e.alive, stamp: this.stamp };
+        s = { hp: e.hp, alive: e.alive, stamp: this.stamp, exposed: e.exposedTicks > 0 };
         this.enemies.set(e.id, s);
         continue;
       }
@@ -425,8 +473,10 @@ export class FxDirector {
           this.onKill(e.kind, cx, cy, dir, px, py);
         } else if (s.alive && e.hp < s.hp) {
           this.onEnemyHit(e.kind, cx, cy, dir, s.hp - e.hp);
+          this.damagePopup(e, s.hp - e.hp, s.exposed);
         }
       }
+      s.exposed = e.exposedTicks > 0;
       s.hp = e.hp;
       s.alive = e.alive;
     }
@@ -494,6 +544,15 @@ export class FxDirector {
           case 'upgrade': this.ring(px, py + 1.0, 0.5, 1.0, 0.85, 0.3); this.burst(px, py + 1.0, 1, 0.9, 0.3, 0.5, 18, 5); break;
           case 'pickup': this.burst(px, py + 1.0, 0.4, 1, 0.8, 0.3, 8, 3); break;
           case 'win': this.trauma.add(0.5); break;
+          case 'boss_phase': this.onBossPhase(w, ev.value ?? 2); break;
+          case 'boss_exposed': this.onBossExposed(w); break;
+          case 'boss_charge': this.onBossCharge(w); break;
+          case 'boss_summon': this.onBossSummon(w); break;
+          case 'wall_jump': this.onWallJump(px, py, b.wallDir); break;
+          case 'dash_cancel': this.onDashCancel(px, py + 0.9); break;
+          case 'combo': this.onCombo(px, py, ev.value ?? 2); break;
+          case 'collect': this.onCollect(w, ev.value ?? 0, px, py); break;
+          case 'secret': this.onSecret(w); break;
           default: break;
         }
       }
@@ -504,6 +563,10 @@ export class FxDirector {
         this.trauma.add(0.06 + impact * 0.22);
         this.rig.punch(0.3 + impact * 0.6);
       }
+      // stomp landing shockwave ring
+      if (b.stompLanded) this.onStompLand(px, py);
+      // wall slide sparks (every 2nd tick)
+      if (!b.grounded && b.wallDir !== 0 && b.vy < -1.5 && (w.tick & 1) === 0) this.wallSparks(px, py + 0.9, b.wallDir);
       // dash afterimage every other tick
       if (b.state === 5 && (w.tick & 1) === 0) this.ghost(px, py + 0.92, p.facing);
       // damage taken
@@ -549,6 +612,11 @@ export class FxDirector {
         }
       }
     }
+    this.frameEmitters(dt, w);
+    this.phaseFlash = Math.max(0, this.phaseFlash - dt * 2.4);
+    this.envPulse = Math.max(0, this.envPulse - dt * 1.3);
+    if (this.deathT >= 0) this.stepDeathSeq(dt, w);
+    this.popups.update(dt);
     this.add.update(dt);
     this.alpha.update(dt);
   }
@@ -568,7 +636,266 @@ export class FxDirector {
       slowmo: r(this.slowmo.scale),
       chroma: r(this.chroma),
       fovKick: r(this.rig.fovKick),
+      popups: this.popups.count,
+      popupsSpawned: this.popups.spawned,
+      phaseFlash: r(this.phaseFlash),
+      envPulse: r(this.envPulse),
+      deathSeq: r(this.deathT),
+      bossPhase: this.bossPhase,
     };
+  }
+
+  // ---------------------------------------------------------------------------------------------------------
+  // Round 2: boss presentation and new-mechanic recipes
+  // ---------------------------------------------------------------------------------------------------------
+  private wardenOf(w: WorldState3D): EnemyState3D | null {
+    for (const e of w.enemies) if (e.kind === 'warden' && !e.minion) return e;
+    return null;
+  }
+
+  /** Number popup for an enemy hit. Small numbers for normal enemies are skipped under "Reduce flashing". */
+  private damagePopup(e: EnemyState3D, dmg: number, exposed: boolean): void {
+    const n = Math.round(dmg);
+    if (n <= 0) return;
+    const boss = e.kind === 'warden';
+    if (this.reduce && !boss) return;
+    const x = e.x + this.rr(-0.35, 0.35);
+    const y = e.y + e.height + 0.35;
+    if (boss && exposed) {
+      this.popups.spawn(String(n), x, y, { size: 1.05 + Math.min(0.5, n / 400), life: 1.0, r: 1.0, g: 0.82, b: 0.25, rise: 3.2, punch: 0.7 });
+    } else if (boss) {
+      this.popups.spawn(String(n), x, y, { size: 0.62, life: 0.8, r: 0.75, g: 0.85, b: 0.9, rise: 2.4 });
+    } else if (n >= 40) {
+      this.popups.spawn(String(n), x, y, { size: 0.62, life: 0.75, r: 1.0, g: 0.6, b: 0.2, rise: 2.6 });
+    } else {
+      this.popups.spawn(String(n), x, y, { size: 0.42, life: 0.6, r: 1.0, g: 1.0, b: 1.0, rise: 2.0, punch: 0.35 });
+    }
+  }
+
+  private onBossPhase(w: WorldState3D, ph: number): void {
+    const wd = this.wardenOf(w);
+    if (!wd) return;
+    const idx = clamp(ph, 1, 3) - 1;
+    const c = BOSS_PHASE_COLORS[idx];
+    this.bossPhase = idx + 1;
+    const x = wd.x;
+    const y = wd.y + wd.height * 0.55;
+    // armour plates tear loose: dark, heavy, spinning
+    for (let i = 0; i < 26; i++) {
+      const a = this.rr(0, Math.PI * 2);
+      const sp = this.rr(4, 13);
+      this.alpha.emit(x + this.rr(-0.6, 0.6), y + this.rr(-0.8, 0.8), 0.45, Math.cos(a) * sp, Math.sin(a) * sp + 3, this.rr(-1, 1), this.rr(0.8, 1.5), this.rr(0.18, 0.38), 0.12, 0.26, 0.24, 0.22, 1, 18, 0.25, 1, this.rr(0, 6), this.rr(-12, 12));
+    }
+    this.burst(x, y, c[0], c[1], c[2], 1, 40, 14);
+    this.add.emit(x, y, 0.5, 0, 0, 0, 0.3, 2.2, 9, c[0] * 1.5, c[1] * 1.5, c[2] * 1.5, 0.8, 0, 0, 1);
+    this.ring(x, y, 2.4, c[0], c[1], c[2]);
+    this.ring(x, y - 0.6, 4.2, c[0] * 0.8, c[1] * 0.8, c[2] * 0.8);
+    this.phaseFlash = this.reduce ? 0.12 : 1;
+    this.envPulse = 1;
+    this.trauma.add(0.9);
+    this.chroma = Math.max(this.chroma, 0.8);
+    this.rig.punch(1.6);
+    this.hitstop.request(4, true);
+    this.slowmo.request(this.reduce ? 0.6 : 0.3, this.reduce ? 0.3 : 0.55);
+  }
+
+  private onBossExposed(w: WorldState3D): void {
+    const wd = this.wardenOf(w);
+    if (!wd) return;
+    const x = wd.x;
+    const y = wd.y + wd.height * 0.62;
+    this.ring(x, y, 1.6, 1.0, 0.85, 0.3);
+    this.burst(x, y, 1.0, 0.85, 0.3, 1, 18, 8);
+    this.trauma.add(0.15);
+  }
+
+  private onBossCharge(w: WorldState3D): void {
+    const wd = this.wardenOf(w);
+    if (!wd) return;
+    this.dustAt(wd.x, wd.y + 0.05, 8, 7, -wd.chargeDir);
+    this.trauma.add(0.25);
+    this.rig.punch(0.6);
+  }
+
+  private onBossSummon(w: WorldState3D): void {
+    for (const m of w.enemies) {
+      if (!m.minion || !m.alive) continue;
+      this.ring(m.x, m.y + 1, 1.2, 0.7, 0.35, 1.0);
+      this.burst(m.x, m.y + 0.8, 0.7, 0.4, 1.0, 1, 14, 7);
+    }
+  }
+
+  private onWallJump(x: number, y: number, wallDir: number): void {
+    const side = wallDir === 0 ? 1 : wallDir;
+    this.ring(x + side * 0.4, y + 1.0, 0.7, 0.6, 0.9, 1.0);
+    for (let i = 0; i < 8; i++) {
+      this.add.emit(x + side * 0.35, y + 0.9 + this.rr(-0.5, 0.5), 0.4, -side * this.rr(2, 7), this.rr(-1, 4), 0, this.rr(0.15, 0.3), 0.14, 0.02, 0.6, 0.9, 1.5, 0.9, 6, 1.5, 4);
+    }
+    this.dustAt(x + side * 0.4, y + 0.6, 3, 2, -side);
+  }
+
+  private wallSparks(x: number, y: number, wallDir: number): void {
+    const side = wallDir > 0 ? 1 : -1;
+    for (let i = 0; i < 2; i++) {
+      this.add.emit(x + side * 0.4, y + this.rr(-0.6, 0.4), 0.4, -side * this.rr(1.2, 4), this.rr(0.5, 3), 0, this.rr(0.12, 0.28), 0.1, 0.02, 1.4, 0.9, 0.45, 0.95, 14, 1.2, 4);
+    }
+  }
+
+  private onDashCancel(x: number, y: number): void {
+    this.add.emit(x, y, 0.5, 0, 0, 0, 0.12, 0.9, 2.2, 1.2, 1.4, 1.7, 0.85, 0, 0, 1);
+    this.ring(x, y, 0.9, 0.7, 1.0, 1.0);
+    this.burst(x, y, 0.5, 1.0, 1.6, 1, 10, 9);
+    this.rig.punch(0.4);
+  }
+
+  private onStompLand(x: number, y: number): void {
+    this.ring(x, y + 0.12, 1.8, 1.0, 0.7, 0.3);
+    this.ring(x, y + 0.12, 3.2, 1.0, 0.9, 0.6);
+    // flat ground-hugging wave: stretched quads fly out along the floor
+    for (let i = 0; i < 14; i++) {
+      const dir = i % 2 === 0 ? 1 : -1;
+      this.add.emit(x, y + 0.12, 0.4, dir * this.rr(8, 15), this.rr(0, 0.6), 0, this.rr(0.18, 0.34), 0.2, 0.02, 1.3, 0.8, 0.35, 0.9, 0, 3, 5);
+    }
+    this.dustAt(x, y + 0.05, 14, 8, 0);
+    this.trauma.add(0.55);
+    this.chroma = Math.max(this.chroma, 0.35);
+    this.hitstop.request(2, true);
+  }
+
+  private onCombo(x: number, y: number, chain: number): void {
+    if (chain < 2) return;
+    const k = Math.min(1, (chain - 2) / 5);
+    this.popups.spawn(`x${chain}`, x, y + 2.5, { size: 0.7 + 0.35 * k, life: 1.0, r: 1.0, g: 0.75 - 0.4 * k, b: 0.2 - 0.1 * k, rise: 2.6, punch: 0.8 });
+    this.burst(x, y + 2.2, 1.0, 0.7, 0.2, 1, 6 + chain * 2, 5);
+  }
+
+  private onCollect(w: WorldState3D, idx: number, px: number, py: number): void {
+    const lg = w.collectibles[idx];
+    if (!lg) return;
+    // data stream: motes leave the hologram and are absorbed by the operative
+    const tx = px;
+    const ty = py + 1.1;
+    for (let i = 0; i < 22; i++) {
+      const life = this.rr(0.4, 0.8);
+      const sx = lg.x + this.rr(-0.3, 0.3);
+      const sy = lg.y + 0.7 + this.rr(-0.3, 0.4);
+      this.add.emit(sx, sy, 0.4, (tx - sx) / life + this.rr(-1.5, 1.5), (ty - sy) / life + this.rr(0, 3), 0, life, 0.14, 0.02, 0.55, 0.45, 1.6, 0.9, 0, 0, 3);
+    }
+    this.ring(lg.x, lg.y + 0.7, 0.7, 0.7, 0.45, 1.0);
+    this.trauma.add(0.05);
+  }
+
+  private onSecret(w: WorldState3D): void {
+    // debris from the most recently opened secret wall
+    const id = w.secretsFound[w.secretsFound.length - 1];
+    const sec = w.level.secrets.find((sr) => sr.id === id);
+    const door = sec ? w.level.solids.find((sl) => sl.doorId === sec.doorId) : undefined;
+    if (!door) return;
+    const cx = (door.minX + door.maxX) / 2;
+    const cy = (door.minY + door.maxY) / 2;
+    for (let i = 0; i < 24; i++) {
+      this.alpha.emit(cx + this.rr(-0.5, 0.5), cy + this.rr(-1.4, 1.4), 0.5, this.rr(-6, 6), this.rr(1, 8), this.rr(-1, 1), this.rr(0.8, 1.4), this.rr(0.14, 0.3), 0.1, 0.38, 0.34, 0.28, 1, 18, 0.3, 1, this.rr(0, 6), this.rr(-10, 10));
+    }
+    this.burst(cx, cy, 1.0, 0.85, 0.3, 1, 24, 9);
+    this.ring(cx, cy, 1.6, 1.0, 0.85, 0.3);
+    this.trauma.add(0.35);
+  }
+
+  /** Boss death: chained explosions across the body, then a white-out and the core reveal. */
+  private stepDeathSeq(dt: number, w: WorldState3D): void {
+    this.deathT += dt;
+    this.deathNext -= dt;
+    const total = 2.0;
+    if (this.deathT < total) {
+      if (this.deathNext <= 0) {
+        this.deathNext = 0.14 - 0.08 * (this.deathT / total);
+        const x = this.deathX + this.rr(-1.1, 1.1);
+        const y = this.deathY + this.rr(-1.4, 1.5);
+        const big = this.rnd() < 0.3;
+        this.add.emit(x, y, 0.5, 0, 0, 0, 0.2, 0.6, big ? 4 : 2.4, 1.6, 1.1, 0.6, 0.85, 0, 0, 1);
+        this.burst(x, y, 1.0, 0.6, 0.2, 1, big ? 22 : 12, big ? 12 : 8);
+        for (let i = 0; i < 4; i++) {
+          this.alpha.emit(x, y, 0.4, this.rr(-2, 2), this.rr(1, 4), 0, this.rr(0.6, 1.1), 0.25, 0.9, 0.22, 0.2, 0.19, 0.55, -0.4, 1.4, 1);
+        }
+        this.trauma.add(big ? 0.45 : 0.22);
+        if (big) this.ring(x, y, 1.5, 1.0, 0.6, 0.2);
+      }
+    } else {
+      const cp = w.level.corePos;
+      this.phaseFlash = this.reduce ? 0.15 : 1;
+      this.add.emit(cp.x, cp.y + 1.4, 0.5, 0, 0, 0, 0.5, 3, 14, 1.6, 1.2, 0.8, 0.9, 0, 0, 1);
+      this.ring(cp.x, cp.y + 1.4, 3, 1.0, 0.4, 0.15);
+      this.ring(this.deathX, this.deathY, 4.5, 1.0, 0.8, 0.5);
+      this.burst(cp.x, cp.y + 1.4, 1.0, 0.5, 0.2, 1, 40, 12);
+      this.trauma.add(0.8);
+      this.chroma = Math.max(this.chroma, 0.8);
+      this.deathT = -1;
+    }
+  }
+
+  /** Per-display-frame continuous emitters. Throttled to ~60/s so output does not depend on frame rate. */
+  private frameEmitters(dt: number, w: WorldState3D): void {
+    this.emitClock += dt;
+    if (this.emitClock < 1 / 60) return;
+    this.emitClock = 0;
+    const p = w.player;
+    const b = p.body;
+    const wd = this.wardenOf(w);
+    if (wd && wd.alive && wd.active) {
+      const c = BOSS_PHASE_COLORS[clamp(wd.phase, 1, 3) - 1];
+      const cy = wd.y + wd.height * 0.55;
+      const pat = wd.bossPattern;
+      if (wd.windupTicks > 0 && (pat === 'volley' || pat === 'barrage')) {
+        // charge converging on the muzzle
+        for (let i = 0; i < 2; i++) {
+          const a = this.rr(0, Math.PI * 2);
+          const r = this.rr(1.4, 2.4);
+          const life = 0.22;
+          this.add.emit(wd.x + Math.cos(a) * r, wd.y + 1.5 + Math.sin(a) * r, 0.5, -Math.cos(a) * r / life, -Math.sin(a) * r / life, 0, life, 0.14, 0.03, 1.5, 0.35, 0.2, 0.95, 0, 0, 3);
+        }
+      } else if (wd.windupTicks > 0 && pat === 'charge') {
+        // scrape sparks at the heels
+        this.add.emit(wd.x - wd.chargeDir * 0.9, wd.y + 0.1, 0.4, -wd.chargeDir * this.rr(1, 4), this.rr(1, 5), 0, this.rr(0.15, 0.3), 0.12, 0.02, 1.4, 0.8, 0.35, 0.9, 14, 1, 4);
+      } else if (wd.bossPattern === 'charge' && wd.lungeTicks > 0) {
+        for (let i = 0; i < 3; i++) {
+          this.add.emit(wd.x - wd.chargeDir * 1.0, wd.y + 0.1 + this.rr(0, 0.3), 0.4, -wd.chargeDir * this.rr(3, 10), this.rr(1, 6), this.rr(-0.5, 0.5), this.rr(0.15, 0.35), 0.14, 0.02, 1.5, 0.85, 0.35, 0.95, 16, 1, 4);
+        }
+        this.dustAt(wd.x - wd.chargeDir, wd.y + 0.05, 1, 4, -wd.chargeDir);
+      } else if (wd.windupTicks > 0 && pat === 'summon') {
+        for (const m of w.enemies) {
+          if (!m.minion || m.alive) continue;
+          const sx = clamp(wd.x + (m.id.endsWith('m1') ? -4.2 : 4.2), 73, 95.5);
+          this.add.emit(sx + this.rr(-0.8, 0.8), wd.y + 0.1, 0.4, 0, this.rr(2, 5), 0, this.rr(0.3, 0.6), 0.14, 0.02, 0.7, 0.35, 1.5, 0.9, 0, 0.5, 3);
+        }
+      }
+      if (wd.exposedTicks > 0) {
+        this.add.emit(wd.x + this.rr(-0.5, 0.5), cy + this.rr(-0.4, 0.5), 0.5, this.rr(-3, 3), this.rr(1, 6), 0, this.rr(0.2, 0.45), 0.16, 0.02, 1.6, 1.2, 0.35, 0.95, 8, 1.2, 3);
+      } else if (wd.phase >= 2 && (w.tick & 3) === 0) {
+        // ember drift from the damaged hull
+        this.add.emit(wd.x + this.rr(-0.8, 0.8), cy + this.rr(-1, 1), 0.4, this.rr(-0.5, 0.5), this.rr(0.5, 2), 0, this.rr(0.4, 0.8), 0.1, 0.01, c[0] * 1.4, c[1] * 1.4, c[2] * 1.4, 0.8, -1, 0.5, 1);
+      }
+    }
+    if (b.stomping) {
+      this.add.emit(b.x + this.rr(-0.25, 0.25), b.y + this.rr(1.0, 1.9), 0.3, 0, this.rr(4, 9), 0, 0.2, 0.2, 0.03, 1.2, 0.8, 0.4, 0.8, 0, 0, 1, Math.PI / 2, 0.0001);
+      this.add.emit(b.x, b.y + 0.4, 0.3, this.rr(-0.6, 0.6), this.rr(3, 8), 0, 0.28, 0.14, 0.02, 1.3, 0.7, 0.3, 0.8, 0, 2, 4);
+    }
+    if (p.railCharge > 0 && p.weapon === 4) {
+      const f = clamp(p.railCharge / RAIL_CHARGE_TICKS, 0, 1);
+      const cx = b.x;
+      const cy = b.y + 1.2;
+      const ax = p.aimX - cx;
+      const ay = p.aimY - cy;
+      const al = Math.hypot(ax, ay) || 1;
+      const mx = cx + (ax / al) * 1.1;
+      const my = cy + (ay / al) * 1.1;
+      const a = this.rr(0, Math.PI * 2);
+      const r = 0.5 + 0.9 * (1 - f);
+      const life = 0.14;
+      this.add.emit(mx + Math.cos(a) * r, my + Math.sin(a) * r, 0.5, -Math.cos(a) * r / life, -Math.sin(a) * r / life, 0, life, 0.1 + 0.1 * f, 0.02, 0.9, 0.4, 1.7, 0.9, 0, 0, 3);
+      this.add.emit(mx, my, 0.5, 0, 0, 0, 0.07, 0.18 + 0.7 * f, 0.12 + 0.7 * f, 0.9 + f, 0.4 + f * 0.3, 1.7, 0.35 + 0.5 * f, 0, 0, 1);
+      if (f >= 1 && (w.tick & 3) === 0) this.ring(mx, my, 0.5, 0.9, 0.5, 1.0);
+    }
+    if (w.coreDestroyed && w.meltdownTicks > 0 && !this.reduce && this.trauma.value < 0.1) this.trauma.add(0.012);
   }
 
   // ---------------------------------------------------------------------------------------------------------
@@ -610,7 +937,13 @@ export class FxDirector {
     this.chroma = Math.max(this.chroma, boss ? 0.9 : 0.35);
     this.rig.punch(boss ? 2 : 0.5);
     this.hitstop.request(boss ? 6 : 4, true);
-    if (boss) this.slowmo.request(0.25, 0.85);
+    if (boss) {
+      this.slowmo.request(0.25, 0.85);
+      this.deathT = 0;
+      this.deathNext = 0;
+      this.deathX = x;
+      this.deathY = y;
+    }
     else if (kind === 'stalker') this.slowmo.request(0.55, 0.14);
   }
 
@@ -784,10 +1117,12 @@ export interface PostParams {
   lowHp: number;
   /** 0..1 red pulse envelope. */
   pulse: number;
+  /** Additive screen flash (boss phase change, death, meltdown siren). */
+  flash: [number, number, number];
 }
 
 export function createPostParams(): PostParams {
-  return { gain: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.45, grain: 0.035, chroma: 0, lowHp: 0, pulse: 0 };
+  return { gain: [1, 1, 1], lift: [0, 0, 0], sat: 1, contrast: 1, vignette: 0.45, grain: 0.035, chroma: 0, lowHp: 0, pulse: 0, flash: [0, 0, 0] };
 }
 
 /** Ease `p` toward the sector grade and refresh per-frame terms. In place, no allocation. */

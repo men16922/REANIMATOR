@@ -9,11 +9,14 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { createPostParams, FxDirector, stepPostParams } from './fx3d.ts';
+import { BOSS_PHASE_COLORS, createPostParams, FxDirector, stepPostParams } from './fx3d.ts';
+import { BossTelegraph3D } from './bossTelegraph3d.ts';
+import { BossIntroOverlay, introState, type IntroState } from './cinematic3d.ts';
+import { PopupLayer } from './popups3d.ts';
 import { applyPostParams, createPostPass, ParticleLayer } from './fx3dGfx.ts';
 import type { SectorId3D } from '../game3d/types3d.ts';
 import type { MapSolid3D, Ramp3D, WeaponSlot3D } from '../game3d/map3d.ts';
-import { getPlayerPose3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
+import { getPlayerPose3D, skipBossIntro3D, type ActorAnimAction, type WorldState3D } from '../game3d/world3d.ts';
 import {
   applyEnemyRim3D,
   flashMaterials3D,
@@ -165,6 +168,57 @@ function makeSoftDecalTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(c);
 }
 
+/** Procedural cracked-stone wall for secret rooms: dark fissures plus a faint amber glow leaking through. Deterministic. */
+function makeCrackedWallTextures(w: number, h: number): { color: THREE.CanvasTexture; glow: THREE.CanvasTexture } {
+  const W = 128;
+  const H = Math.max(128, Math.min(512, Math.round((128 * h) / Math.max(0.5, w))));
+  const mk = (): [HTMLCanvasElement, CanvasRenderingContext2D] => {
+    const c = document.createElement('canvas');
+    c.width = W;
+    c.height = H;
+    return [c, c.getContext('2d')!];
+  };
+  const [cc, cg] = mk();
+  const [gc, gg] = mk();
+  cg.fillStyle = '#6f675e';
+  cg.fillRect(0, 0, W, H);
+  let seed = 1234567;
+  const rnd = (): number => ((seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296);
+  for (let i = 0; i < 260; i++) {
+    const v = 90 + Math.floor(rnd() * 50);
+    cg.fillStyle = `rgba(${v},${v - 4},${v - 10},0.35)`;
+    cg.fillRect(rnd() * W, rnd() * H, 2 + rnd() * 10, 2 + rnd() * 6);
+  }
+  gg.fillStyle = '#000';
+  gg.fillRect(0, 0, W, H);
+  for (let k = 0; k < 5; k++) {
+    let x = rnd() * W;
+    let y = rnd() * H * 0.2;
+    const pts: [number, number][] = [[x, y]];
+    while (y < H) {
+      x += (rnd() - 0.5) * 26;
+      y += 8 + rnd() * 16;
+      pts.push([x, y]);
+    }
+    for (const [ctx, col, wd] of [[cg, '#17120e', 3.2], [gg, '#ffb02e', 1.6]] as const) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = wd;
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (const q of pts) ctx.lineTo(q[0], q[1]);
+      ctx.stroke();
+    }
+  }
+  const color = new THREE.CanvasTexture(cc);
+  color.colorSpace = THREE.SRGBColorSpace;
+  return { color, glow: new THREE.CanvasTexture(gc) };
+}
+
+const _MELT_BG = new THREE.Color(0x3a0508);
+const _MELT_RED = new THREE.Color(0xff2a2a);
+const _PHASE_TMP = new THREE.Color();
+const BOSS_PHASE_HEX = [0x33ffe0, 0xff8c26, 0xff2418] as const;
+
 function wrapAngle(d: number): number {
   while (d > Math.PI) d -= Math.PI * 2;
   while (d < -Math.PI) d += Math.PI * 2;
@@ -210,6 +264,17 @@ export class Scene3DRenderer {
   private readonly laserLine: THREE.Line;
   private readonly laserGeom: THREE.BufferGeometry;
   private readonly reticleGroup = new THREE.Group();
+
+  private readonly bossTele = new BossTelegraph3D();
+  private readonly popupLayer: PopupLayer;
+  private readonly introOverlay = new BossIntroOverlay(() => this.renderer.domElement.parentElement);
+  private introSkipPending = false;
+  private introRoared = false;
+  private introPan = 0;
+  private introZoom = 0;
+  private introAwake = 0;
+  private introLast: IntroState = introState(0);
+  private secretDoorIds = new Set<string>();
 
   private operativeRig: RiggedInstance | null = null;
   private wardenTelegraphRing: THREE.Mesh;
@@ -413,6 +478,12 @@ export class Scene3DRenderer {
     this.fxAlpha = new ParticleLayer(this.fx.alpha, false, true);
     this.scene.add(this.fxAlpha.mesh);
     this.scene.add(this.fxAdd.mesh);
+    this.scene.add(this.bossTele.group);
+    this.popupLayer = new PopupLayer(this.fx.popups);
+    this.scene.add(this.popupLayer.mesh);
+    window.addEventListener('keydown', (ev) => {
+      if (ev.code === 'Enter' || ev.code === 'Escape' || ev.code === 'NumpadEnter') this.introSkipPending = true;
+    });
 
     void preloadAllModels3D().then((res) => {
       this.modelsReady = res.loaded.length > 0;
@@ -479,6 +550,14 @@ export class Scene3DRenderer {
       triangles: this.renderer.info.render.triangles,
       perf: this.getPerfTelemetry(),
       fx: this.fx.telemetry(),
+      cinematic: {
+        active: this.introLast.bars > 0,
+        pan: r3(this.introPan),
+        zoom: r3(this.introZoom),
+        awake: r3(this.introAwake),
+        title: r3(this.introLast.title),
+        roared: this.introLast.roared,
+      },
     };
   }
 
@@ -566,6 +645,7 @@ export class Scene3DRenderer {
 
     // Build static geometry: floors, walls, catwalks, ramps, pillars, acid pools
     this.rooms = w.level.rooms;
+    this.secretDoorIds = new Set(w.level.secrets.map((sr) => sr.doorId));
     for (const s of w.level.solids) {
       this.addSolidMesh(s, tex);
     }
@@ -775,6 +855,18 @@ export class Scene3DRenderer {
         bump.needsUpdate = true;
         mat = new THREE.MeshStandardMaterial({ map, bumpMap: bump, bumpScale: 0.04, roughness: 0.55, metalness: 0.45 });
       }
+    } else if (s.kind === 'door' && s.doorId && this.secretDoorIds.has(s.doorId)) {
+      const ct = makeCrackedWallTextures(Math.max(1, sx), Math.max(1, sy));
+      mat = new THREE.MeshStandardMaterial({
+        map: ct.color,
+        emissiveMap: ct.glow,
+        emissive: 0xffb02e,
+        emissiveIntensity: 0.9,
+        color: 0xb8aea0,
+        roughness: 0.85,
+        metalness: 0.2,
+      });
+      mat.userData.secret = true;
     } else if (s.kind === 'door') {
       const lockColor = s.doorLock ? DOOR_COLORS[s.doorLock] : 0xff4526;
       const map = tex.shieldMap.clone();
@@ -1244,6 +1336,21 @@ export class Scene3DRenderer {
       );
       core.position.y = 0.65;
       grp.add(core);
+      if (kind === 'log') {
+        // Hologram: counter-rotating wire frame inside a projection cone (children[2], [3]; animated in render()).
+        const wire = new THREE.Mesh(
+          new THREE.OctahedronGeometry(0.5, 0),
+          new THREE.MeshBasicMaterial({ color: 0xe2d0ff, wireframe: true, transparent: true, opacity: 0.7, depthWrite: false }),
+        );
+        wire.position.y = 0.65;
+        const cone = new THREE.Mesh(
+          new THREE.ConeGeometry(0.62, 1.2, 14, 1, true),
+          new THREE.MeshBasicMaterial({ color: 0x9a6bff, transparent: true, opacity: 0.16, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }),
+        );
+        cone.rotation.x = Math.PI;
+        cone.position.y = 0.62;
+        grp.add(wire, cone);
+      }
     }
 
     grp.name = `pickup:${id}`;
@@ -1280,15 +1387,36 @@ export class Scene3DRenderer {
     this.ensureWorldBuilt(w);
     this.captureTick(w);
 
+    // 0. Core Warden intro: skip request, display-side timeline, overlay (the simulation holds boss and player itself)
+    const introActive = w.bossIntroTicks > 0;
+    if (introActive && (this.attractT !== null || this.introSkipPending)) skipBossIntro3D(w);
+    this.introSkipPending = false;
+    const introOn = introActive && this.attractT === null;
+    const intro = introOn ? introState(w.bossIntroTicks) : introState(0);
+    {
+      const ik = Math.min(1, dt * (introOn ? 10 : 7));
+      this.introPan += (intro.pan - this.introPan) * ik;
+      this.introZoom += (intro.zoom - this.introZoom) * ik;
+      this.introAwake += (intro.awake - this.introAwake) * ik;
+      this.introLast = intro;
+      this.introOverlay.apply(intro, introOn);
+      const wdIntro = w.enemies.find((e) => e.kind === 'warden' && !e.minion);
+      if (introOn && intro.roared && !this.introRoared && wdIntro) {
+        this.introRoared = true;
+        this.fx.bossRoar(wdIntro.x, wdIntro.y + wdIntro.height * 0.55);
+      }
+      if (!introOn) this.introRoared = false;
+    }
+
     // 1. Locks: colored energy shields slide away once opened
     for (const [id, entry] of this.doorMeshes) {
       const open = w.openDoors.has(id);
       const targetY = open ? entry.baseY + entry.height + 0.3 : entry.baseY;
       entry.mesh.position.y += (targetY - entry.mesh.position.y) * Math.min(1, dt * 8);
       const mat = entry.mesh.material as THREE.MeshStandardMaterial;
-      mat.emissiveIntensity = open ? 0.15 : 0.5 + Math.sin(tSec * 3 + entry.baseY) * 0.15;
+      mat.emissiveIntensity = mat.userData.secret ? (open ? 0.1 : 0.55 + Math.sin(tSec * 2.2 + entry.baseY) * 0.35) : open ? 0.15 : 0.5 + Math.sin(tSec * 3 + entry.baseY) * 0.15;
       entry.mesh.visible = !open || Math.abs(entry.mesh.position.y - targetY) > 0.05;
-      if (mat.map) {
+      if (mat.map && !mat.userData.secret) {
         mat.map.offset.y = (tSec * 0.18) % 1;
         mat.map.offset.x = Math.sin(tSec * 0.7 + entry.baseY) * 0.03;
       }
@@ -1328,6 +1456,8 @@ export class Scene3DRenderer {
     const room = w.level.rooms.find((r) => r.sector === w.currentRoom);
     const inMeltdown = w.coreDestroyed && w.meltdownTicks >= 0;
     const bg = new THREE.Color(room ? room.ambientColor : 0x090e14).multiplyScalar(0.28);
+    const sirenPulse = this.reduceMotion ? 0.6 : 0.5 + 0.5 * Math.sin(tSec * 6.2);
+    if (inMeltdown) bg.lerp(_MELT_BG, 0.25 + 0.3 * sirenPulse);
     (this.scene.background as THREE.Color).lerp(bg, Math.min(1, dt * 3));
     (this.scene.fog as THREE.FogExp2).color.copy(this.scene.background as THREE.Color);
     const fogTarget = Math.min(0.02, room ? SECTOR_FOG[room.sector] : 0.012);
@@ -1347,11 +1477,24 @@ export class Scene3DRenderer {
     if (inMeltdown) {
       const pulse = 0.5 + 0.5 * Math.sin(tSec * 8.5);
       this.alarmLight.intensity = 14 + pulse * 18;
-      this.alarmLight.position.set(w.player.body.x, w.player.body.y + 4.2, 3);
-      this.ambient.color.setHex(0xc96b6b);
+      // Rotating beacon: the existing alarm light orbits the operative so walls sweep red (no extra lights).
+      const sweep = this.reduceMotion ? 0 : tSec * 2.6;
+      this.alarmLight.position.set(w.player.body.x + Math.cos(sweep) * 9, w.player.body.y + 3.4 + Math.sin(sweep * 0.5) * 1.2, 3.5 + Math.sin(sweep) * 2.5);
+      this.ambient.color.setHex(0xc96b6b).lerp(_MELT_RED, 0.25 + 0.35 * sirenPulse);
+      this.ambient.intensity *= 0.85 + 0.35 * sirenPulse;
     } else {
       this.alarmLight.intensity = 0;
       this.ambient.color.copy(this.presetSky);
+    }
+    if (this.fx.envPulse > 0.001) {
+      const pc = BOSS_PHASE_COLORS[this.fx.bossPhase - 1];
+      this.ambient.color.lerp(_PHASE_TMP.setRGB(pc[0], pc[1], pc[2]), this.fx.envPulse * 0.55);
+      this.ambient.intensity += this.fx.envPulse * 1.2;
+      this.sun.intensity += this.fx.envPulse * 1.2;
+    }
+    if (typeof document !== 'undefined') {
+      document.body.classList.toggle('meltdown-alert', inMeltdown);
+      document.body.classList.toggle('meltdown-calm', this.reduceMotion);
     }
 
     // 4. Operative: side-view root facing, velocity-locked pose, two-handed rifle IK, laser sight, R3.3 headlamp
@@ -1417,6 +1560,9 @@ export class Scene3DRenderer {
 
     // 5. Enemies (rigged and static meshes), interpolated
     let telegraphWarden: WorldState3D['enemies'][number] | null = null;
+    let wardenE: WorldState3D['enemies'][number] | null = null;
+    let wardenX = 0;
+    let wardenY = 0;
     let decalIdx = 0;
     let glowIdx = 0;
     for (const e of w.enemies) {
@@ -1425,6 +1571,7 @@ export class Scene3DRenderer {
       const ex = Math.abs(ce.x - pe.x) > 4 ? ce.x : pe.x + (ce.x - pe.x) * a;
       const ey = Math.abs(ce.y - pe.y) > 4 ? ce.y : pe.y + (ce.y - pe.y) * a;
       this.lastEnemyStates.set(e.id, e.alive ? e.state : 'dead');
+      if (e.kind === 'warden' && !e.minion) { wardenE = e; wardenX = ex; wardenY = ey; }
 
       let v = this.enemyViz.get(e.id);
       if (!v) {
@@ -1492,10 +1639,14 @@ export class Scene3DRenderer {
         );
         if (flashAmt > 0) {
           flashRiggedMaterials3D(rig, ENEMY_FLASH_HEX_3D, flashAmt);
+        } else if (e.kind === 'warden' && e.alive && !e.active && this.introAwake > 0.01) {
+          flashRiggedMaterials3D(rig, BOSS_PHASE_HEX[0], 0.05 + 0.4 * this.introAwake);
+        } else if (e.kind === 'warden' && e.alive && e.exposedTicks > 0) {
+          flashRiggedMaterials3D(rig, 0xffd24a, this.reduceMotion ? 0.4 : 0.4 + 0.16 * Math.sin(tSec * 16));
         } else if (e.kind === 'warden' && winding) {
-          flashRiggedMaterials3D(rig, 0xff451f, 0.22);
-        } else if (e.kind === 'warden' && e.phase >= 2 && e.alive) {
-          flashRiggedMaterials3D(rig, 0xff3b18, 0.09);
+          flashRiggedMaterials3D(rig, e.bossPattern === 'summon' ? 0xa060ff : 0xff451f, 0.12 + 0.2 * windFrac);
+        } else if (e.kind === 'warden' && e.alive) {
+          flashRiggedMaterials3D(rig, BOSS_PHASE_HEX[Math.min(3, e.phase) - 1], e.phase >= 2 ? 0.12 : 0.06);
         } else {
           flashRiggedMaterials3D(rig, 0x000000, 0);
         }
@@ -1555,7 +1706,7 @@ export class Scene3DRenderer {
     for (let i = decalIdx; i < this.lungeDecals.length; i++) this.lungeDecals[i].visible = false;
     for (let i = glowIdx; i < this.muzzleGlows.length; i++) this.muzzleGlows[i].visible = false;
 
-    if (telegraphWarden) {
+    if (telegraphWarden && telegraphWarden.bossPattern === 'slam') {
       this.wardenTelegraphRing.visible = true;
       const pct = 1 - telegraphWarden.windupTicks / (telegraphWarden.phase >= 2 ? 28 : 36);
       this.wardenTelegraphRing.position.set(telegraphWarden.x, telegraphWarden.y + 0.1, 0);
@@ -1563,6 +1714,8 @@ export class Scene3DRenderer {
     } else {
       this.wardenTelegraphRing.visible = false;
     }
+
+    this.bossTele.update(w, wardenE, wardenX, wardenY, px, py, tSec, this.reduceMotion, this.introAwake, introOn);
 
     // 6. Bio-Barrels, Power Core, Exit Gate & Pickups
     for (const b of w.barrels) {
@@ -1625,6 +1778,14 @@ export class Scene3DRenderer {
         g.children[1].rotation.y = tSec * 2.1;
         g.children[1].position.y = 0.65 + Math.sin(tSec * 3.4 + i) * 0.12;
       }
+      if (g.children[2] && g.children[3]) {
+        g.children[2].rotation.y = -tSec * 1.3;
+        g.children[2].rotation.x = tSec * 0.7;
+        g.children[2].position.y = 0.65 + Math.sin(tSec * 3.4 + i) * 0.12;
+        const flick = this.reduceMotion ? 0.16 : 0.12 + 0.07 * Math.sin(tSec * 23 + i * 5) * Math.sin(tSec * 7 + i);
+        ((g.children[3] as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = flick;
+        g.children[3].rotation.y = tSec * 0.8;
+      }
     }
 
     // 7. Dynamic Projectiles, Shockwaves, Explosions & Rail Beams
@@ -1640,6 +1801,15 @@ export class Scene3DRenderer {
     }
     this.fx.rig.update(dt, px, anchorY, p.body.vx, p.aimX - px, p.aimY - py, p.body.grounded);
     this.camFocus.set(this.fx.rig.fx, this.fx.rig.fy, 0);
+    let camDistZ = 15.5;
+    if (this.attractT === null && (this.introPan > 0.002 || this.introZoom > 0.002) && wardenE) {
+      // Intro: pan from the operative to the Warden and push in; eases back after the intro ends or is skipped.
+      const bx = wardenX;
+      const by = Math.max(room ? room.minY + 3 : 0, wardenY + 1.6);
+      this.camFocus.x += (bx - this.camFocus.x) * this.introPan;
+      this.camFocus.y += (by - this.camFocus.y) * this.introPan;
+      camDistZ = 15.5 - 5.5 * this.introZoom;
+    }
     if (this.attractT !== null) {
       // Reel shot (see ui/attract.ts): wide establishing view, then a low push-in on the action.
       const sh = this.attractShot ?? { dolly: 15.5 - 4.2 * (0.5 + 0.5 * Math.sin(this.attractT * 0.21)), sway: Math.sin(this.attractT * 0.33) * 3.4, lift: 1.2, lookDown: 0.4 };
@@ -1647,7 +1817,7 @@ export class Scene3DRenderer {
       this.camera.lookAt(this.camFocus.x, this.camFocus.y + sh.lookDown, 0);
     } else {
       const shk = this.fx.trauma.sample(tSec, this.reduceMotion);
-      this.camera.position.set(this.camFocus.x + shk.x, this.camFocus.y + 1.7 + shk.y, 15.5);
+      this.camera.position.set(this.camFocus.x + shk.x, this.camFocus.y + 1.7 + shk.y, camDistZ);
       this.camera.lookAt(this.camFocus.x, this.camFocus.y, 0);
       this.camera.rotation.z += shk.roll;
     }
@@ -1658,7 +1828,16 @@ export class Scene3DRenderer {
     }
     this.fxAdd.sync();
     this.fxAlpha.sync();
+    this.popupLayer.sync();
     stepPostParams(this.postParams, w.currentRoom, dt, tSec, p.hp / Math.max(1, p.maxHp), this.fx.chroma, this.reduceMotion);
+    {
+      const f = this.fx.phaseFlash;
+      const pc = BOSS_PHASE_COLORS[this.fx.bossPhase - 1];
+      const melt = inMeltdown ? (this.reduceMotion ? 0.03 : 0.025 + 0.05 * sirenPulse) : 0;
+      this.postParams.flash[0] = f * (0.45 + 0.4 * pc[0]) + melt;
+      this.postParams.flash[1] = f * (0.4 + 0.3 * pc[1]) + melt * 0.1;
+      this.postParams.flash[2] = f * (0.4 + 0.3 * pc[2]) + melt * 0.1;
+    }
     applyPostParams(this.postPass, this.postParams, tSec);
 
     this.sun.position.set(px + 6, py + 14, 16);

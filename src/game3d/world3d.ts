@@ -276,6 +276,10 @@ export interface WorldState3D {
   coreMaxHp: number;
   coreDestroyed: boolean;
   meltdownTicks: number; // -1 until triggered, then 5400 -> 0
+  /** Core Warden intro: ticks left (player input ignored, boss dormant). 0 = not running. */
+  bossIntroTicks: number;
+  /** True once the intro has played (never replays, also not after a respawn). */
+  bossIntroDone: boolean;
   player: PlayerState3D;
   /** Sector the player currently stands in */
   currentRoom: SectorId3D;
@@ -534,6 +538,8 @@ export function newWorld3D(): WorldState3D {
     coreMaxHp: 240,
     coreDestroyed: false,
     meltdownTicks: -1,
+    bossIntroTicks: 0,
+    bossIntroDone: false,
     player: {
       body,
       hp: BASE_MAX_HP,
@@ -1214,6 +1220,11 @@ function stepEnemies3D(w: WorldState3D): void {
     const isWarden = e.kind === 'warden';
 
     if (!e.active) {
+      if (isWarden && w.bossIntroTicks > 0) {
+        e.anim = 'idle';
+        e.state = 'dormant';
+        continue;
+      }
       const nearPlayer = dist < 24 && Math.abs(dy) < 16;
       if ((e.zone === w.currentRoom && nearPlayer) || e.hitFlashTicks > 0 || (e.zone === 'core' && w.coreDestroyed)) {
         e.active = true;
@@ -1702,10 +1713,23 @@ export function respawnPlayer3D(w: WorldState3D): void {
   w.status = 'playing';
 }
 
-export function stepWorld3D(w: WorldState3D, input: InputState3D): WorldState3D {
+export const BOSS_INTRO_TICKS = 210;
+
+/** Skip the Core Warden intro (display-side request; the bot never calls it, so replays stay deterministic). */
+export function skipBossIntro3D(w: WorldState3D): void {
+  if (w.bossIntroTicks > 1) w.bossIntroTicks = 1;
+}
+
+export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState3D {
   w.events = [];
   if (w.status !== 'playing') return w;
   w.tick++;
+  let input = rawInput;
+  if (w.bossIntroTicks > 0) {
+    // Deterministic intro: movement/fire ignored, aim kept so the cursor still tracks
+    w.bossIntroTicks--;
+    input = { ...emptyInput3D(), aimX: rawInput.aimX, aimY: rawInput.aimY };
+  }
 
   const p = w.player;
   const edgeLight = input.toggleLight && !w.prevLightButton;
@@ -1774,6 +1798,10 @@ export function stepWorld3D(w: WorldState3D, input: InputState3D): WorldState3D 
   if (room) {
     w.currentRoom = room;
     if (!w.visitedRooms.includes(room)) w.visitedRooms.push(room);
+    if (room === 'core' && !w.bossIntroDone && !w.coreDestroyed && w.enemies.some((e) => e.kind === 'warden' && e.alive)) {
+      w.bossIntroDone = true;
+      w.bossIntroTicks = BOSS_INTRO_TICKS;
+    }
   }
 
   // Acid hazard: standing below the pool surface

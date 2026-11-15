@@ -94,7 +94,7 @@ void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(
 const POST_FRAG = /* glsl */ `
 uniform sampler2D tDiffuse;
 uniform float uTime, uVig, uChroma, uGrain, uSat, uContrast, uLowHp, uPulse;
-uniform vec3 uGain, uLift;
+uniform vec3 uGain, uLift, uFlash;
 varying vec2 vUv;
 float hash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -124,6 +124,7 @@ void main() {
 
   float g = hash(gl_FragCoord.xy + fract(uTime) * 91.7) - 0.5;
   col += g * uGrain * (1.15 - l);
+  col += uFlash;
   gl_FragColor = vec4(max(col, 0.0), 1.0);
 }
 `;
@@ -142,6 +143,7 @@ export function createPostPass(): ShaderPass {
       uPulse: { value: 0 },
       uGain: { value: new THREE.Vector3(1, 1, 1) },
       uLift: { value: new THREE.Vector3(0, 0, 0) },
+      uFlash: { value: new THREE.Vector3(0, 0, 0) },
     },
     vertexShader: POST_VERT,
     fragmentShader: POST_FRAG,
@@ -160,4 +162,5 @@ export function applyPostParams(pass: ShaderPass, p: PostParams, tSec: number): 
   u.uPulse.value = p.pulse;
   (u.uGain.value as THREE.Vector3).set(p.gain[0], p.gain[1], p.gain[2]);
   (u.uLift.value as THREE.Vector3).set(p.lift[0], p.lift[1], p.lift[2]);
+  (u.uFlash.value as THREE.Vector3).set(p.flash[0], p.flash[1], p.flash[2]);
 }
