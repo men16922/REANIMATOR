@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: R3까지 main(`c84649e`)에 통합되어 있고 R4(A 시각, B 환경 위험, C 플레이어 캐릭터, D 문서·제출)가 병렬 worktree에서 진행 중이다. 이 브랜치(`r4/docs`)는 README·JUDGES·KIRO_USAGE·크레딧 패널이다. 다음 할 일: R4 트랙 병합 후 `make check`, 오케스트레이터가 Playwright로 찍은 쇼케이스 PNG를 `docs/evidence/showcase/`에 저장(README가 이 경로를 참조), 그다음 푸시 승인과 G5 사람 플레이. 푸시는 사용자 지시 전까지 하지 않는다.
+▶ NEXT SESSION: R15·R16·Abuse 관찰은 main 로컬 커밋(`eef01b6`, 푸시 대기)까지 완료. 사용자 결정 대기: 다단계 스테이지 확장. 안 A(Stage 0 허브/튜토리얼=Airlock, 1=Shaft+Mines, 2=Bio-Labs+Security, 3=Core 보스+Meltdown) 또는 안 B(현 맵=Stage 1, 신규 2개). 근거 [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md) §7, 계획 [NEXT_PLAN](NEXT_PLAN.md). 선택 후 spec `metroidvania-3d`에 반영. 푸시는 사용자 지시 전까지 하지 않는다.
 
 ## 한 줄 요약
 

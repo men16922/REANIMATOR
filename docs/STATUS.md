@@ -1,10 +1,15 @@
 # 현재 상태
 
-최종 갱신: 2026-11-15 · R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## Abuse 레벨 관찰 (2026-11-16)
 
 - LEVEL00~04 정적 조사(`tools/reference/spe-survey.ts`)와 DOSBox 실행(`HARNESS.levels.LSP`, `scripts/observe_levels.sh`). 00→01→02→03→04 전환을 `level_name` 로그로 확인, 04 출구는 엔딩 진입 추정. 스크린샷·팔레트는 윈도 서버 없음으로 unverified. [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md)
+
+## 열린 위험 (2026-11-16)
+
+- `?debug=1`이 배포 빌드에서 디버그 훅을 켠다. 전투 쇼케이스 장면 305 draw calls(>300). 구 세이브의 새 능력 플래그 undefined 가능. Meshy API 키 채팅 노출(교체 필요). 푸시 대기. R16 릴리스 1.0.0(`make release` zip)의 `vite preview`와 새 능력 브라우저 동작은 unverified.
+- 다음 방향: 다단계 스테이지 확장(안 A/B)을 사용자가 선택. [NEXT_PLAN](NEXT_PLAN.md).
 
 ## R16 (2026-11-16)
 
@@ -63,13 +68,9 @@
 - **R14 integration** (main, 3 merges: charlight, terrain, transit, HEAD `f740169`, no conflicts, no push). Answers three user notes. (1) Transit ([R14_TRANSIT](R14_TRANSIT.md)): rooms were crossed too fast. Side-door walk-through lasts 42 ticks with jump, dash and fire ignored; foes within 14 m get a 150-tick entry grace (released on a hit); 3 m doorway clearance; `FrameRectSmoother` edge-speed cap; shaft zoom easing; a sector title card on each room change; reduce-motion uses a cut. (2) Terrain ([R14_TERRAIN](R14_TERRAIN.md)): Meshy was unreachable from this environment (api.meshy.ai, no key), so terrain is procedural: `terrainMaps.ts` (512 px detail textures plus Sobel normal maps), `terrainDetail.ts` (merged relief meshes, about 9.8k triangles in 18 strips), `drawBudget` counts terrain strips. (3) Character light ([R14_CHARLIGHT](R14_CHARLIGHT.md)): `charLight3d.ts` per-kind key and fill light, crevice darkening and exposure, softer rim, GLSL injected in `applyEnemyRim3D` and `applyWardenLook3D`, so characters read as shapes and not only outlines. Terrain and charlight are render-only. Bot pins unchanged after merge: Normal 4978 ticks HP 126, Story 4880 HP 142, Hard 5319 HP 104 (min 100). SHOWCASE_REEL cuts 2150/4420/4920 unchanged. Constraints held: deterministic sim, no `Math.random`, no new PointLights, at most 300 draw calls. Enemy running was handled in R13 and not changed in R14.
 - **R14 browser check** (orchestrator, Playwright against `http://localhost:5173`): 0 console errors or warnings and no page errors across showcase scenes bestiary (mines), biolabs, security, boss (core) and opening (airlock). 1280x800 screenshots in `docs/evidence/r14/` (`mines_bestiary.png`, `biolabs_biolabs.png`, `security_security.png`, `core_boss.png`, `airlock_opening.png`). Terrain and charlight are verified by tests, the no-error browser run and screenshots only. No human playtest happened (G5 still unperformed), so whether the transit pace, terrain quality and character readability feel right is unverified.
 
-## R15 (Meshy 터레인)
-
-- 생성 보류: `api.meshy.ai` DNS 해석 실패(HTTP 000). 터레인은 R14 절차 생성 유지. `.env`는 gitignore 처리. Kiro Meshy MCP는 샌드박스 EPERM으로 미추가. 상세 `docs/R15_MESHY_TERRAIN.md`.
-
 ## R15 터레인 킷 (Meshy 11종, 로컬 커밋)
 
-- 11개 GLB 인제스트(`terrain/`), `terrainKit.ts` 인스턴싱과 6개 섹터 연결, 시각 전용. `make check` exit 0(654/654, dist-guard 24 files). 브라우저 6개 섹터 draw calls 148~299(<=300), 콘솔 오류 0, 스크린샷 `docs/evidence/r15_meshy_terrain/`. Bio-Labs 299로 여유 없음. 사람 플레이 unverified. 위 "R15 (Meshy 터레인)" 항목의 생성 보류 설명은 이전 시도 기록이다. 상세 `docs/R15_MESHY_TERRAIN.md`.
+- 11개 GLB 인제스트(`terrain/`), `terrainKit.ts` 인스턴싱과 6개 섹터 연결, 시각 전용. `make check` exit 0(654/654, dist-guard 24 files). 브라우저 6개 섹터 draw calls 148~299(<=300), 콘솔 오류 0, 스크린샷 `docs/evidence/r15_meshy_terrain/`. Bio-Labs 299로 여유 없음. 사람 플레이 unverified. Meshy t2.5 smart-topology 4k tris PBR, 165 credits 사용(잔액 608). 상세 `docs/R15_MESHY_TERRAIN.md`.
 
 ## 세션 마감 검증 (오케스트레이터 Playwright 관찰, 2026-11-15)
 

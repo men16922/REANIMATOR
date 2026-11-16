@@ -2,6 +2,12 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## 사용자 결정 대기: 다단계 스테이지 확장
+
+- [ ] 안 선택. A: 현 맵을 Stage 0 허브/튜토리얼(Airlock), Stage 1(Shaft+Mines), Stage 2(Bio-Labs+Security), Stage 3(Core 보스+Meltdown)로 분할. B: 현 맵을 Stage 1로 두고 신규 2개 추가. 근거 [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md) §7(허브+선형 레벨).
+- [ ] 공통 요구: 스테이지 클리어 화면, 스테이지 선택, 스테이지별 출구 텔레포터(상호작용 키), 타이틀 카드, 스테이지별 스위치·문 퍼즐, 길이에 비례한 세이브 포인트. 결정 후 spec `metroidvania-3d`를 갱신하고 봇·`reach3d`·세이브 호환(구 세이브 능력 플래그 기본값)을 함께 다룬다.
+- [ ] 릴리스 정리: `?debug=1` 디버그 훅 배포 노출 여부 결정, 전투 쇼케이스 305 calls를 300 이하로, Meshy API 키 교체, `make release` zip의 `vite preview` 확인.
+
 ## 사용자 신규 요청 (다음 작업)
 
 - [x] **Metroid-style special abilities**: add more ability gates beyond Thruster Boots (e.g. Morph-ball-like slide pass, Speed-boost-like dash run, Missile-style locks), with pickups and gated routes in `map3d.ts` and tests. Needs a design pass first.
@@ -16,15 +22,9 @@
 - [ ] GUI 세션에서 `scripts/observe_levels.sh`(dummy 제거)로 레벨별 스크린샷·팔레트 관찰, 레벨 04 엔딩 화면 확인.
 - [ ] [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md) 7절 다단계 설계안을 spec(`metroidvania-3d`)에 반영할지 결정.
 
-## R15 이후
-
-- Meshy 터레인 킷 생성은 샌드박스 DNS 실패(`api.meshy.ai`)로 보류. 네트워크 가능한 환경에서 `docs/R15_MESHY_TERRAIN.md`의 킷 계획을 실행한다.
-- `~/.kiro/settings/mcp.json`에 meshy 서버를 수동 추가한다(샌드박스 EPERM).
-
 ## R14 병합 후
 
 - [x] charlight, terrain, transit 병합(충돌 없음), `make check` 통과(649/649). 봇 Normal 4978/HP 126, Story 4880/142, Hard 5319/104(min 100). Playwright로 5개 쇼케이스 장면 콘솔 오류 0, 스크린샷 `docs/evidence/r14/`.
-- [ ] **Meshy terrain upgrade**: Meshy was unreachable here (api.meshy.ai, no key), so terrain is procedural. Replace or augment with Meshy-generated terrain pieces when network and a key are available, then record them in `docs/reference/ASSET_REGISTER.md`.
 - [ ] G5 human playtest (unperformed). Judge three user notes by hand: room transition pace (42-tick walk-through, 150-tick entry grace, title card), terrain quality, and whether characters read as shapes and not only outlines.
 - [ ] Enemy running feel in human play is still unverified (handled in R13, untouched in R14).
 - [ ] (R16: smoke.ts updated, still not run) `make smoke-local` on real Chrome (agent sandbox cannot launch Chrome), including showcase recapture.

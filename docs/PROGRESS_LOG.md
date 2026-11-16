@@ -2,6 +2,16 @@
 
 R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-16 — R15 Meshy 터레인 킷, R16 릴리스 1.0.0, Abuse 레벨 관찰 (로컬 커밋, 푸시 없음)
+
+- Status: main 로컬 커밋 9384d5e, c3d2aeb, c40d5d6 (R15), 3219cbd, 36f609e, a5df9c8, 9c5bddc, bbf39b1 (R16), eef01b6 (Abuse 관찰). github DNS 실패로 푸시 불가.
+- Changed: Meshy MCP로 터레인 11종(meshy-t2.5 smart-topology, 4k tris, PBR, 165 credits, 잔액 608), `src/render3d/terrainKit.ts` 인스턴싱+절차 폴백. DATA LOG 토스트·레트로 CSS·차분한 인트로, 깨진 Meshy 노멀 수정(에어록 암전), 능력 Blast Core·Scan Lens·Thermal Plating과 봉인 캐시, `src/ui/tutorial.ts`(화면 조작 목록 제거), 릴리스 1.0.0(manifest, 아이콘, CHANGELOG, `make release` zip, 플레이어 노출 면의 Kiro 문구 제거, 디버그 훅은 DEV 또는 `?debug=1`일 때만).
+- Abuse 관찰: LEVEL00-04 SPE 파싱+Lisp 열람, DOSBox headless로 00→01→02→03→04 확인. 적 6/58/78/83/103. 00은 01-04로 가는 트레이너 허브, 04 출구는 게임 종료. 결과 `docs/reference/ABUSE_LEVEL_OBSERVATION.md`, `docs/evidence/abuse_levels/`.
+- Verified: `make check` exit 0(672/672, reach3d 52 waypoints 3432 ticks, dist-guard PASS 30 files 17,448,133 B), 봇 핀 불변. 섹터별 draw calls 148-299.
+- Unverified: `make smoke-local`(샌드박스에서 Chrome 실행 불가), 릴리스 zip `vite preview`, 새 능력 픽업·캐시 브라우저 동작, Abuse 스크린샷·팔레트(윈도 서버 없음), 실제 Abuse 플레이 길이, G5.
+- Risks: `?debug=1`이 배포 빌드에서 디버그 훅을 켬. 전투 쇼케이스 장면 305 calls(>300, R16 이전에도 303-313). 구 세이브가 새 능력 플래그를 undefined로 읽을 수 있음. Meshy API 키가 채팅에 노출되어 교체 필요. 푸시 대기.
+- Next: 스테이지 확장 결정 대기(안 A: 허브/튜토리얼 + 3스테이지 분할, 안 B: 현 맵을 Stage 1로 두고 2개 추가). 공통: 클리어 화면, 스테이지 선택, 출구 텔레포터, 타이틀 카드, 스테이지별 스위치·문 퍼즐, 세이브 포인트. GUI 세션에서 Abuse 관찰 재실행.
+
 ## 요약 타임라인 (2026-11-14 ~ 11-15)
 
 - 11-14 G0–G4: 원본 취득·실행 관찰, Ghidra/REA 분석, 이동 물리 TS 엔진 `motion.ts`, 로그 비교기, holdout M05, 2.5D 슬라이스, Restoration Lab, dist-guard. 상세 [G0](evidence/G0_REPORT.md) [G1](evidence/G1_REPORT.md) [G2](evidence/G2_REPORT.md) [G3](evidence/G3_REPORT.md) [G4](evidence/G4_REPORT.md).
