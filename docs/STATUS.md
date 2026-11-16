@@ -2,6 +2,11 @@
 
 최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R23 FEAT-003 전체 런 엔딩 (2026-11-17, 로컬 커밋)
+
+- `records.ts`에 런 로그(`addToRun`: Stage 1 클리어가 새 런 시작, `summarizeRun`: 3스테이지 합계)와 최고 전체 런 기록(별도 키 `reanimator.fullrun.v1`, v1 스테이지 기록 키는 불변이라 마이그레이션 불필요). Stage 3 클리어 화면에 "REANIMATED" 카드(총 시간·죽음·킬, 스테이지별 줄, 최고 기록). 디버그 훅 `__reanimatorShowEnding()`(dev/debug 빌드만, 저장소 복원). `tests/fullrun.test.ts`.
+- `make check` exit 0(759/759). Unverified: 브라우저 표시(오케스트레이터 검증).
+
 ## R23 FEAT-002 게임패드·접근성 (2026-11-17, 로컬 커밋)
 
 - `src/game3d/gamepad.ts`(순수 매핑·데드존, 표준 매핑: 스틱/D-pad 이동, 우스틱 조준, A 점프, B 대시, X/RT 발사, Y 상호작용, LT 카운터, LB/RB 무기, Start 일시정지)와 `settings.ts`(키 `reanimator.settings.v1`: reduceFx, largeHud). `src/ui/main.ts` 입력 계층에서만 패드를 읽고 시뮬은 불변. 설정에 "Reduce motion and flashing"(기존 흔들림·플래시 감쇠에 연결)과 "Larger HUD text", 컨트롤 안내에 게임패드 추가. `tests/gamepad.test.ts`.

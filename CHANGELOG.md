@@ -4,6 +4,7 @@
 
 - Gamepad support (stick or D-pad to move, right stick to aim, A jump, B dash, X or RT fire, Y interact, LT counter, LB/RB weapons, Start pause). New Larger HUD text option, and Reduce motion and flashing now saves with your other settings.
 - The Cryo Bulwark's frost shield is now a model that lowers when it attacks. Stage 3 gains a coolant pipe wall and cryo racks.
+- Clearing Stage 3 shows a REANIMATED ending card with your total time, deaths and kills across all three stages, and remembers your best full run.
 - Each stage remembers your best clear time, fewest deaths and most kills. The clear screen shows NEW BEST and the stage select shows your best time.
 
 - New Stage 3 foe: the Cryo Bulwark carries a frost shield that blocks Pulse and Scattergun shots from the front. Hit it from behind, while it attacks, or with Rail, Grenade, Flamer or Rocket.

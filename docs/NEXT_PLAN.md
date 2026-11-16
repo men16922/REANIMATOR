@@ -86,3 +86,4 @@ R4–R11 병합 후 항목, 브라우저 확인 누적, 사용자 확인, 이월
 ## R21 (partial)
 - Done: Stage 2/3 coach chip fix (src/ui/flow.ts), Foreman heat tone-down (scene3dFull.ts), test in tests/r20-polish.test.ts. make check exit 0, 726/726.
 - Unverified: Foreman strike visual, Spire Warden card visual, r19 black squares, smoke-local, release.
+- R23 FEAT-003: 브라우저에서 `__reanimatorShowEnding()`으로 REANIMATED 카드 확인(unverified).

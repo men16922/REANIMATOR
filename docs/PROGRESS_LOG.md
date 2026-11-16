@@ -2,6 +2,11 @@
 
 R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-17 — R23 FEAT-003 전체 런 엔딩 (로컬 커밋, 푸시 없음)
+
+- Changed: `src/game3d/records.ts`(런 로그, 합계, 최고 런), `src/ui/main.ts`·`index.html`·`style.css`(REANIMATED 카드, `__reanimatorShowEnding`), `tests/fullrun.test.ts`.
+- Verified: `make check` exit 0(759/759). 브라우저 unverified.
+
 ## 2026-11-17 — R23 FEAT-001 R22 갭 수정 (로컬 커밋, 푸시 없음)
 
 - Changed: `tools/meshy/terrain-kit.ts` finalize가 manifest의 모든 `terrain/*`로 register 행을 만든다(`registerRowsFromManifest`). ASSET_REGISTER terrain 표를 3행에서 17행으로 복구. `tests/terrain-kit.test.ts`에 register 행 대조와 17개 GLB 법선 복구 테스트 추가.

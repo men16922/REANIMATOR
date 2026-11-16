@@ -83,3 +83,66 @@ export function recordSummary(r: StageRecord): string {
   if (r.mostKills !== null) parts.push(`Most kills ${r.mostKills}`);
   return parts.join(' · ');
 }
+
+// ---- Full run (stages 1 to 3 in one sitting) -------------------------------------------------------------
+// The per-stage records above stay on the v1 key untouched. The best full-run total lives on its own key, so a
+// v1 save needs no migration and an unreadable value never damages the stage records.
+
+export const FULLRUN_KEY = 'reanimator.fullrun.v1';
+
+/** The latest clear of each stage in the current run. Clearing stage 1 starts a new run. */
+export type RunLog = Partial<Record<StageId3D, RunResult>>;
+
+export interface RunSummary {
+  totalSeconds: number;
+  totalDeaths: number;
+  totalKills: number;
+  perStage: Array<{ stage: StageId3D; seconds: number; deaths: number; kills: number }>;
+}
+
+const validRun = (r: RunResult): boolean =>
+  Number.isFinite(r.seconds) && r.seconds > 0 && Number.isFinite(r.deaths) && r.deaths >= 0 && Number.isFinite(r.kills) && r.kills >= 0;
+
+/** Pure: fold one stage clear into the run. Stage 1 starts over; an invalid result changes nothing. */
+export function addToRun(log: RunLog, stage: StageId3D, run: RunResult): RunLog {
+  if (!validRun(run)) return log;
+  const base: RunLog = stage === 1 ? {} : log;
+  return { ...base, [stage]: { seconds: run.seconds, deaths: run.deaths, kills: run.kills } };
+}
+
+/** Totals across all three stages, or null until every stage has a clear in this run. */
+export function summarizeRun(log: RunLog): RunSummary | null {
+  const perStage: RunSummary['perStage'] = [];
+  for (const s of STAGE_IDS_3D) {
+    const r = log[s];
+    if (!r) return null;
+    perStage.push({ stage: s, seconds: r.seconds, deaths: r.deaths, kills: r.kills });
+  }
+  return {
+    totalSeconds: perStage.reduce((a, p) => a + p.seconds, 0),
+    totalDeaths: perStage.reduce((a, p) => a + p.deaths, 0),
+    totalKills: perStage.reduce((a, p) => a + p.kills, 0),
+    perStage,
+  };
+}
+
+/** Safe parse of the stored best full-run total in seconds; null when absent or invalid. */
+export function parseBestRun(raw: string | null | undefined): number | null {
+  try {
+    const o = JSON.parse(raw ?? 'null') as unknown;
+    if (!o || typeof o !== 'object') return null;
+    return num((o as Record<string, unknown>).bestTotal, 0.001);
+  } catch {
+    return null;
+  }
+}
+
+export function serializeBestRun(best: number | null): string {
+  return JSON.stringify({ bestTotal: best });
+}
+
+export function updateBestRun(prev: number | null, total: number): { best: number | null; isNew: boolean } {
+  if (!Number.isFinite(total) || total <= 0) return { best: prev, isNew: false };
+  const isNew = prev === null || total < prev;
+  return { best: isNew ? total : prev, isNew };
+}

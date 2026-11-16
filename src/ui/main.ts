@@ -38,7 +38,7 @@ import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type Debu
 import { OPENING_BEATS, OPENING_ENEMY_ID, OPENING_VENT, OpeningClock, openingView } from './opening.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, type Hint } from './flow.ts';
 import { Tutorial, TUTORIAL_STEPS, TUTORIAL_STORE_KEY, parseTutorialSaved } from './tutorial.ts';
-import { parseRecords, RECORDS_KEY, recordSummary, serializeRecords, updateRecords, type RunRecords } from '../game3d/records.ts';
+import { addToRun, FULLRUN_KEY, parseBestRun, parseRecords, RECORDS_KEY, recordSummary, serializeBestRun, serializeRecords, summarizeRun, updateBestRun, updateRecords, type RunLog, type RunRecords, type RunSummary } from '../game3d/records.ts';
 import { clearFromWorld, formatStageTime, mergeAbilities, isStageUnlocked, nextStage, parseProgress, recordClear, serializeProgress, STAGE_PROGRESS_KEY, STAGE_TITLES, type StageProgress } from '../game3d/stageFlow.ts';
 import { STAGE_IDS_3D } from '../game3d/stages3d.ts';
 import type { StageId3D } from '../game3d/types3d.ts';
@@ -203,6 +203,9 @@ let deaths = 0;
 /** Campaign progress (cleared stages, best times). Loaded once, written on every stage clear. */
 let progress: StageProgress = parseProgress(store(STAGE_PROGRESS_KEY));
 let records: RunRecords = parseRecords(store(RECORDS_KEY));
+/** Latest clear of each stage in the current run (stage 1 clear starts a new run) and the stored best full-run total. */
+let runLog: RunLog = {};
+let bestRun: number | null = parseBestRun(store(FULLRUN_KEY));
 /** Set by start() for stages 2 and 3: the stage title card shows on the first observed frame. */
 let stageCardPending = false;
 let introActive = false;
@@ -1136,6 +1139,26 @@ function handlePostStepAudio(pre: ReturnType<typeof snapshotPre>): void {
   audioDirector.afterStep(world, pre);
 }
 
+/** REANIMATED ending card: totals across the three stages of this run, plus the stored best total. */
+function renderFullRun(sum: RunSummary | null): void {
+  const el = $('fullrun');
+  el.hidden = !sum;
+  if (!sum) return;
+  const bu = updateBestRun(bestRun, sum.totalSeconds);
+  if (bu.isNew) store(FULLRUN_KEY, serializeBestRun(bu.best));
+  bestRun = bu.best;
+  $('fullrun-total').textContent = `Total ${formatStageTime(sum.totalSeconds)} · Deaths ${sum.totalDeaths} · Kills ${sum.totalKills}`;
+  const list = $('fullrun-stages');
+  list.textContent = '';
+  for (const p of sum.perStage) {
+    const li = document.createElement('li');
+    const best = records[p.stage].bestTime;
+    li.textContent = `Stage ${p.stage} · ${STAGE_TITLES[p.stage].name}: ${formatStageTime(p.seconds)} · Deaths ${p.deaths} · Kills ${p.kills}${best !== null ? ` · Best ${formatStageTime(best)}` : ''}`;
+    list.appendChild(li);
+  }
+  $('fullrun-best').textContent = `${bu.isNew ? 'NEW BEST RUN' : 'Best run'} ${formatStageTime(bestRun ?? sum.totalSeconds)}`;
+}
+
 function showResult(): void {
   const won = world.status === 'won';
   if (!won) {
@@ -1157,10 +1180,13 @@ function showResult(): void {
     const ru = updateRecords(records, world.stage, { seconds, deaths: st.deaths, kills: clear ? clear.kills : st.kills });
     records = ru.records;
     store(RECORDS_KEY, serializeRecords(records));
+    runLog = addToRun(runLog, world.stage, { seconds, deaths: st.deaths, kills: clear ? clear.kills : st.kills });
     const sum = recordSummary(records[world.stage]);
     bestLine = `${rec.newBest ? 'NEW BEST' : 'Best'} ${formatStageTime(progress.best[world.stage])}${sum ? ' · ' + sum : ''}`;
     bestNext = nextStage(world.stage);
   }
+  const fullRun = won && world.stage === 3 ? summarizeRun(runLog) : null;
+  renderFullRun(fullRun);
   $('rs-l-deaths').textContent = stageWin ? 'BEST' : 'DEATHS';
   $('rs-l-collect').textContent = stageWin ? 'COMPLETE' : 'COLLECTED';
   $('rs-l-time').textContent = 'TIME';
@@ -1901,6 +1927,7 @@ const wAny = (DEBUG_HOOKS ? window : {}) as unknown as {
   __reanimatorSetView: (m: ViewMode) => ReturnType<typeof buildSnapshot>;
   __reanimatorAudio: typeof getAudioDebug;
   __reanimatorShowResult: (kind: 'won' | 'lost') => ReturnType<typeof buildSnapshot>;
+  __reanimatorShowEnding: () => ReturnType<typeof buildSnapshot>;
   __reanimatorShowBanner: (kind: 'sector' | 'weapon' | 'boots' | 'etank' | 'coach') => ReturnType<typeof buildSnapshot>;
   __reanimatorPick: (px: number, py: number, includePoints?: boolean) => Array<Record<string, unknown>>;
   __reanimatorReel: () => ReturnType<typeof buildSnapshot>;
@@ -2008,6 +2035,25 @@ function debugShowResult(kind: 'won' | 'lost'): void {
   hud();
   showResult();
 }
+/** Debug only: show the Stage 3 clear screen with the REANIMATED run summary built from sample data (records untouched). */
+wAny.__reanimatorShowEnding = () => {
+  debugEpoch++;
+  const saved = { runLog, bestRun, records, progress };
+  const sample = [{ s: 214.2, d: 1, k: 18 }, { s: 305.7, d: 0, k: 24 }, { s: 388.1, d: 2, k: 21 }];
+  runLog = {};
+  sample.forEach((r, i) => { runLog = addToRun(runLog, (i + 1) as StageId3D, { seconds: r.s, deaths: r.d, kills: r.k }); });
+  bestRun = null;
+  const keys = [FULLRUN_KEY, RECORDS_KEY, STAGE_PROGRESS_KEY];
+  const kept = keys.map((k) => store(k));
+  world = newWorld3D({ stage: 3 });
+  debugShowResult('won');
+  renderFullRun(summarizeRun(runLog));
+  try {
+    keys.forEach((k, i) => { const v = kept[i]; if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); });
+  } catch { /* storage unavailable */ }
+  ({ bestRun, records, progress } = { bestRun: saved.bestRun, records: saved.records, progress: saved.progress });
+  return buildSnapshot();
+};
 wAny.__reanimatorShowResult = (kind) => {
   debugEpoch++;
   debugShowResult(kind);
