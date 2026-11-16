@@ -1,6 +1,6 @@
 {
   "schema": "reanimator-meshy-assets-v2",
-  "generatedAt": "2026-11-16T15:24:35.486Z",
+  "generatedAt": "2026-11-16T16:29:34.909Z",
   "classification": "new-design (non-Abuse original 3D rigged & static assets)",
   "assets": [
     {
@@ -997,6 +997,91 @@
         ]
       },
       "optimizedFile": "public/assets/models/terrain/cryo-rack.glb"
+    },
+    {
+      "id": "texture/s1-floor",
+      "role": "Terrain surface texture: albedo + derived normal + roughness (tiling-fixed, 512 px WebP)",
+      "generator": "Meshy nano-banana-2 text-to-image, tiling cross-fade + Sobel normal + luminance roughness (tools/meshy/textures.ts)",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: dark industrial steel floor plating, diamond tread",
+      "taskId": "01a1e525-0304-7790-9a6b-8bae52f73b76",
+      "rawFile": "assets/meshy-raw/textures/s1-floor.png",
+      "optimizedFile": "public/assets/textures/s1-floor.webp",
+      "derivedFiles": [
+        "public/assets/textures/s1-floor-n.webp",
+        "public/assets/textures/s1-floor-r.webp"
+      ],
+      "optimizedBytes": 192688,
+      "optimizedSha256": "c604133b37b0463244bad9a43a6dcaf206cc69b82170574e191fc0ce97c518d5"
+    },
+    {
+      "id": "texture/s1-wall",
+      "role": "Terrain surface texture: albedo + derived normal + roughness (tiling-fixed, 512 px WebP)",
+      "generator": "Meshy nano-banana-2 text-to-image, tiling cross-fade + Sobel normal + luminance roughness (tools/meshy/textures.ts)",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: dark gunmetal wall panels with teal accents",
+      "taskId": "01a1e525-0725-7118-8f3a-c7ebb56038b0",
+      "rawFile": "assets/meshy-raw/textures/s1-wall.png",
+      "optimizedFile": "public/assets/textures/s1-wall.webp",
+      "derivedFiles": [
+        "public/assets/textures/s1-wall-n.webp",
+        "public/assets/textures/s1-wall-r.webp"
+      ],
+      "optimizedBytes": 168020,
+      "optimizedSha256": "9f199365d22383f791147df3123b18a18cd9926c8d1130ca3c2950cfc2b2ddad"
+    },
+    {
+      "id": "texture/mines-rock",
+      "role": "Terrain surface texture: albedo + derived normal + roughness (tiling-fixed, 512 px WebP)",
+      "generator": "Meshy nano-banana-2 text-to-image, tiling cross-fade + Sobel normal + luminance roughness (tools/meshy/textures.ts)",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: dark basalt cave rock with rust ore veins",
+      "taskId": "01a1e525-0c95-766e-b480-dfb054a38260",
+      "rawFile": "assets/meshy-raw/textures/mines-rock.png",
+      "optimizedFile": "public/assets/textures/mines-rock.webp",
+      "derivedFiles": [
+        "public/assets/textures/mines-rock-n.webp",
+        "public/assets/textures/mines-rock-r.webp"
+      ],
+      "optimizedBytes": 280370,
+      "optimizedSha256": "6e6a1a74f52a36d8e8f3983517e0b46697c6702725c99cda06cf974951c01e5d"
+    },
+    {
+      "id": "texture/foundry-iron",
+      "role": "Terrain surface texture: albedo + derived normal + roughness (tiling-fixed, 512 px WebP)",
+      "generator": "Meshy nano-banana-2 text-to-image, tiling cross-fade + Sobel normal + luminance roughness (tools/meshy/textures.ts)",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: black cast iron with hazard stripe",
+      "taskId": "01a1e525-12da-765a-8f71-d7bc6a84f20d",
+      "rawFile": "assets/meshy-raw/textures/foundry-iron.png",
+      "optimizedFile": "public/assets/textures/foundry-iron.webp",
+      "derivedFiles": [
+        "public/assets/textures/foundry-iron-n.webp",
+        "public/assets/textures/foundry-iron-r.webp"
+      ],
+      "optimizedBytes": 294656,
+      "optimizedSha256": "5e86997cb52d2d11caa658bbf87acebb0d1dc2f1c6cd67d26f9e7917fa9f769d"
+    },
+    {
+      "id": "texture/reactor-frost",
+      "role": "Terrain surface texture: albedo + derived normal + roughness (tiling-fixed, 512 px WebP)",
+      "generator": "Meshy nano-banana-2 text-to-image, tiling cross-fade + Sobel normal + luminance roughness (tools/meshy/textures.ts)",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: frosted dark steel reactor panels with cyan strips",
+      "taskId": "01a1e525-1830-71d2-a139-d3188287cf43",
+      "rawFile": "assets/meshy-raw/textures/reactor-frost.png",
+      "optimizedFile": "public/assets/textures/reactor-frost.webp",
+      "derivedFiles": [
+        "public/assets/textures/reactor-frost-n.webp",
+        "public/assets/textures/reactor-frost-r.webp"
+      ],
+      "optimizedBytes": 269946,
+      "optimizedSha256": "7d0686d1a7f32611f6048f1e4fbd90d34a6b63cc0d56a2eb2e57ad716b3a5654"
     }
   ]
 }

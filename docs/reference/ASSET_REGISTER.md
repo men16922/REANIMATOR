@@ -95,3 +95,17 @@
 ## Abuse 레벨 관찰 증거 (분석용, 배포 제외)
 
 - `docs/evidence/abuse_levels/{survey.json,SURVEY.md,run/}`: 수치·로그만 포함(원본 바이트·스크린샷 없음). `dist/`에 넣지 않는다.
+
+<!-- textures:begin -->
+
+### Terrain textures (R24, tools/meshy/textures.ts)
+
+| Id | Files (albedo, normal, roughness) | Bytes | Meshy task | Prompt |
+|---|---|---|---|---|
+| `texture/s1-floor` | `public/assets/textures/s1-floor{,-n,-r}.webp` | 192,688 B | `01a1e525-0304-7790-9a6b-8bae52f73b76` | Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: dark industrial steel floor plating, diamond tread |
+| `texture/s1-wall` | `public/assets/textures/s1-wall{,-n,-r}.webp` | 168,020 B | `01a1e525-0725-7118-8f3a-c7ebb56038b0` | Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: dark gunmetal wall panels with teal accents |
+| `texture/mines-rock` | `public/assets/textures/mines-rock{,-n,-r}.webp` | 280,370 B | `01a1e525-0c95-766e-b480-dfb054a38260` | Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: dark basalt cave rock with rust ore veins |
+| `texture/foundry-iron` | `public/assets/textures/foundry-iron{,-n,-r}.webp` | 294,656 B | `01a1e525-12da-765a-8f71-d7bc6a84f20d` | Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: black cast iron with hazard stripe |
+| `texture/reactor-frost` | `public/assets/textures/reactor-frost{,-n,-r}.webp` | 269,946 B | `01a1e525-1830-71d2-a139-d3188287cf43` | Seamless tileable texture, orthographic top-down view, even flat lighting, no shadows, no perspective, game texture, PBR albedo: frosted dark steel reactor panels with cyan strips |
+
+<!-- textures:end -->

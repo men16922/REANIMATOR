@@ -17,6 +17,7 @@
     "reference:holdout": "node tools/reference/verify.ts --holdout",
     "build": "vite build",
     "meshy:terrain": "node tools/meshy/terrain-kit.ts",
+    "meshy:textures": "node tools/meshy/textures.ts",
     "test:e2e": "VITE_DEBUG_HOOKS=1 vite build --logLevel warn --outDir dist-debug --emptyOutDir && node tools/smoke/smoke.ts"
   },
   "devDependencies": {
