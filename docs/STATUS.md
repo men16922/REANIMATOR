@@ -12,9 +12,7 @@
 - `src/game3d/gamepad.ts`(순수 매핑·데드존, 표준 매핑: 스틱/D-pad 이동, 우스틱 조준, A 점프, B 대시, X/RT 발사, Y 상호작용, LT 카운터, LB/RB 무기, Start 일시정지)와 `settings.ts`(키 `reanimator.settings.v1`: reduceFx, largeHud). `src/ui/main.ts` 입력 계층에서만 패드를 읽고 시뮬은 불변. 설정에 "Reduce motion and flashing"(기존 흔들림·플래시 감쇠에 연결)과 "Larger HUD text", 컨트롤 안내에 게임패드 추가. `tests/gamepad.test.ts`.
 - `make check` exit 0(753/753). 봇 핀 불변. Unverified: 실제 패드 하드웨어, 브라우저 UI(오케스트레이터 검증).
 
-## R23 FEAT-001 R22 갭 수정 (2026-11-17, 로컬 커밋)
-
-- ASSET_REGISTER terrain 표 17행 복구, finalize는 manifest 기준으로 재생성. GLB 17종 법선 복구 테스트 추가. `make check` exit 0(746/746). 봇 핀 Normal 4978/126, Story 4880/142, Hard 5319/104 확인.
+R23 FEAT-001 상세: [archive/STATUS_R23_FEAT001.md](archive/STATUS_R23_FEAT001.md).
 
 ## R22 Frost 에셋·실행 기록 (2026-11-17, 로컬 커밋 287d595·3409aef·c1a8681 + 기록 커밋)
 
