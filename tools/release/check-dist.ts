@@ -20,6 +20,9 @@ const walk = (d: string) => readdirSync(d).forEach((n) => { const p = join(d, n)
 walk(dist);
 
 const problems: string[] = [];
+// Player-facing build text: no dev-tool or contest wording (repo docs may name the tooling, the game may not)
+const textExt = new Set(['.html', '.js', '.css', '.svg', '.json', '.txt', '.webmanifest']);
+const bannedWords: RegExp[] = [/kiro/i, /judg/i];
 for (const f of files) {
   const buf = readFileSync(f);
   const rel = f.slice(dist.length + 1);
@@ -29,6 +32,13 @@ for (const f of files) {
   if (!allowedExt.has(ext)) problems.push(`${rel}: unexpected file type`);
   if (buf.subarray(0, 2).toString('latin1') === 'MZ') problems.push(`${rel}: DOS/PE executable header`);
   // the extender's embedded copyright banner (binary signature), not prose that merely names DOS/4GW
+  if (textExt.has(ext)) {
+    const text = buf.toString('utf8');
+    for (const re of bannedWords) {
+      const m = re.exec(text);
+      if (m) problems.push(`${rel}: contains "${text.slice(Math.max(0, m.index - 20), m.index + 20).replace(/\s+/g, ' ')}"`);
+    }
+  }
   if (buf.includes(Buffer.from('Rational Systems, Inc.'))) problems.push(`${rel}: contains DOS/4G extender banner`);
 }
 const bytes = files.reduce((s, f) => s + statSync(f).size, 0);
