@@ -90,6 +90,7 @@ import { buildAmbient3D, type Ambient3D } from './ambient3d.ts';
 import type { OpeningView } from '../ui/opening.ts';
 import { buildTerrainDetail, makeTerrainDetailMaterial } from './terrainDetail.ts';
 import { TerrainKit, loadKitAsset, planKitUnits, type KitAsset } from './terrainKit.ts';
+import { applyTwoSurface, loadSurface, surfaceLookFor, type TwoSurfaceUniforms } from './terrainSurfaces.ts';
 import { batchKeyFor, bevelFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
 /** Round 16 ability pickups reuse the existing item silhouettes with their own colour (no new meshes, no lights). */
@@ -1443,7 +1444,15 @@ export class Scene3DRenderer {
       b = { sector, cls, items: [] };
       this.pendingBatches.set(bk.key, b);
     }
-    b.items.push({ ...g, rx, ry, ox, oy, color, bevel: bevelFor(g.sx, g.sy, g.sz, cls) });
+    const item: BatchItem = { ...g, rx, ry, ox, oy, color, bevel: bevelFor(g.sx, g.sy, g.sz, cls) };
+    if (cls === 'grate' || cls === 'floor' || cls === 'wall') {
+      // R24: world-space box-projected UVs, so adjacent solids share one continuous surface instead of per-box stretched maps.
+      const look = surfaceLookFor(this.builtLevelRef?.stage?.id ?? 1, sector);
+      const lum = (k: THREE.Color): number => 0.2126 * k.r + 0.7152 * k.g + 0.0722 * k.b;
+      item.color = look.topTint.clone();
+      item.world = { tile: look.tile, sideTone: lum(look.sideTint) / Math.max(0.01, lum(look.topTint)) };
+    }
+    b.items.push(item);
   }
 
   private flushSolidBatches(tex: ReturnType<typeof getFacilityTextures3D>): void {
@@ -1486,6 +1495,7 @@ export class Scene3DRenderer {
         });
         applyFrontLift(mat, 0.34);
       }
+      if (b.cls === 'grate' || b.cls === 'floor' || b.cls === 'wall') this.applyBatchSurface(mat, b.sector);
       const geo = buildBatchGeometry(b.items);
       if (!geo) continue;
       const mesh = new THREE.Mesh(geo, mat);
@@ -1499,6 +1509,28 @@ export class Scene3DRenderer {
       this.cullEntries.push({ obj: mesh, minX: bb.min.x, maxX: bb.max.x, minY: bb.min.y, maxY: bb.max.y });
     }
     this.pendingBatches.clear();
+  }
+
+  /** R24: swaps the batch's procedural maps for the stage/sector Meshy surfaces once they load (flat procedural look stays on failure). */
+  private applyBatchSurface(mat: THREE.MeshStandardMaterial, sector: SectorId3D): void {
+    const level = this.builtLevelRef;
+    const look = surfaceLookFor(level?.stage?.id ?? 1, sector);
+    const u: TwoSurfaceUniforms = { map2: { value: mat.map }, normalMap2: { value: mat.normalMap } };
+    applyTwoSurface(mat, u);
+    void Promise.all([loadSurface(look.top), loadSurface(look.side)]).then(
+      ([top, side]) => {
+        if (this.builtLevelRef !== level) return;
+        mat.map = top.albedo;
+        mat.normalMap = top.normal;
+        u.map2.value = side.albedo;
+        u.normalMap2.value = side.normal;
+        mat.normalScale.set(1.1, 1.1);
+        mat.roughness = 0.72;
+        mat.metalness = 0.3;
+        mat.needsUpdate = true;
+      },
+      (err) => console.warn('[scene3d] terrain surface failed, keeping procedural maps:', err),
+    );
   }
 
   /** R14 terrain relief (rock outcrops, stalactites, wall ribs, conduits): merged per sector strip, culled by view window. */
@@ -2199,7 +2231,7 @@ export class Scene3DRenderer {
     if (this.hunterTint > 0.005) bg.lerp(_HUNTER_BG, 0.5 * this.hunterTint);
     (this.scene.background as THREE.Color).lerp(bg, Math.min(1, dt * 3));
     (this.scene.fog as THREE.FogExp2).color.copy(this.scene.background as THREE.Color);
-    const fogTarget = Math.min(0.02, room ? SECTOR_FOG[room.sector] : 0.012);
+    const fogTarget = Math.min(0.024, (room ? SECTOR_FOG[room.sector] : 0.012) * 1.2);
     this.fogDensity += (fogTarget - this.fogDensity) * Math.min(1, dt * 2);
     (this.scene.fog as THREE.FogExp2).density = this.fogDensity;
     this.decor?.setMeltdown(inMeltdown, tSec, this.reduceMotion);
@@ -2215,7 +2247,8 @@ export class Scene3DRenderer {
     this.presetSun.lerp(preset.sun, lk);
     this.presetAmbI += (preset.ambient - this.presetAmbI) * lk;
     this.presetSunI += (preset.sunI - this.presetSunI) * lk;
-    this.bloomPass.strength += (preset.bloom - this.bloomPass.strength) * lk;
+    // R24 calm background: 20% less bloom than the R3 mood pass so glows stop competing with the gameplay plane.
+    this.bloomPass.strength += (preset.bloom * 0.8 - this.bloomPass.strength) * lk;
     if (this.opening && w.light.on) this.lampK = this.opening.lamp;
     else this.lampK += ((w.light.on ? 1 : 0) - this.lampK) * Math.min(1, dt * 6);
     const dim = LAMP_OFF_DIM + (1 - LAMP_OFF_DIM) * this.lampK;

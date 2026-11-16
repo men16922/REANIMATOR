@@ -109,6 +109,7 @@ const FRAG = /* glsl */ `
 uniform vec3 uHaze;
 uniform float uHazeAmt;
 uniform float uMelt;
+uniform float uDim;
 uniform float uClassic;
 uniform vec4 uClip;
 varying vec3 vCol;
@@ -125,6 +126,7 @@ void main() {
   #else
     c = mix(c, uHaze, clamp(f * uHazeAmt + (1.0 - edgeF), 0.0, 1.0));
   #endif
+  c *= uDim;
   c = mix(c, c * vec3(1.6, 0.5, 0.38) + vec3(0.03, 0.0, 0.0), uMelt);
   if (uClassic > 0.5) {
     c = floor(c * 5.0 + 0.5) / 5.0;
@@ -176,6 +178,7 @@ interface SectorVista {
   group: THREE.Group;
   meshes: THREE.Mesh[];
   melt: { value: number };
+  dim: { value: number };
   minX: number;
   maxX: number;
   minY: number;
@@ -215,7 +218,8 @@ export function buildVista3D(scene: THREE.Scene, level: Level3D): Vista3D {
     group.name = `vista:${data.sector}`;
     const meshes: THREE.Mesh[] = [];
     const melt = { value: 0 };
-    const common = { uTime, uReduce, uClassic, uMelt: melt, uClip: { value: new THREE.Vector4(...data.clip) } };
+    const dim = { value: 0.55 };
+    const common = { uTime, uReduce, uClassic, uMelt: melt, uDim: dim, uClip: { value: new THREE.Vector4(...data.clip) } };
     const shader = (additive: boolean): THREE.ShaderMaterial =>
       track(
         new THREE.ShaderMaterial({
@@ -246,7 +250,7 @@ export function buildVista3D(scene: THREE.Scene, level: Level3D): Vista3D {
     add(frames, 'frame', 0);
     if (data.glass) add(new THREE.Mesh(track(toBufferGeometry(data.glass, false)), glassMat), 'glass', 3);
     root.add(group);
-    sectors.push({ data, group, meshes, melt, minX: room.minX, maxX: room.maxX, minY: room.minY, maxY: room.maxY });
+    sectors.push({ data, group, meshes, melt, dim, minX: room.minX, maxX: room.maxX, minY: room.minY, maxY: room.maxY });
   }
 
   let activeSector: SectorId3D | null = null;
@@ -264,6 +268,11 @@ export function buildVista3D(scene: THREE.Scene, level: Level3D): Vista3D {
       for (const s of sectors) {
         s.melt.value = s.data.sector === 'core' ? meltLevel : meltLevel * 0.4;
         if (u.playerX >= s.minX && u.playerX <= s.maxX && u.playerY >= s.minY - 1 && u.playerY <= s.maxY + 1) activeSector = s.data.sector;
+      }
+      // R24: calm background. Neighbour sectors seen past the room edge (the flat haze patch under Bio-Labs) sit well below the active vista.
+      for (const s of sectors) {
+        const want = s.data.sector === activeSector ? 0.82 : 0.3;
+        s.dim.value += (want - s.dim.value) * Math.min(1, dt * 4 + (dt === 0 ? 1 : 0));
       }
     },
     setView(minX: number, maxX: number, minY: number, maxY: number): void {

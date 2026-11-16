@@ -79,6 +79,8 @@ export interface BatchItem {
   color: THREE.Color;
   /** Optional edge chamfer (m). Absent or 0 keeps the plain 24-vertex box. */
   bevel?: number;
+  /** World-space box projection: UV = world coordinate / tile on the two axes facing the dominant normal. Side/bottom faces get `sideTone`. */
+  world?: { tile: number; sideTone: number };
 }
 
 /** Chamfer width for a solid: capped by its thinnest side so slabs and grates never invert. 0 below 0.12 m. */
@@ -212,10 +214,24 @@ export function buildBatchGeometry(items: readonly BatchItem[]): THREE.BufferGeo
     const uv = g.attributes.uv as THREE.BufferAttribute;
     for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * it.rx + it.ox, uv.getY(i) * it.ry + it.oy);
     g.translate(it.cx, it.cy, it.cz);
+    if (it.world) {
+      const pos = g.attributes.position as THREE.BufferAttribute;
+      const nor = g.attributes.normal as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        const ax = Math.abs(nor.getX(i));
+        const ay = Math.abs(nor.getY(i));
+        const az = Math.abs(nor.getZ(i));
+        const t = it.world.tile;
+        if (ay >= ax && ay >= az) uv.setXY(i, pos.getX(i) / t, pos.getZ(i) / t);
+        else if (ax >= az) uv.setXY(i, pos.getZ(i) / t, pos.getY(i) / t);
+        else uv.setXY(i, pos.getX(i) / t, pos.getY(i) / t);
+      }
+    }
     const n = g.attributes.position.count;
     const col = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
-      const k = tone ? tone[i] : 1;
+      let k = tone ? tone[i] : 1;
+      if (it.world && (g.attributes.normal as THREE.BufferAttribute).getY(i) < 0.5) k *= it.world.sideTone;
       col[i * 3] = it.color.r * k;
       col[i * 3 + 1] = it.color.g * k;
       col[i * 3 + 2] = it.color.b * k;
