@@ -2,7 +2,12 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
-## 사용자 결정 대기: 다단계 스테이지 확장
+## R17 다단계 스테이지 (안 B 채택, 로컬 커밋 aa8d19a·4a6e74a)
+
+- [x] Stage 2 Foundry Line, Stage 3 Reactor Spire, 스테이지 선택·클리어 화면·진행 저장·디버그 훅 빌드 플래그. `make check` exit 0(695/695). 봇 핀 Stage 1 불변. Playwright: 타이틀 STAGES 패널 확인, 콘솔 오류 0.
+- [ ] 미검증: Stage 2·3 렌더/전투 밸런스(봇 완주 없음, reach만), 클리어 화면 육안, 전투 쇼케이스 305 calls, `make release`.
+
+## (이전) 사용자 결정 대기: 다단계 스테이지 확장
 
 - [ ] 안 선택. A: 현 맵을 Stage 0 허브/튜토리얼(Airlock), Stage 1(Shaft+Mines), Stage 2(Bio-Labs+Security), Stage 3(Core 보스+Meltdown)로 분할. B: 현 맵을 Stage 1로 두고 신규 2개 추가. 근거 [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md) §7(허브+선형 레벨).
 - [ ] 공통 요구: 스테이지 클리어 화면, 스테이지 선택, 스테이지별 출구 텔레포터(상호작용 키), 타이틀 카드, 스테이지별 스위치·문 퍼즐, 길이에 비례한 세이브 포인트. 결정 후 spec `metroidvania-3d`를 갱신하고 봇·`reach3d`·세이브 호환(구 세이브 능력 플래그 기본값)을 함께 다룬다.
