@@ -5,6 +5,7 @@ import {
 } from '../src/game3d/stageFlow.ts';
 import { newWorld3D } from '../src/game3d/world3d.ts';
 import { visibleMenu } from '../src/ui/menu.ts';
+import { objectiveFor, OBJECTIVES } from '../src/ui/objective.ts';
 
 test('fresh progress: only stage 1 is open', () => {
   const p = defaultProgress();
@@ -79,4 +80,13 @@ test('debug hooks are gated on a build flag, not on the URL alone', async () => 
   const src = readFileSync(new URL('../src/ui/main.ts', import.meta.url), 'utf8');
   assert.match(src, /const DEBUG_HOOKS = import\.meta\.env\.DEV \|\| \(import\.meta\.env\.VITE_DEBUG_HOOKS === '1' && /);
   assert.ok(!/const DEBUG_HOOKS = [^;]*\|\| \/\[\?&\]debug/.test(src));
+});
+
+test('objective line: stages 2 and 3 point at the exit teleporter, not the stage 1 reactor', () => {
+  assert.equal(objectiveFor(newWorld3D({ stage: 2 })), OBJECTIVES.exit);
+  const w3 = newWorld3D({ stage: 3 });
+  assert.equal(objectiveFor(w3), OBJECTIVES.spireWarden);
+  for (const e of w3.enemies) if (e.kind === 'warden') e.alive = false;
+  assert.equal(objectiveFor(w3), OBJECTIVES.exit);
+  assert.equal(objectiveFor(newWorld3D()), OBJECTIVES.console);
 });

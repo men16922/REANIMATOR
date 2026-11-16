@@ -3,7 +3,7 @@
 
 import type { WorldState3D } from '../game3d/world3d.ts';
 
-export type ObjectiveWorld = Pick<WorldState3D, 'status' | 'phase' | 'consoleUnlocked' | 'currentRoom' | 'coreDestroyed' | 'meltdownTicks' | 'enemies'>;
+export type ObjectiveWorld = Pick<WorldState3D, 'status' | 'phase' | 'consoleUnlocked' | 'currentRoom' | 'coreDestroyed' | 'meltdownTicks' | 'enemies'> & { stage?: number };
 
 export interface Objective {
   text: string;
@@ -16,11 +16,15 @@ export const OBJECTIVES = {
   warden: { text: 'OBJ: Slay the Core Warden (Core Vault)', color: '#ffae6b' },
   core: { text: 'OBJ: Shatter the Reactor Core!', color: '#4be8ff' },
   escape: { text: 'OBJ: ESCAPE to the Airlock extraction balcony!', color: '#5aff9c' },
+  exit: { text: 'OBJ: Reach the exit teleporter and press interact', color: '#5aff9c' },
+  spireWarden: { text: 'OBJ: Slay the Warden to unlock the exit teleporter', color: '#ffae6b' },
   won: { text: 'EXTRACTED SAFELY', color: '#5aff9c' },
 } as const satisfies Record<string, Objective>;
 
 export function objectiveFor(w: ObjectiveWorld): Objective {
   if (w.status === 'won' || w.phase === 'won') return OBJECTIVES.won;
+  if (w.stage === 2) return OBJECTIVES.exit;
+  if (w.stage === 3) return w.enemies.some((e) => e.kind === 'warden' && !e.minion && e.alive) ? OBJECTIVES.spireWarden : OBJECTIVES.exit;
   if (w.coreDestroyed || w.meltdownTicks >= 0) return OBJECTIVES.escape;
   const wardenAlive = w.enemies.some((e) => e.kind === 'warden' && !e.minion && e.alive);
   if (!wardenAlive) return OBJECTIVES.core;

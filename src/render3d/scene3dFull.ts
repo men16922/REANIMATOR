@@ -955,6 +955,12 @@ export class Scene3DRenderer {
     this.mood = buildMood3D(this.scene, w.level);
     this.hazards3d?.dispose();
     this.hazards3d = buildHazards3D(this.scene, w.level);
+    // Static hazard pieces are merged per room: hide the rooms outside the camera window (render-only).
+    const hzRoot = this.scene.getObjectByName('hazards3d');
+    for (const r of w.level.rooms) {
+      const g = hzRoot?.getObjectByName(`hazard-static:${r.id}`);
+      if (g) this.cullEntries.push({ obj: g, minX: r.minX - 1, maxX: r.maxX + 1, minY: r.minY - 1, maxY: r.maxY + 1 });
+    }
     this.metroid3d?.dispose();
     this.metroid3d = buildMetroid3D(this.scene, w.level);
     this.hazards3d.setClassic(this.viewMode === 'classic');
@@ -999,7 +1005,7 @@ export class Scene3DRenderer {
       });
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(p.radius * 0.92, p.radius, h, 16), mat);
       mesh.position.set(p.x, p.minY + h * 0.5, p.z);
-      mesh.castShadow = true;
+      mesh.castShadow = false;
       mesh.receiveShadow = true;
       this.scene.add(mesh);
       this.occludables.push({ mesh, mat, center: mesh.position.clone() });
@@ -1491,7 +1497,21 @@ export class Scene3DRenderer {
       const p = o.position;
       return p.x < vx0 - 3 || p.x > vx1 + 3 || p.y < vy0 - 3 || p.y > vy1 + 3;
     };
-    for (const rig of this.riggedEnemies.values()) if (out(rig.root)) rig.root.visible = false;
+    // Rig meshes skip frustum culling, so a far foe would still be drawn in the shadow pass: only foes within the sun's shadow box cast.
+    const shadowRange = this.camFocus.x;
+    for (const rig of this.riggedEnemies.values()) {
+      if (out(rig.root)) {
+        rig.root.visible = false;
+        continue;
+      }
+      const cast = Math.abs(rig.root.position.x - shadowRange) < 7.5 && Math.abs(rig.root.position.y - this.camFocus.y) < 5;
+      if (rig.root.userData.shadowCast !== cast) {
+        rig.root.userData.shadowCast = cast;
+        rig.root.traverse((o) => {
+          if ((o as THREE.Mesh).isMesh) o.castShadow = cast;
+        });
+      }
+    }
     for (const st of this.staticEnemies.values()) if (out(st.root)) st.root.visible = false;
     for (const b of this.barrelHandles.values()) if (out(b.root)) b.root.visible = false;
     for (const g of this.pickupHandles.values()) if (out(g)) g.visible = false;
@@ -1503,6 +1523,7 @@ export class Scene3DRenderer {
     let shadowCasters = 0;
     // Visible meshes by scene-root child (name prefix, else type) plus geometry type: where the draw calls come from.
     const byGroup: Record<string, number> = {};
+    const casterGroups: Record<string, number> = {};
     let sceneObjects = 0;
     this.scene.traverse(() => {
       sceneObjects++;
@@ -1515,9 +1536,11 @@ export class Scene3DRenderer {
       while (top.parent && top.parent !== this.scene) top = top.parent;
       const key = `${top.name.split(':')[0] || top.type}/${m.geometry.type}`;
       byGroup[key] = (byGroup[key] ?? 0) + 1;
+      if (o.castShadow) casterGroups[key] = (casterGroups[key] ?? 0) + 1;
     });
     return {
       byGroup,
+      casterGroups,
       sceneChildren: this.scene.children.length,
       sceneObjects,
       contextLost: this.contextLost,
@@ -1852,6 +1875,7 @@ export class Scene3DRenderer {
     this.exitPortalRing = this.exitHatch.group;
     this.exitPortalRing.position.set(w.level.exitPos.x, w.level.exitPos.y + 2.05, 0.3);
     this.scene.add(this.exitPortalRing);
+    this.addCullPoint(this.exitPortalRing, w.level.exitPos.x, w.level.exitPos.y + 2.05, 4);
   }
 
   private getOrCreatePickupGroup(id: string, kind: 'med' | 'ammo' | 'weapon' | 'log', weapon?: WeaponSlot3D): THREE.Group {
@@ -1864,18 +1888,12 @@ export class Scene3DRenderer {
     // child[0]: projector base (holo pad + soft ground decal). Children [1..] keep their animation indices.
     const base = new THREE.Group();
     const padMesh = new THREE.Mesh(
-      new THREE.PlaneGeometry(1.25, 1.25),
-      new THREE.MeshBasicMaterial({ map: getPickupPadTexture(), color, transparent: true, opacity: 0.8, depthWrite: false, blending: THREE.AdditiveBlending }),
+      new THREE.PlaneGeometry(1.6, 1.6),
+      new THREE.MeshBasicMaterial({ map: getPickupPadTexture(), color, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }),
     );
     padMesh.rotation.x = -Math.PI / 2;
     padMesh.position.y = 0.04;
-    const decal = new THREE.Mesh(
-      new THREE.PlaneGeometry(2.6, 2.6),
-      new THREE.MeshBasicMaterial({ map: getPickupGlowTexture(), color, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending }),
-    );
-    decal.rotation.x = -Math.PI / 2;
-    decal.position.y = 0.03;
-    base.add(decal, padMesh);
+    base.add(padMesh);
     grp.add(base);
 
     if (kind === 'weapon') {
@@ -1885,6 +1903,9 @@ export class Scene3DRenderer {
         m.emissiveIntensity = 0.9;
       }
       gun.root.position.y = 0.95;
+      gun.root.traverse((o) => {
+        o.castShadow = false;
+      });
       grp.add(gun.root);
     } else {
       const core = new THREE.Mesh(
