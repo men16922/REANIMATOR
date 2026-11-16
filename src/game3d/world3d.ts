@@ -668,6 +668,13 @@ export const ENERGY_TANK_HP = 30;
 export const MELTDOWN_TICKS = 90 * 60;
 const MUZZLE_HEIGHT = 1.12;
 
+/** Stage 2 mini-boss (Slag Foreman): a heavy Bio-Stalker with a slow telegraphed lunge that ends in a floor shockwave. */
+export const FOREMAN_HP = 460;
+export const FOREMAN_RADIUS = 0.72;
+export const FOREMAN_HEIGHT = 2.7;
+export const FOREMAN_WINDUP_TICKS = 34;
+export const FOREMAN_WAVE_DAMAGE = 9;
+
 const ENEMY_STATS: Record<EnemyKind3D, { hp: number; radius: number; height: number; speed: number }> = {
   crawler: { hp: 38, radius: 0.42, height: 0.85, speed: 6.1 },
   stalker: { hp: 78, radius: 0.48, height: 1.75, speed: 5.8 },
@@ -813,9 +820,11 @@ export function getRunSummary3D(w: Readonly<WorldState3D>): RunSummary3D {
 /** Initial enemy state from a level spawn. Hive larvae slots (`hiveId` set), warden minions and extraction slots start dead. */
 function buildEnemy3D(sp: EnemySpawn3D, hiveId = '', hpMul = 1): EnemyState3D {
   const st = ENEMY_STATS[sp.kind];
-  const hpScale = sp.kind === 'warden' ? 1 : SECTOR_HP_3D[sp.zone] * (sp.id.startsWith('e-esc-') ? 2 : 1) * hpMul;
+  const foreman = sp.variant === 'foreman';
+  const hpScale = sp.kind === 'warden' || foreman ? 1 : SECTOR_HP_3D[sp.zone] * (sp.id.startsWith('e-esc-') ? 2 : 1) * hpMul;
   const minion = hiveId !== '' || sp.id.startsWith('e-core-m') || sp.id.startsWith('e-esc-') || sp.id.startsWith('e-lift-');
   const surface: EnemySurface3D = sp.surface ?? 'floor';
+  const maxHp = foreman ? Math.round(FOREMAN_HP * hpMul) : Math.round(st.hp * hpScale);
   const wallDir: 1 | -1 = sp.wallDir ?? 1;
   const span = sp.span ?? [sp.x, sp.x];
   return {
@@ -829,10 +838,10 @@ function buildEnemy3D(sp: EnemySpawn3D, hiveId = '', hpMul = 1): EnemyState3D {
     vy: 0,
     vz: 0,
     yaw: -Math.PI / 2,
-    hp: minion ? 0 : Math.round(st.hp * hpScale),
-    maxHp: Math.round(st.hp * hpScale),
-    radius: st.radius,
-    height: st.height,
+    hp: minion ? 0 : maxHp,
+    maxHp,
+    radius: foreman ? FOREMAN_RADIUS : st.radius,
+    height: foreman ? FOREMAN_HEIGHT : st.height,
     alive: !minion,
     active: false,
     phase: 1,
@@ -1035,6 +1044,11 @@ function stepStageExit3D(w: WorldState3D, interact: boolean): void {
   const wardenUp = info.goal === 'boss' && w.enemies.some((e) => e.kind === 'warden' && e.alive);
   if (wardenUp) {
     roomHint(w, 'TELEPORTER LOCKED. DESTROY THE CORE WARDEN');
+    return;
+  }
+  const guardUp = info.guardId !== undefined && w.enemies.some((e) => e.id === info.guardId && e.alive);
+  if (guardUp) {
+    roomHint(w, 'TELEPORTER LOCKED. DESTROY THE SLAG FOREMAN');
     return;
   }
   if (!interact) {
@@ -1336,7 +1350,11 @@ function damageEnemy(
     e.deathTicks = 1;
     e.anim = 'death';
     registerKill(w, e);
-    if (e.kind === 'warden') {
+    if (e.variant === 'foreman') {
+      w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'med', value: 40, x: e.x, y: e.y, z: 0, taken: false });
+      w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'ammo', value: 16, x: e.x + 1.2, y: e.y, z: 0, taken: false });
+      roomHint(w, 'SLAG FOREMAN DOWN. EXIT TELEPORTER UNLOCKED');
+    } else if (e.kind === 'warden') {
       w.phase = 'core';
       w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'med', value: 15, x: e.x, y: e.y, z: 0, taken: false });
       for (const m of w.enemies) {
@@ -2467,7 +2485,17 @@ function stepEnemies3D(w: WorldState3D): void {
             direct = false;
             e.dropping = false;
             e.meleeCooldown = 0;
-            e.attackCooldown = Math.round((e.kind === 'stalker' ? 70 : 84) / tempo3D(w, e.zone));
+            if (e.variant === 'foreman') {
+              // Touchdown slam: a low shockwave runs along the floor (jump it)
+              w.shockwaves.push({
+                id: w.nextId++, x: e.x, y: e.y, z: 0, radius: 1.0, maxRadius: 9.5, speed: 7.5,
+                damage: scaledDamage(w, e, FOREMAN_WAVE_DAMAGE), hitPlayer: false, phase: 1,
+              });
+              w.shakeTicks = Math.max(w.shakeTicks, 10);
+              w.shakeStrength = Math.max(w.shakeStrength, 0.25);
+              w.events.push({ type: 'slam' });
+            }
+            e.attackCooldown = Math.round((e.variant === 'foreman' ? 100 : e.kind === 'stalker' ? 70 : 84) / tempo3D(w, e.zone));
             e.vx = 0;
             setEnemyState(e, 'recover', e.kind === 'stalker' ? 30 : 40);
           }
@@ -2486,7 +2514,7 @@ function stepEnemies3D(w: WorldState3D): void {
           updateFacing(e, dirX, dist);
           const turning = e.turnTicks > 0;
           if (lunger) {
-            const reach = e.kind === 'crawler' ? 2.4 : 3.5;
+            const reach = e.kind === 'crawler' ? 2.4 : e.variant === 'foreman' ? 4.4 : 3.5;
             const tempo = tempo3D(w, e.zone);
             // Swarm (crawlers): two slots flank by running past the player, nearby bodies repel, and at most two attack at once
             let flankSide: 0 | 1 | -1 = 0;
@@ -2514,7 +2542,7 @@ function stepEnemies3D(w: WorldState3D): void {
             if (dist <= reach && dy > -0.7 && dy < 2.2 && e.attackCooldown === 0 && !turning && !crossing && attackSlotFree) {
               e.facing = dirX;
               e.turnTicks = 0;
-              const wt = tutorialSoft(w, e) ? TUTORIAL_WINDUP_TICKS : e.kind === 'crawler' ? 14 : 18;
+              const wt = tutorialSoft(w, e) ? TUTORIAL_WINDUP_TICKS : e.variant === 'foreman' ? FOREMAN_WINDUP_TICKS : e.kind === 'crawler' ? 14 : 18;
               setEnemyState(e, 'windup', wt);
               e.windupTicks = wt;
               moving = false;

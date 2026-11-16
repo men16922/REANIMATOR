@@ -6,6 +6,7 @@ import { castRaySolidDistance3D, emptyInput3D, hazardNowTick3D, PARRY_REACH, WAR
 import { hazardHold } from './hazards.ts';
 import { navReached, navSteer, type NavTarget } from './nav3d.ts';
 import { ABILITY_3D } from '../engine/motion3d.ts';
+import { stageRoute3D } from './stages3d.ts';
 import type { WeaponSlot3D } from './types3d.ts';
 
 interface BotStep extends NavTarget {
@@ -31,8 +32,52 @@ const upgrade = (id: string) => (w: WorldState3D) => w.collectedUpgrades.has(id)
 /** Nest cleared: the bot holds its firing position until the spawner is destroyed. */
 const hiveDown = (id: string) => (w: WorldState3D) => !w.hives.find((h) => h.id === id)?.alive;
 
+const WEAPON_LOCK_SLOT: Record<string, WeaponSlot3D> = { blue: 1, green: 2, yellow: 3, red: 4 };
+
+/**
+ * Route for the Stage 2 and 3 worlds, built from the authored reachability route (stageRoute3D): weapon-lock doors get a
+ * firing stop in front of them, levers fire when the bot walks up (interact is held), the Warden step fights Stage 3's boss.
+ */
+function buildStageSteps(w: WorldState3D): BotStep[] {
+  const L = w.level;
+  const stage = L.stage!;
+  const steps: BotStep[] = [];
+  const route = stageRoute3D(stage.id);
+  for (const wp of route) {
+    const last = steps[steps.length - 1];
+    const lever = L.switches.find((sw) => Math.abs(sw.x - wp.x) <= 0.6 && Math.abs(sw.y - 0.15 - wp.y) <= 0.7);
+    const step: BotStep = { label: wp.label, x: wp.x, y: wp.y, tolX: wp.tolX, tolY: wp.tolY, leap: wp.leap };
+    if (lever) {
+      step.tolX = 0.4;
+      step.done = (s) => s.switches.some((x) => x.id === lever.id && x.on);
+    }
+    for (const id of wp.opens ?? []) {
+      const solid = L.solids.find((x) => x.doorId === id && x.doorLock);
+      const slot = solid?.doorLock ? WEAPON_LOCK_SLOT[solid.doorLock] : undefined;
+      if (solid && slot) {
+        const sx = (solid.minX + solid.maxX) / 2;
+        steps.push({
+          label: `${wp.label} lock`, x: sx - 5.5, y: 0, tolX: 0.8,
+          fire: { weapon: slot, aimX: sx, aimY: 1.4 }, done: door(id),
+        });
+      }
+    }
+    if (last && wp.label === 'Exit teleporter' && stage.goal === 'boss') {
+      const arena = L.rooms.find((r) => r.sector === 'core')!;
+      steps.push({ label: 'warden', x: (arena.minX + arena.maxX) / 2, y: 0, tolX: 0.8, mode: 'boss', done: (s) => !s.enemies.some((e) => e.kind === 'warden' && e.alive) });
+    }
+    if (wp.label === 'Exit teleporter' && stage.guardId) {
+      const guard = stage.guardId;
+      steps.push({ label: 'foreman', x: wp.x - 17, y: 0, tolX: 1, done: (s) => !s.enemies.some((e) => e.id === guard && e.alive) });
+    }
+    steps.push(step);
+  }
+  return steps;
+}
+
 function buildSteps(w: WorldState3D): BotStep[] {
   const L = w.level;
+  if (L.stage) return buildStageSteps(w);
   const ped = (id: string) => L.pedestals.find((p) => p.id === id)!;
   const sc = ped('ped-scatter');
   const gr = ped('ped-grenade');
@@ -172,6 +217,14 @@ function chooseWeapon(w: WorldState3D, t: Threat): WeaponSlot3D {
 
 export function createBot3D(w0: WorldState3D): Bot3D {
   const steps = buildSteps(w0);
+  // Core Vault arena bounds (Stage 1: 70..98 gives the original 72/96 clamp, 73.5/94 corner and 72.4/95.9 charge limits)
+  const arena = w0.level.rooms.find((r) => r.sector === 'core') ?? { minX: 70, maxX: 98 };
+  const aLo = arena.minX + 2;
+  const aHi = arena.maxX - 2;
+  const aCornerLo = arena.minX + 3.5;
+  const aCornerHi = arena.maxX - 4;
+  const aChargeLo = arena.minX + 2.4;
+  const aChargeHi = arena.maxX - 2.1;
   let idx = 0;
   let prevJump = false;
   let bossSide: 1 | -1 = -1;
@@ -251,10 +304,10 @@ export function createBot3D(w0: WorldState3D): Bot3D {
         if (warden) {
           const dist = Math.abs(warden.x - b.x);
           // Keep ~9 m of space; if cornered against the vault door, run through to the far side
-          if (dist < 5.5 && b.x < 73.5 && bossSide === -1) bossSide = 1;
-          else if (dist < 5.5 && b.x > 94 && bossSide === 1) bossSide = -1;
+          if (dist < 5.5 && b.x < aCornerLo && bossSide === -1) bossSide = 1;
+          else if (dist < 5.5 && b.x > aCornerHi && bossSide === 1) bossSide = -1;
           const wantX = warden.x + bossSide * 9;
-          target = { x: Math.max(72, Math.min(96, wantX)), y: 0, tolX: 0.8 };
+          target = { x: Math.max(aLo, Math.min(aHi, wantX)), y: 0, tolX: 0.8 };
         }
       } else if (step.mode === 'core') {
         target = { x: step.x, y: 0, tolX: 0.8 };
@@ -298,7 +351,7 @@ export function createBot3D(w0: WorldState3D): Bot3D {
       if (wd && wd.bossPattern === 'charge' && wd.lungeTicks > 0 && Math.abs(wd.x - b.x) < 5.5 && b.dashCooldown === 0) {
         // Out-run the charge in open floor; with the wall close ahead, dash back through the Warden on the dash i-frames
         const ahead = (b.x - wd.x) * wd.chargeDir > 0;
-        const room = wd.chargeDir > 0 ? 95.9 - b.x : b.x - 72.4;
+        const room = wd.chargeDir > 0 ? aChargeHi - b.x : b.x - aChargeLo;
         const cornered = ahead && room < 12;
         if (!cornered || Math.abs(wd.x - b.x) < 3) {
           inp.dash = true;

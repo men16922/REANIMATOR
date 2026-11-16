@@ -18,6 +18,7 @@ export interface StageWaypoint {
 }
 
 export const STAGE2_NAME = 'Foundry Line';
+export const STAGE2_FOREMAN_ID = 'e-s2-foreman';
 
 export function buildStage2Map3D(): Level3D {
   const k = new StageKit('s2');
@@ -102,13 +103,15 @@ export function buildStage2Map3D(): Level3D {
   k.gate(156, 'console', 'door_s2_spine');
 
   // ===== 6. Furnace Gate (core) =====
-  const furnace = k.room('furnace', 'core', 'Furnace Gate', 'Last gauntlet. Pull the lever, then reach the exit teleporter and press interact.', 32, 0x3a1a1a);
+  const furnace = k.room('furnace', 'core', 'Furnace Gate', 'Last gauntlet. Slay the Slag Foreman, pull the lever, then press interact at the exit teleporter.', 32, 0x3a1a1a);
   k.fullFloor(furnace, 0x1c212a);
   k.platform('furnace-w', 162, 168, 2.2);
   k.platform('furnace-e', 170, 176, 2.2);
   k.foe('core', 'spitter', 165, 2.2);
   k.foe('core', 'spitter', 173, 2.2);
-  k.pack('core', ['crawler', 'stalker', 'crawler', 'spitter', 'crawler', 'stalker', 'crawler', 'spitter', 'crawler', 'stalker', 'crawler', 'crawler'], 160.5, 178.5);
+  k.pack('core', ['crawler', 'stalker', 'crawler', 'spitter', 'crawler', 'crawler', 'spitter', 'crawler'], 160.5, 168);
+  // Mini-boss: the Slag Foreman guards the exit teleporter (it stays locked while the Foreman lives)
+  k.enemies.push({ id: STAGE2_FOREMAN_ID, kind: 'stalker', variant: 'foreman', x: 175, y: 0, z: 0, zone: 'core' });
   k.lever('sw-s2-furnace', 'core', 177.5, 0, 'door_s2_exit', 'FURNACE LEVER');
   k.gate(181, 'console', 'door_s2_exit');
   k.vent('core', 169, 60);
@@ -120,7 +123,7 @@ export function buildStage2Map3D(): Level3D {
   k.endWall(188);
 
   return k.finish({
-    stage: { id: 2, name: STAGE2_NAME, subtitle: 'Cut through the dead foundry. Every door has a trigger.', goal: 'exit' },
+    stage: { id: 2, name: STAGE2_NAME, subtitle: 'Cut through the dead foundry. Every door has a trigger.', goal: 'exit', guardId: STAGE2_FOREMAN_ID },
     spawn: { x: 3, y: 0 },
     exit: { x: 185, y: 0 },
   });

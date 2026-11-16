@@ -105,9 +105,7 @@ export function buildStage3Map3D(): Level3D {
   k.platform('arena-e', 204, 209, 2.4);
   k.enemies.push({ id: 'e-core-warden', kind: 'warden', x: 197, y: 0, z: 0, zone: 'core' });
   k.foe('core', 'crawler', 191);
-  k.foe('core', 'stalker', 205, 2.4);
   k.foe('core', 'spitter', 201);
-  k.foe('core', 'crawler', 208);
   k.enemies.push({ id: 'e-core-m1', kind: 'crawler', x: 194, y: 0, z: 0, zone: 'core' });
   k.enemies.push({ id: 'e-core-m2', kind: 'crawler', x: 206, y: 0, z: 0, zone: 'core' });
   k.vent('core', 192.5, 30);
@@ -116,6 +114,8 @@ export function buildStage3Map3D(): Level3D {
   k.barrel(207);
   k.save(arena, 186.4);
   k.med(188.4, 55);
+  k.med(193.5, 45);
+  k.med(210.2, 50);
   k.log('log_s3_arena', 'core', 'Spire Log 06: Warden Protocol', 206.5, 2.4);
   k.pillarRow(arena, 7, 9);
   k.endWall(212);

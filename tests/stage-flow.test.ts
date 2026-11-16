@@ -83,7 +83,9 @@ test('debug hooks are gated on a build flag, not on the URL alone', async () => 
 });
 
 test('objective line: stages 2 and 3 point at the exit teleporter, not the stage 1 reactor', () => {
-  assert.equal(objectiveFor(newWorld3D({ stage: 2 })), OBJECTIVES.exit);
+  const s2 = newWorld3D({ stage: 2 });
+  for (const e of s2.enemies) if (e.variant === 'foreman') e.alive = false;
+  assert.equal(objectiveFor(s2), OBJECTIVES.exit);
   const w3 = newWorld3D({ stage: 3 });
   assert.equal(objectiveFor(w3), OBJECTIVES.spireWarden);
   for (const e of w3.enemies) if (e.kind === 'warden') e.alive = false;

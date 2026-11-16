@@ -151,6 +151,7 @@ const ui = {
   sectorHint: $('sector-hint'),
   wardenHud: $('warden-hud'),
   wardenPhase: $('warden-phase'),
+  wardenTitle: $('warden-title'),
   wardenHp: $('warden-hp'),
   damageFlash: $('damage-flash'),
   resultTitle: $('result-title'),
@@ -1024,9 +1025,11 @@ function hud(): void {
   ui.etankCount.textContent = `${p.energyTanks}/${world.level.upgrades.filter((u) => u.kind === 'energy_tank').length}`;
   drawMinimap();
 
-  const warden = world.enemies.find((e) => e.kind === 'warden');
+  const foreman = world.enemies.find((e) => e.variant === 'foreman');
+  const warden = world.enemies.find((e) => e.kind === 'warden') ?? (foreman && foreman.active ? foreman : undefined);
   const showBoss = Boolean(warden && warden.alive && world.currentRoom === 'core');
   ui.wardenHud.hidden = !showBoss;
+  ui.wardenTitle.textContent = warden?.variant === 'foreman' ? 'SLAG FOREMAN' : 'CORE WARDEN';
   if (scene3d) {
     // Damage popups stay under the boss bar (NDC ceiling from its on-screen bottom edge).
     const cr = canvas.getBoundingClientRect();
@@ -1036,6 +1039,7 @@ function hud(): void {
   if (showBoss && warden) {
     ui.wardenHp.style.width = `${Math.max(0, Math.min(100, (warden.hp / warden.maxHp) * 100))}%`;
     $('warden-exposed').hidden = warden.exposedTicks <= 0;
+    ui.wardenPhase.hidden = warden.variant === 'foreman';
     ui.wardenPhase.textContent = warden.phase === 3 ? 'PHASE III' : warden.phase === 2 ? 'PHASE II' : 'PHASE I';
   }
 

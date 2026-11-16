@@ -251,7 +251,7 @@ export interface SecretRoom3D {
 /** Surface a crawler clings to. `floor` is the normal walking state. */
 export type EnemySurface3D = 'floor' | 'wall' | 'ceiling';
 /** `dropper`: waits on the ceiling and falls when the player passes below. `climber`: crawls along a wall/ceiling toward the player, then drops or leaps. */
-export type EnemyVariant3D = 'none' | 'dropper' | 'climber';
+export type EnemyVariant3D = 'none' | 'dropper' | 'climber' | 'foreman';
 
 export interface EnemySpawn3D {
   id: string;
@@ -389,6 +389,8 @@ export interface StageInfo3D {
   name: string;
   subtitle: string;
   goal: 'exit' | 'boss';
+  /** Mini-boss that keeps the exit teleporter locked while it lives (Stage 2 Slag Foreman). */
+  guardId?: string;
 }
 
 /** Filled in once the player activates the exit teleporter of stage 2 or 3. */

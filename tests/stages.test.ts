@@ -100,6 +100,7 @@ test('a lever press opens its door and the collider follows', () => {
 test('stage 2 exit teleporter needs interact and reports the clear stats', () => {
   const w = newWorld3D({ stage: 2 });
   const ex = w.level.exitPos;
+  for (const e of w.enemies) if (e.variant === 'foreman') e.alive = false; // the Foreman lock is covered in stage-bot.test.ts
   place(w, ex.x, 0);
   step(w, 3);
   assert.equal(w.status, 'playing', 'standing on the pad is not enough');

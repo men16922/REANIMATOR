@@ -235,6 +235,13 @@ interface EnemyViz {
   dispSpeed?: number;
 }
 
+const STAGE_GRADE: Record<number, { bg: THREE.Color; sky: THREE.Color; sun: THREE.Color; bgMix: number; skyMix: number } | undefined> = {
+  2: { bg: new THREE.Color(0x7a2c0c), sky: new THREE.Color(0xa6542a), sun: new THREE.Color(0xffa860), bgMix: 0.3, skyMix: 0.22 },
+  3: { bg: new THREE.Color(0x10305e), sky: new THREE.Color(0x4a78c0), sun: new THREE.Color(0xa8d0ff), bgMix: 0.3, skyMix: 0.2 },
+};
+const FOREMAN_RIG_H = 2.9;
+const FOREMAN_TINT_3D = 0xffa868;
+const FOREMAN_RIM_3D = 0xff7a2a;
 const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
 const ENEMY_WINDUP_TOTAL_3D: Record<string, number> = { crawler: 14, stalker: 18, spitter: 12, warden: 36 };
 const ENEMY_RIM_3D: Record<string, number> = { stalker: 0x9dffb4, crawler: 0xffb090, spitter: 0xd0b0ff, warden: 0xffa070 };
@@ -1775,22 +1782,21 @@ export class Scene3DRenderer {
     const enemySpecs = 'enemies' in w && w.enemies ? w.enemies : w.level.enemies;
     for (const e of enemySpecs) {
       if (e.kind === 'warden' || e.kind === 'stalker') {
-        const rig = instantiateRiggedModel3D(
-          e.kind === 'warden' ? 'warden' : 'bio-stalker',
-          e.kind === 'warden' ? 3.15 : STALKER_HEIGHT_3D,
-          false,
-        );
+        const foreman = e.variant === 'foreman';
+        const rigH = e.kind === 'warden' ? 3.15 : foreman ? FOREMAN_RIG_H : STALKER_HEIGHT_3D;
+        const rig = instantiateRiggedModel3D(e.kind === 'warden' ? 'warden' : 'bio-stalker', rigH, false);
         rig.root.position.set(e.x, e.y, e.z);
         rig.root.rotation.order = 'YXZ';
         if (e.kind === 'warden') {
           tuneWardenMaterials3D(rig.materials, rig.baseEmissive);
           this.wardenLooks.set(e.id, applyWardenLook3D(rig, WARDEN_RIM_HEX, WARDEN_RIM_STRENGTH));
         } else {
-          tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, ENEMY_TINT_3D[e.kind]);
-          applyEnemyRim3D(rig.materials, ENEMY_RIM_3D[e.kind], CHAR_LIGHT.stalker.rim, CHAR_LIGHT.stalker.lift, 'stalker');
+          // The Slag Foreman reads as molten metal: warm tint and an orange rim instead of the stalker greens
+          tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, foreman ? FOREMAN_TINT_3D : ENEMY_TINT_3D[e.kind]);
+          applyEnemyRim3D(rig.materials, foreman ? FOREMAN_RIM_3D : ENEMY_RIM_3D[e.kind], CHAR_LIGHT.stalker.rim, CHAR_LIGHT.stalker.lift, 'stalker');
         }
-        const bodyH = e.kind === 'warden' ? 3.15 : STALKER_HEIGHT_3D;
-        const bodyW = e.kind === 'warden' ? 1.8 : 0.9;
+        const bodyH = rigH;
+        const bodyW = e.kind === 'warden' ? 1.8 : foreman ? 1.5 : 0.9;
         // Invisible pick proxy: skinned meshes can miss raycasts, the box keeps enemies pickable
         const proxy = new THREE.Mesh(new THREE.BoxGeometry(bodyW, bodyH, bodyW), this.pickProxyMaterial);
         proxy.name = `enemy-proxy:${e.id}`;
@@ -2055,6 +2061,9 @@ export class Scene3DRenderer {
     const bg = new THREE.Color(room ? room.ambientColor : 0x090e14).multiplyScalar(0.28);
     const sirenPulse = this.reduceMotion ? 0.6 : 0.5 + 0.5 * Math.sin(tSec * 6.2);
     if (inMeltdown) bg.lerp(_MELT_BG, 0.25 + 0.3 * sirenPulse);
+    // Stage identity (colour only): the Foundry Line glows furnace orange, the Reactor Spire runs cold reactor blue
+    const grade = STAGE_GRADE[w.level.stage?.id ?? 1];
+    if (grade) bg.lerp(grade.bg, grade.bgMix);
     // Reclaimer: the zone drifts red while the unit hunts you (colour only, no lights)
     const hz = w.level.hunterZone;
     const hud = hunterHud(w.hunter, hz, w.currentRoom === hz.sector, w.player.body.x, w.player.body.y);
@@ -2087,6 +2096,7 @@ export class Scene3DRenderer {
     this.ambient.intensity = this.presetAmbI * dim * reactor;
     this.sun.intensity = this.presetSunI * dim;
     this.sun.color.copy(this.presetSun);
+    if (grade) this.sun.color.lerp(grade.sun, grade.skyMix);
     if (inMeltdown) {
       const pulse = gateStrobe(0.5 + 0.5 * Math.sin(tSec * 8.5), 0.5, this.reduceMotion);
       this.alarmLight.intensity = 14 + pulse * 18;
@@ -2105,6 +2115,7 @@ export class Scene3DRenderer {
     } else {
       this.alarmLight.intensity = 0;
       this.ambient.color.copy(this.presetSky);
+      if (grade) this.ambient.color.lerp(grade.sky, grade.skyMix);
       if (this.hunterTint > 0.005) {
         this.ambient.color.lerp(_HUNTER_RED, 0.55 * this.hunterTint);
         this.ambient.intensity *= 1 + 0.12 * this.hunterTint * (this.reduceMotion ? 0.6 : 0.5 + 0.5 * Math.sin(tSec * 9));

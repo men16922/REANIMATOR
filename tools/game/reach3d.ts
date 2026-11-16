@@ -272,6 +272,21 @@ export function checkStage(stage: StageId3D): { problems: string[]; ticks: numbe
       if (!walkTo(from, g.target, level, all, 2, 900).reached) problems.push(`stage 3: lever ledge at x=${g.target.x} is unreachable with Boots`);
     }
   }
+  // A guard mini-boss must exist, stand on the walked floor inside the last room before the exit, and fit under the ceiling
+  const gid = level.stage?.guardId;
+  if (gid) {
+    const g = level.enemies.find((e) => e.id === gid);
+    const last = level.rooms[level.rooms.length - 1];
+    if (!g) problems.push(`stage ${stage}: guard ${gid} is not placed`);
+    else {
+      if (g.x < last.minX + 4 || g.x > level.exitPos.x - 2) problems.push(`stage ${stage}: guard ${gid} is not between the room entrance and the exit`);
+      if (g.y !== 0) problems.push(`stage ${stage}: guard ${gid} is not on the main floor`);
+      const floor = level.solids.some((sl) => sl.minY <= -1.2 && sl.maxY === 0 && sl.minX <= g.x && sl.maxX >= g.x);
+      if (!floor) problems.push(`stage ${stage}: guard ${gid} has no floor under it`);
+      const shut = level.solids.find((sl) => sl.doorId && sl.minX > g.x && sl.minX < level.exitPos.x);
+      if (shut && shut.doorLock !== 'console') problems.push(`stage ${stage}: guard ${gid} would be sealed behind a weapon lock`);
+    }
+  }
   // Pickups, logs, saves and the exit must sit within reach of the route (rough check: inside the level bounds, above a floor)
   const { bounds } = level;
   const pts = [...level.dataLogs, ...level.saveStations, ...level.medStations, ...level.upgrades, ...level.pedestals, { id: 'exit', x: level.exitPos.x, y: level.exitPos.y }];

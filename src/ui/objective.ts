@@ -17,13 +17,14 @@ export const OBJECTIVES = {
   core: { text: 'OBJ: Shatter the Reactor Core!', color: '#4be8ff' },
   escape: { text: 'OBJ: ESCAPE to the Airlock extraction balcony!', color: '#5aff9c' },
   exit: { text: 'OBJ: Reach the exit teleporter and press interact', color: '#5aff9c' },
+  foreman: { text: 'OBJ: Slay the Slag Foreman to unlock the exit teleporter', color: '#ffae6b' },
   spireWarden: { text: 'OBJ: Slay the Warden to unlock the exit teleporter', color: '#ffae6b' },
   won: { text: 'EXTRACTED SAFELY', color: '#5aff9c' },
 } as const satisfies Record<string, Objective>;
 
 export function objectiveFor(w: ObjectiveWorld): Objective {
   if (w.status === 'won' || w.phase === 'won') return OBJECTIVES.won;
-  if (w.stage === 2) return OBJECTIVES.exit;
+  if (w.stage === 2) return w.enemies.some((e) => e.variant === 'foreman' && e.alive) ? OBJECTIVES.foreman : OBJECTIVES.exit;
   if (w.stage === 3) return w.enemies.some((e) => e.kind === 'warden' && !e.minion && e.alive) ? OBJECTIVES.spireWarden : OBJECTIVES.exit;
   if (w.coreDestroyed || w.meltdownTicks >= 0) return OBJECTIVES.escape;
   const wardenAlive = w.enemies.some((e) => e.kind === 'warden' && !e.minion && e.alive);
