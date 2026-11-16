@@ -19,7 +19,7 @@ export const OBJECTIVES = {
   escape: { text: 'OBJ: ESCAPE to the Airlock extraction balcony!', color: '#5aff9c' },
   exit: { text: 'OBJ: Reach the exit teleporter and press interact', color: '#5aff9c' },
   foreman: { text: `OBJ: Slay the ${FOREMAN_NAME} to unlock the exit teleporter`, color: '#ffae6b' },
-  spireWarden: { text: 'OBJ: Slay the Warden to unlock the exit teleporter', color: '#ffae6b' },
+  spireWarden: { text: 'OBJ: Slay the Spire Warden to unlock the exit teleporter', color: '#ffae6b' },
   won: { text: 'EXTRACTED SAFELY', color: '#5aff9c' },
 } as const satisfies Record<string, Objective>;
 

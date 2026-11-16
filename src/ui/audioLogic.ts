@@ -281,6 +281,11 @@ export function enemyCue(
   }
 }
 
+/** The Slag Foreman is a stalker variant with its own heavier voice: remap its stalker cues to the foreman recipes. */
+export function variantCue(cue: string | null, variant: string | undefined): string | null {
+  return cue && variant === 'foreman' ? cue.replace('enemy.stalker.', 'enemy.foreman.') : cue;
+}
+
 // ---- Footsteps and landing ----
 const SURFACE: Record<SectorId3D, Surface> = {
   airlock: 'metal',

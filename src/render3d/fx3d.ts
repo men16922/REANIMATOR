@@ -3,7 +3,8 @@
 // diffs. Everything here is display-side. It reads the simulation and never writes to it, so determinism of
 // stepWorld3D is untouched. GPU upload lives in fx3dGfx.ts.
 
-import { RAIL_CHARGE_TICKS } from '../game3d/world3d.ts';
+import { RAIL_CHARGE_TICKS, hazardNowTick3D } from '../game3d/world3d.ts';
+import { hazardPhase } from '../game3d/hazards.ts';
 import { chooseMuzzle } from './heroPose.ts';
 import type { EnemyKind3D, EnemyState3D, WorldState3D } from '../game3d/world3d.ts';
 import { PopupPool } from './popups3d.ts';
@@ -53,6 +54,8 @@ export function smoothNoise(t: number, seed: number): number {
 // ---------------------------------------------------------------------------------------------------------------
 // Hit-stop: display frames to freeze before the next simulation step. Never skips a tick, only delays the clock.
 // ---------------------------------------------------------------------------------------------------------------
+/** Vent bursts within this distance (m) of the player shake the camera, scaled by closeness. */
+export const VENT_FEEL_RANGE = 9;
 export const HITSTOP_MAX_FRAMES = 6;
 export const HITSTOP_REFRACTORY_FRAMES = 5;
 
@@ -517,8 +520,10 @@ export class FxDirector {
         const dir = e.x >= px ? 1 : -1;
         if (s.alive && !e.alive) {
           this.onKill(e.kind, cx, cy, dir, px, py, e.y);
+          if (e.variant === 'foreman') this.onForemanKill(cx, cy, e.y);
         } else if (s.alive && e.hp < s.hp) {
           this.onEnemyHit(e.kind, cx, cy, dir, s.hp - e.hp, e.y, e.kind === 'warden' ? (s.exposed || e.exposedTicks > 0 ? 'crit' : 'armor') : 'normal');
+          if (e.variant === 'foreman') this.onForemanHit(cx, cy, dir);
           this.damagePopup(e, s.hp - e.hp, s.exposed);
         }
       }
@@ -611,6 +616,7 @@ export class FxDirector {
             this.burst(px, py + 1.0, 0.7, 1, 0.8, 1, this.reduce ? 10 : 30, 7);
             break;
           }
+          case 'hazard_vent': if (ev.value === 1) this.onVentBurst(w, px, py); break;
           case 'hazard_crush': if (ev.value === 1) { this.trauma.add(0.35); this.dustAt(px, py + 0.1, 6, 4, 0); } break;
           case 'barrel_explode': this.trauma.add(0.25); break;
           case 'elevator_start': this.trauma.add(0.12); break;
@@ -1136,6 +1142,44 @@ export class FxDirector {
       this.chroma = Math.max(this.chroma, 0.2);
     }
     this.weaponImpact(weapon, variant, x, y, dir);
+  }
+
+  /**
+   * Steam vent fires near the player (the sim event carries no position, so the display finds the nearest active vent).
+   * Close bursts shake the frame and kick grit off the grille; far ones only get the existing plume and sound.
+   */
+  private onVentBurst(w: WorldState3D, px: number, py: number): void {
+    let best: { x: number; y: number; d: number } | null = null;
+    for (const h of w.level.hazards) {
+      if (h.kind !== 'vent') continue;
+      const t = hazardNowTick3D(w, h);
+      if (t < 0 || hazardPhase(h, t) !== 'active') continue;
+      const d = Math.hypot(h.x - px, h.y - py);
+      if (!best || d < best.d) best = { x: h.x, y: h.y, d };
+    }
+    if (!best || best.d > VENT_FEEL_RANGE) return;
+    const k = 1 - best.d / VENT_FEEL_RANGE;
+    this.trauma.add(0.04 + 0.12 * k);
+    this.dustAt(best.x, best.y + 0.1, 3 + Math.round(5 * k), 2.5, 0);
+    const n = 2 + Math.round(2 * k);
+    this.sparkFan(best.x, best.y + 0.2, -1, 1.0, 0.6, 0.25, n, 4);
+    this.sparkFan(best.x, best.y + 0.2, 1, 1.0, 0.6, 0.25, n, 4);
+  }
+
+  /** Slag Foreman hit: molten sparks off the armor plates and a light shake, so the mini-boss reads heavier than a stalker. */
+  private onForemanHit(x: number, y: number, dir: number): void {
+    this.sparkFan(x, y + 0.3, dir, 1.0, 0.55, 0.15, 6, 8);
+    this.trauma.add(0.05);
+  }
+
+  /** Slag Foreman death: a slag burst, a wide orange ring and a short slow-mo beat on top of the stalker collapse. */
+  private onForemanKill(x: number, y: number, floorY: number): void {
+    this.burst(x, y, 1, 0.5, 0.12, 0.9, this.reduce ? 12 : 30, 8);
+    this.ring(x, y, 1.3, 1, 0.55, 0.2);
+    this.dustAt(x, floorY + 0.1, 8, 4.5, 0);
+    this.trauma.add(0.35);
+    this.chroma = Math.max(this.chroma, 0.5);
+    this.slowmo.request(0.4, 0.45);
   }
 
   private onKill(kind: EnemyKind3D, x: number, y: number, dir: number, _px: number, _py: number, floorY: number): void {

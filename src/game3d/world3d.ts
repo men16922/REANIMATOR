@@ -1044,7 +1044,7 @@ function stepStageExit3D(w: WorldState3D, interact: boolean): void {
   if (!near) return;
   const wardenUp = info.goal === 'boss' && w.enemies.some((e) => e.kind === 'warden' && e.alive);
   if (wardenUp) {
-    roomHint(w, 'TELEPORTER LOCKED. DESTROY THE CORE WARDEN');
+    roomHint(w, 'TELEPORTER LOCKED. DESTROY THE SPIRE WARDEN');
     return;
   }
   const guardUp = info.guardId !== undefined && w.enemies.some((e) => e.id === info.guardId && e.alive);

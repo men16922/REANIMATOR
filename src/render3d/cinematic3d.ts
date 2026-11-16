@@ -68,6 +68,18 @@ body.meltdown-calm #meltdown{animation:none}
 @keyframes melt-pulse{0%{filter:brightness(1.7)}100%{filter:brightness(.8)}}
 `;
 
+/** Intro title card text per stage: Stage 1 is the Core Warden in the Core Vault, Stage 3 the Spire Warden atop the Reactor Spire. */
+export interface BossIntroCard {
+  kicker: string;
+  name: string;
+  sub: string;
+}
+export const BOSS_INTRO_CARDS: Record<1 | 2 | 3, BossIntroCard> = {
+  1: { kicker: 'SECTOR 06 // CORE VAULT', name: 'CORE WARDEN', sub: 'REACTOR GUARDIAN UNIT' },
+  2: { kicker: 'STAGE 02 // FURNACE GATE', name: 'SLAG FOREMAN', sub: 'SMELTER OVERSEER UNIT' },
+  3: { kicker: 'STAGE 03 // WARDEN ARENA', name: 'SPIRE WARDEN', sub: 'COOLANT SPIRE GUARDIAN' },
+};
+
 /** DOM overlay for the intro. Created lazily on first use; parent is the canvas container. */
 export class BossIntroOverlay {
   private root: HTMLDivElement | null = null;
@@ -75,6 +87,7 @@ export class BossIntroOverlay {
   private barB!: HTMLDivElement;
   private card!: HTMLDivElement;
   private skip!: HTMLDivElement;
+  private cardKey = '';
 
   private readonly host: () => HTMLElement | null;
 
@@ -110,13 +123,20 @@ export class BossIntroOverlay {
     return true;
   }
 
-  apply(s: IntroState, active: boolean): void {
+  apply(s: IntroState, active: boolean, text: BossIntroCard = BOSS_INTRO_CARDS[1]): void {
     if (!active) {
       if (this.root && this.root.style.display !== 'none') this.root.style.display = 'none';
       return;
     }
     if (!this.ensure() || !this.root) return;
     this.root.style.display = 'block';
+    const key = `${text.kicker}|${text.name}|${text.sub}`;
+    if (key !== this.cardKey) {
+      this.cardKey = key;
+      (this.card.querySelector('.kicker') as HTMLDivElement).textContent = text.kicker;
+      (this.card.querySelector('.name') as HTMLDivElement).textContent = text.name;
+      (this.card.querySelector('.sub') as HTMLDivElement).textContent = text.sub;
+    }
     this.barT.style.transform = `scaleY(${s.bars})`;
     this.barB.style.transform = `scaleY(${s.bars})`;
     this.barT.style.transformOrigin = 'top';

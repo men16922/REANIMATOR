@@ -99,7 +99,7 @@ export function buildStage3Map3D(): Level3D {
   k.gate(184, 'green', 'door_s3_spine');
 
   // ===== 6. Warden Arena (core) =====
-  const arena = k.room('arena', 'core', 'Warden Arena', 'The Core Warden guards the exit teleporter. Bring it down, then press interact at the pad.', 28, 0x3a1a1a);
+  const arena = k.room('arena', 'core', 'Warden Arena', 'The Spire Warden guards the exit teleporter. Bring it down, then press interact at the pad.', 28, 0x3a1a1a);
   k.fullFloor(arena, 0x1c212a);
   k.platform('arena-w', 188, 194, 2.4);
   k.platform('arena-e', 204, 209, 2.4);

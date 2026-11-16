@@ -766,6 +766,31 @@ function showStageCard(stage: StageId3D): void {
   playSound('ui.sector');
 }
 
+/**
+ * Mini-boss name card: same on-screen card, shown once per run when the player first closes in on the Slag Foreman.
+ * The Warden has its own letterboxed intro cinematic (cinematic3d.ts BossIntroOverlay), so it gets no second card here.
+ */
+const bossCardsShown = new Set<string>();
+let bossCardWorld: WorldState3D | null = null;
+const BOSS_CARD_RANGE = 20;
+function bossCardFor(): { id: string; name: string; sub: string } | null {
+  const p = world.player.body;
+  for (const e of world.enemies) {
+    if (!e.alive || e.variant !== 'foreman') continue;
+    if (Math.abs(e.x - p.x) > BOSS_CARD_RANGE || Math.abs(e.y - p.y) > 8) continue;
+    return { id: e.id, name: FOREMAN_NAME, sub: 'Heavy strikes. Dodge the windup, then hit back.' };
+  }
+  return null;
+}
+function showBossCard(c: { name: string; sub: string }): void {
+  $('sc-eyebrow').textContent = 'MINI-BOSS';
+  $('sc-name').textContent = c.name.toUpperCase();
+  $('sc-sub').textContent = c.sub;
+  ui.sectorCard.hidden = false;
+  popClass(ui.sectorCard, 'show', 0);
+  playSound('ui.sector');
+}
+
 const WEAPON_BANNER: Record<number, { title: string; desc: string }> = {
   2: { title: 'SCATTERGUN', desc: 'Wide spread. Opens green locks. Press 2 to equip.' },
   3: { title: 'GRENADE LAUNCHER', desc: 'Splash damage. Opens yellow locks and Cracked Bio-Walls. Press 3 to equip.' },
@@ -814,6 +839,17 @@ function observeWorld(): void {
   } else if (seen.room !== world.currentRoom && !introActive) {
     seen.room = world.currentRoom;
     showSectorCard();
+  }
+  if (bossCardWorld !== world) {
+    bossCardWorld = world;
+    bossCardsShown.clear();
+  }
+  if (!introActive && world.bossIntroTicks <= 0) {
+    const bc = bossCardFor();
+    if (bc && !bossCardsShown.has(bc.id)) {
+      bossCardsShown.add(bc.id);
+      showBossCard(bc);
+    }
   }
   if (world.collectedUpgrades.size !== seen.collected) {
     if (world.collectedUpgrades.size > seen.collected) {
@@ -1030,7 +1066,7 @@ function hud(): void {
   const warden = world.enemies.find((e) => e.kind === 'warden') ?? (foreman && foreman.active ? foreman : undefined);
   const showBoss = Boolean(warden && warden.alive && world.currentRoom === 'core');
   ui.wardenHud.hidden = !showBoss;
-  ui.wardenTitle.textContent = warden?.variant === 'foreman' ? FOREMAN_NAME.toUpperCase() : 'CORE WARDEN';
+  ui.wardenTitle.textContent = warden?.variant === 'foreman' ? FOREMAN_NAME.toUpperCase() : world.stage === 3 ? 'SPIRE WARDEN' : 'CORE WARDEN';
   if (scene3d) {
     // Damage popups stay under the boss bar (NDC ceiling from its on-screen bottom edge).
     const cr = canvas.getBoundingClientRect();

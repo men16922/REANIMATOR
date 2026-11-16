@@ -7,7 +7,7 @@ import { hazardPhase } from '../game3d/hazards.ts';
 import { ambient, bgm, escapeMusic, musicIntensity, play, playCue, railCharge, setLoops, setPaused, sfx, type SoundId } from './audio.ts';
 import {
   alarmPeriodTicks, alarmPitch, elevatorLoop, enemyCue, extraCueForEvent, footstepPeriodTicks, hazardLoopLevel, heartbeatPeriodTicks, isCountdownTick, isHardLanding,
-  planLoops, selectTheme, spatialFor, surfaceFor, type LoopSource, type ThemeId,
+  planLoops, selectTheme, spatialFor, surfaceFor, variantCue, type LoopSource, type ThemeId,
 } from './audioLogic.ts';
 
 export interface PreStep {
@@ -166,7 +166,7 @@ export class AudioDirector {
     // Enemy state transitions, panned and attenuated by distance to the player
     for (const e of w.enemies) {
       const prev = this.enemies.get(e.id);
-      const cue = enemyCue(e.kind, prev?.state, e.state, prev?.alive ?? e.alive, e.alive);
+      const cue = variantCue(enemyCue(e.kind, prev?.state, e.state, prev?.alive ?? e.alive, e.alive), e.variant);
       const sp = spatialFor(e.x, e.y, lx, ly);
       if (cue === 'enemy.warden.windup') { /* replaced by the per-pattern boss telegraph */ }
       else if (cue) play(cue as SoundId, sp);

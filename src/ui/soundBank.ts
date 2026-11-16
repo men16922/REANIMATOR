@@ -59,6 +59,12 @@ export const SOUND_BANK = {
   'enemy.stalker.land': r(5, 0.15, o(70, 0.2, 'triangle', 0.16, 38), n(0.14, 0.1, 600, 'lowpass', 150)),
   'enemy.stalker.death': r(7, 0.15, o(200, 0.5, 'sawtooth', 0.14, 45), n(0.4, 0.09, 700, 'lowpass', 120)),
 
+  'enemy.foreman.alert': r(7, 0.4, o(75, 0.6, 'sawtooth', 0.13, 110), o(150, 0.5, 'square', 0.05, 120), n(0.5, 0.06, 350, 'lowpass')),
+  'enemy.foreman.windup': r(7, 0.3, o(60, 0.5, 'sawtooth', 0.14, 200), n(0.5, 0.07, 500, 'bandpass', 1800, 0, 2)),
+  'enemy.foreman.attack': r(8, 0.25, o(300, 0.22, 'sawtooth', 0.14, 50), n(0.22, 0.14, 1400, 'bandpass', 220, 0, 1.5)),
+  'enemy.foreman.land': r(8, 0.25, o(60, 0.3, 'triangle', 0.2, 30), n(0.25, 0.14, 500, 'lowpass', 110)),
+  'enemy.foreman.death': r(9, 0.4, o(180, 1.0, 'sawtooth', 0.16, 30), o(90, 1.1, 'square', 0.08, 26, 0.08), n(1.0, 0.14, 1000, 'lowpass', 90)),
+
   'enemy.spitter.alert': r(5, 0.2, o(360, 0.18, 'sine', 0.07, 280), o(240, 0.22, 'sine', 0.06, 340, 0.08), n(0.2, 0.04, 1000, 'bandpass', 500, 0, 3)),
   'enemy.spitter.windup': r(6, 0.2, o(180, 0.35, 'sine', 0.09, 420), n(0.35, 0.07, 700, 'bandpass', 1600, 0, 4)),
   'enemy.spitter.attack': r(6, 0.12, o(540, 0.12, 'sine', 0.1, 150), n(0.12, 0.1, 1800, 'bandpass', 600, 0, 3)),

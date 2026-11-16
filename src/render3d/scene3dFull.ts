@@ -16,7 +16,7 @@ import { createExtractionHatch, type ExtractionHatch } from './hatch3d.ts';
 import { BossTelegraph3D } from './bossTelegraph3d.ts';
 import { BossSetPieces3D } from './bossSetPieces3d.ts';
 import { meltdownIntensity, vignetteAlpha } from './setpieces3d.ts';
-import { BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
+import { BOSS_INTRO_CARDS, BossIntroOverlay, introState, nextIntroDisplayTicks, type IntroState } from './cinematic3d.ts';
 import { PopupLayer, popupCeilWorldY } from './popups3d.ts';
 import { CLASSIC_GLOW_SPRITE_SCALE, ClassicPipeline, classicOrthoHalf, gateStrobe, remapNdcToClassic, type ViewMode } from './classicView.ts';
 import { buildBootsItem, buildEnergyTankItem, buildSaveStation, createHoloMaterial, createShieldMaterial, type SaveStationProps } from './propsGfx.ts';
@@ -243,6 +243,10 @@ const STAGE_GRADE: Record<number, { bg: THREE.Color; sky: THREE.Color; sun: THRE
 };
 /** Extra metres a foe must leave the shadow box by before its castShadow turns off again. */
 const SHADOW_HYST = 1.5;
+/** Foes (rigged and static) that may cast at once (nearest first); the rest still render, without a shadow-pass draw. */
+const MAX_ENEMY_SHADOW_CASTERS = 5;
+/** Ramps cast only within this x distance (m) of the camera focus. */
+const RAMP_SHADOW_RANGE_X = 10;
 const FOREMAN_RIG_H = 2.9;
 const FOREMAN_TINT_3D = 0xffa868;
 const FOREMAN_RIM_3D = 0xff7a2a;
@@ -324,6 +328,10 @@ const _HUNTER_BG = new THREE.Color(0x3a0a08);
 const _HUNTER_RED = new THREE.Color(0xd24a3a);
 const _FLASH_TMP = new THREE.Color();
 const _PHASE_TMP = new THREE.Color();
+const _ringM = new THREE.Matrix4();
+const _ringP = new THREE.Vector3();
+const _ringQ = new THREE.Quaternion();
+const _ringS = new THREE.Vector3();
 
 function wrapAngle(d: number): number {
   while (d > Math.PI) d -= Math.PI * 2;
@@ -452,6 +460,8 @@ export class Scene3DRenderer {
   private prevEnemies = new Map<string, PosSnap>();
   private curEnemies = new Map<string, PosSnap>();
   private readonly occludables: OccludableMesh[] = [];
+  /** Ramp meshes and their extents: only ramps near the camera focus cast (the shadow box is wider than the view). */
+  private readonly rampCasters: { mesh: THREE.Mesh; minX: number; maxX: number; minY: number; maxY: number }[] = [];
   private readonly pendingBatches = new Map<string, PendingBatch>();
   private readonly cullEntries: CullEntry[] = [];
   /** R15 terrain kit (lazy per sector, visual-only). Null until a level is built. */
@@ -991,6 +1001,7 @@ export class Scene3DRenderer {
       mesh.receiveShadow = true;
       mesh.castShadow = true;
       this.scene.add(mesh);
+      this.rampCasters.push({ mesh, minX: r.minX, maxX: r.maxX, minY: Math.min(r.yMinEdge ?? 0, r.yMaxEdge), maxY: Math.max(r.yMinEdge ?? 0, r.yMaxEdge) });
       this.cullEntries.push({ obj: mesh, minX: r.minX, maxX: r.maxX, minY: Math.min(r.yMinEdge ?? 0, r.yMaxEdge) - 1, maxY: Math.max(r.yMinEdge ?? 0, r.yMaxEdge) + 1 });
 
       // Side safety curb trim
@@ -1008,6 +1019,7 @@ export class Scene3DRenderer {
       this.scene.add(marker);
     }
 
+    const pillarRings: THREE.Matrix4[] = [];
     for (const p of w.level.pillars) {
       const h = p.maxY - p.minY;
       const mat = new THREE.MeshStandardMaterial({
@@ -1025,14 +1037,22 @@ export class Scene3DRenderer {
       this.occludables.push({ mesh, mat, center: mesh.position.clone() });
       this.addCullPoint(mesh, p.x, p.minY + h * 0.5, p.radius + 0.5);
 
-      // Glowing collar ring around blast pillar
-      const ring = new THREE.Mesh(
-        new THREE.CylinderGeometry(p.radius * 0.96, p.radius * 0.96, 0.14, 16),
+      // Glowing collar ring around blast pillar: one instance in the shared ring mesh below
+      _ringM.compose(_ringP.set(p.x, p.minY + 1.4, p.z), _ringQ, _ringS.set(p.radius * 0.96, 1, p.radius * 0.96));
+      pillarRings.push(_ringM.clone());
+    }
+    if (pillarRings.length > 0) {
+      // All collar rings share one material, so they draw as one InstancedMesh instead of one call per pillar.
+      const rings = new THREE.InstancedMesh(
+        new THREE.CylinderGeometry(1, 1, 0.14, 16),
         new THREE.MeshStandardMaterial({ color: 0xffaa33, emissive: 0xff9d2e, emissiveIntensity: 0.8 }),
+        pillarRings.length,
       );
-      ring.position.set(p.x, p.minY + 1.4, p.z);
-      this.scene.add(ring);
-      this.addCullPoint(ring, p.x, p.minY + 1.4, p.radius + 0.5);
+      rings.name = 'pillar-rings';
+      pillarRings.forEach((m, i) => rings.setMatrixAt(i, m));
+      rings.instanceMatrix.needsUpdate = true;
+      rings.computeBoundingSphere();
+      this.scene.add(rings);
     }
 
     for (const pool of w.level.acidPools) {
@@ -1186,6 +1206,7 @@ export class Scene3DRenderer {
     this.doorLamps = null;
     this.consoleRing = null;
     this.occludables.length = 0;
+    this.rampCasters.length = 0;
     for (const m of this.kitMeshes) {
       this.scene.remove(m);
       m.dispose();
@@ -1497,7 +1518,7 @@ export class Scene3DRenderer {
   /** Render-only: hide static scenery, enemies and pickups outside the camera window (no sim reads). */
   private applyViewCulling(w: WorldState3D): void {
     const dist = this.camera.position.z + 3;
-    const halfH = dist * Math.tan((this.camera.fov * Math.PI) / 360) + 4;
+    const halfH = dist * Math.tan((this.camera.fov * Math.PI) / 360) + 2.5;
     const halfW = halfH * Math.max(1, this.camera.aspect);
     const vx0 = this.camFocus.x - halfW;
     const vx1 = this.camFocus.x + halfW;
@@ -1513,25 +1534,52 @@ export class Scene3DRenderer {
     };
     // Rig meshes skip frustum culling, so a far foe would still be drawn in the shadow pass: only foes within the sun's shadow box cast.
     const shadowRange = this.camFocus.x;
+    // Candidates inside the shadow box (hysteresis: a foe already casting keeps its shadow until it is clearly outside),
+    // then only the nearest MAX_ENEMY_SHADOW_CASTERS cast: a crowd would otherwise add every rig mesh to the shadow pass.
+    const candidates: { root: THREE.Object3D; d: number }[] = [];
     for (const rig of this.riggedEnemies.values()) {
       if (out(rig.root)) {
         rig.root.visible = false;
         continue;
       }
-      // Hysteresis: a foe already casting keeps its shadow until it is clearly outside, so one on the boundary does not flicker.
       const was = rig.root.userData.shadowCast === true;
       const padX = was ? SHADOW_HYST : 0;
-      const cast = Math.abs(rig.root.position.x - shadowRange) < 7.5 + padX && Math.abs(rig.root.position.y - this.camFocus.y) < 5 + padX;
-      if (rig.root.userData.shadowCast !== cast) {
-        rig.root.userData.shadowCast = cast;
-        rig.root.traverse((o) => {
+      const dx = Math.abs(rig.root.position.x - shadowRange);
+      const inBox = dx < 7.5 + padX && Math.abs(rig.root.position.y - this.camFocus.y) < 5 + padX;
+      candidates.push({ root: rig.root, d: inBox ? dx - padX : Infinity });
+    }
+    for (const st of this.staticEnemies.values()) {
+      if (out(st.root)) {
+        st.root.visible = false;
+        continue;
+      }
+      if (!st.root.visible) continue;
+      const was = st.root.userData.shadowCast !== false;
+      const padX = was ? SHADOW_HYST : 0;
+      const dx = Math.abs(st.root.position.x - shadowRange);
+      const inBox = dx < 7.5 + padX && Math.abs(st.root.position.y - this.camFocus.y) < 5 + padX;
+      candidates.push({ root: st.root, d: inBox ? dx - padX : Infinity });
+    }
+    candidates.sort((a, b) => a.d - b.d);
+    candidates.forEach((c, i) => {
+      const cast = c.d !== Infinity && i < MAX_ENEMY_SHADOW_CASTERS;
+      if (c.root.userData.shadowCast !== cast) {
+        c.root.userData.shadowCast = cast;
+        c.root.traverse((o) => {
           if ((o as THREE.Mesh).isMesh) o.castShadow = cast;
         });
       }
-    }
-    for (const st of this.staticEnemies.values()) if (out(st.root)) st.root.visible = false;
+    });
     for (const b of this.barrelHandles.values()) if (out(b.root)) b.root.visible = false;
-    for (const g of this.pickupHandles.values()) if (out(g)) g.visible = false;
+    for (const r of this.rampCasters) {
+      r.mesh.castShadow = r.maxX >= this.camFocus.x - RAMP_SHADOW_RANGE_X && r.minX <= this.camFocus.x + RAMP_SHADOW_RANGE_X && r.maxY >= this.camFocus.y - 6 && r.minY <= this.camFocus.y + 6;
+    }
+    // Pickups are small and the window already carries a 2.5 m margin, so they cull without the extra 3 m the big actors get.
+    const outTight = (o: THREE.Object3D): boolean => {
+      const p = o.position;
+      return p.x < vx0 || p.x > vx1 || p.y < vy0 || p.y > vy1;
+    };
+    for (const g of this.pickupHandles.values()) if (outTight(g)) g.visible = false;
     void w;
   }
 
@@ -1921,7 +1969,12 @@ export class Scene3DRenderer {
     );
     padMesh.rotation.x = -Math.PI / 2;
     padMesh.position.y = 0.04;
-    base.add(padMesh);
+    // Med and ammo drops pile up in fights: they skip the pad decal (one draw each) and keep the core and halo.
+    if (kind === 'weapon' || kind === 'log') base.add(padMesh);
+    else {
+      padMesh.geometry.dispose();
+      (padMesh.material as THREE.Material).dispose();
+    }
     grp.add(base);
 
     if (kind === 'weapon') {
@@ -1965,7 +2018,9 @@ export class Scene3DRenderer {
     );
     halo.scale.set(1.5, 1.5, 1);
     halo.position.y = 0.75;
-    grp.add(halo);
+    // Med and ammo cores are emissive (bloom gives them a glow), so only weapons and logs pay for the halo sprite draw.
+    if (kind === 'weapon' || kind === 'log') grp.add(halo);
+    else halo.material.dispose();
 
     grp.name = `pickup:${id}`;
     this.scene.add(grp);
@@ -2016,7 +2071,7 @@ export class Scene3DRenderer {
       this.introZoom += (intro.zoom - this.introZoom) * ik;
       this.introAwake += (intro.awake - this.introAwake) * ik;
       this.introLast = intro;
-      this.introOverlay.apply(intro, introOn);
+      this.introOverlay.apply(intro, introOn, BOSS_INTRO_CARDS[w.stage]);
       const wdIntro = w.enemies.find((e) => e.kind === 'warden' && !e.minion);
       if (introOn && intro.roared && !this.introRoared && wdIntro) {
         this.introRoared = true;
