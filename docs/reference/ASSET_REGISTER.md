@@ -72,6 +72,9 @@
 
 | id | 경로 | 크기 / tris | 생성 | prompt |
 |---|---|---|---|---|
+| `terrain/frost-shield` | `public/assets/models/terrain/frost-shield.glb` | 226,352 B / 3,000 | Meshy text-to-3D (refine `01a1e4f3…`) | Sci-fi frost riot shield, tall curved slab of cracked blue ice fused to a dark gunmetal frame, glowing cyan coolant veins, frost crystals on the edges, readable side silhouette, game asset, single object, no ground, no background |
+| `terrain/coolant-pipe-wall` | `public/assets/models/terrain/coolant-pipe-wall.glb` | 241,004 B / 3,907 | Meshy text-to-3D (refine `01a1e4f3…`) | Reactor coolant pipe cluster wall segment, wide flat modular piece with shallow depth, frosted steel pipes with glowing cyan valve rings, icicles, hazard stripes, sci-fi industrial, low poly game asset, single object, no ground, no background |
+| `terrain/cryo-rack` | `public/assets/models/terrain/cryo-rack.glb` | 162,872 B / 2,448 | Meshy text-to-3D (refine `01a1e4f3…`) | Cryo storage rack with frozen specimen pods, blue-white frost, dark metal frame, small cyan status lights, sci-fi lab prop, game asset, single object, no ground, no background |
 
 <!-- terrain-kit:end -->
 

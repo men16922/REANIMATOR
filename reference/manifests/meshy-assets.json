@@ -1,6 +1,6 @@
 {
   "schema": "reanimator-meshy-assets-v2",
-  "generatedAt": "2026-11-16T13:28:38.121Z",
+  "generatedAt": "2026-11-16T15:24:35.486Z",
   "classification": "new-design (non-Abuse original 3D rigged & static assets)",
   "assets": [
     {
@@ -895,6 +895,108 @@
         ]
       },
       "optimizedFile": "public/assets/models/terrain/coolant-column.glb"
+    },
+    {
+      "id": "terrain/frost-shield",
+      "role": "Terrain kit: Frost riot shield",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Sci-fi frost riot shield, tall curved slab of cracked blue ice fused to a dark gunmetal frame, glowing cyan coolant veins, frost crystals on the edges, readable side silhouette, game asset, single object, no ground, no background",
+      "taskId": "01a1e4f3-1d32-745f-adc5-f20b321945df",
+      "previewTaskId": "01a1e4f2-8fda-7741-8dc7-00ee6c9a23e7",
+      "credits": 15,
+      "targetPolycount": 3000,
+      "rawFile": "assets/meshy-raw/terrain/frost-shield.glb",
+      "rawBytes": 8662532,
+      "rawSha256": "6addd95e40f79d3975e6ee1fd2bba7337f1726c7fa20c7675a475abd3497a2d2",
+      "rawTriangles": 3056,
+      "optimizedBytes": 226352,
+      "optimizedSha256": "5eae0ca06c4e1bd5e01e5c72550a54b33cebc6d36f91f246bda2c5023736d752",
+      "optimizedTriangles": 3000,
+      "optimizedVertices": 3444,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.3015,
+          0,
+          -0.0555
+        ],
+        "max": [
+          0.3015,
+          1,
+          0.0555
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/frost-shield.glb"
+    },
+    {
+      "id": "terrain/coolant-pipe-wall",
+      "role": "Terrain kit: Coolant pipe wall",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Reactor coolant pipe cluster wall segment, wide flat modular piece with shallow depth, frosted steel pipes with glowing cyan valve rings, icicles, hazard stripes, sci-fi industrial, low poly game asset, single object, no ground, no background",
+      "taskId": "01a1e4f3-246f-71da-8df6-40b5acd079e7",
+      "previewTaskId": "01a1e4f2-95ec-717c-85d4-3c5fee9e9380",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/coolant-pipe-wall.glb",
+      "rawBytes": 8114008,
+      "rawSha256": "649df625aae38cd8a277ccd91cfae291f218e69637419bad197c24924e62b71d",
+      "rawTriangles": 3907,
+      "optimizedBytes": 241004,
+      "optimizedSha256": "13826cf8dc4dea48fe75f16b417ec7aa1f051e26e7616d61f6534b25ae1290a9",
+      "optimizedTriangles": 3907,
+      "optimizedVertices": 5171,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.1228
+        ],
+        "max": [
+          0.5,
+          0.5624,
+          0.1228
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/coolant-pipe-wall.glb"
+    },
+    {
+      "id": "terrain/cryo-rack",
+      "role": "Terrain kit: Cryo storage rack",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Cryo storage rack with frozen specimen pods, blue-white frost, dark metal frame, small cyan status lights, sci-fi lab prop, game asset, single object, no ground, no background",
+      "taskId": "01a1e4f3-2998-73a6-8306-1d2d3b041192",
+      "previewTaskId": "01a1e4f2-9abe-77b8-9db4-ddffd19c4516",
+      "credits": 15,
+      "targetPolycount": 3000,
+      "rawFile": "assets/meshy-raw/terrain/cryo-rack.glb",
+      "rawBytes": 4650776,
+      "rawSha256": "5e624bb0a268631b4f5c630f38735e9f3ada625c441450a0c674bffdef669386",
+      "rawTriangles": 2448,
+      "optimizedBytes": 162872,
+      "optimizedSha256": "99435affaf672ab81064e9108f16b5020bc240abd2b2631e02cd8cd2b72e04c5",
+      "optimizedTriangles": 2448,
+      "optimizedVertices": 3407,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.151
+        ],
+        "max": [
+          0.5,
+          0.6208,
+          0.151
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/cryo-rack.glb"
     }
   ]
 }

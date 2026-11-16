@@ -65,6 +65,14 @@ export const TERRAIN_KIT: readonly TerrainPiece[] = [
   { id: 'coolant-column', role: 'Coolant column', prompt: 'Tall reactor spire coolant column with glowing cyan core rings and heavy pipe collars, dark gunmetal sci-fi industrial, grime, game prop, single object, no ground, no background', texturePrompt: 'dark weathered gunmetal, scratches, grime, glowing cyan coolant rings, muted palette', targetPolycount: 4000 },
 ];
 
+// R22 frost pieces: ingested and registered like the kit, but not part of TERRAIN_KIT (no stage placement rules).
+export const FROST_PIECES: readonly TerrainPiece[] = [
+  { id: 'frost-shield', role: 'Frost riot shield', prompt: 'Sci-fi frost riot shield, tall curved slab of cracked blue ice fused to a dark gunmetal frame, glowing cyan coolant veins, frost crystals on the edges, readable side silhouette, game asset, single object, no ground, no background', texturePrompt: 'cracked blue ice, dark gunmetal, glowing cyan veins, muted palette', targetPolycount: 3000 },
+  { id: 'coolant-pipe-wall', role: 'Coolant pipe wall', prompt: 'Reactor coolant pipe cluster wall segment, wide flat modular piece with shallow depth, frosted steel pipes with glowing cyan valve rings, icicles, hazard stripes, sci-fi industrial, low poly game asset, single object, no ground, no background', texturePrompt: 'frosted steel pipes, cyan valve rings, hazard stripes, muted palette', targetPolycount: 4000 },
+  { id: 'cryo-rack', role: 'Cryo storage rack', prompt: 'Cryo storage rack with frozen specimen pods, blue-white frost, dark metal frame, small cyan status lights, sci-fi lab prop, game asset, single object, no ground, no background', texturePrompt: 'blue-white frost, dark metal frame, cyan status lights, muted palette', targetPolycount: 3000 },
+];
+const ALL_PIECES: readonly TerrainPiece[] = [...TERRAIN_KIT, ...FROST_PIECES];
+
 export const CREDITS_PER_PIECE = 30; // conservative: preview + refine
 export const ACTUAL_CREDITS_PER_PIECE = 15; // observed: meshy-t2.5 smart topology preview 5 + refine 10
 
@@ -84,6 +92,9 @@ export const RAW_TASKS: Readonly<Record<string, { previewTaskId: string; refineT
   'foundry-conveyor': { previewTaskId: '01a1e43d-1328-7338-b37e-a6df1e53e533', refineTaskId: '01a1e43d-b3d0-73b4-bff9-996cb8ff4dfb' },
   'slag-crucible': { previewTaskId: '01a1e43d-176f-71f6-936a-7a8385230ba5', refineTaskId: '01a1e43d-b992-7343-a181-5212c42b11e2' },
   'coolant-column': { previewTaskId: '01a1e43d-1c90-7675-8847-a2a7cad7d6b6', refineTaskId: '01a1e43d-be5a-76ad-bd85-709f84366fa3' },
+  'frost-shield': { previewTaskId: '01a1e4f2-8fda-7741-8dc7-00ee6c9a23e7', refineTaskId: '01a1e4f3-1d32-745f-adc5-f20b321945df' },
+  'coolant-pipe-wall': { previewTaskId: '01a1e4f2-95ec-717c-85d4-3c5fee9e9380', refineTaskId: '01a1e4f3-246f-71da-8df6-40b5acd079e7' },
+  'cryo-rack': { previewTaskId: '01a1e4f2-9abe-77b8-9db4-ddffd19c4516', refineTaskId: '01a1e4f3-2998-73a6-8306-1d2d3b041192' },
 };
 
 export function buildPlan(kit: readonly TerrainPiece[] = TERRAIN_KIT, only?: string[]): PlanStep[] {
@@ -245,7 +256,7 @@ async function optimizeOne(step: PlanStep) {
 }
 
 async function finalize(plan: PlanStep[], state: KitState, save: () => void) {
-  const byId = new Map(TERRAIN_KIT.map((p) => [p.id, p]));
+  const byId = new Map(ALL_PIECES.map((p) => [p.id, p]));
   const manifest = readJson<{ schema: string; assets: Record<string, unknown>[] }>(PATHS.manifest, { schema: 'reanimator-meshy-assets-v2', assets: [] });
   const rows: Parameters<typeof registerSection>[0] = [];
   for (const s of plan) {
@@ -280,7 +291,16 @@ async function finalize(plan: PlanStep[], state: KitState, save: () => void) {
   writeFileSync(PATHS.manifest, JSON.stringify(manifest, null, 2) + '\n');
 
   const reg = readFileSync(PATHS.register, 'utf8');
-  const section = registerSection(rows);
+  let section = registerSection(rows);
+  const prev = /<!-- terrain-kit:begin -->[\s\S]*<!-- terrain-kit:end -->/.exec(reg)?.[0] ?? '';
+  const keep = prev.split('\n').filter((l) => l.startsWith('| `terrain/') && !rows.some((r) => l.startsWith(`| \`terrain/${r.id}\` |`)));
+  if (keep.length) {
+    const lines = section.split('\n');
+    const at = lines.findIndex((l) => l.startsWith('|---'));
+    const mine = lines.slice(at + 1, lines.length - 2);
+    const merged = [...keep, ...mine];
+    section = [...lines.slice(0, at + 1), ...merged, ...lines.slice(lines.length - 2)].join('\n');
+  }
   const re = /<!-- terrain-kit:begin -->[\s\S]*<!-- terrain-kit:end -->/;
   writeFileSync(PATHS.register, re.test(reg) ? reg.replace(re, () => section) : `${reg.trimEnd()}\n\n${section}\n`);
   const failed = plan.filter((s) => state[s.id]?.error).map((s) => s.id);
@@ -289,7 +309,7 @@ async function finalize(plan: PlanStep[], state: KitState, save: () => void) {
 
 async function run() {
   const args = parseArgs(process.argv.slice(2));
-  const plan = buildPlan(TERRAIN_KIT, args.only);
+  const plan = buildPlan(ALL_PIECES, args.only);
   console.log(formatPlan(plan));
   if (args.dryRun) {
     console.log('\n--dry-run: no network, no files written.');
@@ -324,7 +344,7 @@ async function run() {
 
   mkdirSync(PATHS.rawDir, { recursive: true });
   mkdirSync(PATHS.outDir, { recursive: true });
-  const byId = new Map(TERRAIN_KIT.map((p) => [p.id, p]));
+  const byId = new Map(ALL_PIECES.map((p) => [p.id, p]));
 
   // 1) queue previews
   for (const s of pending) {
