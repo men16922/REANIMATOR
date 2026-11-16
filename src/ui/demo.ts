@@ -231,7 +231,7 @@ export const SHOWCASE_REEL: readonly ShowCut[] = [
   { tick: 3000, sector: 'security', caption: 'Classic View: press V', sub: '320x200, 256 colours, Bayer dither. Same sim, 1996 look', view: 'classic' },
   { tick: 4100, sector: 'core', caption: 'Core Warden', sub: 'Three phases, telegraphed attacks, a weak-point window', view: 'modern' },
   { tick: 4420, sector: 'biolabs', caption: 'Meltdown: 90 seconds', sub: 'The reactor is gone. Get to the hatch.' },
-  { tick: 4920, sector: 'airlock', caption: 'REANIMATOR', sub: 'Reach the core. Get out. Press any key to play.' },
+  { tick: 4920, sector: 'airlock', caption: 'REANIMATOR', sub: 'Three stages. Reach the core. Get out. Press any key to play.' },
 ];
 
 /** Index of the showcase cut for an elapsed time, clamped to the last cut. */

@@ -2,13 +2,19 @@
 
 최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R18 스테이지 검증 (2026-11-16, 로컬 커밋 d7e91ab·4778f0c·이번 docs)
+
+- Stage 2·3 브라우저 검증, HUD 목표 줄 수정, 모든 섹터 draw calls 300 이하(최대 전투 쇼케이스 294), Stage 2 Slag Foreman 미니보스(돌진+충격파, 출구 잠금), 스테이지별 컬러 그레이드, Stage 2·3 봇 완주 테스트. Foreman 이후 재측정: Stage 2 방별 최대 134-153, Foreman 전투 135. 상세 [MEASURED](evidence/r18_stages/MEASURED.md), 스크린샷 `foreman_lunge.png`.
+- README에 3개 스테이지 스크린샷 추가, 쇼케이스 릴 마지막 컷에 "Three stages" 문구. 릴 컷은 Stage 1 봇 재생이라 Stage 2·3 장면 컷은 없음.
+- Unverified: Stage 2·3 사람 플레이, `make smoke-local`, `make release`/`vite preview`(아래 PROGRESS_LOG 참조), G5.
+
 ## Abuse 레벨 관찰 (2026-11-16)
 
 - LEVEL00~04 정적 조사(`tools/reference/spe-survey.ts`)와 DOSBox 실행(`HARNESS.levels.LSP`, `scripts/observe_levels.sh`). 00→01→02→03→04 전환을 `level_name` 로그로 확인, 04 출구는 엔딩 진입 추정. 스크린샷·팔레트는 윈도 서버 없음으로 unverified. [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md)
 
 ## 열린 위험 (2026-11-16)
 
-- R17: 스테이지 선택·클리어 화면·진행 저장(`stageFlow.ts`, default-merge) 추가, 디버그 훅은 `VITE_DEBUG_HOOKS=1` 빌드(`make smoke-build` → `dist-debug/`)에서만 `?debug=1`로 켜짐. 전투 쇼케이스 305 draw calls(>300)는 미해결(브라우저 측정 필요). 스테이지 UI 브라우저 동작은 unverified. Meshy API 키 채팅 노출(교체 필요). 푸시 대기. R16 릴리스 1.0.0(`make release` zip)의 `vite preview`와 새 능력 브라우저 동작은 unverified.
+- R17: 스테이지 선택·클리어 화면·진행 저장(`stageFlow.ts`, default-merge) 추가, 디버그 훅은 `VITE_DEBUG_HOOKS=1` 빌드(`make smoke-build` → `dist-debug/`)에서만 `?debug=1`로 켜짐. 전투 쇼케이스 draw calls는 R18에서 294로 해결, 스테이지 UI는 R18에서 브라우저 확인. Meshy API 키 채팅 노출(교체 필요). 푸시 대기. R16 릴리스 1.0.0(`make release` zip)의 `vite preview`와 새 능력 브라우저 동작은 unverified.
 - 다음 방향: 다단계 스테이지 확장(안 A/B)을 사용자가 선택. [NEXT_PLAN](NEXT_PLAN.md).
 
 ## R16 (2026-11-16)
@@ -79,57 +85,4 @@
 - **회귀 의심 조사(재현 불가)**: `__reanimatorAdvance`(skipIntro) 후 1.5 s 뒤 타이틀+어트랙트가 다시 나온다는 보고를 실제 Chrome(Playwright)에서 현재 코드로 조사했다(`src/ui/main.ts`: `__reanimatorAdvance` ~L1576, `hideIntro` ~L471, `exitShowcase` ~L1118). 5 s 후 호출과 로드 직후 호출 모두 mode `playing` 유지, `#title` display none, `#hud` 표시, 내비게이션 없음, 4 s 안정. `show('title')` 호출처는 `exitShowcase`, 쇼케이스 `title` 장면, `uiAudit`, 시작 시뿐이며 Advance 뒤에는 발동하지 않는다. 유력한 원인은 오케스트레이터 세션 중 동시 파일 편집으로 인한 Vite 전체 리로드 또는 낡은 HMR 인스턴스(리로드되면 타이틀+Bio-Labs 어트랙트와 이전 HUD 상태가 나온다). 코드 변경 없음. dev 서버를 깨끗이 재시작해 재확인할 것.
 - Abuse·Metroid 느낌 요청은 R4_METROID_GAPS, R5-Rig, R9 Vault Nook, Warden 카운터, Classic View로 이미 반영됐다. 원본 Abuse 데이터는 쓰지 않았다.
 
-## 검증 기준선 (R14 integration, make check 649/649)
-
-- `make check` exit 0: 테스트 649/649, reach3d 52 waypoints 3432 ticks, 봇 Normal 4978 ticks HP 126, Story 4880 HP 142, Hard 5319 HP 104(min 100), dist-guard PASS(13 files, 14,891,509 B). 봉인 파일 무변경.
-
-## 검증 기준선 (R13 integration, make check 625/625)
-
-- `make check` exit 0: 테스트 625/625, reach3d 52 waypoints 3432 ticks, 봇 Normal 5208 ticks HP 126, Story 5599 HP 139, Hard 5094 HP 114(min 100), dist-guard PASS(13 files). 봉인 파일 무변경.
-
-## 검증 기준선 (R12 enemy locomotion, make check 544/544)
-
-- `make check` exit 0: 테스트 544/544, reach3d 52 waypoints 3432 ticks, 봇 Normal 5522 ticks HP 95/160, dist-guard PASS. 봉인 파일 무변경.
-
-## 검증 기준선 (R11 최종, make check 534/534)
-
-- `make check` exit 0: 테스트 534/534, reach3d 52 waypoints 3432 ticks, 봇 Normal 5533 ticks HP 95/160 57 kills, dist-guard PASS. 봉인 파일 무변경.
-
-## 검증 기준선 (R10 브랜치, 구현 에이전트 관찰)
-
-- `make check` exit 0: tsc 통과, node 테스트 493/493, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks, vite build, dist-guard PASS(13 files, 14,804,985 B). 봇 won 5533 ticks, HP 95/160, 57 kills, 사망 0. 봉인 파일 무변경. 브라우저 확인은 Chrome 불가로 unverified.
-
-## 검증 기준선 (R9 병합 후, 통합 에이전트 관찰)
-
-- `make check` exit 0: tsc 통과, node 테스트 459/459, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks, vite build, dist-guard PASS(13 files, 14,790,497 B, 218 대조). 봇 완주 won 5362 ticks, HP 112/160, 56 kills(변동 없음). 봉인 파일 무변경.
-- 병합 충돌은 `tests/game3d.test.ts` 1곳(양쪽 테스트 유지). 브라우저 확인(카운터·스캔·Vault Nook·소품)은 Chrome 불가로 unverified.
-
-## 이전 기준선 (R8 병합 후, 통합 에이전트 관찰)
-
-- `make check` exit 0: tsc 통과, node 테스트 427/427, `reference-verify` 3/3 PASS, `reach` PASS, `reach3d` 52 waypoints 3432 ticks, vite build, dist-guard PASS(13 files, 14,775,872 B, 218 대조). 봉인 파일 무변경, R3.3 테스트 통과.
-- 브라우저 확인(Lab UI, 설정·난이도 패널, 로그 리더·엔딩, soak trace)은 unverified. `lab.png`는 재촬영 필요.
-
-이전 기준선(R7 이하): [archive/STATUS_baselines_R4_R7.md](archive/STATUS_baselines_R4_R7.md)
-## R10 Classic
-- Classic audit, CRT collapse toggle (0.4 s, instant under reduce flashing), flat Classic FX/DOM pills, meltdown alarm reduce gate. See docs/R10_CLASSIC.md. Browser checks unverified.
-
-- **R10** (`r10/*`): 오프닝 9.8 s 시네마틱([R10_OPENING](R10_OPENING.md)), Classic View 감사·CRT 전환([R10_CLASSIC](R10_CLASSIC.md)), Warden 카운터·셋피스([R10_BOSS](R10_BOSS.md)), Bio-Labs Hunter 구역([R10_HUNTER](R10_HUNTER.md)). 통합: 사운드 이벤트 59, 헌터 pill에 Classic 규칙 적용(보스 카운터 표시는 캔버스 FX라 CSS 대상 없음), Ctrl/Alt 살금걸음은 keydown에서 preventDefault 하지 않아 브라우저 단축키와 충돌 없음. 검증: `make check` exit 0, 테스트 519/519, 봇 Normal 5533 ticks HP 95/160 kills 57(Story·Hard 봇 승리는 테스트 통과), reach3d 52 waypoints 3432 ticks, dist-guard 13 files 14,819,279 B. 브라우저 확인 unverified.
-
-## R10 fix pass
-- Opening black frame (CSS lids not seeked in showcase), hunter steel material, compact hunter pill, 1996 year unified, UI audit ends the opening and reports a reason. `__reanimator().perf` was never empty (keys `drawCalls`, `byGroup`, ...; no `calls`): no regression. Details in R10_OPENING.md and R10_HUNTER.md.
-
-## R11 polish
-- Hunter armour plates on rig bones ([R10_HUNTER](R10_HUNTER.md)); opening HUD fade-in, letterbox, wake pose, title card ([R10_OPENING](R10_OPENING.md)). Browser visuals unverified.
-
-## R11 final fix pass
-- Hunter: steel on every material slot (maps dropped, linear-space flash tints cut), armour fitted to the measured torso in bone-local space ([R10_HUNTER](R10_HUNTER.md)). Debug hooks: `__reanimatorAdvance` exits a held showcase/opening (`skipIntro`, frozen or running), `__reanimatorShowcase` drops the loading screen at once. Pause: Escape/P resumes from the root menu, sub-panels step back first, handled before the opening skip. UI chrome is English in every language (`CHROME_LANG`, `chromeLabel()` in `lore.ts`); only story text is KO/EN. `make check` exit 0, 534/534. Browser-checked in Playwright (ko-KR): dark hunter, no floating plates, overlay cleared, Escape toggles, `Logs` label.
-
-## R12 (English only, enemy locomotion)
-
-- All game text is English: `lore.ts` KO tables, locale detection and the LOGS language toggle were removed (`pickLang` always returns `en`; `__reanimatorShowLog` unchanged). README Korean summary removed.
-- Frozen enemies: crawlers, droppers, climbers and spitters are single-mesh GLBs without bones, and their procedural gait moved only 0.05 m / 0.05 rad, which read as a frozen pose. Stalker and warden rigs were already animating (telemetry showed walk/run/attack weights). `proceduralEnemyPose` now drives a stride-locked scuttle (bob, roll, yaw swing, stretch) scaled by ground speed, plus stronger idle motion. Display only. Test: `tests/enemy-locomotion.test.ts`. Visual check in Chrome was limited to telemetry plus one screenshot, no before/after frame comparison (partly unverified).
-
-- R12 post-fix: airlock crate crawlers now drop down and engage an idle player; tutorial hold counts from e-airlock-1 wake-up. Bot Normal 5123 / HP 118. Browser check unverified.
-- R14 C (r14-charlight): character key/fill/AO/exposure term in character shaders, rims 0.25-0.35; make check exit 0, browser captures unverified. See docs/R14_CHARLIGHT.md.
-
-- R16 (FEAT-002): Metroid abilities Blast Core, Scan Lens, Thermal Plating with three sealed caches. `make check` exit 0, bot pins unchanged. See `docs/R16_METROID_ABILITIES.md`. Browser verification not run.
+이전 기준선(R8–R14)과 R10–R12 세부: [archive/STATUS_R8_R14.md](archive/STATUS_R8_R14.md).

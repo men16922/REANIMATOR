@@ -49,6 +49,13 @@ shadow pass). Budget: 300 per sector.
 | Control Spine (security) | 149 | 128.5, 4.4 |
 | Furnace Gate (core) | 152 | 160.5, 2.2 |
 
+### Stage 2 re-measure after the Slag Foreman (2026-11-16)
+
+Same method, every 3 m at floor, 2.2 m and 4.4 m. Max per area: Cargo Dock 140, Conveyor Hall 139, Slag Pits 134,
+Culture Vats 153, Control Spine 145, Furnace Gate 148 (at 162, 2.2). Standing near the Foreman through windup, attack
+and recover (ticks stepped with `__reanimatorStep`): 135. All under 300. Close-up: `foreman_lunge.png` (Foreman bar,
+floor shockwave strip, Scattergun/Grenade fire).
+
 ## Stage 3: Reactor Spire (room sweep)
 
 | Room (sector) | Max | At (x, y) |
@@ -95,4 +102,4 @@ teleports. Gantry pits and the furnace gauntlet were rendered and seen in screen
 
 `stage_select_locked.png`, `stage_select_unlocked2.png`, `stage_select_all_cleared.png`, `stage2_title_card.png`,
 `stage2_slag_gantry.png`, `stage2_clear.png`, `stage3_title_card.png`, `stage3_hatchery.png`,
-`stage3_warden_arena.png`, `stage3_clear.png`.
+`stage3_warden_arena.png`, `stage3_clear.png`, `foreman_lunge.png`.

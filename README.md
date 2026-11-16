@@ -15,6 +15,16 @@
 - Classic View (press `V`): a 320x200 dithered look with an optional CRT filter.
 - Procedural music and effects. Assist options, reduce flashing, gore level and three difficulties.
 
+## Screenshots
+
+| Stage 1: Cryo Facility | Stage 2: Foundry Line | Stage 3: Reactor Spire |
+|---|---|---|
+| ![Stage 1 Core Warden](docs/evidence/g4_playable/09_warden_boss.png) | ![Stage 2 Slag Gantry](docs/evidence/r18_stages/stage2_slag_gantry.png) | ![Stage 3 Warden Arena](docs/evidence/r18_stages/stage3_warden_arena.png) |
+
+Stage 2 ends with the Slag Foreman mini-boss:
+
+![Slag Foreman lunge and shockwave](docs/evidence/r18_stages/foreman_lunge.png)
+
 ## Controls
 
 | Key | Action |

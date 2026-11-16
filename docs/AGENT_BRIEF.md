@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: R15·R16·Abuse 관찰은 main 로컬 커밋(`eef01b6`, 푸시 대기)까지 완료. 사용자 결정 대기: 다단계 스테이지 확장. 안 A(Stage 0 허브/튜토리얼=Airlock, 1=Shaft+Mines, 2=Bio-Labs+Security, 3=Core 보스+Meltdown) 또는 안 B(현 맵=Stage 1, 신규 2개). 근거 [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md) §7, 계획 [NEXT_PLAN](NEXT_PLAN.md). 선택 후 spec `metroidvania-3d`에 반영. 푸시는 사용자 지시 전까지 하지 않는다.
+▶ NEXT SESSION: 3개 스테이지(안 B)와 R18 검증이 main 로컬 커밋으로 완료(푸시 대기). 남은 것: Stage 2·3 사람 플레이, `make smoke-local`, `make release`, 릴 Stage 2·3 컷, Meshy 키 교체. 계획 [NEXT_PLAN](NEXT_PLAN.md), 측정 [MEASURED](evidence/r18_stages/MEASURED.md). 푸시는 사용자 지시 전까지 하지 않는다.
 
 ## 한 줄 요약
 
