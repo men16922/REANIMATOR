@@ -142,7 +142,7 @@ async function main(): Promise<void> {
     '',
     '| Id | Files (albedo, normal) | Bytes | Meshy task | Prompt |',
     '|---|---|---|---|---|',
-    ...rows.map((r) => `| \`texture/${r.id}\` | \`public/assets/textures/${r.id}{,-n,-r}.webp\` | ${r.bytes.toLocaleString('en-US')} B | \`${r.spec.taskId}\` | ${r.spec.prompt} |`),
+    ...rows.map((r) => `| \`texture/${r.id}\` | \`public/assets/textures/${r.id}${r.spec.strip ? '' : '{,-n}'}.webp\` | ${r.bytes.toLocaleString('en-US')} B | \`${r.spec.taskId}\` | ${r.spec.prompt} |`),
     '',
     '<!-- textures:end -->',
   ].join('\n');

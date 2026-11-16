@@ -83,10 +83,6 @@ export interface TwoSurfaceUniforms {
   normalMap2: { value: THREE.Texture | null };
 }
 
-/**
- * Patches a standard material so upward faces (object-space normal.y > 0.5) sample `map`/`normalMap` and every other
- * face samples `map2`/`normalMap2`. One material, one draw call per batch.
- */
 /** Rewrites three's normal-map sampling so it blends two maps by `vTopFace`; null when the chunk no longer has the expected call (three upgrade). */
 export function patchNormalChunk(chunk: string): string | null {
   const needle = 'texture2D( normalMap, vNormalMapUv )';
