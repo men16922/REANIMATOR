@@ -194,6 +194,8 @@ test('R22 stage 3 props: pipe walls and cryo racks sit in the named rooms, glow 
   const rooms = (kit: KitId) => new Set(u3.filter((u) => u.kit === kit).flatMap((u) => u.placements.map((p) => roomOf(l3 as never, p.x))));
   assert.deepEqual([...rooms('coolant-pipe-wall')].sort(), ['room_s3_arena', 'room_s3_breach', 'room_s3_hatchery', 'room_s3_spine', 'room_s3_stacks']);
   assert.deepEqual([...rooms('cryo-rack')].sort(), ['room_s3_hatchery', 'room_s3_stacks']);
+  // Pipe walls stand on a floor top against the rear lane (visible), not on the front face of floor slabs.
+  for (const u of u3.filter((x) => x.kit === 'coolant-pipe-wall')) for (const p of u.placements) assert.ok(p.z <= -1.5 && p.scale >= 4, `pipe wall at x ${p.x} reads on the back wall`);
   const again = planKitUnits(l3, stageSectorAt(l3));
   assert.deepEqual(again.map((u) => [u.key, u.placements.length]), u3.map((u) => [u.key, u.placements.length]));
   for (const id of ['coolant-pipe-wall', 'cryo-rack', 'frost-shield'] as KitId[]) {

@@ -50,8 +50,8 @@ export const kitUrl = (id: KitId): string => `/assets/models/terrain/${id}.glb`;
 
 export const KIT_STRIP_M = 24;
 
-/** face: on the front plane of a solid at least 1 m tall. stand: upright on a floor top (rear lane). lay: flat on a floor top. edge: along a floor's front lip. beam: lying along the rear lane of a floor top. */
-type Mode = 'face' | 'stand' | 'lay' | 'edge' | 'beam';
+/** face: on the front plane of a solid at least 1 m tall. stand: upright on a floor top (rear lane). lay: flat on a floor top. edge: along a floor's front lip. beam: lying along the rear lane of a floor top. back: upright against the back wall on a floor top, facing the camera (R22 coolant-pipe-wall). */
+type Mode = 'face' | 'stand' | 'lay' | 'edge' | 'beam' | 'back';
 interface Rule {
   kit: KitId;
   mode: Mode;
@@ -106,23 +106,23 @@ const ROOM_RULES: Record<string, Rule[]> = {
   room_s2_hall: [{ kit: 'foundry-conveyor', mode: 'beam', size: 4.6, pitch: 5.4, max: 3 }],
   room_s2_slag: [{ kit: 'slag-crucible', mode: 'stand', size: 2.8, pitch: 9, max: 1 }],
   room_s2_furnace: [{ kit: 'slag-crucible', mode: 'stand', size: 3.0, pitch: 9, max: 1 }],
-  room_s3_breach: [{ kit: 'coolant-pipe-wall', mode: 'face', size: 3.0, pitch: 6, max: 2, at: 0.5 }],
+  room_s3_breach: [{ kit: 'coolant-pipe-wall', mode: 'back', size: 4.2, pitch: 5, max: 3 }],
   room_s3_stacks: [
     { kit: 'coolant-column', mode: 'stand', size: 3.6, pitch: 10, max: 1 },
-    { kit: 'coolant-pipe-wall', mode: 'face', size: 3.0, pitch: 6, max: 2, at: 0.5 },
+    { kit: 'coolant-pipe-wall', mode: 'back', size: 4.2, pitch: 5, max: 3 },
     { kit: 'cryo-rack', mode: 'stand', size: 2.6, pitch: 7, max: 2 },
   ],
   room_s3_hatchery: [
-    { kit: 'coolant-pipe-wall', mode: 'face', size: 3.0, pitch: 6, max: 2, at: 0.5 },
+    { kit: 'coolant-pipe-wall', mode: 'back', size: 4.2, pitch: 5, max: 3 },
     { kit: 'cryo-rack', mode: 'stand', size: 2.4, pitch: 8, max: 1 },
   ],
   room_s3_spine: [
     { kit: 'coolant-column', mode: 'stand', size: 3.6, pitch: 10, max: 1 },
-    { kit: 'coolant-pipe-wall', mode: 'face', size: 3.0, pitch: 6, max: 2, at: 0.5 },
+    { kit: 'coolant-pipe-wall', mode: 'back', size: 4.2, pitch: 5, max: 3 },
   ],
   room_s3_arena: [
     { kit: 'coolant-column', mode: 'stand', size: 3.8, pitch: 9, max: 1 },
-    { kit: 'coolant-pipe-wall', mode: 'face', size: 3.2, pitch: 6, max: 2, at: 0.5 },
+    { kit: 'coolant-pipe-wall', mode: 'back', size: 4.4, pitch: 5, max: 3 },
   ],
 };
 
@@ -219,6 +219,10 @@ export function kitPlacementsForSolid(s: MapSolid3D, sector: SectorId3D, roomId?
           z = s.minZ + 0.9 + rnd() * 1.1;
           scale = r.size * (0.75 + rnd() * 0.5);
           rotY = rnd() * Math.PI * 2;
+          break;
+        case 'back':
+          y = top;
+          z = s.minZ + 1.2;
           break;
         case 'lay':
           y = top + 0.01;
