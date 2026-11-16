@@ -43,6 +43,8 @@ export const EVENT_SOUND: Record<SoundEventType3D, string> = {
   hunter_ping: 'hunter.ping',
   hunter_counter: 'hunter.counter',
   hunter_off: 'hunter.off',
+  // R21 Stage 3 Cryo Bulwark frost shield
+  shield_block: 'enemy.bulwark.block',
   boss_telegraph: 'boss.tele.slam',
   boss_charge: 'boss.charge',
   boss_summon: 'boss.summon',
@@ -283,7 +285,10 @@ export function enemyCue(
 
 /** The Slag Foreman is a stalker variant with its own heavier voice: remap its stalker cues to the foreman recipes. */
 export function variantCue(cue: string | null, variant: string | undefined): string | null {
-  return cue && variant === 'foreman' ? cue.replace('enemy.stalker.', 'enemy.foreman.') : cue;
+  if (!cue) return cue;
+  if (variant === 'foreman') return cue.replace('enemy.stalker.', 'enemy.foreman.');
+  if (variant === 'bulwark') return cue.replace('enemy.stalker.', 'enemy.bulwark.');
+  return cue;
 }
 
 // ---- Footsteps and landing ----
@@ -296,8 +301,23 @@ const SURFACE: Record<SectorId3D, Surface> = {
   core: 'crystal',
 };
 
+/**
+ * Footstep surface. Stage 2 (Foundry Line) is grated iron everywhere but the slag mines; Stage 3 (Reactor Spire)
+ * rings like frozen glass in the Cryo Stacks and the Warden Arena coolant deck.
+ */
 export function surfaceFor(sector: SectorId3D): Surface {
   return SURFACE[sector];
+}
+
+export function stageSurfaceFor(sector: SectorId3D, stage: 1 | 2 | 3): Surface {
+  if (stage === 2) return sector === 'mines' ? 'rock' : 'metal';
+  if (stage === 3 && (sector === 'shaft' || sector === 'core')) return 'crystal';
+  return SURFACE[sector];
+}
+
+/** Arrival stinger when a run starts on Stage 2 or 3 (Stage 1 opens with its own cold-open set piece). */
+export function stageStinger(stage: 1 | 2 | 3): string | null {
+  return stage === 2 ? 'stinger.stage2' : stage === 3 ? 'stinger.stage3' : null;
 }
 
 /** Ticks between footsteps for a ground speed, or 0 when standing still. */

@@ -65,6 +65,14 @@ export const SOUND_BANK = {
   'enemy.foreman.land': r(8, 0.25, o(60, 0.3, 'triangle', 0.2, 30), n(0.25, 0.14, 500, 'lowpass', 110)),
   'enemy.foreman.death': r(9, 0.4, o(180, 1.0, 'sawtooth', 0.16, 30), o(90, 1.1, 'square', 0.08, 26, 0.08), n(1.0, 0.14, 1000, 'lowpass', 90)),
 
+  // R21 Stage 3 Cryo Bulwark: glassy frost-shield tones over the stalker body sounds
+  'enemy.bulwark.alert': r(5, 0.2, o(130, 0.3, 'sawtooth', 0.08, 190), o(1980, 0.25, 'sine', 0.03, 1480), n(0.25, 0.05, 2600, 'bandpass', 1400, 0, 3)),
+  'enemy.bulwark.windup': r(6, 0.2, o(90, 0.35, 'sawtooth', 0.09, 230), o(1320, 0.35, 'sine', 0.035, 2640), n(0.3, 0.05, 3200, 'highpass')),
+  'enemy.bulwark.attack': r(6, 0.15, o(260, 0.18, 'sawtooth', 0.11, 70), o(2640, 0.1, 'square', 0.025, 1760), n(0.16, 0.1, 2200, 'bandpass', 600, 0, 2)),
+  'enemy.bulwark.land': r(5, 0.15, o(70, 0.2, 'triangle', 0.15, 38), n(0.14, 0.09, 1800, 'bandpass', 900, 0, 3)),
+  'enemy.bulwark.death': r(7, 0.2, o(200, 0.5, 'sawtooth', 0.12, 45), ...arp([2093, 1568, 1175], 0.06, 0.3, 'sine', 0.04), n(0.5, 0.1, 4200, 'highpass', 1800)),
+  'enemy.bulwark.block': r(4, 0.06, o(2490, 0.09, 'sine', 0.06, 1860), o(3730, 0.07, 'square', 0.02, 2800, 0.005), n(0.06, 0.06, 7000, 'highpass', 4000)),
+
   'enemy.spitter.alert': r(5, 0.2, o(360, 0.18, 'sine', 0.07, 280), o(240, 0.22, 'sine', 0.06, 340, 0.08), n(0.2, 0.04, 1000, 'bandpass', 500, 0, 3)),
   'enemy.spitter.windup': r(6, 0.2, o(180, 0.35, 'sine', 0.09, 420), n(0.35, 0.07, 700, 'bandpass', 1600, 0, 4)),
   'enemy.spitter.attack': r(6, 0.12, o(540, 0.12, 'sine', 0.1, 150), n(0.12, 0.1, 1800, 'bandpass', 600, 0, 3)),
@@ -100,6 +108,10 @@ export const SOUND_BANK = {
   'stinger.win': r(10, 1, ...arp([523, 659, 784, 1047, 1319], 0.12, 0.45, 'sine', 0.16), ...arp([262, 330, 392, 523], 0.12, 0.6, 'triangle', 0.08)),
   'stinger.lose': r(10, 1, o(220, 1.4, 'triangle', 0.2, 40), o(165, 1.6, 'sawtooth', 0.08, 30, 0.15), n(1.0, 0.06, 500, 'lowpass', 80)),
   'stinger.meltdown': r(10, 1, o(523, 0.15, 'sine', 0.2), o(392, 0.28, 'sawtooth', 0.14, 220, 0.12), o(784, 0.25, 'triangle', 0.16, undefined, 0.22), n(0.5, 0.1, 800, 'lowpass', 100, 0.1)),
+
+  // ---- R21 stage arrival stingers: Foundry Line is an anvil-and-furnace hit, Reactor Spire a cold glass chord ----
+  'stinger.stage2': r(10, 1, o(65, 1.0, 'sawtooth', 0.16, 49), o(98, 0.9, 'square', 0.06, 73, 0.02), o(1046, 0.5, 'triangle', 0.06, 980, 0.01), n(0.7, 0.14, 900, 'bandpass', 220, 0, 2)),
+  'stinger.stage3': r(10, 1, ...arp([622, 932, 1245, 1865], 0.09, 0.9, 'sine', 0.07), o(77.8, 1.3, 'sine', 0.18, 73.4), n(0.9, 0.05, 5200, 'highpass', 2600)),
 
   // ---- Round 10 Reclaimer hunter: a dissonant tritone sting, a rising catch roar, plating pings ----
   'stinger.hunter': r(10, 1, o(185, 0.9, 'sawtooth', 0.15, 120), o(262, 0.9, 'square', 0.07, 170, 0.03), o(370, 0.7, 'sawtooth', 0.05, 250, 0.06), o(46, 1.2, 'sine', 0.2, 38), n(0.6, 0.08, 2400, 'bandpass', 500, 0, 3)),

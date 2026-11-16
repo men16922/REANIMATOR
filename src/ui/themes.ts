@@ -299,3 +299,81 @@ export function escapeTempoScale(meltdownTicks: number): number {
 export function escapeKeyLift(stage: number): number {
   return stage >= 5 ? 2 : stage >= 4 ? 1 : 0;
 }
+
+// ---- R21 per-stage identity: every stage re-voices the sector themes (pure, deterministic) ----
+export type StageNo = 1 | 2 | 3;
+
+export interface StageMusicFlavor {
+  /** Semitone shift of the theme root. */
+  transpose: number;
+  /** Tempo multiplier. */
+  tempo: number;
+  /** Replacement waves, or undefined to keep the sector's. */
+  padWave?: OscillatorType;
+  arpWave?: OscillatorType;
+  bassWave?: OscillatorType;
+  leadWave?: OscillatorType;
+  /** Percussion overlay ORed into the sector pattern ('c' clang, 't' tom). */
+  percOver: string;
+  /** Hat overlay ORed into the sector pattern. */
+  hatOver: string;
+  /** Reverb send and delay feedback multipliers, sidechain depth offset. */
+  wetMul: number;
+  delayFbMul: number;
+  duckAdd: number;
+}
+
+/**
+ * Stage 1 (the Abuse-inspired facility) keeps the original sector themes. Stage 2 Foundry Line is lower, slower and
+ * heavier: sawtooth bass and pad, anvil clangs on the off-beats, a dry room. Stage 3 Reactor Spire is colder and
+ * brighter: up a minor third, glassy sine arpeggios, ticking hats and a long icy delay.
+ */
+export const STAGE_MUSIC: Record<StageNo, StageMusicFlavor> = {
+  1: { transpose: 0, tempo: 1, percOver: NONE, hatOver: NONE, wetMul: 1, delayFbMul: 1, duckAdd: 0 },
+  2: {
+    transpose: -2, tempo: 0.92, padWave: 'sawtooth', bassWave: 'sawtooth', leadWave: 'sawtooth',
+    percOver: '...c.......c..c.', hatOver: NONE, wetMul: 0.65, delayFbMul: 0.8, duckAdd: 0.1,
+  },
+  3: {
+    transpose: 3, tempo: 1.06, padWave: 'sine', arpWave: 'sine', leadWave: 'triangle',
+    percOver: NONE, hatOver: '.x...x...x...x..', wetMul: 1.25, delayFbMul: 1.2, duckAdd: -0.05,
+  },
+};
+
+function overlay(base: string, over: string): string {
+  let out = '';
+  for (let i = 0; i < STEPS_PER_BAR; i++) {
+    const b = base[i] ?? '.';
+    const o = over[i] ?? '.';
+    out += b !== '.' ? b : o;
+  }
+  return out;
+}
+
+/** The theme as voiced on a stage. Title, victory and meltdown keep one voice across stages. Returns a new object. */
+export function themeForStage(theme: ThemeId, stage: StageNo): ThemeDef {
+  const def = THEMES[theme];
+  if (stage === 1 || theme === 'title' || theme === 'victory' || theme === 'meltdown') return def;
+  const f = STAGE_MUSIC[stage];
+  return {
+    ...def,
+    bpm: Math.round(def.bpm * f.tempo * 10) / 10,
+    root: def.root * Math.pow(2, f.transpose / 12),
+    padWave: f.padWave ?? def.padWave,
+    arpWave: f.arpWave ?? def.arpWave,
+    bassWave: f.bassWave ?? def.bassWave,
+    leadWave: f.leadWave ?? def.leadWave,
+    perc: overlay(def.perc, f.percOver),
+    hat: overlay(def.hat, f.hatOver),
+    wet: Math.min(0.75, def.wet * f.wetMul),
+    delayFb: Math.min(0.7, def.delayFb * f.delayFbMul),
+    duck: Math.max(0, Math.min(0.6, def.duck + f.duckAdd)),
+  };
+}
+
+/** Ambient bed multipliers per stage: Foundry drones lower with a darker roar, the Spire hisses higher and colder. */
+export const STAGE_AMBIENT: Record<StageNo, { droneMul: number; noiseFMul: number; noiseGainMul: number }> = {
+  1: { droneMul: 1, noiseFMul: 1, noiseGainMul: 1 },
+  2: { droneMul: 0.84, noiseFMul: 0.55, noiseGainMul: 1.35 },
+  3: { droneMul: 1.19, noiseFMul: 2.2, noiseGainMul: 0.8 },
+};

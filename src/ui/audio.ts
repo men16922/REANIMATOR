@@ -14,8 +14,8 @@ import {
 import { SOUND_BANK, type Layer, type SoundId } from './soundBank.ts';
 import {
   chordAt, delaySeconds, ESCAPE_LAYERS, escapeKeyLift, escapeStageFor, escapeTempoScale, fillHit, formAt, formOf, layersAt, semitone,
-  stepSeconds, STEPS_PER_BAR, THEMES,
-  type Chord, type FormPos, type LayerMask, type ThemeDef,
+  STAGE_AMBIENT, stepSeconds, STEPS_PER_BAR, themeForStage,
+  type Chord, type StageNo, type FormPos, type LayerMask, type ThemeDef,
 } from './themes.ts';
 
 export type { SoundId };
@@ -50,6 +50,7 @@ let unlocked = false;
 
 /** Music requested before the first user gesture (title screen): started as soon as the context may exist. */
 let pendingBgm: ThemeId | null = null;
+let pendingStage: StageNo = 1;
 
 function unlock(): void {
   unlocked = true;
@@ -57,7 +58,7 @@ function unlock(): void {
   if (pendingBgm) {
     const t = pendingBgm;
     pendingBgm = null;
-    bgm(true, t);
+    bgm(true, t, pendingStage);
   }
 }
 if (typeof window !== 'undefined') {
@@ -567,7 +568,7 @@ let ambNextOne = 0;
 let ambSector: SectorId3D | null = null;
 
 /** Starts, retunes (sector or Meltdown change) or stops the ambient bed. Safe to call repeatedly. */
-export function ambient(on: boolean, sector: SectorId3D = 'airlock', meltdown = false): void {
+export function ambient(on: boolean, sector: SectorId3D = 'airlock', meltdown = false, stage: StageNo = 1): void {
   if (!on) {
     if (ambTimer) clearInterval(ambTimer);
     ambTimer = null;
@@ -601,17 +602,18 @@ export function ambient(on: boolean, sector: SectorId3D = 'airlock', meltdown = 
     ambNoise.start();
   }
   const def = AMB[sector];
+  const sa = STAGE_AMBIENT[stage];
   const t = c.currentTime;
   setRoom(meltdown ? 'meltdown' : sector);
   const boost = meltdown ? 1.4 : 1;
   ambOsc.type = def.wave;
-  ambOsc.frequency.setTargetAtTime(def.drone * (meltdown ? 1.26 : 1), t, 0.4);
+  ambOsc.frequency.setTargetAtTime(def.drone * sa.droneMul * (meltdown ? 1.26 : 1), t, 0.4);
   ambOscGain!.gain.setTargetAtTime(def.droneGain * boost, t, 0.4);
   ambLfo!.frequency.setTargetAtTime(def.lfo * (meltdown ? 2 : 1), t, 0.4);
   ambLfoGain!.gain.setTargetAtTime(def.droneGain * 0.4, t, 0.4);
-  ambFilter!.frequency.setTargetAtTime(def.noiseF, t, 0.4);
+  ambFilter!.frequency.setTargetAtTime(def.noiseF * sa.noiseFMul, t, 0.4);
   ambFilter!.Q.setTargetAtTime(def.noiseQ, t, 0.4);
-  ambNoiseGain!.gain.setTargetAtTime(def.noiseGain * boost, t, 0.4);
+  ambNoiseGain!.gain.setTargetAtTime(def.noiseGain * sa.noiseGainMul * boost, t, 0.4);
   if (ambSector !== sector) ambNextOne = t + 0.5;
   ambSector = sector;
   if (!ambTimer) {
@@ -628,6 +630,8 @@ export function ambient(on: boolean, sector: SectorId3D = 'airlock', meltdown = 
 // ---- Procedural BGM: 16-step sections (intro/A/B/break), chord progressions, sidechain pump, reverb and delay sends ----
 interface MusicLayer {
   theme: ThemeId;
+  /** Stage the theme is voiced for (themeForStage). */
+  stage: StageNo;
   def: ThemeDef;
   /** Layer output (crossfaded between themes). */
   gain: GainNode;
@@ -887,8 +891,9 @@ export function escapeMusic(meltdownTicks: number): void {
 }
 
 /** Starts, switches (crossfade) or stops the music. Safe to call every frame. */
-export function bgm(on: boolean, theme: ThemeId = 'airlock'): void {
+export function bgm(on: boolean, theme: ThemeId = 'airlock', stage: StageNo = 1): void {
   pendingBgm = on ? theme : null;
+  pendingStage = stage;
   if (!on) {
     if (musicTimer) clearInterval(musicTimer);
     musicTimer = null;
@@ -899,9 +904,9 @@ export function bgm(on: boolean, theme: ThemeId = 'airlock'): void {
   const c = ensure();
   if (!c || !bgmBus) return;
   pendingBgm = null;
-  if (musicLayer && musicLayer.theme === theme && musicTimer) return;
+  if (musicLayer && musicLayer.theme === theme && musicLayer.stage === stage && musicTimer) return;
   if (musicLayer) retire(musicLayer, 0.55);
-  const def = THEMES[theme];
+  const def = themeForStage(theme, stage);
   const gain = c.createGain();
   gain.gain.value = 0;
   gain.gain.setTargetAtTime(1, c.currentTime, 0.55);
@@ -917,7 +922,7 @@ export function bgm(on: boolean, theme: ThemeId = 'airlock'): void {
   if (theme !== 'boss') bossIntensity = 1;
   if (theme !== 'meltdown') { escapeTicks = -1; escapeStage = 0; }
   musicLayer = {
-    theme, def, gain, padBus, melody, delaySend, bar: 0, stepInBar: 0, next: c.currentTime + 0.05,
+    theme, stage, def, gain, padBus, melody, delaySend, bar: 0, stepInBar: 0, next: c.currentTime + 0.05,
     pos: formAt(formOf(def), 0), mask: layersAt(formAt(formOf(def), 0)), rootHz: def.root, chord: def.prog[0].chord, accent: false,
   };
   tuneDelay(def, bossIntensity);
@@ -931,6 +936,7 @@ export function getAudioDebug() {
     unlocked,
     volumes: { master: masterVol, bgm: bgmVol, sfx: sfxVol },
     theme: musicLayer ? musicLayer.theme : null,
+    stage: musicLayer ? musicLayer.stage : null,
     music: musicLayer
       ? { section: musicLayer.pos.section, bar: musicLayer.bar, step: musicLayer.stepInBar, intensity: bossIntensity, layers: Object.entries(musicLayer.mask).filter(([, v]) => v).map(([k]) => k) }
       : null,

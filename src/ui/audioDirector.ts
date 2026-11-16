@@ -7,7 +7,7 @@ import { hazardPhase } from '../game3d/hazards.ts';
 import { ambient, bgm, escapeMusic, musicIntensity, play, playCue, railCharge, setLoops, setPaused, sfx, type SoundId } from './audio.ts';
 import {
   alarmPeriodTicks, alarmPitch, elevatorLoop, enemyCue, extraCueForEvent, footstepPeriodTicks, hazardLoopLevel, heartbeatPeriodTicks, isCountdownTick, isHardLanding,
-  planLoops, selectTheme, spatialFor, surfaceFor, variantCue, type LoopSource, type ThemeId,
+  planLoops, selectTheme, spatialFor, stageStinger, stageSurfaceFor, variantCue, type LoopSource, type ThemeId,
 } from './audioLogic.ts';
 
 export interface PreStep {
@@ -54,9 +54,12 @@ export class AudioDirector {
   private prevRailF = 0;
   private heartTicks = 0;
   private theme: ThemeId | null = null;
+  private themeStage: 1 | 2 | 3 = 1;
   private ambKey = '';
   private mode = '';
   private alarmTicks = 0;
+  /** World serial the arrival stinger was played for (one per run start on Stage 2/3). */
+  private stungFor: unknown = null;
 
   /** Forget tracked state (new run, respawn, world replaced). */
   reset(): void {
@@ -99,14 +102,21 @@ export class AudioDirector {
       return;
     }
     const theme = currentTheme(w);
-    if (theme !== this.theme) {
+    if (theme !== this.theme || w.stage !== this.themeStage) {
       this.theme = theme;
-      bgm(true, theme);
+      this.themeStage = w.stage;
+      bgm(true, theme, w.stage);
     }
-    const key = `${w.currentRoom}|${w.meltdownTicks >= 0}`;
+    const key = `${w.stage}|${w.currentRoom}|${w.meltdownTicks >= 0}`;
     if (key !== this.ambKey) {
       this.ambKey = key;
-      ambient(true, w.currentRoom, w.meltdownTicks >= 0);
+      ambient(true, w.currentRoom, w.meltdownTicks >= 0, w.stage);
+    }
+    // Stage 2/3 open with their own arrival stinger, once per world (respawns keep the same world object)
+    if (this.stungFor !== w.level) {
+      this.stungFor = w.level;
+      const st = w.tick < 120 ? stageStinger(w.stage) : null;
+      if (st) play(st as SoundId);
     }
   }
 
@@ -140,7 +150,7 @@ export class AudioDirector {
     railCharge(railF);
 
     // Footsteps (surface follows the sector) and landings
-    const surface = surfaceFor(w.currentRoom);
+    const surface = stageSurfaceFor(w.currentRoom, w.stage);
     if (isHardLanding(pre.grounded, p.body.grounded, pre.vy)) {
       play(`land.${surface}` as SoundId);
       this.stepTicks = 0;

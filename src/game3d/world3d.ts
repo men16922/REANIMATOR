@@ -6,6 +6,7 @@ import { stepBody3D, spawnBody3D, floorHeightAt3D, resolveHorizontal3D, ABILITY_
 import { newLight, tickLight, toggleLight, type Light } from '../game/light.ts';
 import { buildCollider3D } from './map3d.ts';
 import { FOREMAN_NAME } from './stage2.ts';
+import { bulwarkDamageMult3D } from './stage3.ts';
 import { STAGE_HP_3D, STAGE_LOADOUT_3D, buildStageMap3D, countStageFoes3D } from './stages3d.ts';
 import {
   HUNTER_CLAW_REACH, HUNTER_SNEAK_SCALE, counterHunter, hunterParams, hunterHitsPoint, inHunterZone, newHunter3D, pingHunter, railHitHunter,
@@ -1314,6 +1315,14 @@ function damageEnemy(
 ): void {
   if (!e.alive) return;
   let dmg = rawDmg * WEAPON_MATCHUP_3D[e.kind][weapon];
+  if (e.variant === 'bulwark') {
+    const shield = bulwarkDamageMult3D(e, knockX, weapon);
+    if (shield < 1) {
+      dmg *= shield;
+      knockX *= 0.3;
+      w.events.push({ type: 'shield_block' });
+    }
+  }
   if (e.kind === 'warden') dmg *= e.exposedTicks > 0 ? (e.counterExposed ? WARDEN_COUNTER_EXPOSED_MULT : WARDEN_EXPOSED_MULT) : WARDEN_GUARDED_MULT;
   dmg = Math.max(1, Math.round(dmg));
   e.hp -= dmg;

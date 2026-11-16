@@ -74,7 +74,9 @@ export type SoundEventType3D =
   | 'hunter_grab'
   | 'hunter_ping'
   | 'hunter_counter'
-  | 'hunter_off';
+  | 'hunter_off'
+  // R21 Stage 3 Cryo Bulwark: a Pulse or Scattergun shot glanced off the frost shield
+  | 'shield_block';
 
 export interface SoundEvent3D {
   type: SoundEventType3D;
@@ -250,8 +252,8 @@ export interface SecretRoom3D {
 
 /** Surface a crawler clings to. `floor` is the normal walking state. */
 export type EnemySurface3D = 'floor' | 'wall' | 'ceiling';
-/** `dropper`: waits on the ceiling and falls when the player passes below. `climber`: crawls along a wall/ceiling toward the player, then drops or leaps. */
-export type EnemyVariant3D = 'none' | 'dropper' | 'climber' | 'foreman';
+/** `dropper`: waits on the ceiling and falls when the player passes below. `climber`: crawls along a wall/ceiling toward the player, then drops or leaps. `foreman`: Stage 2 mini-boss. `bulwark`: Stage 3 stalker with a frontal frost shield (stage3.ts). */
+export type EnemyVariant3D = 'none' | 'dropper' | 'climber' | 'foreman' | 'bulwark';
 
 export interface EnemySpawn3D {
   id: string;
@@ -260,7 +262,7 @@ export interface EnemySpawn3D {
   y: number;
   z: number;
   zone: SectorId3D;
-  /** Crawler variants only. y is the bottom of the body box (ceiling hang: ceiling - body height). */
+  /** dropper/climber: crawlers (y is the bottom of the body box, ceiling hang: ceiling - body height). foreman/bulwark: stalkers. */
   variant?: EnemyVariant3D;
   surface?: EnemySurface3D;
   /** Wall only: +1 when the open space is east of the wall (leap direction), -1 when west */

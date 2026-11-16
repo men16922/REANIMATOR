@@ -9,7 +9,13 @@ export const STAGE3_NAME = 'Reactor Spire';
 
 export function buildStage3Map3D(): Level3D {
   const k = new StageKit('s3');
+  const level = buildStage3Layout(k);
+  // Cryo Bulwarks: a few stalkers carry the frost shield (ids and counts are unchanged, only the variant is set)
+  for (const e of level.enemies) if (STAGE3_BULWARK_IDS.includes(e.id)) e.variant = 'bulwark';
+  return level;
+}
 
+function buildStage3Layout(k: StageKit): Level3D {
   // ===== 1. Breach Hall (airlock) =====
   const breach = k.room('breach', 'airlock', 'Breach Hall', 'Blown-out lobby. The blue shutter opens to a Pulse shot.', 30, 0x1a2a3a);
   k.fullFloor(breach);
@@ -125,6 +131,41 @@ export function buildStage3Map3D(): Level3D {
     spawn: { x: 3, y: 0 },
     exit: { x: 208.6, y: 0 },
   });
+}
+
+// ===== Stage 3 foe variant: Cryo Bulwark (new design) =====
+// A Bio-Stalker wearing a frost shield on its front. Pulse and Scattergun shots that hit the shield from the front deal
+// BULWARK_FRONT_MULT of their damage (and push a `shield_block` event). The shield is down while it winds up, strikes,
+// recovers or staggers, and never covers its back. Rail, Grenade, Flamer, Rocket, stomps and counters ignore it.
+// Pure functions of the enemy state: deterministic, no randomness.
+
+export const BULWARK_NAME = 'Cryo Bulwark';
+/** Damage share that gets through the frost shield (Pulse and Scattergun, front only). */
+export const BULWARK_FRONT_MULT = 0.3;
+/** Weapon slots the shield blocks: 1 Pulse, 2 Scattergun. */
+export const BULWARK_BLOCKED_WEAPONS: readonly number[] = [1, 2];
+/** Stalkers in the Cryo Stacks and the Power Spine that carry the shield. */
+export const STAGE3_BULWARK_IDS: readonly string[] = ['e-s3-shaft-14', 'e-s3-security-53', 'e-s3-security-59'];
+
+export interface BulwarkView3D {
+  alive: boolean;
+  variant: string;
+  state: string;
+  staggerTicks: number;
+  facing: number;
+}
+
+/** True while the frost shield is raised (alive, not attacking, recovering or staggered). */
+export function bulwarkShieldUp3D(e: BulwarkView3D): boolean {
+  if (!e.alive || e.variant !== 'bulwark' || e.staggerTicks > 0) return false;
+  return e.state !== 'windup' && e.state !== 'attack' && e.state !== 'recover' && e.state !== 'stagger';
+}
+
+/** Damage multiplier for one hit. `knockX` carries the shot direction (its sign), `weapon` the slot (0 = no weapon). */
+export function bulwarkDamageMult3D(e: BulwarkView3D, knockX: number, weapon: number): number {
+  if (!bulwarkShieldUp3D(e) || knockX === 0 || !BULWARK_BLOCKED_WEAPONS.includes(weapon)) return 1;
+  // The shot travels against the way the foe faces: it hits the shield
+  return Math.sign(knockX) === -Math.sign(e.facing || -1) ? BULWARK_FRONT_MULT : 1;
 }
 
 /** Reachability route for stage 3. The Thruster Boots step flips maxJumps to 2 (the Hatchery lever ledge needs 4.4 m). */

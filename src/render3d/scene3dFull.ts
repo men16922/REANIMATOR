@@ -71,6 +71,7 @@ import {
   stepGlide,
 } from './enemyMotion.ts';
 import { foremanGaitStep, foremanPose } from './foremanMotion.ts';
+import { bulwarkShieldUp3D } from '../game3d/stage3.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
 import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
 import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
@@ -253,6 +254,10 @@ const FOREMAN_RIM_3D = 0xff7a2a;
 /** Tint for the dedicated Foreman mesh (its texture is already scorched iron and orange, so a light touch). */
 const FOREMAN_MESH_TINT_3D = 0xffe8d4;
 const FOREMAN_HEAT_HEX = 0xff6a1a;
+/** Stage 3 Cryo Bulwark: frosted stalker tint, ice rim, and the frost-shield slab carried on its front (render only). */
+const BULWARK_TINT_3D = 0xc4e4ff;
+const BULWARK_RIM_3D = 0x6fe0ff;
+const BULWARK_SHIELD_FWD = 0.62;
 const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
 const ENEMY_WINDUP_TOTAL_3D: Record<string, number> = { crawler: 14, stalker: 18, spitter: 12, warden: 36 };
 const ENEMY_RIM_3D: Record<string, number> = { stalker: 0x9dffb4, crawler: 0xffb090, spitter: 0xd0b0ff, warden: 0xffa070 };
@@ -437,6 +442,11 @@ export class Scene3DRenderer {
   private readonly muzzleGlows: THREE.Mesh[] = [];
   private readonly riggedEnemies = new Map<string, RiggedInstance>();
   private readonly pickProxyMaterial = new THREE.MeshBasicMaterial({ visible: false });
+  private readonly bulwarkShieldMaterial = new THREE.MeshStandardMaterial({
+    color: 0x9fe8ff, emissive: 0x3cc8ff, emissiveIntensity: 0.85, roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.55, depthWrite: false,
+  });
+  private readonly _bwPos = new THREE.Vector3();
+  private readonly _bwQuat = new THREE.Quaternion();
   private readonly enemyRenderInfo = new Map<string, Partial<EnemyRenderTelemetry> & { yaw: number; x: number; y: number; z: number }>();
   private readonly staticEnemies = new Map<string, StaticActorHandle>();
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
@@ -1864,9 +1874,17 @@ export class Scene3DRenderer {
           tuneWardenMaterials3D(rig.materials, rig.baseEmissive);
           this.wardenLooks.set(e.id, applyWardenLook3D(rig, WARDEN_RIM_HEX, WARDEN_RIM_STRENGTH));
         } else {
-          // The Slag Foreman reads as molten metal: warm tint and an orange rim instead of the stalker greens
-          tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, foreman ? FOREMAN_TINT_3D : ENEMY_TINT_3D[e.kind]);
-          applyEnemyRim3D(rig.materials, foreman ? FOREMAN_RIM_3D : ENEMY_RIM_3D[e.kind], CHAR_LIGHT.stalker.rim, CHAR_LIGHT.stalker.lift, 'stalker');
+          // The Slag Foreman reads as molten metal: warm tint and an orange rim instead of the stalker greens.
+          // The Cryo Bulwark is frosted: a pale blue tint and an ice rim.
+          const bulwark = e.variant === 'bulwark';
+          tuneEnemyMaterials3D(rig.materials, rig.baseEmissive, foreman ? FOREMAN_TINT_3D : bulwark ? BULWARK_TINT_3D : ENEMY_TINT_3D[e.kind]);
+          applyEnemyRim3D(rig.materials, foreman ? FOREMAN_RIM_3D : bulwark ? BULWARK_RIM_3D : ENEMY_RIM_3D[e.kind], CHAR_LIGHT.stalker.rim, CHAR_LIGHT.stalker.lift, 'stalker');
+          if (bulwark) {
+            // One emissive slab per Bulwark (child of the rig, so culling and disposal follow the body). No light added.
+            const slab = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.55, 0.95), this.bulwarkShieldMaterial);
+            slab.name = `bulwark-shield:${e.id}`;
+            rig.root.add(slab);
+          }
         }
         const bodyH = rigH;
         const bodyW = e.kind === 'warden' ? 1.8 : foreman ? 1.5 : 0.9;
@@ -2504,6 +2522,22 @@ export class Scene3DRenderer {
           flashRiggedMaterials3D(rig, 0x000000, 0);
         }
         if (e.kind === 'warden' && e.alive && e.windupTicks > 0) telegraphWarden = e;
+        if (e.variant === 'bulwark') {
+          const slab = rig.root.getObjectByName(`bulwark-shield:${e.id}`);
+          if (slab) {
+            const up = bulwarkShieldUp3D(e);
+            slab.visible = up;
+            if (up) {
+              // Held in world space on the facing side, upright, whatever the rig's yaw and lean
+              rig.root.updateMatrixWorld(true);
+              this._bwPos.set(ex + e.facing * BULWARK_SHIELD_FWD, ey + 0.95, 0.05);
+              rig.root.worldToLocal(this._bwPos);
+              slab.position.copy(this._bwPos);
+              rig.root.getWorldQuaternion(this._bwQuat);
+              slab.quaternion.copy(this._bwQuat.invert());
+            }
+          }
+        }
       }
 
       const st = this.staticEnemies.get(e.id);
