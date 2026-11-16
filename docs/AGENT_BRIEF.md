@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: R20(Foreman 메시, 릴 Stage 2/3 컷, 폴리시) main 로컬 커밋 완료, 푸시 대기. 남은 것: Stage 2 코치 문구, `make smoke-local`, `make release`, 사람 플레이, Meshy 키 교체. 계획 [NEXT_PLAN](NEXT_PLAN.md), 측정 [DRAWCALLS](evidence/r20_reel/DRAWCALLS.md). 푸시는 사용자 지시 전까지 하지 않는다.
+▶ NEXT SESSION: R21 로컬 커밋 완료(Stage 2/3 코치 문구 수정, Foreman 열 발광 완화). 남은 것: Foreman 타격·Spire Warden 카드 시각 확인, r19 검은 사각형, `make smoke-local`, `make release`, 사람 플레이, Meshy 키 교체. 계획 [NEXT_PLAN](NEXT_PLAN.md). 푸시는 사용자 지시 전까지 하지 않는다.
 
 ## 한 줄 요약
 
