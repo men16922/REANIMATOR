@@ -26,6 +26,8 @@ export interface DebugSetup3D {
   bossPhase?: 1 | 2 | 3;
   /** Mark the Warden intro as already played (no cinematic). */
   skipIntro?: boolean;
+  /** Remove every enemy except bosses (Warden, Foreman) so a boss close-up is not crowded out by its pack. */
+  clearFoes?: boolean;
 }
 
 export function applyDebugSetup(w: WorldState3D, o: DebugSetup3D): void {
@@ -65,6 +67,13 @@ export function applyDebugSetup(w: WorldState3D, o: DebugSetup3D): void {
   if (o.aimX !== undefined) p.aimX = o.aimX;
   if (o.aimY !== undefined) p.aimY = o.aimY;
   if (o.skipIntro) w.bossIntroDone = true;
+  if (o.clearFoes) {
+    for (const e of w.enemies) {
+      if (e.kind === 'warden' || e.variant === 'foreman') continue;
+      e.alive = false;
+      e.hp = 0;
+    }
+  }
   if (o.bossPhase) {
     const wd = w.enemies.find((e) => e.kind === 'warden' && !e.minion);
     if (wd) {

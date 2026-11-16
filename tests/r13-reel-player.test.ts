@@ -122,7 +122,7 @@ test('stop() mid-reel tears everything down and does not call finish', () => {
   const p = new ReelPlayer(h);
   p.start();
   for (let i = 0; i < 60 * 40; i++) p.frame(1 / 60);
-  assert.equal(p.cut.id, 'combat');
+  assert.equal(p.cut.id, 'hunter');
   p.stop();
   assert.equal(p.active, false);
   assert.equal(h.labIsOpen, false);

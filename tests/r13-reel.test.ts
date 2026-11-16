@@ -15,7 +15,7 @@ function idle(w: WorldState3D): InputState3D {
 test('cut order, unique ids and contiguous starts', () => {
   assert.deepEqual(
     REEL_CUTS.map((c) => c.id),
-    ['hook', 'classic', 'wake', 'combat', 'hunter', 'warden', 'meltdown', 'endcard'],
+    ['hook', 'classic', 'wake', 'combat', 'hunter', 'foreman', 'spire', 'warden', 'meltdown', 'endcard'],
   );
   assert.equal(new Set(REEL_CUTS.map((c) => c.id)).size, REEL_CUTS.length);
   let t = 0;
@@ -35,11 +35,11 @@ test('targets and helpers', () => {
   assert.equal(REEL_CUTS[0].target, 'lab');
   assert.equal(REEL_CUTS[REEL_CUTS.length - 1].target, 'endcard');
   assert.equal(reelCutAt(0).id, 'hook');
-  assert.equal(reelCutAt(12.01).id, 'classic');
+  assert.equal(reelCutAt(10.01).id, 'classic');
   assert.equal(reelCutAt(9999).id, 'endcard');
   assert.equal(reelProgress(0), 0);
   assert.equal(reelProgress(9999), 1);
-  assert.equal(reelCutTime(13), 1);
+  assert.equal(reelCutTime(11), 1);
   assert.equal(captionAlpha(0, 10), 0);
   assert.equal(captionAlpha(5, 10), 1);
   assert.equal(captionAlpha(10, 10), 0);
@@ -48,8 +48,8 @@ test('targets and helpers', () => {
   assert.equal(reelBeatAt(hook, 7).labMode, 'mutation');
   const cl = REEL_CUTS[1];
   assert.equal(reelBeatAt(cl, 1).view, 'modern');
-  assert.equal(reelBeatAt(cl, 4.2).view, 'classic');
-  assert.equal(reelBeatAt(cl, 4.2).crt, true);
+  assert.equal(reelBeatAt(cl, 3.2).view, 'classic');
+  assert.equal(reelBeatAt(cl, 3.2).crt, true);
   assert.equal(reelBeatAt(cl, 6).crt, false);
 });
 
@@ -57,7 +57,7 @@ test('every world cut lands in its declared sector after its scripted inputs', (
   for (const c of REEL_CUTS) {
     if (c.target !== 'world') continue;
     assert.ok(c.plan && c.sector, c.id);
-    let w = newWorld3D();
+    let w = newWorld3D(c.plan.stage ? { stage: c.plan.stage } : {});
     applyDebugSetup(w, c.plan.setup);
     for (const f of c.plan.inputs) w = stepWorld3D(w, { ...idle(w), ...f });
     for (let i = 0; i < 30; i++) w = stepWorld3D(w, idle(w));
@@ -117,7 +117,7 @@ test('runner emits each cut once in order, fires beats once, then done; skip sto
     }
   }
   assert.deepEqual(seen, REEL_CUTS.map((c) => c.id));
-  assert.deepEqual(beats, ['hook@6', 'classic@4', 'classic@8']);
+  assert.deepEqual(beats, ['hook@6', 'classic@3', 'classic@6.5']);
   assert.equal(done, 1);
   assert.ok(r.done);
   const s = new ReelRunner();

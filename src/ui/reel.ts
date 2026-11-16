@@ -2,7 +2,7 @@
 // the `?reel` URL param and `__reanimatorReel()`. Each world cut names a deterministic setup plus scripted
 // input frames; the runtime steps the real sim with them, so nothing here changes a sim rule.
 
-import type { SectorId3D } from '../game3d/types3d.ts';
+import type { SectorId3D, StageId3D } from '../game3d/types3d.ts';
 import type { InputState3D } from '../game3d/world3d.ts';
 import type { DebugSetup3D } from './demo.ts';
 
@@ -15,6 +15,8 @@ export interface ReelWorldPlan {
   /** Name of a SHOWCASE_SCENES entry to reuse, when the cut is exactly that scene. */
   scene?: string;
   setup: DebugSetup3D;
+  /** Campaign stage whose world the cut plays on (default 1). Stages 2 and 3 are separate levels. */
+  stage?: StageId3D;
   /** Scripted input frames stepped from the fresh world (cut start). After the last frame the operative idles (empty input, aim ahead). */
   inputs: Frame[];
   /** Freeze the opening set piece at this display time instead of stepping (opening cut only). */
@@ -84,30 +86,47 @@ const WARDEN_INPUTS: Frame[] = [
   { ...WARDEN_AIM },
 ];
 
+// Stage 2: the Slag Foreman holds the Furnace Gate at x 175. Stage 3: the Spire Warden stands at x 197 in the coolant arena.
+const FOREMAN_AIM: Frame = { aimX: 175, aimY: 1.2 };
+const FOREMAN_INPUTS: Frame[] = [
+  { ...FOREMAN_AIM, weaponSlot: 1, fire: true },
+  ...rep(179, { ...FOREMAN_AIM, fire: true }),
+  { ...FOREMAN_AIM, weaponSlot: 3, fire: true },
+  ...rep(119, { ...FOREMAN_AIM, fire: true }),
+  { ...FOREMAN_AIM },
+];
+const SPIRE_AIM: Frame = { aimX: 197, aimY: 2.4 };
+const SPIRE_INPUTS: Frame[] = [
+  ...rep(20, { ...SPIRE_AIM }),
+  { ...SPIRE_AIM, weaponSlot: 4, fire: true },
+  ...rep(299, { ...SPIRE_AIM, fire: true }),
+  { ...SPIRE_AIM },
+];
+
 const DEFS: Omit<ReelCut, 'start'>[] = [
   {
-    id: 'hook', duration: 12, target: 'lab', labMode: 'pass', flashy: true,
+    id: 'hook', duration: 10, target: 'lab', labMode: 'pass', flashy: true,
     caption: '1996 DOS physics, verified frame-exact',
     sub: 'Restoration Lab: original log vs engine replay, 11 fields, PASS. Mutate one constant and it fails.',
     beats: [{ at: 6, labMode: 'mutation' }],
   },
   {
-    id: 'classic', duration: 10, target: 'world', sector: 'shaft', flashy: true,
+    id: 'classic', duration: 8, target: 'world', sector: 'shaft', flashy: true,
     plan: { scene: 'classic', setup: { ...KIT, x: 28, y: -11 }, inputs: rep(40, { moveX: 1 }) },
     caption: '1996 and 2026, same moment',
     sub: 'Classic View: 320x200, 256 colours, Bayer dither. Same sim underneath.',
     view: 'modern',
-    beats: [{ at: 4, view: 'classic', crt: true }, { at: 8, view: 'modern', crt: true }],
+    beats: [{ at: 3, view: 'classic', crt: true }, { at: 6.5, view: 'modern', crt: true }],
   },
   {
-    id: 'wake', duration: 10, target: 'world', sector: 'airlock', flashy: true,
+    id: 'wake', duration: 8, target: 'world', sector: 'airlock', flashy: true,
     plan: { scene: 'opening-alarm', setup: {}, inputs: [], openingAt: 7.0 },
     caption: 'Cryo wake, vent burst',
     sub: 'The opening set piece plays on the real airlock world.',
     view: 'modern',
   },
   {
-    id: 'combat', duration: 14, target: 'world', sector: 'biolabs', flashy: false,
+    id: 'combat', duration: 12, target: 'world', sector: 'biolabs', flashy: false,
     plan: {
       scene: 'combat',
       setup: { ...KIT, tanks: 4, x: 53, y: 0, openDoors: ['door_airlock_shaft'], aimX: 62, aimY: 1.1 },
@@ -118,10 +137,24 @@ const DEFS: Omit<ReelCut, 'start'>[] = [
     view: 'modern',
   },
   {
-    id: 'hunter', duration: 12, target: 'world', sector: 'biolabs', flashy: false,
+    id: 'hunter', duration: 8, target: 'world', sector: 'biolabs', flashy: false,
     plan: { setup: { ...KIT, weapons: [1, 2, 3], x: 59.6, y: 0, openDoors: ['door_airlock_shaft'] }, inputs: HUNTER_INPUTS },
     caption: 'The Reclaimer hunts by sound',
     sub: 'It hears you run. Counter the grab, or walk quietly and stay above its reach.',
+    view: 'modern',
+  },
+  {
+    id: 'foreman', duration: 10, target: 'world', sector: 'core', flashy: false,
+    plan: { stage: 2, setup: { ...KIT_LATE, x: 163, y: 0, hp: 999, clearFoes: true, aimX: 175, aimY: 1.2 }, inputs: FOREMAN_INPUTS },
+    caption: 'Stage 2: the Slag Foreman',
+    sub: 'A heavy mini-boss holds the exit teleporter. Read the windup, jump the shockwave.',
+    view: 'modern',
+  },
+  {
+    id: 'spire', duration: 10, target: 'world', sector: 'core', flashy: true,
+    plan: { stage: 3, setup: { ...KIT_LATE, x: 188.5, y: 0, hp: 999, skipIntro: true, aimX: 197, aimY: 2.4 }, inputs: SPIRE_INPUTS },
+    caption: 'Stage 3: the Spire Warden',
+    sub: 'Coolant columns line the arena. Break the Warden to unlock the last teleporter.',
     view: 'modern',
   },
   {
@@ -132,14 +165,14 @@ const DEFS: Omit<ReelCut, 'start'>[] = [
     view: 'modern',
   },
   {
-    id: 'meltdown', duration: 12, target: 'world', sector: 'airlock', flashy: true,
+    id: 'meltdown', duration: 8, target: 'world', sector: 'airlock', flashy: true,
     plan: { scene: 'escape', setup: { ...KIT_LATE, x: 23.4, y: 5.2, console: true, meltdownTicks: 2400 }, inputs: rep(60, { moveX: -1 }) },
     caption: 'Meltdown: reach the hatch',
     sub: 'The reactor is gone. The bridge collapses behind you.',
     view: 'modern',
   },
   {
-    id: 'endcard', duration: 8, target: 'endcard', flashy: false,
+    id: 'endcard', duration: 6, target: 'endcard', flashy: false,
     caption: 'REANIMATOR',
     sub: 'Abuse physics restored frame-exact, six-sector 3D metroidvania, deterministic sim. Press any key to play.',
   },

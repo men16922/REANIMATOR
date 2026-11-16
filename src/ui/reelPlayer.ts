@@ -81,7 +81,7 @@ export class ReelWorldDriver {
   private inputs: readonly Frame[] = [];
 
   load(plan: ReelWorldPlan | undefined): void {
-    this.world = newWorld3D();
+    this.world = newWorld3D(plan?.stage ? { stage: plan.stage } : {});
     if (plan) applyDebugSetup(this.world, plan.setup);
     this.inputs = plan?.inputs ?? [];
     this.index = 0;

@@ -1807,7 +1807,7 @@ const DEBUG_HOOKS = import.meta.env.DEV || (import.meta.env.VITE_DEBUG_HOOKS ===
 if (DEBUG_HOOKS) document.querySelectorAll<HTMLElement>('[data-debug]').forEach((el) => { el.hidden = false; });
 const wAny = (DEBUG_HOOKS ? window : {}) as unknown as {
   __reanimator: () => ReturnType<typeof buildSnapshot>;
-  __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D, opts?: { continue?: boolean }) => DebugRunSnapshot;
+  __reanimatorAdvance: (inputs: Partial<InputState3D>[], setup?: DebugSetup3D, opts?: { continue?: boolean; stage?: StageId3D }) => DebugRunSnapshot;
   __reanimatorStep: (inputs: Partial<InputState3D>[], alpha?: number) => DebugRunSnapshot;
   __reanimatorRunBot: (maxTicks: number, untilStep?: string, showResultOnEnd?: boolean) => ReturnType<typeof buildSnapshot>;
   __reanimatorSetView: (m: ViewMode) => ReturnType<typeof buildSnapshot>;
@@ -1860,7 +1860,7 @@ wAny.__reanimatorAdvance = (inputs, setup, opts) => {
   if (setup?.skipIntro || openingFrozen || introActive) hideIntro();
   dismissLoading();
   if (!cont) {
-    world = newWorld3D();
+    world = newWorld3D(opts?.stage ? { stage: opts.stage } : {});
     worldSerial++;
     bot = null;
     scene3d?.fx.reset();
