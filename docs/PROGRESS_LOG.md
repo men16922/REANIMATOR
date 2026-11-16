@@ -115,3 +115,5 @@ R9–R16 상세: [archive/PROGRESS_LOG_R9_R16.md](archive/PROGRESS_LOG_R9_R16.md
 
 - 2026-11-17 R23: #result panel scrolls (overflow-y auto, safe center, compact at <=800px height) so grade/buttons are reachable at 1280x720; footer badge now 'KEYBOARD / MOUSE / GAMEPAD'. Visual re-capture unverified.
 - R23 terrain polish (6007f0c) browser-checked: draw calls mines 171, biolabs 255, security 270, combat 277 (all ≤300). Screenshot docs/evidence/r23_terrain/biolabs.png. Stage 2/3 rooms not re-measured (unverified).
+
+- 2026-11-17 R24: Meshy terrain textures (tools/meshy/textures.ts), world-space box-projected UVs on solid batches, calmer vistas/bloom/fog, stray grey patch fixed. make check exit 0 (760/760), pins unchanged. Draw calls: biolabs 252, security 269, combat 280 (<=300); stage 2/3 rooms 82-119. Evidence docs/evidence/r24_terrain/.

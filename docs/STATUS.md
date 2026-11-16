@@ -2,6 +2,13 @@
 
 최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R24 지형 텍스처 (2026-11-17, 로컬 커밋)
+
+- `tools/meshy/textures.ts`(`npm run meshy:textures`, sharp): Meshy 1024 PNG 5종 -> 반주기 크로스페이드 타일링 보정 512 WebP 알베도 + Sobel 노멀 + 휘도 거칠기(`public/assets/textures/`, 결정적). 매니페스트 `texture/*`·ASSET_REGISTER 등록.
+- `terrainSurfaces.ts`: 스테이지/섹터별 표면(S1 floor/wall, mines-rock, foundry-iron, reactor-frost). `solidBatches.ts` 월드 공간 박스 투영 UV(`BatchItem.world`). 위쪽 면은 floor, 나머지 면은 wall 텍스처(재질 1개, 셰이더 패치, 로드 실패 시 절차 텍스처 유지). 렌더 전용.
+- 배경 진정: 비활성 섹터 vista 밝기 0.3(활성 0.82), 블룸 -20%, 안개 +20%. Bio-Labs 좌하단 회색 다각형은 이웃(shaft) vista 헤이즈 패치였고 사라짐.
+- `make check` exit 0(760/760), 봇 Normal 4978/HP126 불변, dist-guard PASS(52 files, 20.4 MB). 그리기 호출 최대 combat 280(≤300). 증거 `docs/evidence/r24_terrain/{before,after}/`. Unverified: `make smoke-local`, 사람 플레이, Reduce motion 켠 상태 육안 확인.
+
 ## R23 FEAT-003 전체 런 엔딩 (2026-11-17, 로컬 커밋)
 
 - `records.ts`에 런 로그(`addToRun`: Stage 1 클리어가 새 런 시작, `summarizeRun`: 3스테이지 합계)와 최고 전체 런 기록(별도 키 `reanimator.fullrun.v1`, v1 스테이지 기록 키는 불변이라 마이그레이션 불필요). Stage 3 클리어 화면에 "REANIMATED" 카드(총 시간·죽음·킬, 스테이지별 줄, 최고 기록). 디버그 훅 `__reanimatorShowEnding()`(dev/debug 빌드만, 저장소 복원). `tests/fullrun.test.ts`.
@@ -13,23 +20,6 @@
 - `make check` exit 0(753/753). 봇 핀 불변. Unverified: 실제 패드 하드웨어, 브라우저 UI(오케스트레이터 검증).
 
 R23 FEAT-001 상세: [archive/STATUS_R23_FEAT001.md](archive/STATUS_R23_FEAT001.md).
-
-## R22 Frost 에셋·실행 기록 (2026-11-17, 로컬 커밋 287d595·3409aef·c1a8681 + 기록 커밋)
-
-- Meshy GLB 3종 ingest(WebP 512): frost-shield 226,352 B / 3000 tris(Bulwark 방패, 내려가면 숨김), coolant-pipe-wall 241,004 B / 3907(Stage 3 뒷 레인), cryo-rack 162,872 B / 2448. Stage 3 draw calls 95-138([DRAWCALLS](evidence/r22_assets/DRAWCALLS.md)).
-- 실행 기록: `src/game3d/records.ts`(키 `reanimator.records.v1`, 스테이지별 최단 시간·최소 사망·최다 처치, 안전 파싱, `tests/records.test.ts`). 클리어 화면에 NEW BEST와 기록 줄, Stage Select에 BEST 시간·사망. 새로고침 후 유지 확인 [r22_records](evidence/r22_records/).
-- `make check` exit 0(744/744, dist-guard PASS). 봇 핀 불변.
-- Unverified: `make smoke-local`, 오디오 청감, Stage 2·3 사람 플레이, 릴리스 zip `vite preview`.
-
-## R21 렌더 버그·Stage 3 신규 적·스테이지 사운드·README (2026-11-17, 로컬 커밋 8c2699b·bcf4e06·f1b4286·b9f9d1d)
-
-- Foreman 흰 실루엣 원인: 윈드업 중 패리 창(`parryOpen`)의 흰색 0.6 emissive 플래시가 텍스처 없는 emissive로 거의 검은 알베도를 덮음(런타임 emissive `cbcbcb`). 수정: Foreman 재질 `emissiveMap = map`, 패리 펄스는 주황(`PARRY_FLASH_DARK_HEX`). 전후 [r21_foreman](evidence/r21_foreman/). Furnace Gate 126 draw calls.
-- r19 검은 사각형 원인: 보스 인트로 레터박스 `.bar`가 HUD 전역 `.bar`(5.5em, `body:not(.classic) .bar{position:relative}`)에 덮여 좌상단 사각형 2개가 됨. 클래스 `lb-bar`로 분리. SPIRE WARDEN 카드 육안 확인 [r21_stage3](evidence/r21_stage3/).
-- Stage 3 Cryo Bulwark(`stage3.ts`, 변형 `bulwark`): 정면 서리 방패가 Pulse·Scattergun을 30%로 감쇠, 윈드업·공격·회복·경직 중엔 내려감, Rail·Grenade·Flamer·Rocket·밟기·카운터는 관통. 이벤트 `shield_block`. 스토커 3개 슬롯에 적용(id·수 불변). Cryo Stacks 133 draw calls(방패 1개당 +1).
-- 스테이지 사운드: `themeForStage`(Stage 2 −2반음·0.92배·모루 클랭, Stage 3 +3반음·1.06배·사인 아르페지오·틱 햇), `STAGE_AMBIENT`, `stageSurfaceFor`, 도착 스팅어 `stinger.stage2/3`. 브라우저에서 Stage 3 테마·스팅어 재생 확인.
-- README 재작성(피치, 기능, 복원 범위, 스크린샷), `index.html` 메타. dist 가드에 `kiro`/`judg` 금지어 추가, 빌드에서 봉인 픽스처의 `knownLimits` 문구를 제거하는 Vite 플러그인(소스 불변, Lab PASS 확인).
-- `make check` exit 0(737/737). 봇 핀 불변: Stage 1 Normal 4978/126, Story 4880/142, Hard 5319/104. Stage 2/3 핀도 불변. `make release` exit 0(`release/reanimator-1.1.0-web.zip`).
-- Unverified: `make smoke-local`(샌드박스 Chrome 실행 실패, NOT RUN), 사람 플레이, 오디오 청감.
 
 ## R20 Foreman 메시·릴 Stage 2/3 컷·폴리시 (2026-11-16, 로컬 커밋 de8a151·c3e21e8·fd78fd5)
 

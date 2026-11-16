@@ -2,6 +2,12 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R24 이후
+
+- [x] 지형 텍스처 적용·배경 진정(R24).
+- [ ] Meshy 추가 후보: 플랫폼 가장자리 트림 스트립, Stage 2/3 전용 벽 텍스처(현재 한 장을 위·옆 면에 공유), 타일링 그레이팅, 바닥 균열 데칼.
+- [ ] Unverified: `make smoke-local`, 사람 플레이, Reduce motion 육안.
+
 ## R22 이후
 
 - [x] Frost 에셋 3종과 실행 기록(R22 완료).
