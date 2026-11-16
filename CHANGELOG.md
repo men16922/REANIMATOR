@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- New Stage 3 foe: the Cryo Bulwark carries a frost shield that blocks Pulse and Scattergun shots from the front. Hit it from behind, while it attacks, or with Rail, Grenade, Flamer or Rocket.
+- Each stage has its own sound: the Foundry Line plays lower and heavier, the Reactor Spire colder and brighter, with its own ambience, footsteps and an arrival sting.
+- The Slag Foreman no longer turns into a flat white shape while it winds up; its counter window now pulses orange over the iron.
+- Boss intro letterbox bars cover the full width again (they showed as two black squares in the corner).
 - The Slag Foreman has its own model, voice, hit sparks and a name card when you first meet it.
 - The Stage 3 boss is named the Spire Warden on its intro card, boss bar and objective.
 - Nearby steam vent bursts shake the camera.

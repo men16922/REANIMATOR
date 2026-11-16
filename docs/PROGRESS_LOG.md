@@ -2,6 +2,12 @@
 
 R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-17 — R21 렌더 버그 2건, Cryo Bulwark, 스테이지 사운드, README (로컬 커밋, 푸시 없음)
+
+- Changed: 8c2699b(Foreman 패리 플래시 흰 실루엣), bcf4e06(인트로 레터박스 `.bar` 충돌), f1b4286(Cryo Bulwark, 스테이지별 음악·앰비언트·발소리·스팅어, `tests/stage3-bulwark.test.ts`, `tests/audio.test.ts` 이벤트 수 59→60), b9f9d1d(README, 메타, dist 금지어 가드, 픽스처 문구 제거 플러그인).
+- Verified: `make check` exit 0(737/737), `make release` exit 0, Playwright로 Foreman 윈드업·타격, SPIRE WARDEN 카드, Cryo Stacks, Bulwark 방패, Lab PASS, Stage 3 오디오 테마 확인.
+- Unverified: `make smoke-local`(Chrome 실행 불가), 사람 플레이.
+
 ## 2026-11-16 — R20 Foreman 메시, 릴 Stage 2/3 컷, 폴리시 (로컬 커밋, 푸시 없음)
 
 - Changed: de8a151(Foreman Meshy 메시·포즈), c3e21e8(릴 Stage 2/3 컷, clearFoes), fd78fd5(draw calls 306→287, 보스 카드, Foreman 음성·fx, 증기 흔들림, `tests/r20-polish.test.ts`), docs 커밋.

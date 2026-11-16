@@ -2,11 +2,18 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R21 이후
+
+- [ ] `make smoke-local`을 Chrome이 뜨는 환경에서 실행(샌드박스 NOT RUN).
+- [ ] 사람 플레이: Stage 3 Cryo Bulwark 난이도(봇은 방패를 2회만 맞힘), 스테이지별 음악 청감.
+- [ ] Meshy 신규 자산 후보(프롬프트는 R21 보고 참조): Bulwark 전용 방패 메시, Stage 3 냉각 파이프 킷.
+- [ ] Meshy API 키 교체, 푸시(사용자 지시 대기).
+
 ## R20 Foreman 메시·릴·폴리시 (완료)
 
 - [x] Foreman Meshy 메시, 릴 Stage 2/3 컷, combat 컷 287 calls(≤300), 보스 이름 카드, Foreman 음성·피격 fx, 증기 분출 흔들림. 봇 핀 불변.
-- [ ] Stage 2 Furnace Gate에서 Stage 1 코치 문구("Arm the Security Console...")가 보임(`foreman_card.png`). 스테이지별 코치 문구 필요.
-- [ ] Foreman strike 프레임이 용광로 블룸에 하얗게 씻김(`r20_foreman/foreman_strike.png`). 포즈는 정상, 색 대비 조정 후보.
+- [x] Stage 2 Furnace Gate 코치 문구 스테이지별(R21).
+- [x] Foreman 흰 실루엣(R21: 패리 플래시 원인, 수정).
 - [ ] Unverified: `make smoke-local`, `make release` + `vite preview`, 시네마틱 SPIRE WARDEN 카드 육안, Stage 2·3 사람 플레이, Meshy 키 교체, 푸시.
 
 ## R19 트레일러 릴 (완료)
