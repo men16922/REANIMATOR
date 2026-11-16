@@ -70,3 +70,7 @@
 - [ ] `/private/tmp/r12-*` worktree와 `r12/*` 브랜치는 사용자가 정리.
 
 R4–R11 병합 후 항목, 브라우저 확인 누적, 사용자 확인, 이월: [archive/NEXT_PLAN_R4_R11.md](archive/NEXT_PLAN_R4_R11.md).
+
+## R21 (partial)
+- Done: Stage 2/3 coach chip fix (src/ui/flow.ts), Foreman heat tone-down (scene3dFull.ts), test in tests/r20-polish.test.ts. make check exit 0, 726/726.
+- Unverified: Foreman strike visual, Spire Warden card visual, r19 black squares, smoke-local, release.

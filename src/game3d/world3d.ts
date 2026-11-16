@@ -3741,7 +3741,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
       for (const s of w.level.solids) if (s.doorLock === 'console' && s.doorId) w.openDoors.add(s.doorId);
       w.phase = 'warden';
       w.events.push({ type: 'unlock' });
-      setHint(w, 'SECURITY CONSOLE ONLINE. VAULT LOCK ARMED');
+      setHint(w, w.stage === 1 ? 'SECURITY CONSOLE ONLINE. VAULT LOCK ARMED' : 'SECURITY CONSOLE ONLINE. SEALED GATES OPEN');
     }
   }
 

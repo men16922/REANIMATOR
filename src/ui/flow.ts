@@ -150,8 +150,10 @@ export class Onboarding {
       if (!s.doorId || !s.doorLock) continue;
       // Secret-room walls stay unannounced: discovering them is the point.
       if (w.level.secrets.some((sr) => sr.doorId === s.doorId)) continue;
-      const rule = DOOR_RULE[s.doorLock];
+      let rule = DOOR_RULE[s.doorLock];
       if (!rule) continue;
+      // Stages 2 and 3 have no red locks or Core Vault; the console opens their sealed gates instead.
+      if (s.doorLock === 'console' && w.stage !== 1) rule = { ...rule, text: 'SEALED GATE: arm the Security Console to open it' };
       if (this.done.has(rule.id)) continue;
       if (w.openDoors.has(s.doorId)) {
         this.done.add(rule.id);

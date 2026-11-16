@@ -84,3 +84,7 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - `ShowCut.stage` + `Showcase.seek`가 컷별 스테이지 월드를 새로 만든다. 릴 12컷(90 s). Foreman HP 테스트, `FOREMAN_NAME` 상수, castShadow 히스테리시스. `make check` exit 0(718/718). Stage 1 봇 핀 불변. `make smoke-local`은 unverified.
 
 R9–R16 상세: [archive/PROGRESS_LOG_R9_R16.md](archive/PROGRESS_LOG_R9_R16.md).
+
+## R21 (partial)
+- Done: Stage 2/3 coach chip fix (src/ui/flow.ts), Foreman heat tone-down (scene3dFull.ts), test in tests/r20-polish.test.ts. make check exit 0, 726/726.
+- Unverified: Foreman strike visual, Spire Warden card visual, r19 black squares, smoke-local, release.

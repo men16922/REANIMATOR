@@ -29,3 +29,7 @@ First release.
 - Retro-styled interface, Classic View (320x200 dithered look), procedural music.
 - Settings: volume, music and effects sliders, reduce flashing, gore level, difficulty (Story, Normal, Hard), assist options.
 - Installable web app with fullscreen landscape manifest.
+
+## R21
+- Fix: Stage 2/3 console gates now show "SEALED GATE: arm the Security Console to open it" and the console-online message says "SEALED GATES OPEN" (Stage 1 text unchanged).
+- Polish: Slag Foreman furnace heat emissive reduced (0.22 to 0.14, cap 0.12, heat clamped 0.8) so the strike frame no longer washes out.

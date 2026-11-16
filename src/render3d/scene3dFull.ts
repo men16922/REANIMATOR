@@ -2532,7 +2532,7 @@ export class Scene3DRenderer {
         r.scale.set(fp.sx * fl.sxz * sc, fp.sy * fl.sy * sc, fp.sz * fl.sxz * sc);
         this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: winding ? 'windup' : striking ? 'attack' : speed > 0 ? 'walk' : 'idle', timeScale: 1, poseState: e.alive ? e.state : 'dead' });
         if (flashAmt > 0) flashMaterials3D(st.materials, st.baseEmissive, flashHex, flashAmt, flashCap);
-        else flashMaterials3D(st.materials, st.baseEmissive, FOREMAN_HEAT_HEX, fp.heat * 0.22, 0.22);
+        else flashMaterials3D(st.materials, st.baseEmissive, FOREMAN_HEAT_HEX, Math.min(fp.heat, 0.8) * 0.14, 0.12);
       } else if (st) {
         const r = st.root;
         r.userData.state = e.alive ? e.state : 'dead';

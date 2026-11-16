@@ -90,3 +90,18 @@ function hazardActive(w: WorldState3D, h: WorldState3D['level']['hazards'][numbe
   const t = hazardNowTick3D(w, h);
   return t >= 0 && hazardPhase(h, t) === 'active';
 }
+
+test('r21: Onboarding console hint is stage-aware (no red-lock text outside Stage 1)', async () => {
+  const { Onboarding } = await import('../src/ui/flow.ts');
+  for (const stage of [2, 3] as const) {
+    const w = newWorld3D({ stage });
+    const door = w.level.solids.find((s) => s.doorLock === 'console' && s.doorId);
+    assert.ok(door, `stage ${stage} has a console gate`);
+    w.player.body.x = (door.minX + door.maxX) / 2 - 2;
+    w.player.body.y = (door.minY + door.maxY) / 2;
+    w.tick = 100;
+    const hint = new Onboarding().update(w);
+    assert.equal(hint?.id, 'door-console');
+    assert.doesNotMatch(hint!.text, /red|Vault/i);
+  }
+});
