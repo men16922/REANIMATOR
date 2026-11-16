@@ -105,3 +105,5 @@ R9–R16 상세: [archive/PROGRESS_LOG_R9_R16.md](archive/PROGRESS_LOG_R9_R16.md
 ## R21 (partial)
 - Done: Stage 2/3 coach chip fix (src/ui/flow.ts), Foreman heat tone-down (scene3dFull.ts), test in tests/r20-polish.test.ts. make check exit 0, 726/726.
 - Unverified: Foreman strike visual, Spire Warden card visual, r19 black squares, smoke-local, release.
+
+- 2026-11-17 R23 FEAT-002: gamepad mapping (gamepad.ts), settings (settings.ts), main.ts input layer, tests/gamepad.test.ts. make check exit 0 (753/753). Real pad and browser UI unverified.

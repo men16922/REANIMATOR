@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Gamepad support (stick or D-pad to move, right stick to aim, A jump, B dash, X or RT fire, Y interact, LT counter, LB/RB weapons, Start pause). New Larger HUD text option, and Reduce motion and flashing now saves with your other settings.
 - The Cryo Bulwark's frost shield is now a model that lowers when it attacks. Stage 3 gains a coolant pipe wall and cryo racks.
 - Each stage remembers your best clear time, fewest deaths and most kills. The clear screen shows NEW BEST and the stage select shows your best time.
 

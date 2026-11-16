@@ -48,6 +48,8 @@ import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
 import { buildLogoSvg } from './brand.ts';
 import { meltdownPillVisible, objectiveFor } from './objective.ts';
 import { parseGoreLevel, type GoreLevel } from '../render3d/gore3d.ts';
+import { emptyPadIntent, mapGamepad, risingEdge, type PadIntent } from '../game3d/gamepad.ts';
+import { parseSettings, serializeSettings, SETTINGS_KEY } from '../game3d/settings.ts';
 import { loadProgress, menuKeyAction, PANEL_IDS, pauseEscapeAction, stepIndex, type TitlePanel } from './menu.ts';
 import { normalizePanelState, titleCovered, topLayer } from './panels.ts';
 import { archiveRows, canOpen, openReader, openToast, pressReader, tickReader, tickToast, toastOpacity, visibleBody, type LogToast, type ReaderState } from './logReader.ts';
@@ -284,13 +286,32 @@ function currentAim3D(): { x: number; y: number } {
   return fallbackScreenToWorld(canvas, world, mouse.normX, mouse.normY);
 }
 
+let padPrev: PadIntent = emptyPadIntent();
+let padStartPrev = false;
+/** First connected standard-mapping pad, mapped to intents. Read only in the input layer, never in the sim. */
+function readPad(): PadIntent {
+  try {
+    const pads = navigator.getGamepads?.() ?? [];
+    for (const g of pads) if (g && g.connected && (g.mapping === 'standard' || g.mapping === '')) return mapGamepad(g);
+  } catch { /* Gamepad API unavailable */ }
+  return emptyPadIntent();
+}
+
 function buildInput(): InputState3D {
+  const pad = readPad();
+  const padDash = risingEdge(padPrev.dash, pad.dash);
+  if (risingEdge(padPrev.weaponNext, pad.weaponNext)) cycleWeapon(1);
+  if (risingEdge(padPrev.weaponPrev, pad.weaponPrev)) cycleWeapon(-1);
+  if (risingEdge(padPrev.counter, pad.counter)) counterQueued = true;
+  if (risingEdge(padPrev.interact, pad.interact)) interactQueued = true;
+  padPrev = pad;
   // Hold Ctrl or Alt to sneak: a slow, silent walk (the Reclaimer only hears running, dashing, jumping and firing)
   const sneak = keys.has('ControlLeft') || keys.has('AltLeft');
-  const moveX = ((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0)) * (sneak ? SNEAK_MOVE_SCALE_3D : 1);
+  const kbMove = ((keys.has('KeyD') || keys.has('ArrowRight') ? 1 : 0) - (keys.has('KeyA') || keys.has('ArrowLeft') ? 1 : 0)) * (sneak ? SNEAK_MOVE_SCALE_3D : 1);
+  const moveX = kbMove !== 0 ? kbMove : pad.moveX * (sneak ? SNEAK_MOVE_SCALE_3D : 1);
   const toggleLight = lightQueued;
   lightQueued = false;
-  const dash = dashQueued || keys.has('ShiftLeft') || keys.has('ShiftRight') || mouse.rightDown;
+  const dash = padDash || dashQueued || keys.has('ShiftLeft') || keys.has('ShiftRight') || mouse.rightDown;
   dashQueued = false;
   const interact = interactQueued || keys.has('KeyF');
   interactQueued = false;
@@ -302,15 +323,16 @@ function buildInput(): InputState3D {
   scanQueued = false;
 
   let aim = currentAim3D();
+  if (pad.aim) aim = { x: world.player.body.x + pad.aim.x * 8, y: world.player.body.y + 1.12 + pad.aim.y * 8 };
   if (assist.aim) aim = assistAim(world, aim.x, aim.y);
   if (!assist.autoFire) fireLatched = false;
   const input: InputState3D = {
     moveX,
-    jump: keys.has('Space') || keys.has('KeyW') || keys.has('ArrowUp'),
+    jump: pad.jump || keys.has('Space') || keys.has('KeyW') || keys.has('ArrowUp'),
     dash,
-    fire: stepAutoFire(fireLatched, false, mouse.leftDown).fire,
+    fire: stepAutoFire(fireLatched, false, mouse.leftDown || pad.fire).fire,
     interact,
-    dropDown: keys.has('KeyS') || keys.has('ArrowDown'),
+    dropDown: pad.dropDown || keys.has('KeyS') || keys.has('ArrowDown'),
     toggleLight,
     weaponSlot,
     counter,
@@ -677,7 +699,18 @@ function showEnding(won: boolean, pct: number): void {
   $('ending-p2').textContent = t.paragraphs[1];
 }
 
+let settings = parseSettings(store(SETTINGS_KEY));
+function saveSettings(): void { store(SETTINGS_KEY, serializeSettings(settings)); }
+function applyLargeHud(on: boolean): void {
+  settings = { ...settings, largeHud: on };
+  document.body.classList.toggle('large-hud', on);
+  for (const id of ['large-hud', 'large-hud-p']) $<HTMLInputElement>(id).checked = on;
+  saveSettings();
+}
+
 function applyReduceFx(on: boolean): void {
+  settings = { ...settings, reduceFx: on };
+  saveSettings();
   document.body.classList.toggle('reduce-fx', on);
   ui.reduceFlash.checked = on;
   ui.reduceFlashP.checked = on;
@@ -1200,6 +1233,17 @@ function frame(t: number): void {
 }
 
 function frameBody(t: number): void {
+  const startNow = readPad().start;
+  if (risingEdge(padStartPrev, startNow)) {
+    if (mode === 'playing') {
+      releaseInput();
+      show('paused');
+    } else if (mode === 'paused' && ui.controlsPanel.hidden && $('log-archive').hidden) {
+      manualHold = false;
+      show('playing');
+    }
+  }
+  padStartPrev = startNow;
   const rawDt = Math.min(0.5, (t - last) / 1000 || 1 / 60);
   const dt = Math.min(0.1, rawDt);
   last = t;
@@ -1695,6 +1739,8 @@ $('crt-toggle').addEventListener('click', () => applyCrt(!crtOn));
 applyView(parseViewMode(store(VIEW_STORE.mode)), false);
 applyCrt(parseCrt(store(VIEW_STORE.crt)), false);
 for (const el of [ui.reduceFlash, ui.reduceFlashP]) el.addEventListener('change', () => applyReduceFx(el.checked));
+for (const id of ['large-hud', 'large-hud-p']) $<HTMLInputElement>(id).addEventListener('change', (e) => applyLargeHud((e.target as HTMLInputElement).checked));
+applyLargeHud(settings.largeHud);
 for (const el of [ui.goreLevel, ui.goreLevelP]) el.addEventListener('change', () => applyGore(parseGoreLevel(el.value)));
 applyGore(goreLevel);
 // Difficulty and assist: persisted, mirrored between the title and pause panels. Difficulty is read when a run starts.
@@ -1720,7 +1766,7 @@ for (const [k, id] of Object.entries(ASSIST_IDS) as [keyof AssistOptions3D, stri
 }
 applyDifficulty(difficulty);
 applyAssist(assist);
-applyReduceFx(store(STORE.reduce) === '1' || window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+applyReduceFx(settings.reduceFx || store(STORE.reduce) === '1' || window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 for (const id of ['volume', 'volume-p']) {
   const el = $<HTMLInputElement>(id);
   el.addEventListener('input', () => {

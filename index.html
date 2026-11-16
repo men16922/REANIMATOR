@@ -114,7 +114,7 @@
               <button id="settings-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Settings</button>
               <button id="extras-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Extras</button>
             </nav>
-            <p class="hint-line"><kbd>&uarr;</kbd><kbd>&darr;</kbd> select <kbd>ENTER</kbd> confirm <kbd>ESC</kbd> back &middot; keyboard and mouse required</p>
+            <p class="hint-line"><kbd>&uarr;</kbd><kbd>&darr;</kbd> select <kbd>ENTER</kbd> confirm <kbd>ESC</kbd> back &middot; keyboard, mouse or gamepad</p>
           </div>
           <footer class="credits">
             <span class="credit-badge">WEBGL2 &middot; KEYBOARD + MOUSE</span>
@@ -134,7 +134,8 @@
           <div id="settings-panel" class="tpanel" hidden>
             <h2>Settings</h2>
             <div class="plate form">
-              <label class="row"><input type="checkbox" id="reduce-flash" /> Reduce flashing</label>
+              <label class="row"><input type="checkbox" id="reduce-flash" /> Reduce motion and flashing</label>
+              <label class="row"><input type="checkbox" id="large-hud" /> Larger HUD text</label>
               <label class="row">Gore <select id="gore-level"><option value="full">Full</option><option value="low">Low</option><option value="off">Off</option></select></label>
               <label class="row">Display [V] <button id="view-toggle" type="button">View: Modern</button></label>
               <label class="row">Monitor <button id="crt-toggle" type="button">CRT: Off</button></label>
@@ -199,6 +200,7 @@
               <span><kbd>TAB</kbd> sector map</span>
               <span><kbd>ESC</kbd> pause</span>
               <span><kbd>T</kbd> skip tutorial prompts</span>
+              <span>GAMEPAD: stick/D-pad move, right stick aim, <kbd>A</kbd> jump, <kbd>B</kbd> dash, <kbd>X</kbd>/<kbd>RT</kbd> fire, <kbd>Y</kbd> interact, <kbd>LT</kbd> counter, <kbd>LB</kbd><kbd>RB</kbd> weapons, <kbd>START</kbd> pause</span>
             </div>
             <button id="title-controls-close" class="mi back">Back</button>
           </div>
@@ -215,7 +217,8 @@
           <div class="settings">
             <span class="settings-h">SETTINGS</span>
             <label>Volume <input type="range" id="volume-p" min="0" max="100" value="50" /></label>
-            <label><input type="checkbox" id="reduce-flash-p" /> Reduce flashing</label>
+            <label><input type="checkbox" id="reduce-flash-p" /> Reduce motion and flashing</label>
+            <label><input type="checkbox" id="large-hud-p" /> Larger HUD text</label>
             <label>Gore <select id="gore-level-p"><option value="full">Full</option><option value="low">Low</option><option value="off">Off</option></select></label>
                       <label><input type="checkbox" id="assist-aim-p" /> Aim assist</label>
             <label><input type="checkbox" id="assist-autofire-p" /> Auto-fire hold</label>
@@ -240,6 +243,7 @@
               <span><kbd>TAB</kbd> sector map</span>
               <span><kbd>ESC</kbd> pause</span>
               <span><kbd>T</kbd> skip tutorial prompts</span>
+              <span>GAMEPAD: stick/D-pad move, right stick aim, <kbd>A</kbd> jump, <kbd>B</kbd> dash, <kbd>X</kbd>/<kbd>RT</kbd> fire, <kbd>Y</kbd> interact, <kbd>LT</kbd> counter, <kbd>LB</kbd><kbd>RB</kbd> weapons, <kbd>START</kbd> pause</span>
             </div>
             <button id="controls-close">Close</button>
           </div>

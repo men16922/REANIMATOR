@@ -556,3 +556,7 @@ body.reduce-fx #stage::after { opacity: 0.08; background: repeating-linear-gradi
 #coach-skip[hidden] { display: none; }
 
 .app-version { opacity: 0.55; font-size: 0.8em; letter-spacing: 0.08em; margin-left: 0.8em; }
+
+/* Accessibility: larger HUD text (Settings). */
+body.large-hud #hud { font-size: 1.2em; }
+body.large-hud #minimap-wrap, body.large-hud #classic-hud, body.large-hud #coach { font-size: 1.15em; }
