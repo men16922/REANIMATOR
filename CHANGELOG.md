@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Three stages: the original facility plus Stage 2 Foundry Line and Stage 3 Reactor Spire, each with lever doors and an exit teleporter.
+- Stages menu on the title screen. Stages 2 and 3 unlock when the previous stage is cleared.
+- Stage title card on entry and a stage clear screen with time, kills, completion, and best time. Next stage, Stage select and Title buttons.
+- Cleared stages and best times are saved in the browser. Older saves keep working.
+- Debug hooks are no longer reachable from the URL in the released build.
+
 ## 1.0.0
 
 First release.

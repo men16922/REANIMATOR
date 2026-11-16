@@ -1,7 +1,7 @@
 {
   "name": "reanimator",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "REANIMATOR: a 3D side-view sci-fi metroidvania that runs in your browser.",
   "keywords": ["abuse", "game-restoration", "reverse-engineering", "metroidvania", "threejs", "webgl", "typescript"],
   "license": "MIT",
@@ -17,7 +17,7 @@
     "reference:holdout": "node tools/reference/verify.ts --holdout",
     "build": "vite build",
     "meshy:terrain": "node tools/meshy/terrain-kit.ts",
-    "test:e2e": "vite build --logLevel warn && node tools/smoke/smoke.ts"
+    "test:e2e": "VITE_DEBUG_HOOKS=1 vite build --logLevel warn --outDir dist-debug --emptyOutDir && node tools/smoke/smoke.ts"
   },
   "devDependencies": {
     "@gltf-transform/core": "^4.5.1",

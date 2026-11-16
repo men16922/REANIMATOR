@@ -3,7 +3,7 @@ NODE_BIN := $(CURDIR)/.tools/node-v26.13.1-darwin-arm64/bin
 NODE := $(NODE_BIN)/node
 # GNU Make 3.81 execs simple commands without the shell, so an exported PATH is not applied: use $(NODE) explicitly.
 
-.PHONY: check typecheck test-engine reference-verify reference-holdout reach difficulty build dist-guard smoke-local meshy-terrain release
+.PHONY: check typecheck test-engine reference-verify reference-holdout reach difficulty build dist-guard smoke-local meshy-terrain release smoke-build
 
 # Required gate: unit/boundary tests + development scenarios against original-run references.
 # A missing/empty/corrupt reference is NOT RUN/ERROR and fails the gate (never a vacuous PASS).
@@ -37,7 +37,11 @@ reference-verify:
 reference-holdout:
 	$(NODE) tools/reference/verify.ts --holdout
 
-smoke-local: build
+# Smoke/capture tooling needs the ?debug=1 hooks, which a shipped build never contains. This build goes to dist-debug/ (never released).
+smoke-build:
+	VITE_DEBUG_HOOKS=1 $(NODE) node_modules/vite/bin/vite.js build --logLevel warn --outDir dist-debug --emptyOutDir
+
+smoke-local: smoke-build
 	$(NODE) tools/smoke/smoke.ts
 
 # Needs network + MESHY_API_KEY in .env. Resumable. Add ARGS=--dry-run to preview.

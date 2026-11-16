@@ -8,7 +8,7 @@
 
 ## 열린 위험 (2026-11-16)
 
-- `?debug=1`이 배포 빌드에서 디버그 훅을 켠다. 전투 쇼케이스 장면 305 draw calls(>300). 구 세이브의 새 능력 플래그 undefined 가능. Meshy API 키 채팅 노출(교체 필요). 푸시 대기. R16 릴리스 1.0.0(`make release` zip)의 `vite preview`와 새 능력 브라우저 동작은 unverified.
+- R17: 스테이지 선택·클리어 화면·진행 저장(`stageFlow.ts`, default-merge) 추가, 디버그 훅은 `VITE_DEBUG_HOOKS=1` 빌드(`make smoke-build` → `dist-debug/`)에서만 `?debug=1`로 켜짐. 전투 쇼케이스 305 draw calls(>300)는 미해결(브라우저 측정 필요). 스테이지 UI 브라우저 동작은 unverified. Meshy API 키 채팅 노출(교체 필요). 푸시 대기. R16 릴리스 1.0.0(`make release` zip)의 `vite preview`와 새 능력 브라우저 동작은 unverified.
 - 다음 방향: 다단계 스테이지 확장(안 A/B)을 사용자가 선택. [NEXT_PLAN](NEXT_PLAN.md).
 
 ## R16 (2026-11-16)

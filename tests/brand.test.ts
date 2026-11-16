@@ -20,9 +20,9 @@ test('logo svg is self-contained: no external references or scripts', () => {
   assert.ok(!/<script|<image|href=/i.test(svg));
 });
 
-test('menu: first screen has only PLAY / SETTINGS / EXTRAS, CONTINUE appears with a save', () => {
-  assert.deepEqual(visibleMenu(false).map((m) => m.label), ['PLAY', 'SETTINGS', 'EXTRAS']);
-  assert.deepEqual(visibleMenu(true).map((m) => m.label), ['PLAY', 'CONTINUE', 'SETTINGS', 'EXTRAS']);
+test('menu: first screen has only PLAY / STAGES / SETTINGS / EXTRAS, CONTINUE appears with a save', () => {
+  assert.deepEqual(visibleMenu(false).map((m) => m.label), ['PLAY', 'STAGES', 'SETTINGS', 'EXTRAS']);
+  assert.deepEqual(visibleMenu(true).map((m) => m.label), ['PLAY', 'CONTINUE', 'STAGES', 'SETTINGS', 'EXTRAS']);
   assert.equal(TITLE_MENU[0].id, 'play');
 });
 

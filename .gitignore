@@ -17,6 +17,7 @@ docs/evidence/g1/rea_inspect_*.json
 
 node_modules/
 dist/
+dist-debug/
 assets/meshy-raw/
 scripts/overnight/CLAIM
 

@@ -110,6 +110,7 @@
             <nav id="title-menu" class="plate menu-list" aria-label="Main menu">
               <button id="play" class="mi" autofocus><span class="mi-mark" aria-hidden="true"></span>Play</button>
               <button id="continue" class="mi" hidden><span class="mi-mark" aria-hidden="true"></span>Continue</button>
+              <button id="stages-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Stages</button>
               <button id="settings-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Settings</button>
               <button id="extras-open" class="mi"><span class="mi-mark" aria-hidden="true"></span>Extras</button>
             </nav>
@@ -120,6 +121,16 @@
             <span class="pitch">A 3D side-view sci-fi metroidvania</span>
             <span class="app-version" id="app-version"></span>
           </footer>
+          <div id="stages-panel" class="tpanel" hidden>
+            <h2>Stage select</h2>
+            <div class="plate menu-list stage-list">
+              <button id="stage-1" class="mi stage-row"><span class="mi-mark" aria-hidden="true"></span><span id="stage-1-text" class="st-name">Stage 1</span><span id="stage-1-note" class="st-note"></span></button>
+              <button id="stage-2" class="mi stage-row"><span class="mi-mark" aria-hidden="true"></span><span id="stage-2-text" class="st-name">Stage 2</span><span id="stage-2-note" class="st-note"></span></button>
+              <button id="stage-3" class="mi stage-row"><span class="mi-mark" aria-hidden="true"></span><span id="stage-3-text" class="st-name">Stage 3</span><span id="stage-3-note" class="st-note"></span></button>
+            </div>
+            <p class="note">Clear a stage to unlock the next one.</p>
+            <button id="stages-close" class="mi back">Back</button>
+          </div>
           <div id="settings-panel" class="tpanel" hidden>
             <h2>Settings</h2>
             <div class="plate form">
@@ -238,10 +249,10 @@
           <h2 id="result-title">Escaped</h2>
           <p id="result-detail"></p>
           <div class="stats" id="result-stats">
-            <span><em>TIME</em><b id="rs-time">00:00</b></span>
-            <span><em>KILLS</em><b id="rs-kills">0</b></span>
-            <span><em>DEATHS</em><b id="rs-deaths">0</b></span>
-            <span><em>COLLECTED</em><b id="rs-collect">0%</b></span>
+            <span><em id="rs-l-time">TIME</em><b id="rs-time">00:00</b></span>
+            <span><em id="rs-l-kills">KILLS</em><b id="rs-kills">0</b></span>
+            <span><em id="rs-l-deaths">DEATHS</em><b id="rs-deaths">0</b></span>
+            <span><em id="rs-l-collect">COLLECTED</em><b id="rs-collect">0%</b></span>
           </div>
           <p id="result-cause" class="cause" hidden></p>
           <div id="ending" hidden>
@@ -252,7 +263,10 @@
           <p id="result-tip" class="tip"></p>
           <button id="credits-roll-open" hidden>Roll credits</button>
           <button id="resume-save" hidden>Resume at Save (C)</button>
+          <button id="next-stage" hidden>Next stage</button>
           <button id="restart">Play again</button>
+          <button id="stage-select-r" hidden>Stage select</button>
+          <button id="title-r" hidden>Title</button>
         </section>
         <section id="revived" class="overlay panel" hidden>
           <h2>About the game</h2>

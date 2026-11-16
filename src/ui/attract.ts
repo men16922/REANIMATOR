@@ -6,7 +6,7 @@ import { newWorld3D, stepWorld3D, type NewWorldOptions3D, type WorldState3D } fr
 import type { Level3D } from '../game3d/types3d.ts';
 import { SHOWCASE_CUT_SECONDS, SHOWCASE_REEL, showcaseCutAt, type ShowCut } from './demo.ts';
 
-let sharedLevel: Level3D | null = null;
+const sharedLevels = new Map<number, Level3D>();
 
 /**
  * New world that reuses one immutable Level3D. The renderer builds static geometry per level object,
@@ -15,8 +15,9 @@ let sharedLevel: Level3D | null = null;
  */
 export function freshWorld(options: NewWorldOptions3D = {}): WorldState3D {
   const w = newWorld3D(options);
-  if (sharedLevel) w.level = sharedLevel;
-  else sharedLevel = w.level;
+  const shared = sharedLevels.get(w.stage);
+  if (shared) w.level = shared;
+  else sharedLevels.set(w.stage, w.level);
   return w;
 }
 

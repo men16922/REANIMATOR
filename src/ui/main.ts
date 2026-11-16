@@ -36,7 +36,10 @@ import { Attract, freshWorld, REEL_SEGMENT_SECONDS, Showcase } from './attract.t
 import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type DebugSetup3D, type DemoStop } from './demo.ts';
 import { OPENING_BEATS, OPENING_ENEMY_ID, OPENING_VENT, OpeningClock, openingView } from './opening.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, type Hint } from './flow.ts';
-import { Tutorial, TUTORIAL_STORE_KEY, parseTutorialSaved } from './tutorial.ts';
+import { Tutorial, TUTORIAL_STEPS, TUTORIAL_STORE_KEY, parseTutorialSaved } from './tutorial.ts';
+import { clearFromWorld, formatStageTime, mergeAbilities, isStageUnlocked, nextStage, parseProgress, recordClear, serializeProgress, STAGE_PROGRESS_KEY, STAGE_TITLES, type StageProgress } from '../game3d/stageFlow.ts';
+import { STAGE_IDS_3D } from '../game3d/stages3d.ts';
+import type { StageId3D } from '../game3d/types3d.ts';
 import { initLab } from './labView.ts';
 import { createReelHost, ReelPlayer } from './reelPlayer.ts';
 import { collectMinimapMarkers, renderMinimap } from './minimap.ts';
@@ -192,6 +195,10 @@ let showcaseView: ViewMode | null = null;
 /** Checkpoint being played from EXTRAS > DEMO TOUR (drives the DEMO badge and R-to-restart). */
 let demoStop: DemoStop | null = null;
 let deaths = 0;
+/** Campaign progress (cleared stages, best times). Loaded once, written on every stage clear. */
+let progress: StageProgress = parseProgress(store(STAGE_PROGRESS_KEY));
+/** Set by start() for stages 2 and 3: the stage title card shows on the first observed frame. */
+let stageCardPending = false;
 let introActive = false;
 /** R10 opening set piece: display-side clock, sound cue edges, and the post-handoff SHOOT prompt. The sim is held while it plays. */
 const openingClock = new OpeningClock();
@@ -353,7 +360,7 @@ function show(m: Mode): void {
 /** Keyboard-first menus: land focus on the primary action of the visible screen. */
 function focusDefault(): void {
   const openPanel = openTitlePanel();
-  const target = mode === 'title' ? (openPanel?.querySelector<HTMLElement>('button, input') ?? $('play')) : mode === 'paused' ? $('resume') : mode === 'result' ? ($('resume-save').hidden ? $('restart') : $('resume-save')) : null;
+  const target = mode === 'title' ? (openPanel?.querySelector<HTMLElement>('button, input') ?? $('play')) : mode === 'paused' ? $('resume') : mode === 'result' ? (!$('next-stage').hidden ? $('next-stage') : $('resume-save').hidden ? $('restart') : $('resume-save')) : null;
   target?.focus({ preventScroll: true });
 }
 
@@ -399,9 +406,11 @@ function hideTransient(): void {
 let debugEpoch = 0;
 let worldSerial = 0;
 
-function start(forceIntro = false, stop: DemoStop | null = null): void {
+function start(forceIntro = false, stop: DemoStop | null = null, stage: StageId3D = 1): void {
   manualHold = false;
-  world = freshWorld({ difficulty, assist });
+  world = freshWorld({ difficulty, assist, stage });
+  world.player.abilities = mergeAbilities(world.player.abilities);
+  stageCardPending = stage > 1 && !stop;
   worldSerial++;
   demoStop = stop;
   if (stop) applyDebugSetup(world, stop.setup);
@@ -744,6 +753,17 @@ function showSectorCard(): void {
   playSound('ui.sector');
 }
 
+/** Stage title card: same on-screen card as the sector card, with the stage name and its goal line. */
+function showStageCard(stage: StageId3D): void {
+  const t = STAGE_TITLES[stage];
+  $('sc-eyebrow').textContent = `STAGE ${String(stage).padStart(2, '0')}`;
+  $('sc-name').textContent = t.name.toUpperCase();
+  $('sc-sub').textContent = world.level.stage?.subtitle ?? t.subtitle;
+  ui.sectorCard.hidden = false;
+  popClass(ui.sectorCard, 'show', 0);
+  playSound('ui.sector');
+}
+
 const WEAPON_BANNER: Record<number, { title: string; desc: string }> = {
   2: { title: 'SCATTERGUN', desc: 'Wide spread. Opens green locks. Press 2 to equip.' },
   3: { title: 'GRENADE LAUNCHER', desc: 'Splash damage. Opens yellow locks and Cracked Bio-Walls. Press 3 to equip.' },
@@ -785,7 +805,11 @@ function observeWorld(): void {
     seen.weapon = p.weapon;
   }
   if (mode !== 'playing' || manualHold) return;
-  if (seen.room !== world.currentRoom && !introActive) {
+  if (stageCardPending && !introActive) {
+    stageCardPending = false;
+    seen.room = world.currentRoom;
+    showStageCard(world.stage);
+  } else if (seen.room !== world.currentRoom && !introActive) {
     seen.room = world.currentRoom;
     showSectorCard();
   }
@@ -847,7 +871,7 @@ function updateCoach(): void {
   saveTutorial();
   const id = hint?.id ?? '';
   if (id === coachId) return;
-  $('coach-skip').hidden = !(hint && tutorial.on && !hint.id.startsWith('door') && ['move','jump','fire','weapon','dash','counter','scan','boots','blast','lens','thermal'].includes(hint.id));
+  $('coach-skip').hidden = !(hint && tutorial.on && !hint.id.startsWith('door') && TUTORIAL_STEPS.some((st) => st.id === hint.id));
   coachId = id;
   if (!hint) {
     ui.coach.hidden = true;
@@ -1044,24 +1068,56 @@ function showResult(): void {
   }
   const st = buildRunStats(world, deaths, SIM_HZ_3D);
   const canResume = !won && canResumeNow();
-  ui.resultTitle.textContent = won ? 'Escaped with the core' : 'Signal lost';
+  const clear = clearFromWorld(world);
+  const stageWin = won && world.stage > 1 && clear !== null;
+  ui.resultTitle.textContent = stageWin ? `Stage ${world.stage} clear` : won ? 'Escaped with the core' : 'Signal lost';
+  let bestLine = '';
+  let bestNext: StageId3D | null = null;
+  if (won) {
+    const seconds = clear ? clear.timeSeconds : world.tick / SIM_HZ_3D;
+    const rec = recordClear(progress, world.stage, seconds);
+    progress = rec.progress;
+    store(STAGE_PROGRESS_KEY, serializeProgress(progress));
+    bestLine = `${rec.newBest ? 'New best' : 'Best'} ${formatStageTime(progress.best[world.stage])}`;
+    bestNext = nextStage(world.stage);
+  }
+  $('rs-l-deaths').textContent = stageWin ? 'BEST' : 'DEATHS';
+  $('rs-l-collect').textContent = stageWin ? 'COMPLETE' : 'COLLECTED';
+  $('rs-l-time').textContent = 'TIME';
+  $('rs-l-kills').textContent = 'KILLS';
   const cp = resultCheckpointLine({ won, lastSaveId: world.lastSaveId, nearRespawn: world.diff.nearRespawn });
   const cause = world.deathCause;
   const causeEl = $('result-cause');
   causeEl.hidden = won || !cause;
   causeEl.textContent = !won && cause ? cause.label : '';
   ui.resultDetail.textContent = `Weapon [${WEAPON_META[world.player.weapon].name}]${cp ? ' · ' + cp : ''}`;
-  $('rs-time').textContent = formatClock(st.seconds);
-  $('rs-kills').textContent = String(st.kills);
-  $('rs-deaths').textContent = String(st.deaths);
-  $('rs-collect').textContent = `${st.collectionPct}%`;
-  ui.rank.hidden = !won;
+  if (stageWin && clear) {
+    $('rs-time').textContent = formatStageTime(clear.timeSeconds);
+    $('rs-kills').textContent = `${clear.kills}/${clear.totalEnemies}`;
+    $('rs-deaths').textContent = formatStageTime(progress.best[world.stage]);
+    $('rs-collect').textContent = `${Math.round(clear.completionPercent)}%`;
+    ui.resultDetail.textContent = `${STAGE_TITLES[world.stage].name} · ${bestLine}`;
+  } else {
+    $('rs-time').textContent = formatClock(st.seconds);
+    $('rs-kills').textContent = String(st.kills);
+    $('rs-deaths').textContent = String(st.deaths);
+    $('rs-collect').textContent = `${st.collectionPct}%`;
+    if (won) ui.resultDetail.textContent += ` · ${bestLine}`;
+  }
+  const ranked = won && !stageWin;
+  $('next-stage').hidden = !(won && bestNext !== null);
+  $('next-stage').textContent = bestNext ? `Next stage: ${STAGE_TITLES[bestNext].name}` : 'Next stage';
+  $('stage-select-r').hidden = !won;
+  $('title-r').hidden = !won;
+  $('restart').textContent = stageWin ? 'Replay stage' : 'Play again';
+  ui.rank.hidden = !ranked;
   ui.rank.textContent = st.rank;
   ui.rank.className = `rank r-${st.rank}`;
-  if (won) setTimeout(() => playSound('ui.rank', { pitch: rankPitch(st.rank) }), 450);
-  showEnding(won, st.collectionPct);
+  if (ranked) setTimeout(() => playSound('ui.rank', { pitch: rankPitch(st.rank) }), 450);
+  showEnding(ranked, st.collectionPct);
   $('result-tip').textContent = won ? '' : cause ? cause.tip : retryTip(deaths);
   $('result-tip').hidden = won;
+  renderStageSelect();
   ui.result.classList.toggle('won', won);
   ui.result.classList.toggle('lost', !won);
   $('resume-save').hidden = !canResume;
@@ -1252,8 +1308,35 @@ function exitShowcase(): void {
 }
 
 /** Restart whatever is being played: the demo checkpoint if there is one, else a normal run. */
+/** Stage Select rows: name, best time, lock state. Locked stages are disabled until the previous stage is cleared. */
+function renderStageSelect(): void {
+  for (const id of STAGE_IDS_3D) {
+    const b = $<HTMLButtonElement>(`stage-${id}`);
+    const open = isStageUnlocked(progress, id);
+    b.disabled = !open;
+    b.title = open ? '' : `Clear stage ${id - 1} to unlock`;
+    const t = STAGE_TITLES[id];
+    const note = !open ? 'LOCKED' : progress.best[id] !== null ? `BEST ${formatStageTime(progress.best[id])}` : progress.cleared[id] ? 'CLEARED' : 'NEW';
+    $(`stage-${id}-text`).textContent = `Stage ${id} · ${t.name}`;
+    $(`stage-${id}-note`).textContent = note;
+  }
+}
+
+/** Back to the title with a fresh attract world (used by the stage clear screen). */
+function goTitle(): void {
+  world = freshWorld({ difficulty, assist });
+  worldSerial++;
+  demoStop = null;
+  seen.world = null;
+  bot = null;
+  scene3d?.fx.reset();
+  audioDirector.reset();
+  releaseInput();
+  show('title');
+}
+
 function restartCurrent(): void {
-  start(false, demoStop);
+  start(false, demoStop, demoStop ? 1 : world.stage);
 }
 
 /** Story respawns near where you fell, so a defeat is always resumable. Other difficulties need a Save station. */
@@ -1296,7 +1379,7 @@ function closeSubPanels(): boolean {
     if (tp.id === PANEL_IDS.controls) return openPanelFor('extras', 'title-controls-open'), true;
     if (tp.id === PANEL_IDS.credits) return openPanelFor('extras', 'credits-open'), true;
     if (tp.id === PANEL_IDS.demo) return openPanelFor('extras', 'demo-open'), true;
-    closeTitlePanel(tp.id === PANEL_IDS.extras ? 'extras-open' : 'settings-open');
+    closeTitlePanel(tp.id === PANEL_IDS.extras ? 'extras-open' : tp.id === PANEL_IDS.stages ? 'stages-open' : 'settings-open');
     return true;
   } else return false;
   if (tp) return $(tp.id === PANEL_IDS.extras ? 'lab-open' : 'play').focus({ preventScroll: true }), true;
@@ -1471,6 +1554,24 @@ document.addEventListener('click', (e) => {
   playSound(/close|resume$|^resume$/.test(b.id) ? 'ui.back' : 'ui.select');
 });
 $('play').addEventListener('click', () => start());
+$('stages-open').addEventListener('click', () => {
+  renderStageSelect();
+  openPanelFor('stages', 'stage-1');
+});
+$('stages-close').addEventListener('click', () => closeTitlePanel('stages-open'));
+for (const id of STAGE_IDS_3D) $(`stage-${id}`).addEventListener('click', () => {
+  if (isStageUnlocked(progress, id)) start(false, null, id);
+});
+$('next-stage').addEventListener('click', () => {
+  const n = nextStage(world.stage);
+  if (n && isStageUnlocked(progress, n)) start(false, null, n);
+});
+$('stage-select-r').addEventListener('click', () => {
+  goTitle();
+  renderStageSelect();
+  openPanelFor('stages', 'stage-1');
+});
+$('title-r').addEventListener('click', goTitle);
 for (const id of ['tutorial-toggle', 'tutorial-toggle-p']) {
   $(id).addEventListener('click', () => {
     if (tutorial.on) tutorial.skip();
@@ -1695,8 +1796,9 @@ function debugRun(kind: 'fresh' | 'continued', ticksRun: number, _requested: num
   return { ...snap, debug: { world: kind, worldSerial, ticksRun, stoppedOn: world.status !== 'playing' ? 'status' : 'inputs', layers: snap.layers } };
 }
 
-// Read-only test & showcase inspection hooks. Players never get them: they exist only in dev builds or with ?debug=1.
-const DEBUG_HOOKS = import.meta.env.DEV || /[?&]debug\b/.test(location.search);
+// Read-only test & showcase inspection hooks. Players never get them: a shipped (production) build compiles them out of reach.
+// They exist in dev builds, or in a build made with VITE_DEBUG_HOOKS=1 (make smoke-build) when the page is opened with ?debug=1.
+const DEBUG_HOOKS = import.meta.env.DEV || (import.meta.env.VITE_DEBUG_HOOKS === '1' && /[?&]debug\b/.test(location.search));
 if (DEBUG_HOOKS) document.querySelectorAll<HTMLElement>('[data-debug]').forEach((el) => { el.hidden = false; });
 const wAny = (DEBUG_HOOKS ? window : {}) as unknown as {
   __reanimator: () => ReturnType<typeof buildSnapshot>;
@@ -2188,6 +2290,7 @@ for (const id of ['app-version', 'app-version-credits']) {
   const el = document.getElementById(id);
   if (el) el.textContent = `v${__APP_VERSION__}`;
 }
+renderStageSelect();
 show('title');
 requestAnimationFrame(frame);
 if (DEBUG_HOOKS && /[?&]reel\b/.test(location.search)) {

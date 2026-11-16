@@ -1,4 +1,4 @@
-// Deterministic README showcase capturer. Serves dist/ in headless Chrome (WebGL2) and asks the game for each scene
+// Deterministic README showcase capturer. Serves dist-debug/ in headless Chrome (WebGL2) and asks the game for each scene
 // through window.__reanimatorShowcase(name) (see src/ui/demo.ts SHOWCASE_SCENES), then writes 1280x800 PNGs to
 // docs/evidence/showcase/: title, classic, combat, boss, mines, biolabs, lab. Needs Chrome; run `make build` first.
 // Set SHOWCASE_EXTRA=1 to also capture security, slide and escape.
@@ -7,12 +7,12 @@ import { chromium } from '@playwright/test';
 import { existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const root = resolve(import.meta.dirname, '../../dist');
+const root = resolve(import.meta.dirname, '../../dist-debug');
 const outDir = resolve(import.meta.dirname, '../../docs/evidence/showcase');
 mkdirSync(outDir, { recursive: true });
 
 if (!existsSync(resolve(root, 'index.html'))) {
-  console.error('dist/index.html missing; run make build first');
+  console.error('dist-debug/index.html missing; run make smoke-build first');
   process.exit(2);
 }
 

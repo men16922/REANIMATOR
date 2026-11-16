@@ -10,6 +10,7 @@
 - Metroid-style abilities: Thruster Boots (double jump), Blast Core, Scan Lens, Thermal Plating, and Energy Tanks.
 - Six weapons, a dash with brief invulnerability, a counter, and the three-phase Core Warden boss.
 - A Meltdown escape and three endings.
+- Three stages. Stage 1 is the cryo facility. Stages 2 (Foundry Line) and 3 (Reactor Spire) unlock one after another from the Stages menu, with lever doors, exit teleporters, a clear screen and saved best times.
 - Minimal HUD, with a short skippable tutorial you can replay from Extras or the pause menu.
 - Classic View (press `V`): a 320x200 dithered look with an optional CRT filter.
 - Procedural music and effects. Assist options, reduce flashing, gore level and three difficulties.

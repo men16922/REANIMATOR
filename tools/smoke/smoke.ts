@@ -1,4 +1,4 @@
-// Browser smoke check for the built side-view Metroidvania app (dist/). No dev server: files are served through route interception.
+// Browser smoke check for the built side-view Metroidvania app (dist-debug/, built with VITE_DEBUG_HOOKS=1). No dev server: files are served through route interception.
 // Usage: node tools/smoke/smoke.ts   (requires `vite build` first)
 // Browser: the installed Google Chrome channel (WebGL2 verified).
 
@@ -6,7 +6,7 @@ import { chromium } from '@playwright/test';
 import { existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const root = resolve(import.meta.dirname, '../../dist');
+const root = resolve(import.meta.dirname, '../../dist-debug');
 const out = resolve(import.meta.dirname, '../../docs/evidence/g3');
 mkdirSync(out, { recursive: true });
 
@@ -50,7 +50,7 @@ const checks: { name: string; ok: boolean; detail?: unknown }[] = [];
 const check = (name: string, ok: boolean, detail?: unknown) => checks.push({ name, ok, detail });
 
 if (!existsSync(resolve(root, 'index.html'))) {
-  console.log(JSON.stringify({ status: 'NOT RUN', reason: 'dist/index.html missing; run vite build' }));
+  console.log(JSON.stringify({ status: 'NOT RUN', reason: 'dist-debug/index.html missing; run make smoke-build' }));
   process.exit(2);
 }
 

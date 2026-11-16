@@ -160,7 +160,7 @@ test('every layer id the state machine manages exists in index.html', () => {
 
 // ---- state machine ----
 const MODES: UiMode[] = ['title', 'playing', 'paused', 'result', 'showcase'];
-const TITLE_PANELS: Array<TitlePanel | null> = [null, 'settings', 'extras', 'controls', 'credits', 'demo'];
+const TITLE_PANELS: Array<TitlePanel | null> = [null, 'settings', 'extras', 'controls', 'credits', 'demo', 'stages'];
 function* allStates(): Generator<PanelState> {
   for (const mode of MODES) for (const titlePanel of TITLE_PANELS) for (const lab of [false, true]) for (const revived of [false, true]) for (const pauseControls of [false, true]) for (const logArchive of [false, true]) for (const logReader of [false, true]) for (const creditsRoll of [false, true]) {
     yield normalizePanelState({ mode, titlePanel, lab, revived, pauseControls, logArchive, logReader, creditsRoll });

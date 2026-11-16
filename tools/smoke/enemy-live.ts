@@ -1,4 +1,4 @@
-// Live enemy motion sampler: runs the built app (dist/) in Chrome, lets the bot play one sim tick per rendered frame,
+// Live enemy motion sampler: runs the built app (dist-debug/) in Chrome, lets the bot play one sim tick per rendered frame,
 // and reads the displayed enemy x (telemetry enemyRender) and the sim x (snapshot enemySim) every frame. Reports, per
 // kind, for floor foes in 'chase': largest per-frame display and sim step, display pops (> 0.2 m), display step sign
 // flips, and the largest display-to-sim gap.
@@ -7,7 +7,7 @@ import { chromium } from '@playwright/test';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-const root = resolve(process.argv[2] ?? resolve(import.meta.dirname, '../../dist'));
+const root = resolve(process.argv[2] ?? resolve(import.meta.dirname, '../../dist-debug'));
 const fromTick = Number(process.argv[3] ?? 1900);
 const toTick = Number(process.argv[4] ?? 3200);
 if (!existsSync(resolve(root, 'index.html'))) {
