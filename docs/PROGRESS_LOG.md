@@ -114,3 +114,4 @@ R9–R16 상세: [archive/PROGRESS_LOG_R9_R16.md](archive/PROGRESS_LOG_R9_R16.md
 - 2026-11-17 R23 FEAT-002: gamepad mapping (gamepad.ts), settings (settings.ts), main.ts input layer, tests/gamepad.test.ts. make check exit 0 (753/753). Real pad and browser UI unverified.
 
 - 2026-11-17 R23: #result panel scrolls (overflow-y auto, safe center, compact at <=800px height) so grade/buttons are reachable at 1280x720; footer badge now 'KEYBOARD / MOUSE / GAMEPAD'. Visual re-capture unverified.
+- R23 terrain polish (6007f0c) browser-checked: draw calls mines 171, biolabs 255, security 270, combat 277 (all ≤300). Screenshot docs/evidence/r23_terrain/biolabs.png. Stage 2/3 rooms not re-measured (unverified).
