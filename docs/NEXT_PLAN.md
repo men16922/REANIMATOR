@@ -2,6 +2,12 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R26 이후
+
+- [x] 흑화면 Bio-Labs 조사(재현 불가, HMR 의심만 확인), Stage 2/3 컬러 그레이딩·유리 반사 틴트, HUD 섹터명 누출 수정, `make check` 766/766.
+- [ ] 흑화면 근본원인 확정(HMR 가설 미검증), `make smoke-local`, G5 사람 플레이.
+- [ ] R25에서 별도 위임된 지형 지오메트리 폴리시(chamfered batches·back-lane clutter) 재검증 — 이번 라운드는 색/HUD만 다룸.
+
 ## R25 이후
 
 - [x] Stage 2/3 전용 위/옆 텍스처, 하자드 트림, 그레이팅(R25).

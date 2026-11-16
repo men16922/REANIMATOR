@@ -96,3 +96,19 @@ test('mines openings snap to the displaced rock grid', () => {
     assert.equal(w.style, 'broken');
   }
 });
+
+test('stage grade shaders avoid the reserved gl_ prefix and Stage 1 stays ungraded', async () => {
+  const { GRADE_APPLY, GRADE_UNIFORMS, gradeUniforms, STAGE_RAMP } = await import('../src/render3d/vista3d.ts');
+  assert.ok(!/\bgl_[A-Za-z]*\s*=/.test(GRADE_APPLY), 'no local named gl_*');
+  assert.ok(!/\bfloat\s+gl_/.test(GRADE_APPLY));
+  for (const name of ['uRampA', 'uRampB', 'uRampC', 'uGrade']) assert.ok(GRADE_UNIFORMS.includes(name));
+  assert.equal(gradeUniforms(1).uGrade.value, 0);
+  assert.equal(gradeUniforms(undefined).uGrade.value, 0);
+  assert.ok((gradeUniforms(2).uGrade.value as number) > 0.5);
+  assert.ok((gradeUniforms(3).uGrade.value as number) > 0.5);
+  // Stage 2 ramp is warm (red above blue), Stage 3 is cold (blue above red) at the body stop.
+  const warm = STAGE_RAMP[2]!.b;
+  const cold = STAGE_RAMP[3]!.b;
+  assert.ok(((warm >> 16) & 255) > (warm & 255));
+  assert.ok((cold & 255) > ((cold >> 16) & 255));
+});

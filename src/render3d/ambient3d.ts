@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import type { Level3D, SectorId3D } from '../game3d/types3d.ts';
 import { toBufferGeometry } from './vistaGeo.ts';
 import { VISTA_HAZE } from './vistaScenes.ts';
+import { GRADE_APPLY, GRADE_UNIFORMS, STAGE_RAMP, gradeUniforms } from './vista3d.ts';
 import { layoutAllAmbient, type AmbientData } from './ambientScenes.ts';
 
 export interface AmbientTelemetry {
@@ -93,6 +94,7 @@ void main() {
 `;
 
 const FRAG = /* glsl */ `
+${GRADE_UNIFORMS}
 uniform vec3 uHaze;
 uniform float uHazeAmt;
 uniform float uMelt;
@@ -112,6 +114,7 @@ void main() {
   #else
     c = mix(c, uHaze, clamp(f * uHazeAmt + (1.0 - edgeF), 0.0, 1.0));
   #endif
+  ${GRADE_APPLY}
   c = mix(c, c * vec3(1.6, 0.5, 0.38) + vec3(0.03, 0.0, 0.0), uMelt);
   if (uClassic > 0.5) {
     c = floor(c * 5.0 + 0.5) / 5.0;
@@ -183,6 +186,7 @@ void main() {
 `;
 
 const PT_FRAG = /* glsl */ `
+${GRADE_UNIFORMS}
 uniform float uMelt;
 uniform float uClassic;
 uniform vec4 uClip;
@@ -197,6 +201,7 @@ void main() {
   if (r > 1.0) discard;
   float soft = uClassic > 0.5 ? 1.0 : 1.0 - r * r;
   vec3 c = vCol * vAlpha * soft;
+  ${GRADE_APPLY}
   c = mix(c, c * vec3(1.6, 0.5, 0.38), uMelt);
   if (uClassic > 0.5) c = floor(c * 5.0 + 0.5) / 5.0;
   gl_FragColor = vec4(c, 1.0);
@@ -255,7 +260,12 @@ export function buildAmbient3D(scene: THREE.Scene, level: Level3D): Ambient3D {
           vertexShader: VERT,
           fragmentShader: FRAG,
           defines: additive ? { ADDITIVE: '' } : {},
-          uniforms: { ...common, uHaze: { value: new THREE.Color(VISTA_HAZE[data.sector]) }, uHazeAmt: { value: additive ? 0 : 0.7 } },
+          uniforms: {
+            ...common,
+            ...gradeUniforms(level.stage?.id),
+            uHaze: { value: new THREE.Color(STAGE_RAMP[level.stage?.id ?? 1]?.haze ?? VISTA_HAZE[data.sector]) },
+            uHazeAmt: { value: additive ? 0 : level.stage ? 0.85 : 0.7 },
+          },
           vertexColors: true,
           side: THREE.DoubleSide,
           transparent: additive,
@@ -281,7 +291,7 @@ export function buildAmbient3D(scene: THREE.Scene, level: Level3D): Ambient3D {
       new THREE.ShaderMaterial({
         vertexShader: PT_VERT,
         fragmentShader: PT_FRAG,
-        uniforms: { ...common, uPx },
+        uniforms: { ...common, ...gradeUniforms(level.stage?.id), uPx },
         vertexColors: true,
         transparent: true,
         blending: THREE.AdditiveBlending,

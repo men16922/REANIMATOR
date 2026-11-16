@@ -37,6 +37,31 @@ export interface Vista3D {
   dispose(): void;
 }
 
+/** GLSL for the stage luminance ramp, shared by the vista and ambient shaders. Needs uRampA/B/C and uGrade uniforms. */
+export const GRADE_UNIFORMS = /* glsl */ `
+uniform vec3 uRampA;
+uniform vec3 uRampB;
+uniform vec3 uRampC;
+uniform float uGrade;
+`;
+export const GRADE_APPLY = /* glsl */ `
+  if (uGrade > 0.0) {
+    float gLum = clamp(dot(c, vec3(0.299, 0.587, 0.114)) * 1.7, 0.0, 1.0);
+    vec3 gCol = gLum < 0.5 ? mix(uRampA, uRampB, gLum * 2.0) : mix(uRampB, uRampC, (gLum - 0.5) * 2.0);
+    c = mix(c, gCol, uGrade);
+  }
+`;
+/** Uniform block for a stage ramp (all zeros for Stage 1: no grade). */
+export function gradeUniforms(stage: number | undefined): Record<string, { value: unknown }> {
+  const r = STAGE_RAMP[stage ?? 1];
+  return {
+    uRampA: { value: new THREE.Color(r ? r.a : 0) },
+    uRampB: { value: new THREE.Color(r ? r.b : 0) },
+    uRampC: { value: new THREE.Color(r ? r.c : 0) },
+    uGrade: { value: r ? r.grade : 0 },
+  };
+}
+
 const VERT = /* glsl */ `
 attribute vec4 aA;
 attribute vec3 aP;
@@ -112,6 +137,10 @@ uniform float uMelt;
 uniform float uDim;
 uniform float uClassic;
 uniform vec4 uClip;
+uniform vec3 uRampA;
+uniform vec3 uRampB;
+uniform vec3 uRampC;
+uniform float uGrade;
 varying vec3 vCol;
 varying float vB;
 varying vec3 vW;
@@ -126,6 +155,12 @@ void main() {
   #else
     c = mix(c, uHaze, clamp(f * uHazeAmt + (1.0 - edgeF), 0.0, 1.0));
   #endif
+  if (uGrade > 0.0) {
+    // Stage identity: remap luminance through a three-stop ramp (soot, body, highlight) so Stage 2/3 never inherit Stage 1's green.
+    float l = clamp(dot(c, vec3(0.299, 0.587, 0.114)) * 1.7, 0.0, 1.0);
+    vec3 g = l < 0.5 ? mix(uRampA, uRampB, l * 2.0) : mix(uRampB, uRampC, (l - 0.5) * 2.0);
+    c = mix(c, g, uGrade);
+  }
   c *= uDim;
   c = mix(c, c * vec3(1.6, 0.5, 0.38) + vec3(0.03, 0.0, 0.0), uMelt);
   if (uClassic > 0.5) {
@@ -154,6 +189,8 @@ void main() {
 // Fresnel-style rim plus diagonal reflection streaks that slide with the camera (fake parallax reflection).
 const GLASS_FRAG = /* glsl */ `
 uniform float uClassic;
+uniform vec3 uRefl;
+uniform float uGlassGrade;
 varying vec3 vCol;
 varying vec3 vW;
 void main() {
@@ -162,7 +199,8 @@ void main() {
   float d = vW.x * 0.55 + vW.y * 0.9 + cameraPosition.x * 0.35;
   float streak = smoothstep(0.82, 1.0, sin(d * 0.9)) * 0.5 + smoothstep(0.9, 1.0, sin(d * 0.37 + 1.3)) * 0.5;
   float a = 0.045 + fres * 0.9 + streak * 0.12;
-  vec3 c = vCol * (0.35 + streak * 0.9) + vec3(0.6, 0.75, 0.9) * fres * 0.4;
+  vec3 base = mix(vCol, uRefl * dot(vCol, vec3(0.333)) * 1.5, uGlassGrade);
+  vec3 c = base * (0.35 + streak * 0.9) + uRefl * fres * 0.4;
   if (uClassic > 0.5) {
     a = 0.05;
     c = vCol * 0.4;
@@ -185,6 +223,12 @@ interface SectorVista {
   maxY: number;
 }
 
+/** Stage 2 Foundry (soot, ember, furnace glow) and Stage 3 Reactor (deep navy, cold blue, ice). Stage 1 keeps its sector palettes. */
+export const STAGE_RAMP: Record<number, { a: number; b: number; c: number; haze: number; grade: number } | undefined> = {
+  2: { a: 0x0c0605, b: 0x7a2a0c, c: 0xffa24a, haze: 0x1c0d07, grade: 0.88 },
+  3: { a: 0x040810, b: 0x1c4f9a, c: 0xb4e0ff, haze: 0x08182e, grade: 0.88 },
+};
+
 export function buildVista3D(scene: THREE.Scene, level: Level3D): Vista3D {
   const root = new THREE.Group();
   root.name = 'vista3d';
@@ -199,11 +243,18 @@ export function buildVista3D(scene: THREE.Scene, level: Level3D): Vista3D {
   const uClassic = { value: 0 };
 
   const frameMat = track(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.48, metalness: 0.6 }));
+  const refl = new THREE.Color(level.stage?.id === 2 ? 0xff9a52 : level.stage?.id === 3 ? 0x6aa8ff : 0x000000);
+  // Stage 1 keeps the original raw cool-blue reflection (0.6, 0.75, 0.9) exactly.
+  if (!level.stage) refl.setRGB(0.6, 0.75, 0.9, THREE.LinearSRGBColorSpace);
   const glassMat = track(
     new THREE.ShaderMaterial({
       vertexShader: GLASS_VERT,
       fragmentShader: GLASS_FRAG,
-      uniforms: { uClassic },
+      uniforms: {
+        uClassic,
+        uRefl: { value: refl },
+        uGlassGrade: { value: level.stage ? 0.85 : 0 },
+      },
       vertexColors: true,
       transparent: true,
       depthWrite: false,
@@ -220,13 +271,20 @@ export function buildVista3D(scene: THREE.Scene, level: Level3D): Vista3D {
     const melt = { value: 0 };
     const dim = { value: 0.55 };
     const common = { uTime, uReduce, uClassic, uMelt: melt, uDim: dim, uClip: { value: new THREE.Vector4(...data.clip) } };
+    const ramp = STAGE_RAMP[level.stage?.id ?? 1];
     const shader = (additive: boolean): THREE.ShaderMaterial =>
       track(
         new THREE.ShaderMaterial({
           vertexShader: VERT,
           fragmentShader: FRAG,
           defines: additive ? { ADDITIVE: '' } : {},
-          uniforms: { ...common, uHaze: { value: new THREE.Color(VISTA_HAZE[data.sector]) }, uHazeAmt: { value: additive ? 0 : 0.75 } },
+          uniforms: { ...common, uHaze: { value: new THREE.Color(ramp ? ramp.haze : VISTA_HAZE[data.sector]) },
+            uHazeAmt: { value: additive ? 0 : 0.75 },
+            uRampA: { value: new THREE.Color(ramp ? ramp.a : 0) },
+            uRampB: { value: new THREE.Color(ramp ? ramp.b : 0) },
+            uRampC: { value: new THREE.Color(ramp ? ramp.c : 0) },
+            uGrade: { value: ramp ? ramp.grade : 0 },
+          },
           vertexColors: true,
           side: THREE.DoubleSide,
           transparent: additive,

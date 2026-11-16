@@ -2,6 +2,17 @@
 
 최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R26 색 그레이딩·HUD 라벨 수정 (2026-11-17, 로컬 커밋 대기)
+
+- 흑화면 Bio-Labs 재현 시도: 새 로드, `__reanimatorShowcase`, 스테이지 교체(1↔2↔3), production build(`vite build`+`http.server`) 모두에서 재현 실패(draw calls 97~287, 전부 정상 렌더). R25가 의심한 Vite HMR 아티팩트 가설과 일치하나 확정 불가(circumstantial만 확보).
+- `vista3d.ts`에 공유 GLSL 컬러 램프(`STAGE_RAMP`/`GRADE_UNIFORMS`/`GRADE_APPLY`/`gradeUniforms()`) 추가, `ambient3d.ts`가 재사용. Stage 1 무그레이딩 유지, Stage 2 warm ember(0x0c0605→0x7a2a0c→0xffa24a), Stage 3 cold blue(0x040810→0x1c4f9a→0xb4e0ff). 유리 반사 틴트도 스테이지별(`uRefl`/`uGlassGrade`, S1 원본 유지, S2 orange 0xff9a52, S3 blue 0x6aa8ff)로 분리해 Stage 2/3에 남아 있던 teal 유리/광선 줄무늬 제거.
+- `main.ts`: 스테이지가 있을 때 HUD 구역명이 `STAGE_TITLES[stage.id].name`(Foundry Line/Reactor Spire)을 쓰도록 수정 — 이전에는 Stage 1 섹터 id(MINES 등)가 그대로 노출됐다.
+- 자가 발견 버그: GRADE_APPLY 로컬 변수명 `gl_`이 GLSL 예약어라 셰이더 컴파일 에러 6건 발생 → `gLum`/`gCol`로 리네임, 콘솔 에러 0 확인.
+- `tests/vista.test.ts`에 회귀 테스트 추가(gl_ 접두 로컬 금지, 유니폼 존재, Stage 1 grade=0, Stage 2/3 grade>0.5, S2는 warm/S3는 cold 순서).
+- `make check` exit 0(766/766), reference-verify 3/3 PASS, reach3d 52 waypoints(57.2 s) PASS, dist-guard PASS(56 files, 20,780,639 B). 봇 핀 불변: `assist.test.ts` Normal 4978/HP126·Story 4880/142·Hard 5319/104, `stage-bot.test.ts` Stage 3 Story 3228/Normal 3243/Hard 3320 모두 통과.
+- 스크린샷 `docs/evidence/r26_fix/`(s1/swap/repro/prod/a·b·c-s2/c-s3, 총 50장 이상) 전부 육안 확인: 흑화면 없음, Stage2/3 그레이딩·HUD 라벨 정상.
+- Unverified: 흑화면의 확정 근본원인(HMR 추정, 실측 안 됨), `make smoke-local`, G5 사람 플레이. R25 지형 지오메트리 폴리시(이전 플래너가 별도 위임한 chamfered batches·back-lane clutter) 재검증은 이번 라운드 범위 밖.
+
 ## R25 지형 2차 (2026-11-17, 로컬 커밋)
 
 - `tools/meshy/textures.ts`: 텍스처 5종 추가(reactor-floor-calm, reactor-wall, foundry-wall, hazard-trim 크롭 스트립, steel-grating). 미사용 roughness 맵(-r.webp) 출하 중단. Stage 3 위 면 = calm 바닥, 옆 면 = reactor-wall; Stage 2 옆 면 = foundry-wall; 엘리베이티드 그레이트 = steel-grating(`surfaceLookFor(..., cls)`).

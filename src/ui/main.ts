@@ -968,7 +968,9 @@ function updateCoach(): void {
 function zoneMeta(): { name: string; hint: string } {
   const r = world.level.rooms.find((x) => x.sector === world.currentRoom);
   if (!r) return { name: 'TRANSIT', hint: '' };
-  return { name: `${r.sector.toUpperCase()} · ${r.name.toUpperCase()}`, hint: r.hint };
+  // Stages 2 and 3 reuse Stage 1 sector ids; their HUD line names the stage, never MINES or BIOLABS.
+  const area = world.level.stage ? STAGE_TITLES[world.level.stage.id].name : r.sector;
+  return { name: `${area.toUpperCase()} · ${r.name.toUpperCase()}`, hint: r.hint };
 }
 
 function drawMinimap(): void {

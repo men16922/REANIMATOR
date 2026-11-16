@@ -241,8 +241,8 @@ interface EnemyViz {
 }
 
 const STAGE_GRADE: Record<number, { bg: THREE.Color; sky: THREE.Color; sun: THREE.Color; bgMix: number; skyMix: number } | undefined> = {
-  2: { bg: new THREE.Color(0x7a2c0c), sky: new THREE.Color(0xa6542a), sun: new THREE.Color(0xffa860), bgMix: 0.3, skyMix: 0.22 },
-  3: { bg: new THREE.Color(0x10305e), sky: new THREE.Color(0x4a78c0), sun: new THREE.Color(0xa8d0ff), bgMix: 0.3, skyMix: 0.2 },
+  2: { bg: new THREE.Color(0x7a2c0c), sky: new THREE.Color(0xa6542a), sun: new THREE.Color(0xffa860), bgMix: 0.72, skyMix: 0.6 },
+  3: { bg: new THREE.Color(0x10305e), sky: new THREE.Color(0x4a78c0), sun: new THREE.Color(0xa8d0ff), bgMix: 0.72, skyMix: 0.6 },
 };
 /** Extra metres a foe must leave the shadow box by before its castShadow turns off again. */
 const SHADOW_HYST = 1.5;
