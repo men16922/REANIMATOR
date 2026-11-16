@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Platform edges now carry a worn yellow-and-black hazard trim. Stage 2 and Stage 3 walls have their own surfaces, and the Stage 3 floor is calmer.
+
 - Floors, platforms and walls now use real surface textures: scuffed steel in the facility, basalt rock in the mines, cast iron in the Foundry Line and frosted steel in the Reactor Spire. The background is calmer, with less glow and haze, and the grey patch under Bio-Labs is gone.
 - Gamepad support (stick or D-pad to move, right stick to aim, A jump, B dash, X or RT fire, Y interact, LT counter, LB/RB weapons, Start pause). New Larger HUD text option, and Reduce motion and flashing now saves with your other settings.
 - The Cryo Bulwark's frost shield is now a model that lowers when it attacks. Stage 3 gains a coolant pipe wall and cryo racks.

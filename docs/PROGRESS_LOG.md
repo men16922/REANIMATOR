@@ -117,3 +117,4 @@ R9–R16 상세: [archive/PROGRESS_LOG_R9_R16.md](archive/PROGRESS_LOG_R9_R16.md
 - R23 terrain polish (6007f0c) browser-checked: draw calls mines 171, biolabs 255, security 270, combat 277 (all ≤300). Screenshot docs/evidence/r23_terrain/biolabs.png. Stage 2/3 rooms not re-measured (unverified).
 
 - 2026-11-17 R24: Meshy terrain textures (tools/meshy/textures.ts), world-space box-projected UVs on solid batches, calmer vistas/bloom/fog, stray grey patch fixed. make check exit 0 (760/760), pins unchanged. Draw calls: biolabs 252, security 269, combat 280 (<=300); stage 2/3 rooms 82-119. Evidence docs/evidence/r24_terrain/.
+- 2026-11-17 R25: 텍스처 5종(Stage 2/3 옆면·calm 바닥·하자드 트림·그레이팅), roughness 출하 중단, 셰이더 청크 가드. 765/765, 핀 불변, combat 275 draw calls.

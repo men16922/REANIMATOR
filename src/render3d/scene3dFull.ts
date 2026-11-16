@@ -91,6 +91,7 @@ import type { OpeningView } from '../ui/opening.ts';
 import { buildTerrainDetail, makeTerrainDetailMaterial } from './terrainDetail.ts';
 import { TerrainKit, loadKitAsset, planKitUnits, type KitAsset } from './terrainKit.ts';
 import { applyTwoSurface, loadSurface, surfaceLookFor, type TwoSurfaceUniforms } from './terrainSurfaces.ts';
+import { buildTrimGeometry, loadTrimTexture, wantsEdgeTrim, type TrimStrip } from './edgeTrim.ts';
 import { batchKeyFor, bevelFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
 /** Round 16 ability pickups reuse the existing item silhouettes with their own colour (no new meshes, no lights). */
@@ -479,6 +480,7 @@ export class Scene3DRenderer {
   /** Ramp meshes and their extents: only ramps near the camera focus cast (the shadow box is wider than the view). */
   private readonly rampCasters: { mesh: THREE.Mesh; minX: number; maxX: number; minY: number; maxY: number }[] = [];
   private readonly pendingBatches = new Map<string, PendingBatch>();
+  private readonly pendingTrim = new Map<SectorId3D, TrimStrip[]>();
   private readonly cullEntries: CullEntry[] = [];
   /** R15 terrain kit (lazy per sector, visual-only). Null until a level is built. */
   private terrainKit: TerrainKit | null = null;
@@ -980,6 +982,7 @@ export class Scene3DRenderer {
       this.addSolidMesh(s, tex);
     }
     this.flushSolidBatches(tex);
+    this.flushEdgeTrim();
     this.buildDoorDressing(w.level.solids, tex);
     this.buildTrim();
     this.buildTerrainDetailMeshes(w.level);
@@ -1244,6 +1247,7 @@ export class Scene3DRenderer {
     this.doorMeshes.clear();
     this.doorLampIdx.clear();
     this.pendingBatches.clear();
+    this.pendingTrim.clear();
     this.trimSpecs.length = 0;
     this.logHolo?.dispose();
     this.logHolo = null;
@@ -1278,6 +1282,11 @@ export class Scene3DRenderer {
     const info = classifySolid(s);
     if (!info.individual) {
       this.queueSolidBatch(s, info.cls, sector, { sx, sy, sz, cx, cy, cz });
+      if (wantsEdgeTrim(s.kind ?? '', sx, sy)) {
+        const list = this.pendingTrim.get(sector) ?? [];
+        list.push({ minX: s.minX, maxX: s.maxX, top: s.minY + sy - 0.05, z: s.maxZ + 0.07 });
+        this.pendingTrim.set(sector, list);
+      }
       this.addSolidTrim(s, sx, sy, sz, cx, cy, sector);
       return;
     }
@@ -1447,7 +1456,7 @@ export class Scene3DRenderer {
     const item: BatchItem = { ...g, rx, ry, ox, oy, color, bevel: bevelFor(g.sx, g.sy, g.sz, cls) };
     if (cls === 'grate' || cls === 'floor' || cls === 'wall') {
       // R24: world-space box-projected UVs, so adjacent solids share one continuous surface instead of per-box stretched maps.
-      const look = surfaceLookFor(this.builtLevelRef?.stage?.id ?? 1, sector);
+      const look = surfaceLookFor(this.builtLevelRef?.stage?.id ?? 1, sector, cls);
       const lum = (k: THREE.Color): number => 0.2126 * k.r + 0.7152 * k.g + 0.0722 * k.b;
       item.color = look.topTint.clone();
       item.world = { tile: look.tile, sideTone: lum(look.sideTint) / Math.max(0.01, lum(look.topTint)) };
@@ -1495,7 +1504,7 @@ export class Scene3DRenderer {
         });
         applyFrontLift(mat, 0.34);
       }
-      if (b.cls === 'grate' || b.cls === 'floor' || b.cls === 'wall') this.applyBatchSurface(mat, b.sector);
+      if (b.cls === 'grate' || b.cls === 'floor' || b.cls === 'wall') this.applyBatchSurface(mat, b.sector, b.cls);
       const geo = buildBatchGeometry(b.items);
       if (!geo) continue;
       const mesh = new THREE.Mesh(geo, mat);
@@ -1511,10 +1520,41 @@ export class Scene3DRenderer {
     this.pendingBatches.clear();
   }
 
-  /** R24: swaps the batch's procedural maps for the stage/sector Meshy surfaces once they load (flat procedural look stays on failure). */
-  private applyBatchSurface(mat: THREE.MeshStandardMaterial, sector: SectorId3D): void {
+  /** R25: one merged hazard-chevron band mesh per sector (material hidden until the texture loads; a load failure leaves it hidden). */
+  private flushEdgeTrim(): void {
     const level = this.builtLevelRef;
-    const look = surfaceLookFor(level?.stage?.id ?? 1, sector);
+    let count = 0;
+    const mat = new THREE.MeshStandardMaterial({ color: 0xd8d0c0, emissive: 0xffffff, emissiveIntensity: 0.22, roughness: 0.7, metalness: 0.2, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, visible: false });
+    for (const [sector, strips] of this.pendingTrim) {
+      const geo = buildTrimGeometry(strips);
+      if (!geo) continue;
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.name = `edge-trim:${sector}`;
+      mesh.userData.sector = sector;
+      mesh.receiveShadow = true;
+      this.scene.add(mesh);
+      count++;
+      const bb = geo.boundingBox!;
+      this.cullEntries.push({ obj: mesh, minX: bb.min.x, maxX: bb.max.x, minY: bb.min.y, maxY: bb.max.y });
+    }
+    this.pendingTrim.clear();
+    if (count === 0) return;
+    void loadTrimTexture().then(
+      (t) => {
+        if (this.builtLevelRef !== level) return;
+        mat.map = t;
+        mat.emissiveMap = t;
+        mat.visible = true;
+        mat.needsUpdate = true;
+      },
+      (err) => console.warn('[scene3d] edge trim texture failed, no trim:', err),
+    );
+  }
+
+  /** R24: swaps the batch's procedural maps for the stage/sector Meshy surfaces once they load (flat procedural look stays on failure). */
+  private applyBatchSurface(mat: THREE.MeshStandardMaterial, sector: SectorId3D, cls: SolidClass): void {
+    const level = this.builtLevelRef;
+    const look = surfaceLookFor(level?.stage?.id ?? 1, sector, cls);
     const u: TwoSurfaceUniforms = { map2: { value: mat.map }, normalMap2: { value: mat.normalMap } };
     applyTwoSurface(mat, u);
     void Promise.all([loadSurface(look.top), loadSurface(look.side)]).then(

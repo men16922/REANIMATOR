@@ -2,6 +2,13 @@
 
 최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R25 지형 2차 (2026-11-17, 로컬 커밋)
+
+- `tools/meshy/textures.ts`: 텍스처 5종 추가(reactor-floor-calm, reactor-wall, foundry-wall, hazard-trim 크롭 스트립, steel-grating). 미사용 roughness 맵(-r.webp) 출하 중단. Stage 3 위 면 = calm 바닥, 옆 면 = reactor-wall; Stage 2 옆 면 = foundry-wall; 엘리베이티드 그레이트 = steel-grating(`surfaceLookFor(..., cls)`).
+- `edgeTrim.ts`: 플랫폼/캣워크 전면 하자드 셰브론 띠(섹터당 병합 메시 1개, 렌더 전용). `applyTwoSurface`는 three 셰이더 청크가 바뀌면 경고 후 패치를 건너뜀(`patchNormalChunk`, `tests/terrain-surfaces.test.ts`).
+- `make check` exit 0(765/765), 봇 핀 불변(Normal 4978/HP126 등 테스트 통과), dist-guard PASS(56 files, 20,779,055 B). draw calls: combat 275, biolabs 264, security 244, mines 178, Stage 2/3 방 96~128. 증거 `docs/evidence/r25_terrain/{before,after}/`.
+- 레벨 교체 후 평면 단색 프레임은 Vite HMR로 모듈을 여러 번 다시 불러온 개발 페이지에서만 재현(새 페이지 14장 연속 교체는 정상). 실제 플레이어 경로는 unverified. Unverified: `make smoke-local`, 사람 플레이, Reduce motion 육안(터레인 코드는 reduceFx를 읽지 않음).
+
 ## R24 지형 텍스처 (2026-11-17, 로컬 커밋)
 
 - `tools/meshy/textures.ts`(`npm run meshy:textures`, sharp): Meshy 1024 PNG 5종 -> 반주기 크로스페이드 타일링 보정 512 WebP 알베도 + Sobel 노멀 + 휘도 거칠기(`public/assets/textures/`, 결정적). 매니페스트 `texture/*`·ASSET_REGISTER 등록.
