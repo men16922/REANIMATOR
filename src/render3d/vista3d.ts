@@ -130,17 +130,14 @@ void main() {
 }
 `;
 
-const FRAG = /* glsl */ `
+export const VISTA_FRAG = /* glsl */ `
 uniform vec3 uHaze;
 uniform float uHazeAmt;
 uniform float uMelt;
 uniform float uDim;
 uniform float uClassic;
 uniform vec4 uClip;
-uniform vec3 uRampA;
-uniform vec3 uRampB;
-uniform vec3 uRampC;
-uniform float uGrade;
+${GRADE_UNIFORMS}
 varying vec3 vCol;
 varying float vB;
 varying vec3 vW;
@@ -155,12 +152,7 @@ void main() {
   #else
     c = mix(c, uHaze, clamp(f * uHazeAmt + (1.0 - edgeF), 0.0, 1.0));
   #endif
-  if (uGrade > 0.0) {
-    // Stage identity: remap luminance through a three-stop ramp (soot, body, highlight) so Stage 2/3 never inherit Stage 1's green.
-    float l = clamp(dot(c, vec3(0.299, 0.587, 0.114)) * 1.7, 0.0, 1.0);
-    vec3 g = l < 0.5 ? mix(uRampA, uRampB, l * 2.0) : mix(uRampB, uRampC, (l - 0.5) * 2.0);
-    c = mix(c, g, uGrade);
-  }
+  ${GRADE_APPLY}
   c *= uDim;
   c = mix(c, c * vec3(1.6, 0.5, 0.38) + vec3(0.03, 0.0, 0.0), uMelt);
   if (uClassic > 0.5) {
@@ -276,7 +268,7 @@ export function buildVista3D(scene: THREE.Scene, level: Level3D): Vista3D {
       track(
         new THREE.ShaderMaterial({
           vertexShader: VERT,
-          fragmentShader: FRAG,
+          fragmentShader: VISTA_FRAG,
           defines: additive ? { ADDITIVE: '' } : {},
           uniforms: { ...common, uHaze: { value: new THREE.Color(ramp ? ramp.haze : VISTA_HAZE[data.sector]) },
             uHazeAmt: { value: additive ? 0 : 0.75 },

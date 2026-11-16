@@ -98,9 +98,14 @@ test('mines openings snap to the displaced rock grid', () => {
 });
 
 test('stage grade shaders avoid the reserved gl_ prefix and Stage 1 stays ungraded', async () => {
-  const { GRADE_APPLY, GRADE_UNIFORMS, gradeUniforms, STAGE_RAMP } = await import('../src/render3d/vista3d.ts');
+  const { GRADE_APPLY, GRADE_UNIFORMS, VISTA_FRAG, gradeUniforms, STAGE_RAMP } = await import('../src/render3d/vista3d.ts');
   assert.ok(!/\bgl_[A-Za-z]*\s*=/.test(GRADE_APPLY), 'no local named gl_*');
   assert.ok(!/\bfloat\s+gl_/.test(GRADE_APPLY));
+  for (const [label, src] of [['GRADE_APPLY', GRADE_APPLY], ['VISTA_FRAG', VISTA_FRAG]] as const) {
+    assert.ok(!/\b(?:float|vec[234]|int|bool)\s+gl_/.test(src), `${label}: no gl_ local declaration`);
+    assert.ok(!/\bgl_(?!FragCoord|FragColor|Position|PointCoord|FrontFacing|FragDepth)\w*\s*=/.test(src), `${label}: no gl_ assignment`);
+  }
+  assert.ok(VISTA_FRAG.includes(GRADE_APPLY.trim()) && VISTA_FRAG.includes(GRADE_UNIFORMS.trim()), 'vista shares the grade snippet');
   for (const name of ['uRampA', 'uRampB', 'uRampC', 'uGrade']) assert.ok(GRADE_UNIFORMS.includes(name));
   assert.equal(gradeUniforms(1).uGrade.value, 0);
   assert.equal(gradeUniforms(undefined).uGrade.value, 0);
