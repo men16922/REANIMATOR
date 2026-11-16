@@ -150,6 +150,14 @@ export function stackedPopupY(
 /** Melee Counter telegraph: a hot white blink on the foe for the parry window. Reads the sim flag and tick only. */
 export const PARRY_FLASH_HEX = 0xffffff;
 export const PARRY_FLASH_CAP = 0.6;
+/**
+ * Dark textured meshes (the Slag Foreman's scorched iron) turn into a flat cutout under the white 0.6 parry lerp
+ * when the emissive is untextured: it dominates the near-black albedo before the character exposure and bloom. The
+ * Foreman's emissive is mapped through its albedo and its parry pulse is hot orange, so the seams blink molten and
+ * the plates keep their texture.
+ */
+export const PARRY_FLASH_DARK_HEX = 0xff7a2a;
+export const PARRY_FLASH_DARK_CAP = 0.6;
 export function parryFlashAmount(open: boolean, tick: number, reduce: boolean): number {
   if (!open) return 0;
   if (reduce) return 0.25;

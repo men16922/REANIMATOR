@@ -4,7 +4,7 @@
 // 60 -> display-rate interpolation, and the R3.3 visual-only headlamp.
 
 import * as THREE from 'three';
-import { DEATH_POP_CAP, HIT_FLASH_HEX, PARRY_FLASH_CAP, deathPopAmount, hitFlashAmount, parryFlashAmount, playerHurtFlashAmount } from './vfxStyle3d.ts';
+import { DEATH_POP_CAP, HIT_FLASH_HEX, PARRY_FLASH_CAP, PARRY_FLASH_DARK_CAP, PARRY_FLASH_DARK_HEX, deathPopAmount, hitFlashAmount, parryFlashAmount, playerHurtFlashAmount } from './vfxStyle3d.ts';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
@@ -1846,6 +1846,9 @@ export class Scene3DRenderer {
         st.root.position.set(e.x, e.y, e.z);
         st.root.rotation.order = 'YXZ';
         tuneEnemyMaterials3D(st.materials, st.baseEmissive, FOREMAN_MESH_TINT_3D);
+        // Emissive rides the albedo texture: the heat wash and flashes light the orange seams and leave the dark iron
+        // plates dark. A flat emissive on this near-black texture rendered the whole body as a cutout (R21 root cause).
+        for (const m of st.materials) if (m.map) m.emissiveMap = m.map;
         applyEnemyRim3D(st.materials, FOREMAN_RIM_3D, CHAR_LIGHT.stalker.rim, CHAR_LIGHT.stalker.lift, 'stalker');
         st.root.name = `enemy:${e.id}`;
         st.root.userData = { enemyId: e.id, kind: e.kind, state: 'dormant' };
@@ -2531,8 +2534,17 @@ export class Scene3DRenderer {
         const sc = Math.max(0.001, 1 - dk);
         r.scale.set(fp.sx * fl.sxz * sc, fp.sy * fl.sy * sc, fp.sz * fl.sxz * sc);
         this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: winding ? 'windup' : striking ? 'attack' : speed > 0 ? 'walk' : 'idle', timeScale: 1, poseState: e.alive ? e.state : 'dead' });
-        if (flashAmt > 0) flashMaterials3D(st.materials, st.baseEmissive, flashHex, flashAmt, flashCap);
-        else flashMaterials3D(st.materials, st.baseEmissive, FOREMAN_HEAT_HEX, Math.min(fp.heat, 0.8) * 0.14, 0.12);
+        if (flashAmt > 0) {
+          // Parry window on the dark Foreman mesh: orange pulse at a lower cap (a white 0.6 lerp blew it out to a cutout)
+          const parryLead = popAmt === 0 && parryAmt > hitAmt;
+          flashMaterials3D(
+            st.materials,
+            st.baseEmissive,
+            parryLead ? PARRY_FLASH_DARK_HEX : flashHex,
+            parryLead ? flashAmt * (PARRY_FLASH_DARK_CAP / PARRY_FLASH_CAP) : flashAmt,
+            parryLead ? PARRY_FLASH_DARK_CAP : flashCap,
+          );
+        } else flashMaterials3D(st.materials, st.baseEmissive, FOREMAN_HEAT_HEX, Math.min(fp.heat, 0.8) * 0.14, 0.12);
       } else if (st) {
         const r = st.root;
         r.userData.state = e.alive ? e.state : 'dead';

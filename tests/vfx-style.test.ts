@@ -97,3 +97,12 @@ test('PopupPool.spawn with stack separates simultaneous numbers', () => {
   pool.spawn('9', 0, 4, { ...o, stack: false });
   assert.equal(pool.y[4], 4);
 });
+
+test('dark-mesh parry pulse is warm, not white, and never above the stock parry cap', async () => {
+  const v = await import('../src/render3d/vfxStyle3d.ts');
+  assert.notEqual(v.PARRY_FLASH_DARK_HEX, 0xffffff);
+  const r = (v.PARRY_FLASH_DARK_HEX >> 16) & 0xff;
+  const b = v.PARRY_FLASH_DARK_HEX & 0xff;
+  assert.ok(r > 0xc0 && b < 0x60, 'orange-red tint');
+  assert.ok(v.PARRY_FLASH_DARK_CAP <= v.PARRY_FLASH_CAP);
+});
