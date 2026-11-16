@@ -98,7 +98,7 @@ try {
       const fn = (window as unknown as { __reanimator?: () => Snap }).__reanimator;
       if (!fn) return false;
       const s = fn();
-      return (s.loadedModels.length === 9 && s.riggedCount >= 1) || s.failedModels.length > 0;
+      return (s.loadedModels.length === 10 && s.riggedCount >= 1) || s.failedModels.length > 0;
     },
     null,
     { timeout: 10000 },
@@ -111,7 +111,7 @@ try {
   check('Full 3D WebGL renderer active', initial.rendererMode === 'webgl-3d', initial.rendererMode);
   check(
     'all 9 Meshy .glb models loaded with rigged bipeds',
-    initial.loadedModels.length === 9 && initial.failedModels.length === 0 && initial.riggedCount >= 1,
+    initial.loadedModels.length === 10 && initial.failedModels.length === 0 && initial.riggedCount >= 1,
     { loaded: initial.loadedModels, failed: initial.failedModels, riggedCount: initial.riggedCount },
   );
 

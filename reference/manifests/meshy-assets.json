@@ -1,6 +1,6 @@
 {
   "schema": "reanimator-meshy-assets-v2",
-  "generatedAt": "2026-11-16T12:13:51.406Z",
+  "generatedAt": "2026-11-16T13:28:38.121Z",
   "classification": "new-design (non-Abuse original 3D rigged & static assets)",
   "assets": [
     {
@@ -380,6 +380,43 @@
           0.4894,
           1,
           0.114
+        ]
+      }
+    },
+    {
+      "id": "foreman",
+      "role": "Stage 2 mini-boss: Slag Foreman (static textured mesh, procedural animation)",
+      "generator": "Meshy text-to-3D meshy-t2.5 smart topology (target 8000 tris, A-pose), PBR refine",
+      "license": "Private",
+      "pose": "A-pose",
+      "rigged": false,
+      "riggedTaskId": "01a1e487-6691-72c1-9713-581621b65785",
+      "riggedNote": "Meshy auto-rig succeeded (2.9 m, walk/run clips) but the signed download URLs were not reachable from the build sandbox; drop a manual download in as public/assets/models/foreman-rigged.glb",
+      "previewTaskId": "01a1e486-4542-7679-aaa2-19ebba9bc310",
+      "taskId": "01a1e486-d3af-77ee-9ff1-4299e1aca7ee",
+      "prompt": "Foundry brute mutant, hulking bio-mechanical humanoid creature with slag-crusted armour plates, glowing orange furnace vents in chest and back, massive forearms, hunched posture, dark iron and scorched flesh, game character, full body, A-pose, single character, no ground, no background",
+      "texturePrompt": "scorched dark iron armour plates crusted with grey slag, burnt dark flesh, glowing orange furnace vents and cracks, muted palette",
+      "rawFile": "assets/meshy-raw/characters/slag-foreman-static.glb",
+      "rawSha256": "271498d920cc3f51a2be0f532b9806bc5cb18df83ed17dc510064bd7b42f8ed2",
+      "rawBytes": 8613536,
+      "rawVertices": 6825,
+      "rawTriangles": 8445,
+      "optimizedFile": "public/assets/models/foreman.glb",
+      "optimizedSha256": "ee735ac6427459f0061608401c79e4153034dd3ce9546faa88c6056ae9f47f6a",
+      "optimizedBytes": 496600,
+      "optimizedVertices": 6580,
+      "optimizedTriangles": 7999,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.387,
+          0,
+          -0.1528
+        ],
+        "max": [
+          0.387,
+          1,
+          0.1528
         ]
       }
     },

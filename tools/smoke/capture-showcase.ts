@@ -46,7 +46,7 @@ try {
       const fn = (window as unknown as { __reanimator?: () => { loadedModels: string[]; riggedCount: number } }).__reanimator;
       if (!fn) return false;
       const s = fn();
-      return s.loadedModels.length === 9 && s.riggedCount >= 1;
+      return s.loadedModels.length === 10 && s.riggedCount >= 1;
     },
     null,
     { timeout: 15000 },

@@ -54,6 +54,7 @@
 | `spitter` | `public/assets/models/spitter.glb` | 608,696 B / 12,000 | Meshy 7.1 Flagship | Spore-Sentinel (`99569ce9…`) |
 | `power-core` | `public/assets/models/power-core.glb` | 600,268 B / 10,000 | Meshy 7.1 Flagship | 원자로 코어 (`3c555e1b…`) |
 | `exit-gate` | `public/assets/models/exit-gate.glb` | 1,275,864 B / 21,774 | Meshy 7.1 Flagship | 탈출 에어록 (`7db59a68…`) |
+| `foreman` | `public/assets/models/foreman.glb` | 497,000 B / 7,999 (raw 8,445) | Meshy meshy-t2.5 smart topology, A-pose, PBR; preview `01a1e486…`, refine `01a1e486-d3af…` | Slag Foreman (Stage 2 mini-boss). Static textured mesh, WebP 1024, animated procedurally (`src/render3d/foremanMotion.ts`). Meshy auto-rig `01a1e487-6691…` (2.9 m, walk/run) succeeded but its signed URLs were unreachable from the sandbox; a manually downloaded rigged GLB can be added later as `foreman-rigged.glb`. Fallback if the mesh fails to load: tinted Bio-Stalker rig. Prompt: Foundry brute mutant, hulking bio-mechanical humanoid creature with slag-crusted armour plates, glowing orange furnace vents in chest and back, massive forearms, hunched posture, dark iron and scorched flesh, game character, full body, A-pose, single character, no ground, no background. Texture prompt: scorched dark iron armour plates crusted with grey slag, burnt dark flesh, glowing orange furnace vents and cracks, muted palette. Tool: `tools/meshy/optimize-foreman.ts` |
 
 | 항목 | 경로 | 분류 | 비고 |
 |---|---|---|---|

@@ -36,6 +36,7 @@ import {
   getFailedModelNames3D,
   disposeActor3D,
   getLoadedModelNames3D,
+  hasModel3D,
   instantiateRiggedModel3D,
   instantiateStaticModel3D,
   preloadAllModels3D,
@@ -69,6 +70,7 @@ import {
   GLIDE_WINDOW,
   stepGlide,
 } from './enemyMotion.ts';
+import { foremanGaitStep, foremanPose } from './foremanMotion.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
 import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
 import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
@@ -244,6 +246,9 @@ const SHADOW_HYST = 1.5;
 const FOREMAN_RIG_H = 2.9;
 const FOREMAN_TINT_3D = 0xffa868;
 const FOREMAN_RIM_3D = 0xff7a2a;
+/** Tint for the dedicated Foreman mesh (its texture is already scorched iron and orange, so a light touch). */
+const FOREMAN_MESH_TINT_3D = 0xffe8d4;
+const FOREMAN_HEAT_HEX = 0xff6a1a;
 const ENEMY_TINT_3D: Record<string, number> = { stalker: 0xd8f5d0, crawler: 0xf0c8b8, spitter: 0xdcc8f5, warden: 0xffd8b0 };
 const ENEMY_WINDUP_TOTAL_3D: Record<string, number> = { crawler: 14, stalker: 18, spitter: 12, warden: 36 };
 const ENEMY_RIM_3D: Record<string, number> = { stalker: 0x9dffb4, crawler: 0xffb090, spitter: 0xd0b0ff, warden: 0xffa070 };
@@ -1786,7 +1791,19 @@ export class Scene3DRenderer {
     // Enemies
     const enemySpecs = 'enemies' in w && w.enemies ? w.enemies : w.level.enemies;
     for (const e of enemySpecs) {
-      if (e.kind === 'warden' || e.kind === 'stalker') {
+      const foremanMesh = e.variant === 'foreman' && hasModel3D('foreman');
+      if (foremanMesh) {
+        // Dedicated Slag Foreman mesh, posed procedurally (foremanMotion.ts). Without it the tinted Bio-Stalker rig below is used.
+        const st = instantiateStaticModel3D('foreman', FOREMAN_RIG_H, true);
+        st.root.position.set(e.x, e.y, e.z);
+        st.root.rotation.order = 'YXZ';
+        tuneEnemyMaterials3D(st.materials, st.baseEmissive, FOREMAN_MESH_TINT_3D);
+        applyEnemyRim3D(st.materials, FOREMAN_RIM_3D, CHAR_LIGHT.stalker.rim, CHAR_LIGHT.stalker.lift, 'stalker');
+        st.root.name = `enemy:${e.id}`;
+        st.root.userData = { enemyId: e.id, kind: e.kind, state: 'dormant' };
+        this.scene.add(st.root);
+        this.staticEnemies.set(e.id, { ...st, baseScale: FOREMAN_RIG_H });
+      } else if (e.kind === 'warden' || e.kind === 'stalker') {
         const foreman = e.variant === 'foreman';
         const rigH = e.kind === 'warden' ? 3.15 : foreman ? FOREMAN_RIG_H : STALKER_HEIGHT_3D;
         const rig = instantiateRiggedModel3D(e.kind === 'warden' ? 'warden' : 'bio-stalker', rigH, false);
@@ -2432,7 +2449,36 @@ export class Scene3DRenderer {
       }
 
       const st = this.staticEnemies.get(e.id);
-      if (st) {
+      if (st && e.variant === 'foreman') {
+        const r = st.root;
+        r.userData.state = e.alive ? e.state : 'dead';
+        v.dispSpeed = smoothDisplaySpeed(v.dispSpeed ?? 0, speed, dt);
+        if (e.alive) v.gait += dt * foremanGaitStep(v.dispSpeed);
+        const fp = foremanPose({
+          alive: e.alive,
+          speed: v.dispSpeed,
+          winding,
+          windFrac,
+          striking,
+          stagger: v.stagger,
+          recoil: v.recoil,
+          deathTicks: e.deathTicks,
+          tSec,
+          gait: v.gait,
+          reduceMotion: this.reduceMotion,
+        });
+        const fl = flinchPose(v.flinch.amp);
+        // After the collapse the body sinks and shrinks away instead of popping out (same timing as the rigs)
+        const dk = e.alive ? 0 : Math.max(0, Math.min(1, (e.deathTicks - 150) / 90));
+        r.visible = fp.visible;
+        r.position.set(ex + v.flinch.kb, ey + fp.lift - dk * 0.25, 0);
+        r.rotation.set(fp.pitch + fl.pitch * 0.5, v.yaw, fp.roll + v.lean);
+        const sc = Math.max(0.001, 1 - dk);
+        r.scale.set(fp.sx * fl.sxz * sc, fp.sy * fl.sy * sc, fp.sz * fl.sxz * sc);
+        this.enemyRenderInfo.set(e.id, { yaw: v.yaw, x: ex, y: ey, z: 0, clip: winding ? 'windup' : striking ? 'attack' : speed > 0 ? 'walk' : 'idle', timeScale: 1, poseState: e.alive ? e.state : 'dead' });
+        if (flashAmt > 0) flashMaterials3D(st.materials, st.baseEmissive, flashHex, flashAmt, flashCap);
+        else flashMaterials3D(st.materials, st.baseEmissive, FOREMAN_HEAT_HEX, fp.heat * 0.22, 0.22);
+      } else if (st) {
         const r = st.root;
         r.userData.state = e.alive ? e.state : 'dead';
         // Wall/ceiling crawlers move along the surface (vy is crawl speed there, not a fall): enemyTravelSpeed covers it

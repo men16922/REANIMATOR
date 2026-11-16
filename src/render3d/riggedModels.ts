@@ -26,7 +26,8 @@ export type ModelKey3D =
   | 'crawler'
   | 'spitter'
   | 'power-core'
-  | 'exit-gate';
+  | 'exit-gate'
+  | 'foreman';
 
 export interface RiggedInstance {
   id: 'operative' | 'warden' | 'bio-stalker';
@@ -75,6 +76,8 @@ const MODEL_FILES: Record<ModelKey3D, string> = {
   spitter: '/assets/models/spitter.glb',
   'power-core': '/assets/models/power-core.glb',
   'exit-gate': '/assets/models/exit-gate.glb',
+  // Slag Foreman: static textured mesh animated procedurally (foremanMotion.ts). Falls back to the tinted Bio-Stalker rig.
+  foreman: '/assets/models/foreman.glb',
 };
 
 const cache = new Map<ModelKey3D, GLTF>();
@@ -149,6 +152,11 @@ export function isSharedActorGeometry3D(g: THREE.BufferGeometry): boolean {
  */
 export function disposeActor3D(root: THREE.Object3D, mixer?: THREE.AnimationMixer, mixerRoot?: THREE.Object3D): void {
   disposeActorTree(root, { isSharedGeometry: isSharedActorGeometry3D, mixer, mixerRoot });
+}
+
+/** True when a model finished loading (used to pick the Foreman mesh over the Bio-Stalker fallback). */
+export function hasModel3D(key: ModelKey3D): boolean {
+  return cache.has(key);
 }
 
 export function getLoadedModelNames3D(): ModelKey3D[] {
