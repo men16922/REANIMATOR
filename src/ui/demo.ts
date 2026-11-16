@@ -1,9 +1,9 @@
-// Judge-facing demo support (pure, no DOM): checkpoint list for EXTRAS > DEMO TOUR, the deterministic
+// Showcase demo support (pure, no DOM): checkpoint list for EXTRAS > DEMO TOUR, the deterministic
 // world setup they share with the debug hooks, scene recipes for __reanimatorShowcase(name), and the
 // captioned reel behind EXTRAS > WATCH SHOWCASE.
 
 import { spawnBody3D } from '../engine/motion3d.ts';
-import type { SectorId3D, WeaponSlot3D } from '../game3d/types3d.ts';
+import type { SectorId3D, StageId3D, WeaponSlot3D } from '../game3d/types3d.ts';
 import { WEAPON_META, type InputState3D, type WorldState3D } from '../game3d/world3d.ts';
 
 /** Deterministic world edits. Same shape the __reanimatorAdvance debug hook always accepted. */
@@ -218,11 +218,16 @@ export interface ShowCut {
   caption: string;
   sub: string;
   view?: 'classic' | 'modern';
+  /** Stage whose world the bot plays for this cut (default 1). A cut with another stage swaps the world. */
+  stage?: StageId3D;
 }
 
 export const SHOWCASE_CUT_SECONDS = 7.5;
 
-/** Eight cuts of 7.5 s: one minute. Ticks are from the shipped bot run (R14 room transitions: Normal wins at 4978). */
+/**
+ * Twelve cuts of 7.5 s: 90 seconds, all three stages. Ticks are from the shipped bot runs on Normal
+ * (Stage 1 wins at 4978, Stage 2 at 2858, Stage 3 at 3243). Each cut seeks by re-running its own stage's bot from a fresh world.
+ */
 export const SHOWCASE_REEL: readonly ShowCut[] = [
   { tick: 60, sector: 'airlock', caption: '1996 physics, frame-exact', sub: 'Abuse movement restored and checked field by field against the original' },
   { tick: 260, sector: 'shaft', caption: 'Six sectors, one connected map', sub: 'Central Shaft: every route in the facility passes through here' },
@@ -230,6 +235,10 @@ export const SHOWCASE_REEL: readonly ShowCut[] = [
   { tick: 2150, sector: 'biolabs', caption: 'Locks that need the right weapon', sub: 'Pulse, Scattergun, Grenade and Rail open different doors' },
   { tick: 3000, sector: 'security', caption: 'Classic View: press V', sub: '320x200, 256 colours, Bayer dither. Same sim, 1996 look', view: 'classic' },
   { tick: 4100, sector: 'core', caption: 'Core Warden', sub: 'Three phases, telegraphed attacks, a weak-point window', view: 'modern' },
+  { tick: 1200, sector: 'mines', stage: 2, caption: 'Stage 2: Foundry Line', sub: 'Lever doors, gantry pits and a molten furnace line', view: 'modern' },
+  { tick: 2600, sector: 'core', stage: 2, caption: 'Slag Foreman', sub: 'A heavy mini-boss holds the exit teleporter. Jump the shockwave.' },
+  { tick: 1000, sector: 'mines', stage: 3, caption: 'Stage 3: Reactor Spire', sub: 'A vertical climb through the broken reactor tower' },
+  { tick: 2700, sector: 'core', stage: 3, caption: 'The Spire Warden', sub: 'Break the Warden to unlock the last teleporter' },
   { tick: 4420, sector: 'biolabs', caption: 'Meltdown: 90 seconds', sub: 'The reactor is gone. Get to the hatch.' },
   { tick: 4920, sector: 'airlock', caption: 'REANIMATOR', sub: 'Three stages. Reach the core. Get out. Press any key to play.' },
 ];

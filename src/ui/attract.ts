@@ -197,7 +197,8 @@ export class Showcase {
   }
 
   private seek(index: number): void {
-    this.world = freshWorld();
+    // World-swapping cuts: a cut may name another stage, so the world (and its shared level) is rebuilt for it.
+    this.world = freshWorld({ stage: this.reel[index].stage ?? 1 });
     this.bot = createBot3D(this.world);
     const target = this.reel[index].tick;
     while (this.world.tick < target && this.world.status === 'playing') this.world = stepWorld3D(this.world, this.bot.next(this.world));

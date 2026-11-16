@@ -1,6 +1,7 @@
 // Pure objective line for the HUD. Derived only from world state (not from the stored `phase`, which debug setups and
 // teleports can leave stale), so the same world always yields the same text.
 
+import { FOREMAN_NAME } from '../game3d/stage2.ts';
 import type { WorldState3D } from '../game3d/world3d.ts';
 
 export type ObjectiveWorld = Pick<WorldState3D, 'status' | 'phase' | 'consoleUnlocked' | 'currentRoom' | 'coreDestroyed' | 'meltdownTicks' | 'enemies'> & { stage?: number };
@@ -17,7 +18,7 @@ export const OBJECTIVES = {
   core: { text: 'OBJ: Shatter the Reactor Core!', color: '#4be8ff' },
   escape: { text: 'OBJ: ESCAPE to the Airlock extraction balcony!', color: '#5aff9c' },
   exit: { text: 'OBJ: Reach the exit teleporter and press interact', color: '#5aff9c' },
-  foreman: { text: 'OBJ: Slay the Slag Foreman to unlock the exit teleporter', color: '#ffae6b' },
+  foreman: { text: `OBJ: Slay the ${FOREMAN_NAME} to unlock the exit teleporter`, color: '#ffae6b' },
   spireWarden: { text: 'OBJ: Slay the Warden to unlock the exit teleporter', color: '#ffae6b' },
   won: { text: 'EXTRACTED SAFELY', color: '#5aff9c' },
 } as const satisfies Record<string, Objective>;

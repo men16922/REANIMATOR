@@ -84,17 +84,33 @@ test('combat scene has a crowd in range and fires shots', () => {
   assert.ok(shots > 0, 'weapon fired');
 });
 
-test('showcase reel is one minute and every cut lands in its sector on the bot run', () => {
-  assert.equal(SHOWCASE_REEL.length * SHOWCASE_CUT_SECONDS, 60);
+// R19: the reel grew from 8 cuts (60 s, Stage 1 only) to 12 cuts (90 s) so Stages 2 and 3 are shown. A cut can name its
+// stage, so ticks only have to increase between cuts of the same stage, and each cut runs its own stage's bot.
+test('showcase reel covers all three stages and every cut lands in its sector on the bot run', () => {
+  assert.equal(SHOWCASE_REEL.length, 12);
+  assert.equal(SHOWCASE_REEL.length * SHOWCASE_CUT_SECONDS, 90);
+  assert.deepEqual([...new Set(SHOWCASE_REEL.map((c) => c.stage ?? 1))].sort(), [1, 2, 3]);
+  assert.ok(!SHOWCASE_REEL.some((c) => /judge|kiro/i.test(`${c.caption} ${c.sub}`)), 'no Judge/Kiro wording');
   assert.equal(showcaseCutAt(0), 0);
   assert.equal(showcaseCutAt(SHOWCASE_CUT_SECONDS + 0.1), 1);
   assert.equal(showcaseCutAt(9999), SHOWCASE_REEL.length - 1);
-  for (let i = 1; i < SHOWCASE_REEL.length; i++) assert.ok(SHOWCASE_REEL[i].tick > SHOWCASE_REEL[i - 1].tick);
+  for (const st of [1, 2, 3]) {
+    const ticks = SHOWCASE_REEL.filter((c) => (c.stage ?? 1) === st).map((c) => c.tick);
+    for (let i = 1; i < ticks.length; i++) assert.ok(ticks[i] > ticks[i - 1], `stage ${st} ticks increase`);
+  }
   let w = newWorld3D();
-  const bot = createBot3D(w);
+  let bot = createBot3D(w);
+  let curStage = 1;
   let idx = 0;
   while (idx < SHOWCASE_REEL.length) {
     const cut = SHOWCASE_REEL[idx];
+    const st = cut.stage ?? 1;
+    if (st !== curStage) {
+      // World-swapping cut: fresh world for that stage, as Showcase.seek does
+      curStage = st;
+      w = newWorld3D({ stage: st });
+      bot = createBot3D(w);
+    }
     while (w.tick < cut.tick && w.status === 'playing') w = stepWorld3D(w, bot.next(w));
     assert.equal(w.status, 'playing', `cut ${idx} status`);
     assert.equal(w.currentRoom, cut.sector, `cut ${idx} sector`);

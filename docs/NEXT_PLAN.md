@@ -2,6 +2,11 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R19 트레일러 릴 (완료)
+
+- [x] 쇼케이스 릴 8컷(60 s) → 12컷(90 s). `ShowCut.stage`로 월드 교체형 컷(Stage 2 Foundry Line·Slag Foreman, Stage 3 Reactor Spire·Spire Warden). 사용자 노출 문구에서 Judge 제거("Trailer Reel"). Foreman maxHp 정확 테스트, 이름 상수 `FOREMAN_NAME` 통일, castShadow 히스테리시스(1.5 m). Stage 1 봇 핀 불변.
+- [ ] Unverified: `make smoke-local`, Stage 2·3 사람 플레이, 디버그 Trailer reel(`reelPlayer.ts`) 컷에는 Stage 2·3 없음(Stage 1 스크립트).
+
 ## R18 (완료 항목과 남은 것)
 
 - [x] Stage 2·3 브라우저 검증, draw calls < 300, Foreman 미니보스, 봇 테스트, README 스크린샷, 문서 정리.

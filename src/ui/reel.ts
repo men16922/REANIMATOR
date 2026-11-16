@@ -1,4 +1,4 @@
-// Judge Reel timeline (pure, no DOM, no Three): the ~90 s scripted cut list behind EXTRAS > Judge Reel,
+// Trailer Reel timeline (pure, no DOM, no Three): the ~90 s scripted cut list behind EXTRAS > Trailer Reel,
 // the `?reel` URL param and `__reanimatorReel()`. Each world cut names a deterministic setup plus scripted
 // input frames; the runtime steps the real sim with them, so nothing here changes a sim rule.
 

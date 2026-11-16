@@ -19,6 +19,8 @@ export interface StageWaypoint {
 
 export const STAGE2_NAME = 'Foundry Line';
 export const STAGE2_FOREMAN_ID = 'e-s2-foreman';
+/** Single source for the mini-boss name: HUD bar, hints and objective all derive from it. */
+export const FOREMAN_NAME = 'Slag Foreman';
 
 export function buildStage2Map3D(): Level3D {
   const k = new StageKit('s2');

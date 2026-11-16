@@ -1,4 +1,4 @@
-/* Demo tour list, DEMO badge and showcase captions (judge-facing extras). */
+/* Demo tour list, DEMO badge and showcase captions (showcase extras). */
 
 .demo-lead { margin: 0; max-width: 34em; text-align: center; color: #b9ad9a; font-size: 0.95em; letter-spacing: 0.04em; }
 .demo-list { max-height: 54vh; overflow-y: auto; min-width: 24em; scrollbar-width: thin; scrollbar-color: #5a5148 transparent; animation: none; }
@@ -15,7 +15,7 @@
 #showcase-caption span { font-size: 1.05em; letter-spacing: 0.06em; color: #f1e6d4; }
 #showcase-caption em { margin-top: 0.8em; font-style: normal; font-size: 0.7em; letter-spacing: 0.3em; color: #8d8072; }
 
-/* Judge Reel (EXTRAS > Judge Reel, ?reel): lower third over the lab and world cuts, end card, calm lab alarm */
+/* Trailer Reel (EXTRAS > Trailer Reel, ?reel): lower third over the lab and world cuts, end card, calm lab alarm */
 body.reel-on #showcase-caption { bottom: 4%; padding: 1.1em 6% 0.9em; background: linear-gradient(to top, rgba(4, 6, 10, 0.86) 40%, rgba(4, 6, 10, 0)); }
 body.reel-on #showcase-caption em { display: none; }
 #reel-end { position: absolute; inset: 0; z-index: var(--z-intro); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.9em; padding: 0 8%; text-align: center; background: radial-gradient(ellipse at 50% 40%, rgba(20, 14, 10, 0.78), rgba(4, 6, 10, 0.96)); text-shadow: 0 2px 10px #000; }

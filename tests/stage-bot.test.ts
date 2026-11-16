@@ -2,10 +2,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBot3D } from '../src/game3d/bot3d.ts';
-import { STAGE2_FOREMAN_ID } from '../src/game3d/stage2.ts';
-import { countStageFoes3D } from '../src/game3d/stages3d.ts';
+import { FOREMAN_NAME, STAGE2_FOREMAN_ID } from '../src/game3d/stage2.ts';
+import { STAGE_HP_3D, countStageFoes3D } from '../src/game3d/stages3d.ts';
 import {
-  FOREMAN_HP, emptyInput3D, newWorld3D, respawnPlayer3D, stepWorld3D, type Difficulty3D, type WorldState3D,
+  DIFFICULTY_PARAMS_3D, FOREMAN_HP, emptyInput3D, newWorld3D, respawnPlayer3D, stepWorld3D, type Difficulty3D, type WorldState3D,
 } from '../src/game3d/world3d.ts';
 import { objectiveFor, OBJECTIVES } from '../src/ui/objective.ts';
 import { checkStage } from '../tools/game/reach3d.ts';
@@ -83,6 +83,19 @@ test('Slag Foreman is a Stage 2 mini-boss guarding the exit', () => {
   assert.equal(newWorld3D({ stage: 3 }).enemies.some((e) => e.variant === 'foreman'), false);
   assert.equal(newWorld3D().enemies.some((e) => e.variant === 'foreman'), false);
   assert.equal(newWorld3D({ stage: 2, difficulty: 'story' }).enemies.find((e) => e.id === STAGE2_FOREMAN_ID)!.maxHp < FOREMAN_HP, true);
+});
+
+test('Foreman HP scales exactly with difficulty and the Stage 2 multiplier', () => {
+  for (const d of ['story', 'normal', 'hard'] as const) {
+    const f = newWorld3D({ stage: 2, difficulty: d }).enemies.find((e) => e.id === STAGE2_FOREMAN_ID)!;
+    assert.equal(f.maxHp, Math.round(FOREMAN_HP * DIFFICULTY_PARAMS_3D[d].enemyHp * STAGE_HP_3D[2]), d);
+    assert.equal(f.hp, f.maxHp);
+  }
+});
+
+test('Foreman name comes from one constant across hint, objective and HUD', () => {
+  assert.equal(FOREMAN_NAME, 'Slag Foreman');
+  assert.ok(OBJECTIVES.foreman.text.includes(FOREMAN_NAME));
 });
 
 test('the exit teleporter stays locked until the Foreman dies, then it drops supplies', () => {

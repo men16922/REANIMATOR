@@ -1,4 +1,4 @@
-// Judge Reel runtime. The pure parts (ReelRunner clock/cut/beat events, ReelWorldDriver scripted sim, transition
+// Trailer Reel runtime. The pure parts (ReelRunner clock/cut/beat events, ReelWorldDriver scripted sim, transition
 // rules) have no DOM and are unit tested; ReelPlayer drives them through a small ReelHost so main.ts only registers
 // callbacks. Nothing here changes a sim rule: world cuts step the real sim from a fresh deterministic world.
 

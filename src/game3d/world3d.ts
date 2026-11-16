@@ -5,6 +5,7 @@
 import { stepBody3D, spawnBody3D, floorHeightAt3D, resolveHorizontal3D, ABILITY_3D, type Body3D } from '../engine/motion3d.ts';
 import { newLight, tickLight, toggleLight, type Light } from '../game/light.ts';
 import { buildCollider3D } from './map3d.ts';
+import { FOREMAN_NAME } from './stage2.ts';
 import { STAGE_HP_3D, STAGE_LOADOUT_3D, buildStageMap3D, countStageFoes3D } from './stages3d.ts';
 import {
   HUNTER_CLAW_REACH, HUNTER_SNEAK_SCALE, counterHunter, hunterParams, hunterHitsPoint, inHunterZone, newHunter3D, pingHunter, railHitHunter,
@@ -1048,7 +1049,7 @@ function stepStageExit3D(w: WorldState3D, interact: boolean): void {
   }
   const guardUp = info.guardId !== undefined && w.enemies.some((e) => e.id === info.guardId && e.alive);
   if (guardUp) {
-    roomHint(w, 'TELEPORTER LOCKED. DESTROY THE SLAG FOREMAN');
+    roomHint(w, `TELEPORTER LOCKED. DESTROY THE ${FOREMAN_NAME.toUpperCase()}`);
     return;
   }
   if (!interact) {
@@ -1353,7 +1354,7 @@ function damageEnemy(
     if (e.variant === 'foreman') {
       w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'med', value: 40, x: e.x, y: e.y, z: 0, taken: false });
       w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'ammo', value: 16, x: e.x + 1.2, y: e.y, z: 0, taken: false });
-      roomHint(w, 'SLAG FOREMAN DOWN. EXIT TELEPORTER UNLOCKED');
+      roomHint(w, `${FOREMAN_NAME.toUpperCase()} DOWN. EXIT TELEPORTER UNLOCKED`);
     } else if (e.kind === 'warden') {
       w.phase = 'core';
       w.pickups.push({ id: `drop-${w.nextId++}`, kind: 'med', value: 15, x: e.x, y: e.y, z: 0, taken: false });

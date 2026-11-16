@@ -72,4 +72,8 @@ R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 �
 - M05: 원래 Lab이 이미 holdout 로그를 표시했고 R8도 동일한 읽기 전용 경로라 정책 충돌 없음.
 - 봉인 파일 무변경. `make check` exit 0(테스트 427/427, reach3d 52 waypoints, dist-guard 13 files 14,775,872 B). 브라우저 검증은 하지 않았다(unverified).
 
+## 2026-11-16 — R19 트레일러 릴
+
+- `ShowCut.stage` + `Showcase.seek`가 컷별 스테이지 월드를 새로 만든다. 릴 12컷(90 s). Foreman HP 테스트, `FOREMAN_NAME` 상수, castShadow 히스테리시스. `make check` exit 0(718/718). Stage 1 봇 핀 불변. `make smoke-local`은 unverified.
+
 R9–R16 상세: [archive/PROGRESS_LOG_R9_R16.md](archive/PROGRESS_LOG_R9_R16.md).

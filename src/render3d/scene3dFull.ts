@@ -239,6 +239,8 @@ const STAGE_GRADE: Record<number, { bg: THREE.Color; sky: THREE.Color; sun: THRE
   2: { bg: new THREE.Color(0x7a2c0c), sky: new THREE.Color(0xa6542a), sun: new THREE.Color(0xffa860), bgMix: 0.3, skyMix: 0.22 },
   3: { bg: new THREE.Color(0x10305e), sky: new THREE.Color(0x4a78c0), sun: new THREE.Color(0xa8d0ff), bgMix: 0.3, skyMix: 0.2 },
 };
+/** Extra metres a foe must leave the shadow box by before its castShadow turns off again. */
+const SHADOW_HYST = 1.5;
 const FOREMAN_RIG_H = 2.9;
 const FOREMAN_TINT_3D = 0xffa868;
 const FOREMAN_RIM_3D = 0xff7a2a;
@@ -1511,7 +1513,10 @@ export class Scene3DRenderer {
         rig.root.visible = false;
         continue;
       }
-      const cast = Math.abs(rig.root.position.x - shadowRange) < 7.5 && Math.abs(rig.root.position.y - this.camFocus.y) < 5;
+      // Hysteresis: a foe already casting keeps its shadow until it is clearly outside, so one on the boundary does not flicker.
+      const was = rig.root.userData.shadowCast === true;
+      const padX = was ? SHADOW_HYST : 0;
+      const cast = Math.abs(rig.root.position.x - shadowRange) < 7.5 + padX && Math.abs(rig.root.position.y - this.camFocus.y) < 5 + padX;
       if (rig.root.userData.shadowCast !== cast) {
         rig.root.userData.shadowCast = cast;
         rig.root.traverse((o) => {

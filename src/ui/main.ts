@@ -6,6 +6,7 @@ import { ABILITY_3D } from '../engine/motion3d.ts';
 import { LIGHT } from '../game/light.ts';
 import { createBot3D, type Bot3D } from '../game3d/bot3d.ts';
 import type { DoorLockKind3D, WeaponSlot3D } from '../game3d/types3d.ts';
+import { FOREMAN_NAME } from '../game3d/stage2.ts';
 import { hunterHud } from '../game3d/hunter3d.ts';
 import {
   emptyInput3D,
@@ -1029,7 +1030,7 @@ function hud(): void {
   const warden = world.enemies.find((e) => e.kind === 'warden') ?? (foreman && foreman.active ? foreman : undefined);
   const showBoss = Boolean(warden && warden.alive && world.currentRoom === 'core');
   ui.wardenHud.hidden = !showBoss;
-  ui.wardenTitle.textContent = warden?.variant === 'foreman' ? 'SLAG FOREMAN' : 'CORE WARDEN';
+  ui.wardenTitle.textContent = warden?.variant === 'foreman' ? FOREMAN_NAME.toUpperCase() : 'CORE WARDEN';
   if (scene3d) {
     // Damage popups stay under the boss bar (NDC ceiling from its on-screen bottom edge).
     const cr = canvas.getBoundingClientRect();
@@ -1204,7 +1205,7 @@ function frameBody(t: number): void {
   }
   if (reelPlayer.active && mode !== 'showcase') reelPlayer.stop(); // left the showcase from outside (debug hook, menu): never run on frozen
   if (mode === 'showcase' && reelPlayer.active) {
-    // Judge Reel (src/ui/reelPlayer.ts): scripted private world, normal gameplay camera, never touches `world`.
+    // Trailer Reel (src/ui/reelPlayer.ts): scripted private world, normal gameplay camera, never touches `world`.
     // The reel clock follows real time (rawDt, up to 0.5 s) so cuts keep their designed length on a slow frame rate.
     reelPlayer.frame(rawDt);
     if (reelPlayer.active) {
@@ -1287,7 +1288,7 @@ const reelPlayer = new ReelPlayer(createReelHost({
   labOpen: () => !$('lab').hidden,
 }));
 
-/** EXTRAS > Judge Reel, `?reel` and `__reanimatorReel()`: ~90 s scripted cuts with lower-third captions. */
+/** EXTRAS > Trailer Reel, `?reel` and `__reanimatorReel()`: ~90 s scripted cuts with lower-third captions. */
 function startReel(): void {
   exitShowcase();
   hideIntro();
@@ -2298,7 +2299,7 @@ renderStageSelect();
 show('title');
 requestAnimationFrame(frame);
 if (DEBUG_HOOKS && /[?&]reel\b/.test(location.search)) {
-  // Wait (bounded) for the models, then play the Judge Reel over the loading screen's place.
+  // Wait (bounded) for the models, then play the Trailer Reel over the loading screen's place.
   const t0 = performance.now();
   const go = (): void => (scene3d && !scene3d.getTelemetry().modelsLoaded && performance.now() - t0 < 12000 ? void window.setTimeout(go, 100) : startReel());
   go();
