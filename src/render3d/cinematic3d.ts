@@ -55,8 +55,9 @@ export function nextIntroDisplayTicks(prevDisplay: number, prevSim: number, sim:
 
 const STYLE = `
 .boss-intro{position:absolute;inset:0;pointer-events:none;z-index:40;overflow:hidden;font-family:"Arial Black",Impact,sans-serif}
-.boss-intro .bar{position:absolute;left:0;right:0;height:11%;background:#000;transition:none}
-.boss-intro .bar.t{top:0}.boss-intro .bar.b{bottom:0}
+/* Own class name: the HUD's global .bar (5.5em wide, position:relative) used to shrink these into two squares. */
+.boss-intro .lb-bar{position:absolute;left:0;right:0;width:auto;height:11%;background:#000;border:0;transition:none}
+.boss-intro .lb-bar.t{top:0}.boss-intro .lb-bar.b{bottom:0}
 .boss-intro .card{position:absolute;left:0;right:0;top:56%;text-align:center;color:#ffe9d6;opacity:0}
 .boss-intro .card .kicker{font-size:clamp(11px,1.3vw,16px);letter-spacing:.5em;color:#ff8a5c;text-shadow:0 0 12px #ff3b1a}
 .boss-intro .card .name{font-size:clamp(34px,6vw,84px);letter-spacing:.14em;margin:.1em 0;text-shadow:0 0 18px #ff3b1a,0 0 48px #ff3b1a66,0 3px 0 #300}
@@ -109,15 +110,15 @@ export class BossIntroOverlay {
     root.className = 'boss-intro';
     root.setAttribute('aria-hidden', 'true');
     root.innerHTML =
-      '<div class="bar t"></div><div class="bar b"></div>' +
+      '<div class="lb-bar t"></div><div class="lb-bar b"></div>' +
       '<div class="card"><div class="kicker">SECTOR 06 // CORE VAULT</div><div class="name">CORE WARDEN</div><div class="rule"></div><div class="sub">REACTOR GUARDIAN UNIT</div></div>' +
       '<div class="skip">ENTER / ESC: SKIP</div>';
     root.style.display = 'none';
     if (getComputedStyle(parent).position === 'static') parent.style.position = 'relative';
     parent.appendChild(root);
     this.root = root;
-    this.barT = root.querySelector('.bar.t') as HTMLDivElement;
-    this.barB = root.querySelector('.bar.b') as HTMLDivElement;
+    this.barT = root.querySelector('.lb-bar.t') as HTMLDivElement;
+    this.barB = root.querySelector('.lb-bar.b') as HTMLDivElement;
     this.card = root.querySelector('.card') as HTMLDivElement;
     this.skip = root.querySelector('.skip') as HTMLDivElement;
     return true;
