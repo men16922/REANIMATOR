@@ -380,7 +380,30 @@ export interface CrawlTunnel3D {
   label: string;
 }
 
+/** Campaign stage. 1 is the original six-sector facility; 2 and 3 are new levels (new design, not Abuse data). */
+export type StageId3D = 1 | 2 | 3;
+
+/** How a stage ends: touch the exit teleporter and press interact (`exit`), or also destroy the Core Warden first (`boss`). */
+export interface StageInfo3D {
+  id: StageId3D;
+  name: string;
+  subtitle: string;
+  goal: 'exit' | 'boss';
+}
+
+/** Filled in once the player activates the exit teleporter of stage 2 or 3. */
+export interface StageClear3D {
+  stage: StageId3D;
+  timeTicks: number;
+  timeSeconds: number;
+  kills: number;
+  totalEnemies: number;
+  completionPercent: number;
+}
+
 export interface Level3D {
+  /** Set on stage 2 and 3 levels only. Stage 1 keeps the reactor meltdown ending. */
+  stage?: StageInfo3D;
   bounds: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number };
   spawn: { x: number; y: number; z: number };
   consolePos: { x: number; y: number; z: number; radius: number };

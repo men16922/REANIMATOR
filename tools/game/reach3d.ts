@@ -3,6 +3,7 @@
 // and the Thruster Boots gate (shaft upper deck 4.4 m above the last platform).
 import { ABILITY_3D, floorHeightAt3D, stepBody3D, spawnBody3D, type Body3D } from '../../src/engine/motion3d.ts';
 import { buildCollider3D, buildFacilityMap3D, type Level3D } from '../../src/game3d/map3d.ts';
+import { buildStageMap3D, stageRoute3D, type StageId3D } from '../../src/game3d/stages3d.ts';
 import { navReached, navSteer, type NavTarget } from '../../src/game3d/nav3d.ts';
 import { hazardCrossHorizon, hazardHits, hazardHold, hazardSafeWindow } from '../../src/game3d/hazards.ts';
 import { MELTDOWN_TICKS, SEAL_FINAL_CLOSED_TICKS, SEAL_FINAL_ID, SEAL_FINAL_WARN_TICKS, ESCAPE_BEATS_3D, ROCKET_JUMP_3D, emptyInput3D, newWorld3D, stepWorld3D } from '../../src/game3d/world3d.ts';
@@ -208,6 +209,76 @@ export function buildReachRoute(level: Level3D): ReachStep[] {
     { label: 'Escape hatch', x: 22, y: 5.2, opens: ['door_escape'] },
     { label: 'Extraction', x: level.exitPos.x, y: level.exitPos.y, tolX: 1.5 },
   ];
+}
+
+export interface StageWalkResult {
+  ok: boolean;
+  ticks: number;
+  waypoints: number;
+  failedAt: string | null;
+}
+
+/** Walks a stage's authored route with the real body physics. Door and bridge ids open as the route names them. */
+export function walkStageRoute(stage: StageId3D, skipBoots = false): StageWalkResult {
+  const level = buildStageMap3D(stage);
+  const route = stageRoute3D(stage);
+  const openDoors = new Set<string>();
+  let body = spawnBody3D(level.spawn.x, level.spawn.y, 0);
+  let maxJumps = 1;
+  let total = 0;
+  for (const step of route) {
+    for (const d of step.opens ?? []) openDoors.add(d);
+    const res = walkTo(body, step, level, openDoors, maxJumps, 900);
+    total += res.ticks;
+    body = res.body;
+    if (!res.reached) return { ok: false, ticks: total, waypoints: route.length, failedAt: step.label };
+    if (step.boots && !skipBoots) maxJumps = 2;
+  }
+  return { ok: true, ticks: total, waypoints: route.length, failedAt: null };
+}
+
+/** Stage 2 and 3 checks: the route is walkable, every gate really gates, and nothing is sealed. Returns problems (empty = OK). */
+export function checkStage(stage: StageId3D): { problems: string[]; ticks: number; waypoints: number } {
+  const problems: string[] = [];
+  const level = buildStageMap3D(stage);
+  const walk = walkStageRoute(stage);
+  if (!walk.ok) problems.push(`stage ${stage}: route blocked at "${walk.failedAt}"`);
+  // Every lock must stop the route: skip the opens of one door at a time and the walk must fail at or after it.
+  const route = stageRoute3D(stage);
+  const openers = route.filter((st) => (st.opens ?? []).length > 0);
+  for (const gate of openers) {
+    const ids = gate.opens ?? [];
+    const cut = route.map((st) => (st === gate ? { ...st, opens: [] } : st));
+    const openDoors = new Set<string>();
+    let body = spawnBody3D(level.spawn.x, level.spawn.y, 0);
+    let maxJumps = 1;
+    let blocked = false;
+    for (const st of cut) {
+      for (const d of st.opens ?? []) openDoors.add(d);
+      const res = walkTo(body, st, level, openDoors, maxJumps, 900);
+      body = res.body;
+      if (!res.reached) { blocked = true; break; }
+      if (st.boots) maxJumps = 2;
+    }
+    if (!blocked) problems.push(`stage ${stage}: ${ids.join(',')} does not gate the route`);
+  }
+  if (stage === 3) {
+    const noBoots = walkStageRoute(3, true);
+    if (noBoots.ok) problems.push('stage 3: the Hatchery lever ledge is reachable without the Thruster Boots');
+    const all = new Set(level.solids.filter((sl) => sl.doorId).map((sl) => sl.doorId!));
+    for (const g of [{ sx: 116, target: { x: 121, y: 4.4 } }, { sx: 164, target: { x: 169, y: 4.4 } }]) {
+      const from = spawnBody3D(g.sx, 0, 0);
+      if (dashReaches(from, g.target, level, all, 1, 900) || wallHopReaches(from, g.target, level, all, 1, 900)) problems.push(`stage 3: lever ledge at x=${g.target.x} is reachable without Boots (dash or wall hop)`);
+      if (!walkTo(from, g.target, level, all, 2, 900).reached) problems.push(`stage 3: lever ledge at x=${g.target.x} is unreachable with Boots`);
+    }
+  }
+  // Pickups, logs, saves and the exit must sit within reach of the route (rough check: inside the level bounds, above a floor)
+  const { bounds } = level;
+  const pts = [...level.dataLogs, ...level.saveStations, ...level.medStations, ...level.upgrades, ...level.pedestals, { id: 'exit', x: level.exitPos.x, y: level.exitPos.y }];
+  for (const p of pts) if (p.x < bounds.minX || p.x > bounds.maxX || p.y < bounds.minY || p.y > bounds.maxY) problems.push(`stage ${stage}: ${p.id} is outside the level bounds`);
+  const lastRoom = level.rooms[level.rooms.length - 1];
+  if (level.exitPos.x < lastRoom.minX || level.exitPos.x > lastRoom.maxX) problems.push(`stage ${stage}: exit is not in the last room`);
+  return { problems, ticks: walk.ticks, waypoints: walk.waypoints };
 }
 
 function runRoute(): number {
@@ -816,6 +887,15 @@ if (process.argv[1] && import.meta.url === new URL(`file://${process.argv[1]}`).
   const rj = checkRocketJump(lvl);
   console.log(rj.problems.length === 0 ? `ROCKET JUMP: no bypass of ${rocketProbeSites(lvl).length} boots gates / tunnels (vy cap ${ROCKET_JUMP_3D.vyCap} m/s, best rise ${rj.bestApex.toFixed(2)} m of 4.40 m), uncapped control reaches a gate (${Date.now() - t0} ms): OK` : `ROCKET JUMP FAILED: ${rj.problems.join('; ')}`);
   if (rj.problems.length > 0) process.exit(1);
+  for (const st of [2, 3] as const) {
+    const sc = checkStage(st);
+    const lvl2 = buildStageMap3D(st);
+    const foe2 = checkFoePlacement(lvl2);
+    const hz2 = [...checkHazardLayout(lvl2), ...checkHazardRoute(lvl2)];
+    const all = [...sc.problems, ...foe2, ...hz2];
+    console.log(all.length === 0 ? `STAGE ${st} (${lvl2.stage?.name}): ${sc.waypoints} waypoints, ${sc.ticks} ticks (${(sc.ticks / 60).toFixed(1)} s), gates, foes, hazards: OK` : `STAGE ${st} FAILED: ${all.join('; ')}`);
+    if (all.length > 0) process.exit(1);
+  }
   const n = buildReachRoute(buildFacilityMap3D()).length;
   console.log(`REACH3D PASS: ${n} waypoints, ${total} ticks (${(total / 60).toFixed(1)} s), Thruster Boots gate verified.`);
 }

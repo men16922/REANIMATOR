@@ -4,7 +4,8 @@
 
 import { stepBody3D, spawnBody3D, floorHeightAt3D, resolveHorizontal3D, ABILITY_3D, type Body3D } from '../engine/motion3d.ts';
 import { newLight, tickLight, toggleLight, type Light } from '../game/light.ts';
-import { buildCollider3D, buildFacilityMap3D } from './map3d.ts';
+import { buildCollider3D } from './map3d.ts';
+import { STAGE_HP_3D, STAGE_LOADOUT_3D, buildStageMap3D, countStageFoes3D } from './stages3d.ts';
 import {
   HUNTER_CLAW_REACH, HUNTER_SNEAK_SCALE, counterHunter, hunterParams, hunterHitsPoint, inHunterZone, newHunter3D, pingHunter, railHitHunter,
   hunterSnares, stepHunter3D, type HunterCtx, type HunterState3D,
@@ -23,6 +24,8 @@ import type {
   PlayerPoseState3D,
   SectorId3D,
   SoundEvent3D,
+  StageClear3D,
+  StageId3D,
   UpgradePickupKind3D,
   WeaponSlot3D,
 } from './types3d.ts';
@@ -414,6 +417,8 @@ export function deathCauseOf3D(key: DeathCauseKey3D | null): DeathCause3D {
 }
 
 export interface NewWorldOptions3D {
+  /** Campaign stage (default 1 = the original facility). Stages 2 and 3 are separate levels, see stages3d.ts. */
+  stage?: StageId3D;
   difficulty?: Difficulty3D;
   assist?: Partial<AssistOptions3D>;
 }
@@ -498,6 +503,10 @@ export interface WorldState3D {
   status: GameStatus3D;
   phase: ObjectivePhase3D;
   level: Level3D;
+  /** Campaign stage this world was built for. */
+  stage: StageId3D;
+  /** Set when the exit teleporter of stage 2 or 3 is activated (the world is then 'won'). Stage 1 never sets it. */
+  stageClear: StageClear3D | null;
   /** Opened door ids (MapSolid3D.doorId) */
   openDoors: Set<string>;
   consoleUnlocked: boolean;
@@ -870,11 +879,12 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
   const difficulty = options.difficulty ?? 'normal';
   const diff = DIFFICULTY_PARAMS_3D[difficulty];
   const assist: AssistOptions3D = { ...NO_ASSIST_3D, ...options.assist };
-  const level = buildFacilityMap3D();
+  const stage: StageId3D = options.stage ?? 1;
+  const level = buildStageMap3D(stage);
   const spawn = level.spawn;
   const body = spawnBody3D(spawn.x, spawn.y, 0);
 
-  const enemies: EnemyState3D[] = level.enemies.map((sp) => buildEnemy3D(sp, '', diff.enemyHp));
+  const enemies: EnemyState3D[] = level.enemies.map((sp) => buildEnemy3D(sp, '', diff.enemyHp * STAGE_HP_3D[stage]));
   // Hive larvae pools: dead, hidden slots that the owning hive revives one at a time
   const hives: HiveState3D[] = level.hives.map((h) => ({
     id: h.id, zone: h.sector, x: h.x, y: h.y, z: 0, radius: HIVE_RADIUS_3D, height: HIVE_HEIGHT_3D,
@@ -913,8 +923,10 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
   return {
     tick: 0,
     status: 'playing',
-    phase: 'console',
+    phase: stage === 1 ? 'console' : stage === 3 ? 'warden' : 'core',
     level,
+    stage,
+    stageClear: null,
     openDoors: new Set<string>(),
     consoleUnlocked: false,
     coreHp: 240,
@@ -935,8 +947,12 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
       aimY: spawn.y + MUZZLE_HEIGHT,
       facing: 1,
       weapon: 1,
-      unlocked: { 1: true, 2: false, 3: false, 4: false, 5: false, 6: false },
-      ammo: { 2: 0, 3: 0, 4: 0, 5: 0, 6: 0 },
+      unlocked: { 1: true, 2: STAGE_LOADOUT_3D[stage].includes(2), 3: STAGE_LOADOUT_3D[stage].includes(3), 4: false, 5: false, 6: false },
+      ammo: {
+        2: STAGE_LOADOUT_3D[stage].includes(2) ? WEAPON_META[2].initialAmmo : 0,
+        3: STAGE_LOADOUT_3D[stage].includes(3) ? WEAPON_META[3].initialAmmo : 0,
+        4: 0, 5: 0, 6: 0,
+      },
       fireCooldown: 0,
       flameStreak: 0,
       rocketBoosted: false,
@@ -1001,8 +1017,42 @@ export function newWorld3D(options: NewWorldOptions3D = {}): WorldState3D {
     lastHurt: null,
     crawlerHits: [],
     checkpoint: null,
-    hunter: newHunter3D(level.hunterZone),
+    hunter: stage === 1 ? newHunter3D(level.hunterZone) : { ...newHunter3D(level.hunterZone), alive: false, active: false },
   };
+}
+
+/**
+ * Stage 2 and 3 exit teleporter. Stand on the pad and press interact. Stage 3 (goal 'boss') needs the Core Warden down first.
+ * Sets `stageClear` (time, kills, foe total, completion) and wins the world. Reads only the player body and the interact flag.
+ */
+function stepStageExit3D(w: WorldState3D, interact: boolean): void {
+  const info = w.level.stage;
+  if (!info) return;
+  const ex = w.level.exitPos;
+  const p = w.player.body;
+  const near = Math.hypot(p.x - ex.x, p.y - ex.y) <= ex.radius && Math.abs(p.y - ex.y) <= 1.5;
+  if (!near) return;
+  const wardenUp = info.goal === 'boss' && w.enemies.some((e) => e.kind === 'warden' && e.alive);
+  if (wardenUp) {
+    roomHint(w, 'TELEPORTER LOCKED. DESTROY THE CORE WARDEN');
+    return;
+  }
+  if (!interact) {
+    roomHint(w, 'EXIT TELEPORTER READY. PRESS INTERACT');
+    return;
+  }
+  const total = countStageFoes3D(w.level);
+  w.stageClear = {
+    stage: info.id,
+    timeTicks: w.tick,
+    timeSeconds: Number((w.tick / 60).toFixed(2)),
+    kills: Math.min(w.player.kills, total),
+    totalEnemies: total,
+    completionPercent: w.completion.percent,
+  };
+  w.status = 'won';
+  w.phase = 'won';
+  w.events.push({ type: 'win' });
 }
 
 /** Toggle sim-side assist options on a running world. The level stays immutable (it may be shared); hazard timing is warped in `hazardTickAt3D`. */
@@ -2138,8 +2188,10 @@ function stepEnemies3D(w: WorldState3D): void {
     } else if (isWarden) {
       const ph = e.phase;
       const spd = stats.speed * (ph === 3 ? 1.45 : ph === 2 ? 1.25 : 1);
-      const floorX0 = 72.4;
-      const floorX1 = 95.9;
+      // Arena floor bounds follow the core room (stage 1: 70..98 gives the original 72.4 and 95.9)
+      const arena = w.level.rooms.find((r) => r.sector === 'core');
+      const floorX0 = (arena?.minX ?? 70) + 2.4;
+      const floorX1 = (arena?.maxX ?? 98) - 2.1;
       if (e.exposedTicks > 0) {
         // Weak-point window: the Warden is staggered and takes double damage
         e.exposedTicks--;
@@ -2229,7 +2281,7 @@ function stepEnemies3D(w: WorldState3D): void {
             let n = 0;
             for (const m of w.enemies) {
               if (!m.minion || m.alive || n >= 2) continue;
-              const sx = Math.max(73, Math.min(95.5, e.x + (n === 0 ? -4.2 : 4.2)));
+              const sx = Math.max((arena?.minX ?? 70) + 3, Math.min((arena?.maxX ?? 98) - 2.5, e.x + (n === 0 ? -4.2 : 4.2)));
               m.x = sx;
               m.y = e.y;
               m.vx = 0;
@@ -3701,6 +3753,7 @@ export function stepWorld3D(w: WorldState3D, rawInput: InputState3D): WorldState
       w.deathCause = deathCauseOf3D('meltdown');
     }
   }
+  if (w.level.stage && w.status === 'playing') stepStageExit3D(w, input.interact);
   if (w.coreDestroyed && w.status === 'playing') {
     const ex = w.level.exitPos;
     if (Math.hypot(p.body.x - ex.x, p.body.y - ex.y) <= ex.radius && Math.abs(p.body.y - ex.y) <= 1.5) {
