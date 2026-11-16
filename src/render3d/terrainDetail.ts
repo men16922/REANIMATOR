@@ -189,6 +189,15 @@ export function detailPiecesForSolid(s: MapSolid3D, sector: SectorId3D): THREE.B
     out.push(pipe(sx - 0.3, 0.07, (s.minX + s.maxX) / 2, top - 0.2, front + 0.08, pipeC, rnd));
     for (let x = s.minX + 0.6; x < s.maxX - 0.4; x += 2.2) out.push(slab(0.1, 0.3, 0.1, x, top - 0.2, front + 0.06, body, rnd));
     if (sy > 0.5) out.push(slab(sx - 0.4, 0.07, 0.05, (s.minX + s.maxX) / 2, s.minY + sy * 0.3, front + 0.03, accent, rnd));
+    // R24 floor clutter: low scrap and rubble piles on the rear lane so decks are not bare planes (behind the character lane).
+    let piles = 0;
+    for (let x = s.minX + 0.8 + rnd() * 1.2; x < s.maxX - 0.6 && piles < 8; x += 2.4 + rnd() * 2.2, piles++) {
+      const z = back + 0.35 + rnd() * 0.9;
+      const k = 1 + Math.floor(rnd() * 3);
+      for (let i = 0; i < k; i++) out.push(boulder(rnd, 0.08 + rnd() * 0.16, x + (rnd() - 0.5) * 0.7, top + 0.02, z + (rnd() - 0.5) * 0.4, body, 0.6));
+      if (rnd() < 0.4) out.push(slab(0.3 + rnd() * 0.4, 0.05, 0.22 + rnd() * 0.2, x + 0.3, top + 0.03, z + 0.2, pipeC, rnd));
+      if (rnd() < 0.15) out.push(slab(0.08, 0.04, 0.08, x - 0.2, top + 0.05, z, accent, rnd));
+    }
   }
   return out;
 }

@@ -34,3 +34,30 @@ test('terrain detail never reads or mutates the collision level', () => {
   buildTerrainDetail(level, sectorAt);
   assert.equal(JSON.stringify(level.solids), before);
 });
+
+test('chamfered batch boxes keep extents, normals and UV bake (R24)', async () => {
+  const THREE = await import('three');
+  const { buildBatchGeometry, bevelFor } = await import('../src/render3d/solidBatches.ts');
+  assert.equal(bevelFor(4, 0.05, 4, 'floor'), 0);
+  assert.equal(bevelFor(4, 1, 1, 'door'), 0);
+  const geo = buildBatchGeometry([
+    { cx: 10, cy: 2, cz: -1, sx: 4, sy: 1, sz: 2, rx: 2, ry: 1, ox: 0.25, oy: 0, color: new THREE.Color(0x808080), bevel: 0.08 },
+  ])!;
+  assert.ok(geo.index);
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox!;
+  assert.ok(Math.abs(bb.max.x - 12) < 1e-5 && Math.abs(bb.min.x - 8) < 1e-5);
+  assert.ok(Math.abs(bb.max.y - 2.5) < 1e-5 && Math.abs(bb.min.z + 2) < 1e-5);
+  const n = geo.getAttribute('normal');
+  const pos = geo.getAttribute('position');
+  const ix = geo.index!;
+  for (let i = 0; i < n.count; i++) assert.ok(Math.abs(Math.hypot(n.getX(i), n.getY(i), n.getZ(i)) - 1) < 1e-4);
+  // Every triangle winds along its stored normal.
+  for (let t = 0; t < ix.count; t += 3) {
+    const a = ix.getX(t), b = ix.getX(t + 1), c = ix.getX(t + 2);
+    const e1 = new THREE.Vector3(pos.getX(b) - pos.getX(a), pos.getY(b) - pos.getY(a), pos.getZ(b) - pos.getZ(a));
+    const e2 = new THREE.Vector3(pos.getX(c) - pos.getX(a), pos.getY(c) - pos.getY(a), pos.getZ(c) - pos.getZ(a));
+    const f = e1.cross(e2);
+    assert.ok(f.dot(new THREE.Vector3(n.getX(a), n.getY(a), n.getZ(a))) > 0, `tri ${t / 3} winding`);
+  }
+});

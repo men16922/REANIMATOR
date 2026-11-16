@@ -90,7 +90,7 @@ import { buildAmbient3D, type Ambient3D } from './ambient3d.ts';
 import type { OpeningView } from '../ui/opening.ts';
 import { buildTerrainDetail, makeTerrainDetailMaterial } from './terrainDetail.ts';
 import { TerrainKit, loadKitAsset, planKitUnits, type KitAsset } from './terrainKit.ts';
-import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
+import { batchKeyFor, bevelFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
 /** Round 16 ability pickups reuse the existing item silhouettes with their own colour (no new meshes, no lights). */
 const ABILITY_ITEM_COLOR: Partial<Record<string, number>> = { blast_core: 0xff5a1a, scan_lens: 0x8fe9ff, thermal_plating: 0xff3a3a };
@@ -1443,7 +1443,7 @@ export class Scene3DRenderer {
       b = { sector, cls, items: [] };
       this.pendingBatches.set(bk.key, b);
     }
-    b.items.push({ ...g, rx, ry, ox, oy, color });
+    b.items.push({ ...g, rx, ry, ox, oy, color, bevel: bevelFor(g.sx, g.sy, g.sz, cls) });
   }
 
   private flushSolidBatches(tex: ReturnType<typeof getFacilityTextures3D>): void {
