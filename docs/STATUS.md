@@ -2,6 +2,15 @@
 
 최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R20 Foreman 메시·릴 Stage 2/3 컷·폴리시 (2026-11-16, 로컬 커밋 de8a151·c3e21e8·fd78fd5)
+
+- Slag Foreman 전용 Meshy 메시(절차 포즈), 트레일러 릴 10컷에 Stage 2 Foreman·Stage 3 Spire 컷 추가.
+- 폴리시: Foreman 미니보스 이름 카드(섹터 카드 형식), Warden 인트로 카드 스테이지별(Stage 3 = SPIRE WARDEN), Stage 3 보스 바·목표·텔레포터 힌트 이름 통일, Foreman 전용 음성 5종, Foreman 피격 스파크·사망 버스트, 가까운 증기 분출 시 카메라 흔들림. 스크린샷 [r20_polish](evidence/r20_polish/).
+- draw calls: Stage 1 combat 릴 컷 306 → 287(그림자 패스 캐스터 제한 등, [DRAWCALLS](evidence/r20_reel/DRAWCALLS.md)). 전 컷 300 이하.
+- `make check` exit 0(725/725, reach3d 52 waypoints 3432 ticks, dist-guard PASS 34 files). 봇 핀 불변: Normal 4978/HP126, Story 4880/142, Hard 5319/104(min 100).
+- 인트로 재발동 조사: Warden 인트로는 `world3d.ts`에서 플레이어가 `core` 방에 있고 `bossIntroDone`이 false이고 Warden이 살아 있을 때만 시작한다. Cryo Stacks 오버레이는 디버그 텔레포트에서 온 것으로 추정(unverified).
+- Unverified: `make smoke-local`, `make release`/`vite preview`, Stage 2·3 사람 플레이, 시네마틱 인트로 오버레이의 SPIRE WARDEN 육안(DOM 텍스트만 확인).
+
 ## R19 트레일러 릴 (2026-11-16)
 
 - 쇼케이스 릴 12컷·90 s로 3개 스테이지 포함(월드 교체형 컷). `tests/demo.test.ts`는 컷 수·길이(8→12, 60→90 s)와 틱 단조 증가 범위(스테이지별)가 설계상 바뀌어 의도적으로 수정. `make check` exit 0(718/718). Playwright: Stage 2·3 컷 캡션·렌더 확인, 오류 0([docs/evidence/r19_reel/](evidence/r19_reel/)). 헤드리스 타이머 스로틀로 컷별 캡처는 일부만.

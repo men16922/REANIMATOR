@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- The Slag Foreman has its own model, voice, hit sparks and a name card when you first meet it.
+- The Stage 3 boss is named the Spire Warden on its intro card, boss bar and objective.
+- Nearby steam vent bursts shake the camera.
+- The busiest combat scenes draw fewer objects (lighter shadows, simpler ammo and health pickups).
+
 ## 1.1.0
 
 - The Trailer reel now shows all three stages (90 seconds).

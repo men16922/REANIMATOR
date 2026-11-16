@@ -2,6 +2,13 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R20 Foreman 메시·릴·폴리시 (완료)
+
+- [x] Foreman Meshy 메시, 릴 Stage 2/3 컷, combat 컷 287 calls(≤300), 보스 이름 카드, Foreman 음성·피격 fx, 증기 분출 흔들림. 봇 핀 불변.
+- [ ] Stage 2 Furnace Gate에서 Stage 1 코치 문구("Arm the Security Console...")가 보임(`foreman_card.png`). 스테이지별 코치 문구 필요.
+- [ ] Foreman strike 프레임이 용광로 블룸에 하얗게 씻김(`r20_foreman/foreman_strike.png`). 포즈는 정상, 색 대비 조정 후보.
+- [ ] Unverified: `make smoke-local`, `make release` + `vite preview`, 시네마틱 SPIRE WARDEN 카드 육안, Stage 2·3 사람 플레이, Meshy 키 교체, 푸시.
+
 ## R19 트레일러 릴 (완료)
 
 - [x] 쇼케이스 릴 8컷(60 s) → 12컷(90 s). `ShowCut.stage`로 월드 교체형 컷(Stage 2 Foundry Line·Slag Foreman, Stage 3 Reactor Spire·Spire Warden). 사용자 노출 문구에서 Judge 제거("Trailer Reel"). Foreman maxHp 정확 테스트, 이름 상수 `FOREMAN_NAME` 통일, castShadow 히스테리시스(1.5 m). Stage 1 봇 핀 불변.

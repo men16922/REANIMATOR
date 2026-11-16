@@ -2,6 +2,13 @@
 
 R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-16 — R20 Foreman 메시, 릴 Stage 2/3 컷, 폴리시 (로컬 커밋, 푸시 없음)
+
+- Changed: de8a151(Foreman Meshy 메시·포즈), c3e21e8(릴 Stage 2/3 컷, clearFoes), fd78fd5(draw calls 306→287, 보스 카드, Foreman 음성·fx, 증기 흔들림, `tests/r20-polish.test.ts`), docs 커밋.
+- Verified: `make check` exit 0(725/725). 봇 핀 Normal 4978/126, Story 4880/142, Hard 5319/104 min 100. Playwright 릴 전 컷 peak ≤ 287. Foreman 카드 스크린샷, Stage 3 보스 바 SPIRE WARDEN.
+- Finding: Warden 인트로는 `core` 방·`bossIntroDone` false·Warden 생존일 때만 시작. Cryo Stacks 오버레이는 디버그 텔레포트 추정(unverified).
+- Unverified: `make smoke-local`, `make release`, `vite preview`, 사람 플레이.
+
 ## 2026-11-16 — R18 스테이지 검증 (로컬 커밋, 푸시 없음)
 
 - Changed: d7e91ab(브라우저 검증 수정, 목표 줄, draw calls), 4778f0c(Slag Foreman, 봇 테스트, 컬러 그레이드), docs 커밋(README 스크린샷, 릴 마지막 문구, 문서 정리: 이전 기록은 archive/STATUS_R8_R14.md, NEXT_PLAN_R4_R11.md, PROGRESS_LOG_R9_R16.md).
