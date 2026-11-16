@@ -2,6 +2,10 @@
 
 최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R23 FEAT-001 R22 갭 수정 (2026-11-17, 로컬 커밋)
+
+- ASSET_REGISTER terrain 표 17행 복구, finalize는 manifest 기준으로 재생성. GLB 17종 법선 복구 테스트 추가. `make check` exit 0(746/746). 봇 핀 Normal 4978/126, Story 4880/142, Hard 5319/104 확인.
+
 ## R22 Frost 에셋·실행 기록 (2026-11-17, 로컬 커밋 287d595·3409aef·c1a8681 + 기록 커밋)
 
 - Meshy GLB 3종 ingest(WebP 512): frost-shield 226,352 B / 3000 tris(Bulwark 방패, 내려가면 숨김), coolant-pipe-wall 241,004 B / 3907(Stage 3 뒷 레인), cryo-rack 162,872 B / 2448. Stage 3 draw calls 95-138([DRAWCALLS](evidence/r22_assets/DRAWCALLS.md)).

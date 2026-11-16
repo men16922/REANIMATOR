@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { buildFacilityMap3D } from '../src/game3d/map3d.ts';
 import { buildStage2Map3D } from '../src/game3d/stage2.ts';
 import { buildStage3Map3D, bulwarkShieldRaise } from '../src/game3d/stage3.ts';
-import { RAW_TASKS, TERRAIN_KIT, buildPlan, parseArgs } from '../tools/meshy/terrain-kit.ts';
+import { RAW_TASKS, TERRAIN_KIT, buildPlan, parseArgs, registerRowsFromManifest, registerSection, type ManifestAsset } from '../tools/meshy/terrain-kit.ts';
 import type { SectorId3D } from '../src/game3d/types3d.ts';
 import { existsSync, readFileSync } from 'node:fs';
 import { KIT_IDS, STAGE3_KIT_IDS, TerrainKit, applyKitGlow, planKitUnits, repairKitNormals, sanitizeKitMaterial, type KitAsset, type KitId } from '../src/render3d/terrainKit.ts';
@@ -218,4 +218,47 @@ test('R22 bulwark shield raise eases toward the sim state and is deterministic',
   r = 0;
   for (let i = 0; i < 60; i++) r = bulwarkShieldRaise(r, true, 0.016);
   assert.equal(r, 1);
+});
+
+const manifestTerrain = (JSON.parse(readFileSync(new URL('../reference/manifests/meshy-assets.json', import.meta.url), 'utf8')) as { assets: ManifestAsset[] }).assets.filter((a) => a.id.startsWith('terrain/'));
+
+test('ASSET_REGISTER has a row for every manifest terrain/* id, and registerSection keeps all rows', () => {
+  assert.ok(manifestTerrain.length >= 17);
+  const reg = readFileSync(new URL('../docs/reference/ASSET_REGISTER.md', import.meta.url), 'utf8');
+  for (const a of manifestTerrain) assert.ok(reg.includes(`| \`${a.id}\` |`), `register row ${a.id}`);
+  const rows = registerRowsFromManifest(manifestTerrain);
+  assert.equal(rows.length, manifestTerrain.length);
+  const section = registerSection(rows);
+  assert.equal(section.split('\n').filter((l) => l.startsWith('| `terrain/')).length, manifestTerrain.length);
+  // A partial run (one new row) merged with the manifest still lists every earlier piece.
+  const merged = registerRowsFromManifest([...manifestTerrain.slice(0, 1), ...manifestTerrain]);
+  assert.ok(merged.length >= manifestTerrain.length);
+});
+
+test('every shipped terrain GLB has no zero-length normals after repairKitNormals', async () => {
+  const { NodeIO } = await import('@gltf-transform/core');
+  const { ALL_EXTENSIONS } = await import('@gltf-transform/extensions');
+  const io = new NodeIO().registerExtensions(ALL_EXTENSIONS);
+  const ids = manifestTerrain.map((a) => a.id.slice('terrain/'.length));
+  for (const id of ['frost-shield', 'coolant-pipe-wall', 'cryo-rack']) assert.ok(ids.includes(id), id);
+  for (const a of manifestTerrain) {
+    const doc = await io.read(new URL(`../${a.optimizedFile}`, import.meta.url).pathname);
+    let prims = 0;
+    for (const mesh of doc.getRoot().listMeshes()) {
+      for (const prim of mesh.listPrimitives()) {
+        const nrm = prim.getAttribute('NORMAL');
+        if (!nrm) continue;
+        prims++;
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('normal', new THREE.Float32BufferAttribute(Float32Array.from(nrm.getArray() as ArrayLike<number>), 3));
+        repairKitNormals(g);
+        const n = g.getAttribute('normal');
+        for (let i = 0; i < n.count; i++) {
+          const l = Math.hypot(n.getX(i), n.getY(i), n.getZ(i));
+          assert.ok(Number.isFinite(l) && l > 1e-3, `${a.id} normal ${i}`);
+        }
+      }
+    }
+    assert.ok(prims > 0, `${a.id} has normals`);
+  }
 });

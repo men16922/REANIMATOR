@@ -158,6 +158,22 @@ export function registerSection(rows: { id: string; outFile: string; bytes: numb
   ].join('\n');
 }
 
+export interface ManifestAsset {
+  id: string;
+  optimizedFile?: string;
+  optimizedBytes?: number;
+  optimizedTriangles?: number;
+  taskId?: string;
+  prompt?: string;
+}
+
+/** Register rows for every terrain/* manifest entry, so a partial run can never drop the rows of earlier pieces. */
+export function registerRowsFromManifest(assets: readonly ManifestAsset[]): Parameters<typeof registerSection>[0] {
+  return assets
+    .filter((a) => a.id.startsWith('terrain/'))
+    .map((a) => ({ id: a.id.slice('terrain/'.length), outFile: a.optimizedFile ?? '', bytes: a.optimizedBytes ?? 0, tris: a.optimizedTriangles ?? 0, taskId: a.taskId ?? '', prompt: a.prompt ?? '' }));
+}
+
 function readJson<T>(path: string, fallback: T): T {
   return existsSync(path) ? (JSON.parse(readFileSync(path, 'utf8')) as T) : fallback;
 }
@@ -258,7 +274,6 @@ async function optimizeOne(step: PlanStep) {
 async function finalize(plan: PlanStep[], state: KitState, save: () => void) {
   const byId = new Map(ALL_PIECES.map((p) => [p.id, p]));
   const manifest = readJson<{ schema: string; assets: Record<string, unknown>[] }>(PATHS.manifest, { schema: 'reanimator-meshy-assets-v2', assets: [] });
-  const rows: Parameters<typeof registerSection>[0] = [];
   for (const s of plan) {
     const st = state[s.id];
     if (!st?.rawFile) continue;
@@ -283,7 +298,6 @@ async function finalize(plan: PlanStep[], state: KitState, save: () => void) {
     };
     manifest.assets = manifest.assets.filter((a) => a.id !== entry.id);
     manifest.assets.push(entry);
-    rows.push({ id: s.id, outFile: s.outFile, bytes: o.optimizedBytes, tris: o.optimizedTriangles, taskId: st.refineTaskId!, prompt: s.prompt });
     console.log(`  ${s.id}: ${o.rawTriangles} -> ${o.optimizedTriangles} tris | ${(o.optimizedBytes / 1024).toFixed(0)} KB`);
   }
   manifest.schema = 'reanimator-meshy-assets-v2';
@@ -291,16 +305,7 @@ async function finalize(plan: PlanStep[], state: KitState, save: () => void) {
   writeFileSync(PATHS.manifest, JSON.stringify(manifest, null, 2) + '\n');
 
   const reg = readFileSync(PATHS.register, 'utf8');
-  let section = registerSection(rows);
-  const prev = /<!-- terrain-kit:begin -->[\s\S]*<!-- terrain-kit:end -->/.exec(reg)?.[0] ?? '';
-  const keep = prev.split('\n').filter((l) => l.startsWith('| `terrain/') && !rows.some((r) => l.startsWith(`| \`terrain/${r.id}\` |`)));
-  if (keep.length) {
-    const lines = section.split('\n');
-    const at = lines.findIndex((l) => l.startsWith('|---'));
-    const mine = lines.slice(at + 1, lines.length - 2);
-    const merged = [...keep, ...mine];
-    section = [...lines.slice(0, at + 1), ...merged, ...lines.slice(lines.length - 2)].join('\n');
-  }
+  const section = registerSection(registerRowsFromManifest(manifest.assets as unknown as ManifestAsset[]));
   const re = /<!-- terrain-kit:begin -->[\s\S]*<!-- terrain-kit:end -->/;
   writeFileSync(PATHS.register, re.test(reg) ? reg.replace(re, () => section) : `${reg.trimEnd()}\n\n${section}\n`);
   const failed = plan.filter((s) => state[s.id]?.error).map((s) => s.id);

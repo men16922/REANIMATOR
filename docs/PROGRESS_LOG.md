@@ -2,6 +2,11 @@
 
 R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-17 — R23 FEAT-001 R22 갭 수정 (로컬 커밋, 푸시 없음)
+
+- Changed: `tools/meshy/terrain-kit.ts` finalize가 manifest의 모든 `terrain/*`로 register 행을 만든다(`registerRowsFromManifest`). ASSET_REGISTER terrain 표를 3행에서 17행으로 복구. `tests/terrain-kit.test.ts`에 register 행 대조와 17개 GLB 법선 복구 테스트 추가.
+- Verified: `make check` exit 0(746/746). 봇 핀 Normal 4978/126, Story 4880/142, Hard 5319/104 0 deaths(측정 재확인).
+
 ## 2026-11-17 — R22 Frost 에셋, 실행 기록 (로컬 커밋, 푸시 없음)
 
 - Changed: 287d595(GLB 3종 ingest), 3409aef(Bulwark 방패 메시, Stage 3 props), c1a8681(파이프 벽 뒷 레인, 스크린샷 재촬영), 기록 커밋(`records.ts`, 클리어·선택 화면, `tests/records.test.ts`).
