@@ -1,6 +1,8 @@
 // R15 sample comparison: measure raw Meshy wall-panel samples and optimize them with the same steps as
 // tools/meshy/terrain-kit.ts optimizeOne (weld, simplify, WebP, center, longest side = 1), with a configurable
 // texture size and triangle target. Writes public/assets/models/terrain/samples/*.glb and docs/evidence/r15_meshy_terrain/samples.json.
+// NOTE (R19): the samples output folder public/assets/models/terrain/samples/ was deleted after the comparison (the A tier shipped
+// as the kit). Re-running recreates it; delete it again before a release (dist-guard and size budget). Raw sample GLBs stay gitignored.
 // Usage: node tools/meshy/terrain-samples.ts
 import { mkdirSync, unlinkSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';

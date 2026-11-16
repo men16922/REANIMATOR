@@ -1,6 +1,6 @@
 {
   "schema": "reanimator-meshy-assets-v2",
-  "generatedAt": "2026-11-15T13:52:27.488Z",
+  "generatedAt": "2026-11-16T12:13:51.406Z",
   "classification": "new-design (non-Abuse original 3D rigged & static assets)",
   "assets": [
     {
@@ -756,6 +756,108 @@
         ]
       },
       "optimizedFile": "public/assets/models/terrain/reactor-conduit.glb"
+    },
+    {
+      "id": "terrain/foundry-conveyor",
+      "role": "Terrain kit: Foundry conveyor",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Long horizontal industrial foundry conveyor belt segment with rollers and hazard-stripe side rails, modular game prop, weathered dark steel, grime, side-view friendly, single object, no ground, no background",
+      "taskId": "01a1e43d-b3d0-73b4-bff9-996cb8ff4dfb",
+      "previewTaskId": "01a1e43d-1328-7338-b37e-a6df1e53e533",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/foundry-conveyor.glb",
+      "rawBytes": 5718924,
+      "rawSha256": "5b6f99f774da3090f593196123108e6e8d8dacd43bca06f39b571162ba225296",
+      "rawTriangles": 3403,
+      "optimizedBytes": 229644,
+      "optimizedSha256": "a71697ad3ffe14d40628b6d7430ef06ea346c79a44e75e810cb33e4963377849",
+      "optimizedTriangles": 3403,
+      "optimizedVertices": 5101,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.5,
+          0,
+          -0.08
+        ],
+        "max": [
+          0.5,
+          0.1036,
+          0.08
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/foundry-conveyor.glb"
+    },
+    {
+      "id": "terrain/slag-crucible",
+      "role": "Terrain kit: Slag crucible",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Molten slag crucible ladle hanging from a heavy gantry arm, glowing orange molten interior, heavy cast iron, soot and rust, industrial foundry game prop, single object, no ground, no background",
+      "taskId": "01a1e43d-b992-7343-a181-5212c42b11e2",
+      "previewTaskId": "01a1e43d-176f-71f6-936a-7a8385230ba5",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/slag-crucible.glb",
+      "rawBytes": 6075584,
+      "rawSha256": "652ac2ae40ed7089f7597652889d1de931cb5f4e045be617d409194fd60c7aca",
+      "rawTriangles": 4133,
+      "optimizedBytes": 187492,
+      "optimizedSha256": "0e2e237faa162bcc9226b14a56d05214a2952186160145b5c4a4b602961f3370",
+      "optimizedTriangles": 4000,
+      "optimizedVertices": 4090,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.4252,
+          0,
+          -0.3746
+        ],
+        "max": [
+          0.4252,
+          1,
+          0.3746
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/slag-crucible.glb"
+    },
+    {
+      "id": "terrain/coolant-column",
+      "role": "Terrain kit: Coolant column",
+      "generator": "Meshy meshy-t2.5 text-to-3D (smart topology preview + refine, PBR), WebP 512 + weld/simplify",
+      "license": "Private",
+      "pose": "none",
+      "prompt": "Tall reactor spire coolant column with glowing cyan core rings and heavy pipe collars, dark gunmetal sci-fi industrial, grime, game prop, single object, no ground, no background",
+      "taskId": "01a1e43d-be5a-76ad-bd85-709f84366fa3",
+      "previewTaskId": "01a1e43d-1c90-7675-8847-a2a7cad7d6b6",
+      "credits": 15,
+      "targetPolycount": 4000,
+      "rawFile": "assets/meshy-raw/terrain/coolant-column.glb",
+      "rawBytes": 5707952,
+      "rawSha256": "a1a93ec3c5af7fe70bfb2d35e4a99670e6bf0d3cb3926dee34f665380bc3c744",
+      "rawTriangles": 3940,
+      "optimizedBytes": 198264,
+      "optimizedSha256": "65a64a2b10f74d725817e0c16f7dda90c4ce0888282a6461f8002954276f43df",
+      "optimizedTriangles": 3940,
+      "optimizedVertices": 4455,
+      "textures": 3,
+      "normalizedBounds": {
+        "min": [
+          -0.1174,
+          0,
+          -0.1171
+        ],
+        "max": [
+          0.1174,
+          1,
+          0.1171
+        ]
+      },
+      "optimizedFile": "public/assets/models/terrain/coolant-column.glb"
     }
   ]
 }

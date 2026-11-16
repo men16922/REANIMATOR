@@ -60,12 +60,15 @@ export const TERRAIN_KIT: readonly TerrainPiece[] = [
   { id: 'specimen-tank', role: 'Lab specimen tank', prompt: `Bio-lab specimen tank, cylindrical glass cylinder with steel base and cap, murky green fluid, pipes on top, ${STYLE}`, texturePrompt: `${TEX}, murky green glass`, targetPolycount: 4000 },
   { id: 'security-bulkhead-frame', role: 'Security bulkhead frame', prompt: `Flat thin heavy security bulkhead door frame with shallow depth with thick armoured jambs, hazard stripes and a lock housing, open doorway, ${STYLE}`, texturePrompt: TEX, targetPolycount: 4000 },
   { id: 'reactor-conduit', role: 'Reactor conduit', prompt: `Long horizontal core reactor energy conduit, thick armoured cable trunk with glowing amber coupling rings and insulators, ${STYLE}`, texturePrompt: `${TEX}, faint amber glow in rings`, targetPolycount: 4000 },
+  { id: 'foundry-conveyor', role: 'Foundry conveyor', prompt: 'Long horizontal industrial foundry conveyor belt segment with rollers and hazard-stripe side rails, modular game prop, weathered dark steel, grime, side-view friendly, single object, no ground, no background', texturePrompt: 'weathered dark steel rollers and belt, worn yellow and black hazard stripes on rails, grime, oil, muted palette', targetPolycount: 4000 },
+  { id: 'slag-crucible', role: 'Slag crucible', prompt: 'Molten slag crucible ladle hanging from a heavy gantry arm, glowing orange molten interior, heavy cast iron, soot and rust, industrial foundry game prop, single object, no ground, no background', texturePrompt: 'heavy black cast iron with soot and rust, glowing orange molten slag inside, muted palette', targetPolycount: 4000 },
+  { id: 'coolant-column', role: 'Coolant column', prompt: 'Tall reactor spire coolant column with glowing cyan core rings and heavy pipe collars, dark gunmetal sci-fi industrial, grime, game prop, single object, no ground, no background', texturePrompt: 'dark weathered gunmetal, scratches, grime, glowing cyan coolant rings, muted palette', targetPolycount: 4000 },
 ];
 
 export const CREDITS_PER_PIECE = 30; // conservative: preview + refine
 export const ACTUAL_CREDITS_PER_PIECE = 15; // observed: meshy-t2.5 smart topology preview 5 + refine 10
 
-// Task ids of the 11 pieces generated once (meshy-t2.5, target_polycount 4000, refine enable_pbr). Used by --ingest-raw.
+// Task ids of the 14 pieces generated once (meshy-t2.5, target_polycount 4000, refine enable_pbr). Used by --ingest-raw.
 export const RAW_TASKS: Readonly<Record<string, { previewTaskId: string; refineTaskId: string }>> = {
   'wall-panel': { previewTaskId: '01a1df76-ee0d-743c-97ae-7ec62274193b', refineTaskId: '01a1df77-50fc-7299-9593-17eabb707273' },
   'floor-grate': { previewTaskId: '01a1df76-f008-757f-a757-ddfa54b19a1a', refineTaskId: '01a1df77-7dd5-75cc-b4c7-57fc0e5d73a9' },
@@ -78,6 +81,9 @@ export const RAW_TASKS: Readonly<Record<string, { previewTaskId: string; refineT
   'specimen-tank': { previewTaskId: '01a1df77-16e8-74cb-ae4f-de91807d350f', refineTaskId: '01a1df78-402a-704c-bd78-a911b4a2093c' },
   'security-bulkhead-frame': { previewTaskId: '01a1df77-1d21-7299-b62c-209f0ef332e2', refineTaskId: '01a1df78-5f7b-75a1-9800-9d0dce1acf06' },
   'reactor-conduit': { previewTaskId: '01a1df77-4c60-7578-a6b5-a2d0aea77c7a', refineTaskId: '01a1df78-8ba6-7484-b59f-ba52285aabaf' },
+  'foundry-conveyor': { previewTaskId: '01a1e43d-1328-7338-b37e-a6df1e53e533', refineTaskId: '01a1e43d-b3d0-73b4-bff9-996cb8ff4dfb' },
+  'slag-crucible': { previewTaskId: '01a1e43d-176f-71f6-936a-7a8385230ba5', refineTaskId: '01a1e43d-b992-7343-a181-5212c42b11e2' },
+  'coolant-column': { previewTaskId: '01a1e43d-1c90-7675-8847-a2a7cad7d6b6', refineTaskId: '01a1e43d-be5a-76ad-bd85-709f84366fa3' },
 };
 
 export function buildPlan(kit: readonly TerrainPiece[] = TERRAIN_KIT, only?: string[]): PlanStep[] {

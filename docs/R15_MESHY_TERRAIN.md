@@ -54,7 +54,7 @@ The sandbox also blocked creating `.kiro/settings/` in the workspace. Add the `m
 
 ## Sample comparison (wall panel, one piece, two quality tiers)
 
-Date: 2026-11-15. Same prompt (modular sci-fi industrial wall panel, dark gunmetal, rust, hazard stripe), both refined with PBR textures. Raw files are in `assets/meshy-raw/terrain/` (gitignored). Optimized files are in `public/assets/models/terrain/samples/`. Numbers come from `node tools/meshy/terrain-samples.ts` (output `docs/evidence/r15_meshy_terrain/samples.json`). Same steps as `terrain-kit.ts` `optimizeOne` (weld, simplify error 0.5, WebP q82, center, longest side 1), with texture size and triangle target as parameters.
+Date: 2026-11-15. Same prompt (modular sci-fi industrial wall panel, dark gunmetal, rust, hazard stripe), both refined with PBR textures. Raw files are in `assets/meshy-raw/terrain/` (gitignored). Optimized sample files were written to `public/assets/models/terrain/samples/`, which was deleted after the comparison (re-running the script recreates it; remove it before a release). Numbers come from `node tools/meshy/terrain-samples.ts` (output `docs/evidence/r15_meshy_terrain/samples.json`). Same steps as `terrain-kit.ts` `optimizeOne` (weld, simplify error 0.5, WebP q82, center, longest side 1), with texture size and triangle target as parameters.
 
 | Model | Credits | Raw tris / size | Optimized tris / size | Textures | Notes at game distance |
 |---|---|---|---|---|---|
@@ -97,3 +97,7 @@ Browser check (Playwright MCP, dev server `http://localhost:5173`, `__reanimator
 | Core Vault | `boss` | 155 | 0 |
 
 All values are at or under the 300 limit; Bio-Labs reached 299 on a fresh page load, so it has almost no headroom. Draw calls vary between runs of the same scene (lazy loads). Console errors were read once after the mines and once after the security scenes (0 errors, 0 warnings each time). Screenshots: `docs/evidence/r15_meshy_terrain/{airlock,shaft,mines,biolabs,security,core}.png`. Looked at by eye: airlock, mines, security. Shaft, biolabs and core were captured but not inspected closely (unverified). No piece was moved or rescaled. Some captures right after switching scenes came out black (canvas not yet painted); they were retaken after a page reload. No human playtest.
+
+## R19 additions
+
+Three more pieces (foundry-conveyor, slag-crucible, coolant-column) were generated with the same settings and ingested offline with `make meshy-terrain ARGS='--ingest-raw'`. Placement and measurements: `docs/evidence/r19_props/MEASURED.md`.

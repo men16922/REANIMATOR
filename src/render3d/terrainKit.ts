@@ -1,4 +1,4 @@
-// R15 Meshy terrain kit: 11 optimised GLBs instanced over the map as visual-only dressing (collision solids untouched).
+// R15/R19 Meshy terrain kit: 14 optimised GLBs instanced over the map as visual-only dressing (collision solids untouched).
 // Placement is a pure, deterministic function of the level (id hash, no Math.random). Each (kit piece, sector, 24 m strip)
 // becomes one InstancedMesh, so the draw cost is countable without WebGL (drawBudget). GLBs load lazily per sector; when
 // a GLB fails to load that piece is skipped and the R14 procedural relief (terrainDetail.ts) simply stays as the look.
@@ -18,7 +18,10 @@ export type KitId =
   | 'timber-brace'
   | 'specimen-tank'
   | 'security-bulkhead-frame'
-  | 'reactor-conduit';
+  | 'reactor-conduit'
+  | 'foundry-conveyor'
+  | 'slag-crucible'
+  | 'coolant-column';
 
 export const KIT_IDS: readonly KitId[] = [
   'wall-panel',
@@ -32,6 +35,9 @@ export const KIT_IDS: readonly KitId[] = [
   'specimen-tank',
   'security-bulkhead-frame',
   'reactor-conduit',
+  'foundry-conveyor',
+  'slag-crucible',
+  'coolant-column',
 ];
 
 export const kitUrl = (id: KitId): string => `/assets/models/terrain/${id}.glb`;
@@ -86,6 +92,25 @@ const RULES: Record<SectorId3D, Rule[]> = {
   ],
 };
 
+/**
+ * R19 per-room extras for stage 2 and 3 (room ids come from StageKit: room_<tag>_<key>). Stage 1 rooms are not listed, so
+ * its kit is unchanged. Render only: collision solids are never touched.
+ */
+const ROOM_RULES: Record<string, Rule[]> = {
+  room_s2_hall: [{ kit: 'foundry-conveyor', mode: 'beam', size: 4.6, pitch: 5.4, max: 3 }],
+  room_s2_slag: [{ kit: 'slag-crucible', mode: 'stand', size: 2.8, pitch: 9, max: 1 }],
+  room_s2_furnace: [{ kit: 'slag-crucible', mode: 'stand', size: 3.0, pitch: 9, max: 1 }],
+  room_s3_stacks: [{ kit: 'coolant-column', mode: 'stand', size: 3.6, pitch: 10, max: 1 }],
+  room_s3_spine: [{ kit: 'coolant-column', mode: 'stand', size: 3.6, pitch: 10, max: 1 }],
+  room_s3_arena: [{ kit: 'coolant-column', mode: 'stand', size: 3.8, pitch: 9, max: 1 }],
+};
+
+/** Glow is emissive only (no lights): the albedo drives the emissive map so only the bright molten or coolant parts glow. */
+const KIT_GLOW: Partial<Record<KitId, { color: number; intensity: number }>> = {
+  'slag-crucible': { color: 0xff7a2a, intensity: 1.4 },
+  'coolant-column': { color: 0x55e6ff, intensity: 1.2 },
+};
+
 export interface KitPlacement {
   kit: KitId;
   sector: SectorId3D;
@@ -132,7 +157,7 @@ function isStatic(s: MapSolid3D): boolean {
 }
 
 /** Placements for one solid (world space, base-centre origin pieces). Exported for tests. */
-export function kitPlacementsForSolid(s: MapSolid3D, sector: SectorId3D): KitPlacement[] {
+export function kitPlacementsForSolid(s: MapSolid3D, sector: SectorId3D, roomId?: string): KitPlacement[] {
   if (!isStatic(s)) return [];
   const kind = s.kind ?? 'wall';
   if (kind !== 'wall' && kind !== 'catwalk' && kind !== 'platform') return [];
@@ -143,7 +168,9 @@ export function kitPlacementsForSolid(s: MapSolid3D, sector: SectorId3D): KitPla
   const rnd = rng(hashId(`kit:${s.id}`));
   const floorLike = kind !== 'wall' || sy <= 1.6;
   const out: KitPlacement[] = [];
-  for (const r of RULES[sector]) {
+  // Room extras skip the ceiling slab (top above 8 m), which is out of sight.
+  const rules = roomId && ROOM_RULES[roomId] && top < 8 ? [...RULES[sector], ...ROOM_RULES[roomId]] : RULES[sector];
+  for (const r of rules) {
     if (r.mode === 'face' ? sy < 1.0 : !floorLike) continue;
     const margin = r.size * 0.5 + 0.2;
     if (sx < margin * 2) continue;
@@ -189,8 +216,11 @@ export function planKitUnits(level: Level3D, sectorAt: (x: number, y: number) =>
   const map = new Map<string, KitUnit>();
   for (const s of level.solids) {
     const top = s.visualMaxY ?? s.maxY;
-    const sector = sectorAt((s.minX + s.maxX) * 0.5, (s.minY + top) * 0.5);
-    for (const p of kitPlacementsForSolid(s, sector)) {
+    const cx = (s.minX + s.maxX) * 0.5;
+    const cy = (s.minY + top) * 0.5;
+    const sector = sectorAt(cx, cy);
+    const roomId = level.rooms.find((r) => cx >= r.minX && cx <= r.maxX && cy >= r.minY - 0.5 && cy <= r.maxY + 0.5)?.id;
+    for (const p of kitPlacementsForSolid(s, sector, roomId)) {
       const key = `${sector}|${p.kit}|${Math.floor(p.x / KIT_STRIP_M)}`;
       let u = map.get(key);
       if (!u) {
@@ -230,6 +260,7 @@ export async function loadKitAsset(id: KitId, loader: GLTFLoader = new GLTFLoade
   geometry.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2);
   geometry.scale(1 / longest, 1 / longest, 1 / longest);
   const material = sanitizeKitMaterial((Array.isArray(m.material) ? m.material[0] : m.material).clone());
+  applyKitGlow(material, id);
   repairKitNormals(geometry);
   return { geometry, material };
 }
@@ -273,6 +304,19 @@ export function sanitizeKitMaterial<T extends THREE.Material>(mat: T): T {
   return mat;
 }
 
+/** Adds the emissive glow for kit pieces that have one. No-op for the rest. Exported for tests. */
+export function applyKitGlow<T extends THREE.Material>(mat: T, id: KitId): T {
+  const g = KIT_GLOW[id];
+  const std = mat as unknown as THREE.MeshStandardMaterial;
+  if (g && std.isMeshStandardMaterial) {
+    std.emissive = new THREE.Color(g.color);
+    std.emissiveIntensity = g.intensity;
+    std.emissiveMap = std.map;
+    std.needsUpdate = true;
+  }
+  return mat;
+}
+
 export type KitAssetLoader = (id: KitId) => Promise<KitAsset>;
 
 const _m = new THREE.Matrix4();
@@ -300,6 +344,13 @@ export function buildKitInstanced(unit: KitUnit, asset: KitAsset): THREE.Instanc
   return mesh;
 }
 
+function disposeKitAsset(a: KitAsset): void {
+  a.geometry.dispose();
+  const mat = a.material as THREE.MeshStandardMaterial;
+  for (const v of Object.values(mat)) if (v instanceof THREE.Texture) v.dispose();
+  a.material.dispose();
+}
+
 export interface KitBuilt {
   mesh: THREE.InstancedMesh;
   unit: KitUnit;
@@ -315,6 +366,7 @@ export class TerrainKit {
   private readonly assets = new Map<KitId, Promise<KitAsset | null>>();
   private readonly done = new Set<SectorId3D>();
   private readonly owned: KitAsset[] = [];
+  private disposed = false;
 
   private readonly units: readonly KitUnit[];
   private readonly load: KitAssetLoader;
@@ -329,6 +381,10 @@ export class TerrainKit {
     if (!p) {
       p = this.load(id).then(
         (a) => {
+          if (this.disposed) {
+            disposeKitAsset(a);
+            return null;
+          }
           this.owned.push(a);
           return a;
         },
@@ -360,12 +416,8 @@ export class TerrainKit {
   }
 
   dispose(): void {
-    for (const a of this.owned) {
-      a.geometry.dispose();
-      const mat = a.material as THREE.MeshStandardMaterial;
-      for (const v of Object.values(mat)) if (v instanceof THREE.Texture) v.dispose();
-      a.material.dispose();
-    }
+    this.disposed = true;
+    for (const a of this.owned) disposeKitAsset(a);
     this.owned.length = 0;
   }
 }
