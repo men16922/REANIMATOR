@@ -2,6 +2,11 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## R22 이후
+
+- [x] Frost 에셋 3종과 실행 기록(R22 완료).
+- [ ] Unverified: `make smoke-local`, 오디오 청감, Stage 2·3 사람 플레이, 릴리스 zip `vite preview`.
+
 ## R21 이후
 
 - [ ] `make smoke-local`을 Chrome이 뜨는 환경에서 실행(샌드박스 NOT RUN).

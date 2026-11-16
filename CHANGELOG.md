@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The Cryo Bulwark's frost shield is now a model that lowers when it attacks. Stage 3 gains a coolant pipe wall and cryo racks.
+- Each stage remembers your best clear time, fewest deaths and most kills. The clear screen shows NEW BEST and the stage select shows your best time.
+
 - New Stage 3 foe: the Cryo Bulwark carries a frost shield that blocks Pulse and Scattergun shots from the front. Hit it from behind, while it attacks, or with Rail, Grenade, Flamer or Rocket.
 - Each stage has its own sound: the Foundry Line plays lower and heavier, the Reactor Spire colder and brighter, with its own ambience, footsteps and an arrival sting.
 - The Slag Foreman no longer turns into a flat white shape while it winds up; its counter window now pulses orange over the iron.

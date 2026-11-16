@@ -2,6 +2,13 @@
 
 최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R22 Frost 에셋·실행 기록 (2026-11-17, 로컬 커밋 287d595·3409aef·c1a8681 + 기록 커밋)
+
+- Meshy GLB 3종 ingest(WebP 512): frost-shield 226,352 B / 3000 tris(Bulwark 방패, 내려가면 숨김), coolant-pipe-wall 241,004 B / 3907(Stage 3 뒷 레인), cryo-rack 162,872 B / 2448. Stage 3 draw calls 95-138([DRAWCALLS](evidence/r22_assets/DRAWCALLS.md)).
+- 실행 기록: `src/game3d/records.ts`(키 `reanimator.records.v1`, 스테이지별 최단 시간·최소 사망·최다 처치, 안전 파싱, `tests/records.test.ts`). 클리어 화면에 NEW BEST와 기록 줄, Stage Select에 BEST 시간·사망. 새로고침 후 유지 확인 [r22_records](evidence/r22_records/).
+- `make check` exit 0(744/744, dist-guard PASS). 봇 핀 불변.
+- Unverified: `make smoke-local`, 오디오 청감, Stage 2·3 사람 플레이, 릴리스 zip `vite preview`.
+
 ## R21 렌더 버그·Stage 3 신규 적·스테이지 사운드·README (2026-11-17, 로컬 커밋 8c2699b·bcf4e06·f1b4286·b9f9d1d)
 
 - Foreman 흰 실루엣 원인: 윈드업 중 패리 창(`parryOpen`)의 흰색 0.6 emissive 플래시가 텍스처 없는 emissive로 거의 검은 알베도를 덮음(런타임 emissive `cbcbcb`). 수정: Foreman 재질 `emissiveMap = map`, 패리 펄스는 주황(`PARRY_FLASH_DARK_HEX`). 전후 [r21_foreman](evidence/r21_foreman/). Furnace Gate 126 draw calls.
@@ -20,16 +27,6 @@
 - `make check` exit 0(725/725, reach3d 52 waypoints 3432 ticks, dist-guard PASS 34 files). 봇 핀 불변: Normal 4978/HP126, Story 4880/142, Hard 5319/104(min 100).
 - 인트로 재발동 조사: Warden 인트로는 `world3d.ts`에서 플레이어가 `core` 방에 있고 `bossIntroDone`이 false이고 Warden이 살아 있을 때만 시작한다. Cryo Stacks 오버레이는 디버그 텔레포트에서 온 것으로 추정(unverified).
 - Unverified: `make smoke-local`, `make release`/`vite preview`, Stage 2·3 사람 플레이, 시네마틱 인트로 오버레이의 SPIRE WARDEN 육안(DOM 텍스트만 확인).
-
-## R19 트레일러 릴 (2026-11-16)
-
-- 쇼케이스 릴 12컷·90 s로 3개 스테이지 포함(월드 교체형 컷). `tests/demo.test.ts`는 컷 수·길이(8→12, 60→90 s)와 틱 단조 증가 범위(스테이지별)가 설계상 바뀌어 의도적으로 수정. `make check` exit 0(718/718). Playwright: Stage 2·3 컷 캡션·렌더 확인, 오류 0([docs/evidence/r19_reel/](evidence/r19_reel/)). 헤드리스 타이머 스로틀로 컷별 캡처는 일부만.
-
-## R18 스테이지 검증 (2026-11-16, 로컬 커밋 d7e91ab·4778f0c·이번 docs)
-
-- Stage 2·3 브라우저 검증, HUD 목표 줄 수정, 모든 섹터 draw calls 300 이하(최대 전투 쇼케이스 294), Stage 2 Slag Foreman 미니보스(돌진+충격파, 출구 잠금), 스테이지별 컬러 그레이드, Stage 2·3 봇 완주 테스트. Foreman 이후 재측정: Stage 2 방별 최대 134-153, Foreman 전투 135. 상세 [MEASURED](evidence/r18_stages/MEASURED.md), 스크린샷 `foreman_lunge.png`.
-- README에 3개 스테이지 스크린샷 추가, 쇼케이스 릴 마지막 컷에 "Three stages" 문구. 릴 컷은 Stage 1 봇 재생이라 Stage 2·3 장면 컷은 없음.
-- Unverified: Stage 2·3 사람 플레이, `make smoke-local`, `make release`/`vite preview`(아래 PROGRESS_LOG 참조), G5.
 
 ## Abuse 레벨 관찰 (2026-11-16)
 

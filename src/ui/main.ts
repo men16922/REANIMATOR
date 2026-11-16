@@ -38,6 +38,7 @@ import { applyDebugSetup, DEMO_STOPS, SHOWCASE_NAMES, SHOWCASE_SCENES, type Debu
 import { OPENING_BEATS, OPENING_ENEMY_ID, OPENING_VENT, OpeningClock, openingView } from './opening.ts';
 import { buildRunStats, formatClock, Onboarding, retryTip, type Hint } from './flow.ts';
 import { Tutorial, TUTORIAL_STEPS, TUTORIAL_STORE_KEY, parseTutorialSaved } from './tutorial.ts';
+import { parseRecords, RECORDS_KEY, recordSummary, serializeRecords, updateRecords, type RunRecords } from '../game3d/records.ts';
 import { clearFromWorld, formatStageTime, mergeAbilities, isStageUnlocked, nextStage, parseProgress, recordClear, serializeProgress, STAGE_PROGRESS_KEY, STAGE_TITLES, type StageProgress } from '../game3d/stageFlow.ts';
 import { STAGE_IDS_3D } from '../game3d/stages3d.ts';
 import type { StageId3D } from '../game3d/types3d.ts';
@@ -199,6 +200,7 @@ let demoStop: DemoStop | null = null;
 let deaths = 0;
 /** Campaign progress (cleared stages, best times). Loaded once, written on every stage clear. */
 let progress: StageProgress = parseProgress(store(STAGE_PROGRESS_KEY));
+let records: RunRecords = parseRecords(store(RECORDS_KEY));
 /** Set by start() for stages 2 and 3: the stage title card shows on the first observed frame. */
 let stageCardPending = false;
 let introActive = false;
@@ -1119,7 +1121,11 @@ function showResult(): void {
     const rec = recordClear(progress, world.stage, seconds);
     progress = rec.progress;
     store(STAGE_PROGRESS_KEY, serializeProgress(progress));
-    bestLine = `${rec.newBest ? 'New best' : 'Best'} ${formatStageTime(progress.best[world.stage])}`;
+    const ru = updateRecords(records, world.stage, { seconds, deaths: st.deaths, kills: clear ? clear.kills : st.kills });
+    records = ru.records;
+    store(RECORDS_KEY, serializeRecords(records));
+    const sum = recordSummary(records[world.stage]);
+    bestLine = `${rec.newBest ? 'NEW BEST' : 'Best'} ${formatStageTime(progress.best[world.stage])}${sum ? ' · ' + sum : ''}`;
     bestNext = nextStage(world.stage);
   }
   $('rs-l-deaths').textContent = stageWin ? 'BEST' : 'DEATHS';
@@ -1357,7 +1363,7 @@ function renderStageSelect(): void {
     b.disabled = !open;
     b.title = open ? '' : `Clear stage ${id - 1} to unlock`;
     const t = STAGE_TITLES[id];
-    const note = !open ? 'LOCKED' : progress.best[id] !== null ? `BEST ${formatStageTime(progress.best[id])}` : progress.cleared[id] ? 'CLEARED' : 'NEW';
+    const note = !open ? 'LOCKED' : progress.best[id] !== null ? `BEST ${formatStageTime(progress.best[id])}${records[id].fewestDeaths !== null ? ` · ${records[id].fewestDeaths} deaths` : ''}` : progress.cleared[id] ? 'CLEARED' : 'NEW';
     $(`stage-${id}-text`).textContent = `Stage ${id} · ${t.name}`;
     $(`stage-${id}-note`).textContent = note;
   }
