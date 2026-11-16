@@ -112,3 +112,5 @@ R9–R16 상세: [archive/PROGRESS_LOG_R9_R16.md](archive/PROGRESS_LOG_R9_R16.md
 - Unverified: Foreman strike visual, Spire Warden card visual, r19 black squares, smoke-local, release.
 
 - 2026-11-17 R23 FEAT-002: gamepad mapping (gamepad.ts), settings (settings.ts), main.ts input layer, tests/gamepad.test.ts. make check exit 0 (753/753). Real pad and browser UI unverified.
+
+- 2026-11-17 R23: #result panel scrolls (overflow-y auto, safe center, compact at <=800px height) so grade/buttons are reachable at 1280x720; footer badge now 'KEYBOARD / MOUSE / GAMEPAD'. Visual re-capture unverified.

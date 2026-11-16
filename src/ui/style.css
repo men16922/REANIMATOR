@@ -410,6 +410,9 @@ body.reduce-fx #intro .op-frost { backdrop-filter: none; }
 .rank[hidden] { display: none; }
 .rank.r-S { color: #ffe27a; } .rank.r-A { color: #5eff9c; } .rank.r-B { color: #6ae6ff; } .rank.r-C { color: #9db6cf; }
 @keyframes rank-in { from { opacity: 0; transform: scale(2.4) rotate(-6deg); } }
+#result { overflow-y: auto; justify-content: safe center; max-height: 100%; gap: 0.4em; }
+#result > * { flex-shrink: 0; }
+@media (max-height: 800px) { #result .rank { font-size: 4em; } #result .stats b { font-size: 1.3em; } #result .stats span { padding: 0.4em 1em; } #fullrun, #ending { padding: 0.5em 1em; } #ending p { margin: 0 0 0.3em; line-height: 1.4; } }
 #result.won { background: radial-gradient(circle at 50% 30%, rgba(61, 255, 136, 0.18), rgba(5, 8, 14, 0.86) 70%); animation: win-flare 1.4s ease-out; }
 #result.lost { background: radial-gradient(circle at 50% 40%, rgba(120, 10, 20, 0.35), rgba(5, 8, 14, 0.9) 70%); }
 #result.lost h2 { color: #ff8a95; animation: signal-lost 2.2s steps(1) infinite; }

@@ -5,7 +5,7 @@ export const BRAND = {
   name: 'REANIMATOR',
   tagline: 'The reactor still burns. Reach the core. Get out.',
   pitch: 'A 3D side-view sci-fi metroidvania',
-  credit: 'WEBGL2 · KEYBOARD + MOUSE',
+  credit: 'WEBGL2 · KEYBOARD / MOUSE / GAMEPAD',
 } as const;
 
 interface Glyph {
