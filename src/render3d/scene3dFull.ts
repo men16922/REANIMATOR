@@ -71,7 +71,7 @@ import {
   stepGlide,
 } from './enemyMotion.ts';
 import { foremanGaitStep, foremanPose } from './foremanMotion.ts';
-import { bulwarkShieldUp3D } from '../game3d/stage3.ts';
+import { bulwarkShieldRaise, bulwarkShieldUp3D } from '../game3d/stage3.ts';
 import { getFacilityTextures3D } from './textures3d.ts';
 import { ChunkLayer, DecalLayer } from './gore3dGfx.ts';
 import { buildMood3D, type Mood3D } from './mood3dGfx.ts';
@@ -89,7 +89,7 @@ import { buildVista3D, type Vista3D } from './vista3d.ts';
 import { buildAmbient3D, type Ambient3D } from './ambient3d.ts';
 import type { OpeningView } from '../ui/opening.ts';
 import { buildTerrainDetail, makeTerrainDetailMaterial } from './terrainDetail.ts';
-import { TerrainKit, planKitUnits } from './terrainKit.ts';
+import { TerrainKit, loadKitAsset, planKitUnits, type KitAsset } from './terrainKit.ts';
 import { batchKeyFor, buildBatchGeometry, classifySolid, type BatchItem, type SolidClass } from './solidBatches.ts';
 
 /** Round 16 ability pickups reuse the existing item silhouettes with their own colour (no new meshes, no lights). */
@@ -445,8 +445,13 @@ export class Scene3DRenderer {
   private readonly bulwarkShieldMaterial = new THREE.MeshStandardMaterial({
     color: 0x9fe8ff, emissive: 0x3cc8ff, emissiveIntensity: 0.85, roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.55, depthWrite: false,
   });
+  /** R22 frost-shield GLB shared by every Bulwark; null until loaded, failed keeps the emissive slab. */
+  private bulwarkShieldAsset: KitAsset | null = null;
+  private bulwarkShieldLoad: Promise<void> | null = null;
   private readonly _bwPos = new THREE.Vector3();
   private readonly _bwQuat = new THREE.Quaternion();
+  private readonly _bwTilt = new THREE.Quaternion();
+  private readonly _bwAxisZ = new THREE.Vector3(0, 0, 1);
   private readonly enemyRenderInfo = new Map<string, Partial<EnemyRenderTelemetry> & { yaw: number; x: number; y: number; z: number }>();
   private readonly staticEnemies = new Map<string, StaticActorHandle>();
   private readonly barrelHandles = new Map<string, StaticActorHandle>();
@@ -1224,6 +1229,12 @@ export class Scene3DRenderer {
     this.kitMeshes.length = 0;
     this.terrainKit?.dispose();
     this.terrainKit = null;
+    this.bulwarkShieldLoad = null;
+    if (this.bulwarkShieldAsset) {
+      this.bulwarkShieldAsset.geometry.dispose();
+      this.bulwarkShieldAsset.material.dispose();
+      this.bulwarkShieldAsset = null;
+    }
     this.cullEntries.length = 0;
     this.acidMeshes.length = 0;
     this.savePads.length = 0;
@@ -1519,6 +1530,22 @@ export class Scene3DRenderer {
         this.cullEntries.push({ obj: b.mesh, minX: b.unit.minX, maxX: b.unit.maxX, minY: b.unit.minY, maxY: b.unit.maxY });
       }
     });
+  }
+
+  /** Loads the shared frost-shield GLB once; a failure leaves the emissive slab in place. */
+  private ensureBulwarkShieldAsset(): void {
+    if (this.bulwarkShieldLoad) return;
+    this.bulwarkShieldLoad = loadKitAsset('frost-shield').then(
+      (a) => {
+        if (!this.bulwarkShieldLoad) {
+          a.geometry.dispose();
+          a.material.dispose();
+          return;
+        }
+        this.bulwarkShieldAsset = a;
+      },
+      (err) => console.warn('[scene3d] frost-shield failed, keeping the slab:', err),
+    );
   }
 
   private addCullPoint(obj: THREE.Object3D, x: number, y: number, r: number): void {
@@ -1883,7 +1910,9 @@ export class Scene3DRenderer {
             // One emissive slab per Bulwark (child of the rig, so culling and disposal follow the body). No light added.
             const slab = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.55, 0.95), this.bulwarkShieldMaterial);
             slab.name = `bulwark-shield:${e.id}`;
+            slab.userData.slabGeometry = slab.geometry;
             rig.root.add(slab);
+            this.ensureBulwarkShieldAsset();
           }
         }
         const bodyH = rigH;
@@ -2523,18 +2552,38 @@ export class Scene3DRenderer {
         }
         if (e.kind === 'warden' && e.alive && e.windupTicks > 0) telegraphWarden = e;
         if (e.variant === 'bulwark') {
-          const slab = rig.root.getObjectByName(`bulwark-shield:${e.id}`);
+          const slab = rig.root.getObjectByName(`bulwark-shield:${e.id}`) as THREE.Mesh | null;
           if (slab) {
+            const asset = this.bulwarkShieldAsset;
+            if (asset && !slab.userData.glb) {
+              (slab.userData.slabGeometry as THREE.BufferGeometry | undefined)?.dispose();
+              slab.geometry = asset.geometry;
+              slab.material = asset.material;
+              slab.userData.glb = true;
+            }
             const up = bulwarkShieldUp3D(e);
-            slab.visible = up;
-            if (up) {
-              // Held in world space on the facing side, upright, whatever the rig's yaw and lean
-              rig.root.updateMatrixWorld(true);
-              this._bwPos.set(ex + e.facing * BULWARK_SHIELD_FWD, ey + 0.95, 0.05);
-              rig.root.worldToLocal(this._bwPos);
-              slab.position.copy(this._bwPos);
-              rig.root.getWorldQuaternion(this._bwQuat);
-              slab.quaternion.copy(this._bwQuat.invert());
+            // Display-only lerp toward raised (1) or lowered (0); the sim only decides which.
+            const prev = typeof slab.userData.raise === 'number' ? (slab.userData.raise as number) : up ? 1 : 0;
+            const raise = this.reduceMotion ? (up ? 1 : 0) : bulwarkShieldRaise(prev, up, dt);
+            slab.userData.raise = raise;
+            slab.visible = e.alive;
+            const glb = slab.userData.glb === true;
+            // Held in world space on the facing side whatever the rig's yaw and lean; lowered it tilts toward the ground.
+            rig.root.updateMatrixWorld(true);
+            this._bwPos.set(ex + e.facing * (BULWARK_SHIELD_FWD + (1 - raise) * 0.25), ey + 0.95 - (1 - raise) * 0.55, 0.05);
+            rig.root.worldToLocal(this._bwPos);
+            slab.position.copy(this._bwPos);
+            rig.root.getWorldQuaternion(this._bwQuat);
+            this._bwQuat.invert();
+            if (glb) {
+              slab.scale.setScalar(1.55);
+              // The GLB origin is base-centred: lift it so the centre sits where the slab centre did.
+              slab.position.y -= 0.775;
+              this._bwTilt.setFromAxisAngle(this._bwAxisZ, -e.facing * (1 - raise) * 1.1);
+              slab.quaternion.copy(this._bwQuat).multiply(this._bwTilt);
+            } else {
+              slab.quaternion.copy(this._bwQuat);
+              slab.visible = e.alive && up;
             }
           }
         }

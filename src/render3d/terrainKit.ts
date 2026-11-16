@@ -21,7 +21,10 @@ export type KitId =
   | 'reactor-conduit'
   | 'foundry-conveyor'
   | 'slag-crucible'
-  | 'coolant-column';
+  | 'coolant-column'
+  | 'coolant-pipe-wall'
+  | 'cryo-rack'
+  | 'frost-shield';
 
 export const KIT_IDS: readonly KitId[] = [
   'wall-panel',
@@ -39,6 +42,9 @@ export const KIT_IDS: readonly KitId[] = [
   'slag-crucible',
   'coolant-column',
 ];
+
+/** R22 Stage 3 props: placed by ROOM_RULES only (no sector rules), so they are listed apart from the stage 1 kit. */
+export const STAGE3_KIT_IDS: readonly KitId[] = ['coolant-pipe-wall', 'cryo-rack'];
 
 export const kitUrl = (id: KitId): string => `/assets/models/terrain/${id}.glb`;
 
@@ -100,15 +106,33 @@ const ROOM_RULES: Record<string, Rule[]> = {
   room_s2_hall: [{ kit: 'foundry-conveyor', mode: 'beam', size: 4.6, pitch: 5.4, max: 3 }],
   room_s2_slag: [{ kit: 'slag-crucible', mode: 'stand', size: 2.8, pitch: 9, max: 1 }],
   room_s2_furnace: [{ kit: 'slag-crucible', mode: 'stand', size: 3.0, pitch: 9, max: 1 }],
-  room_s3_stacks: [{ kit: 'coolant-column', mode: 'stand', size: 3.6, pitch: 10, max: 1 }],
-  room_s3_spine: [{ kit: 'coolant-column', mode: 'stand', size: 3.6, pitch: 10, max: 1 }],
-  room_s3_arena: [{ kit: 'coolant-column', mode: 'stand', size: 3.8, pitch: 9, max: 1 }],
+  room_s3_breach: [{ kit: 'coolant-pipe-wall', mode: 'face', size: 3.0, pitch: 6, max: 2, at: 0.5 }],
+  room_s3_stacks: [
+    { kit: 'coolant-column', mode: 'stand', size: 3.6, pitch: 10, max: 1 },
+    { kit: 'coolant-pipe-wall', mode: 'face', size: 3.0, pitch: 6, max: 2, at: 0.5 },
+    { kit: 'cryo-rack', mode: 'stand', size: 2.6, pitch: 7, max: 2 },
+  ],
+  room_s3_hatchery: [
+    { kit: 'coolant-pipe-wall', mode: 'face', size: 3.0, pitch: 6, max: 2, at: 0.5 },
+    { kit: 'cryo-rack', mode: 'stand', size: 2.4, pitch: 8, max: 1 },
+  ],
+  room_s3_spine: [
+    { kit: 'coolant-column', mode: 'stand', size: 3.6, pitch: 10, max: 1 },
+    { kit: 'coolant-pipe-wall', mode: 'face', size: 3.0, pitch: 6, max: 2, at: 0.5 },
+  ],
+  room_s3_arena: [
+    { kit: 'coolant-column', mode: 'stand', size: 3.8, pitch: 9, max: 1 },
+    { kit: 'coolant-pipe-wall', mode: 'face', size: 3.2, pitch: 6, max: 2, at: 0.5 },
+  ],
 };
 
 /** Glow is emissive only (no lights): the albedo drives the emissive map so only the bright molten or coolant parts glow. */
 const KIT_GLOW: Partial<Record<KitId, { color: number; intensity: number }>> = {
   'slag-crucible': { color: 0xff7a2a, intensity: 1.4 },
   'coolant-column': { color: 0x55e6ff, intensity: 1.2 },
+  'coolant-pipe-wall': { color: 0x55e6ff, intensity: 0.9 },
+  'cryo-rack': { color: 0x55e6ff, intensity: 0.9 },
+  'frost-shield': { color: 0x55e6ff, intensity: 1.1 },
 };
 
 export interface KitPlacement {

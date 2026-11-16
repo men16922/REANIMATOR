@@ -161,6 +161,13 @@ export function bulwarkShieldUp3D(e: BulwarkView3D): boolean {
   return e.state !== 'windup' && e.state !== 'attack' && e.state !== 'recover' && e.state !== 'stagger';
 }
 
+/** Display-only: eases the shield raise fraction (1 = upright, 0 = lowered) toward the sim state. Pure and deterministic. */
+export function bulwarkShieldRaise(prev: number, up: boolean, dt: number, rate = 9): number {
+  const target = up ? 1 : 0;
+  const next = prev + (target - prev) * Math.min(1, Math.max(0, dt) * rate);
+  return Math.abs(target - next) < 0.002 ? target : next;
+}
+
 /** Damage multiplier for one hit. `knockX` carries the shot direction (its sign), `weapon` the slot (0 = no weapon). */
 export function bulwarkDamageMult3D(e: BulwarkView3D, knockX: number, weapon: number): number {
   if (!bulwarkShieldUp3D(e) || knockX === 0 || !BULWARK_BLOCKED_WEAPONS.includes(weapon)) return 1;

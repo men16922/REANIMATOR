@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildFacilityMap3D } from '../src/game3d/map3d.ts';
 import { buildStage2Map3D } from '../src/game3d/stage2.ts';
-import { buildStage3Map3D } from '../src/game3d/stage3.ts';
+import { buildStage3Map3D, bulwarkShieldRaise } from '../src/game3d/stage3.ts';
 import { RAW_TASKS, TERRAIN_KIT, buildPlan, parseArgs } from '../tools/meshy/terrain-kit.ts';
 import type { SectorId3D } from '../src/game3d/types3d.ts';
 import { existsSync, readFileSync } from 'node:fs';
-import { KIT_IDS, TerrainKit, applyKitGlow, planKitUnits, repairKitNormals, sanitizeKitMaterial, type KitAsset, type KitId } from '../src/render3d/terrainKit.ts';
+import { KIT_IDS, STAGE3_KIT_IDS, TerrainKit, applyKitGlow, planKitUnits, repairKitNormals, sanitizeKitMaterial, type KitAsset, type KitId } from '../src/render3d/terrainKit.ts';
 
 const level = buildFacilityMap3D();
 const sectorAt = (x: number, y: number): SectorId3D => {
@@ -24,6 +24,7 @@ test('every sector gets kit placements and the plan is deterministic', () => {
   for (const s of SECTORS) assert.ok(a.some((u) => u.sector === s), `${s} has kit units`);
   const used = new Set(a.map((u) => u.kit));
   const stage2and3Only = new Set<KitId>(['foundry-conveyor', 'slag-crucible', 'coolant-column']);
+  for (const id of STAGE3_KIT_IDS) assert.ok(!KIT_IDS.includes(id) && !used.has(id), `${id} not in the stage 1 kit`);
   for (const id of KIT_IDS) assert.equal(used.has(id), !stage2and3Only.has(id), `${id} placement in stage 1`);
 });
 
@@ -185,4 +186,34 @@ test('--ingest-raw runs offline with no API key (empty plan writes nothing)', as
   const r = spawnSync(process.execPath, ['--experimental-strip-types', 'tools/meshy/terrain-kit.ts', '--ingest-raw', '--only', 'no-such-piece'], { cwd: new URL('..', import.meta.url).pathname, encoding: 'utf8', env: { ...process.env, MESHY_API_KEY: '' } });
   assert.equal(r.status, 0, 'unknown --only id yields an empty plan, nothing written');
   assert.match(r.stdout, /0 pieces/);
+});
+
+test('R22 stage 3 props: pipe walls and cryo racks sit in the named rooms, glow cyan, stay deterministic', () => {
+  const l3 = buildStage3Map3D();
+  const u3 = planKitUnits(l3, stageSectorAt(l3));
+  const rooms = (kit: KitId) => new Set(u3.filter((u) => u.kit === kit).flatMap((u) => u.placements.map((p) => roomOf(l3 as never, p.x))));
+  assert.deepEqual([...rooms('coolant-pipe-wall')].sort(), ['room_s3_arena', 'room_s3_breach', 'room_s3_hatchery', 'room_s3_spine', 'room_s3_stacks']);
+  assert.deepEqual([...rooms('cryo-rack')].sort(), ['room_s3_hatchery', 'room_s3_stacks']);
+  const again = planKitUnits(l3, stageSectorAt(l3));
+  assert.deepEqual(again.map((u) => [u.key, u.placements.length]), u3.map((u) => [u.key, u.placements.length]));
+  for (const id of ['coolant-pipe-wall', 'cryo-rack', 'frost-shield'] as KitId[]) {
+    const m = applyKitGlow(new THREE.MeshStandardMaterial({ map: new THREE.Texture() }), id);
+    assert.equal(m.emissive.getHex(), 0x55e6ff, id);
+    assert.ok(m.emissiveMap === m.map);
+  }
+  assert.ok(!planKitUnits(level, sectorAt).some((u) => STAGE3_KIT_IDS.includes(u.kit)));
+  assert.ok(!planKitUnits(buildStage2Map3D(), stageSectorAt(buildStage2Map3D())).some((u) => STAGE3_KIT_IDS.includes(u.kit)));
+});
+
+test('R22 bulwark shield raise eases toward the sim state and is deterministic', () => {
+  assert.equal(bulwarkShieldRaise(1, true, 0.016), 1);
+  const a = bulwarkShieldRaise(1, false, 0.016);
+  assert.ok(a < 1 && a > 0.8);
+  assert.equal(bulwarkShieldRaise(1, false, 0.016), a);
+  let r = 1;
+  for (let i = 0; i < 60; i++) r = bulwarkShieldRaise(r, false, 0.016);
+  assert.equal(r, 0);
+  r = 0;
+  for (let i = 0; i < 60; i++) r = bulwarkShieldRaise(r, true, 0.016);
+  assert.equal(r, 1);
 });
