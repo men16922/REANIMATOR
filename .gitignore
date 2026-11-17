@@ -42,3 +42,9 @@ docs/evidence/g3/c01_attempts/**/*.png
 
 # Release archives
 release/
+
+# Local MCP/agent configs may embed API keys. Never commit.
+.mcp.json
+.codex/
+.playwright-mcp/
+.agents/
