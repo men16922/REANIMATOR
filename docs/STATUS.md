@@ -2,6 +2,11 @@
 
 최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
+## R27 스모크 복구 (2026-11-17)
+
+- `make smoke-local` 30/30 PASS(Chrome, `rendererMode webgl-3d`, 모델 10종·rigged 11, 60.5 fps, 페이지 오류 0). 앱 결함이 아니라 `tools/smoke/smoke.ts`가 현재 UI와 어긋나 있었다: 메뉴 버튼 3→4(Stages 추가), 버튼명 `About the game`·`Physics lab`, Space 점프 검사가 공중에서 눌려 실패(체공 약 1.0 s, 대기 700→1400 ms). 프로브로 W·Space 점프 궤적 동일 확인.
+- `make check` exit 0. 여전히 unverified: 사람 플레이, `make release`+`vite preview`, 흑화면 확정 원인.
+
 ## R26 색 그레이딩·HUD 라벨 수정 (2026-11-17, 로컬 커밋 대기)
 
 - 흑화면 Bio-Labs 재현 시도: 새 로드, `__reanimatorShowcase`, 스테이지 교체(1↔2↔3), production build(`vite build`+`http.server`) 모두에서 재현 실패(draw calls 97~287, 전부 정상 렌더). R25가 의심한 Vite HMR 아티팩트 가설과 일치하나 확정 불가(circumstantial만 확보).

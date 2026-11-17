@@ -2,6 +2,11 @@
 
 R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-17 — R27 스모크 복구 (로컬 커밋, 푸시 없음)
+
+- Changed: `tools/smoke/smoke.ts`(메뉴 4개, 버튼명, 점프 대기).
+- Verified: `make smoke-local` 30/30, `make check` exit 0.
+
 ## 2026-11-17 — R23 FEAT-003 전체 런 엔딩 (로컬 커밋, 푸시 없음)
 
 - Changed: `src/game3d/records.ts`(런 로그, 합계, 최고 런), `src/ui/main.ts`·`index.html`·`style.css`(REANIMATED 카드, `__reanimatorShowEnding`), `tests/fullrun.test.ts`.

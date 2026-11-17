@@ -5,7 +5,8 @@
 ## R26 이후
 
 - [x] 흑화면 Bio-Labs 조사(재현 불가, HMR 의심만 확인), Stage 2/3 컬러 그레이딩·유리 반사 틴트, HUD 섹터명 누출 수정, `make check` 766/766.
-- [ ] 흑화면 근본원인 확정(HMR 가설 미검증), `make smoke-local`, G5 사람 플레이.
+- [x] `make smoke-local` 30/30 PASS(R27: 낡은 스모크 스크립트 3곳 수정).
+- [ ] 흑화면 근본원인 확정(HMR 가설 미검증), G5 사람 플레이.
 - [ ] R25에서 별도 위임된 지형 지오메트리 폴리시(chamfered batches·back-lane clutter) 재검증 — 이번 라운드는 색/HUD만 다룸.
 
 ## R25 이후

@@ -115,13 +115,13 @@ try {
     { loaded: initial.loadedModels, failed: initial.failedModels, riggedCount: initial.riggedCount },
   );
 
-  check('first screen menu has Play, Settings, Extras (Continue hidden without a save)', (await page.locator('#title-menu button:visible').count()) === 3);
+  check('first screen menu has Play, Stages, Settings, Extras (Continue hidden without a save)', (await page.locator('#title-menu button:visible').count()) === 4);
   await page.click('#extras-open');
-  await page.getByRole('button', { name: 'How it was revived' }).click();
-  check('evidence panel opens', await page.getByRole('heading', { name: 'How it was revived' }).isVisible());
+  await page.getByRole('button', { name: 'About the game' }).click();
+  check('evidence panel opens', await page.getByRole('heading', { name: 'About the game' }).isVisible());
   await page.click('#revived-close');
 
-  await page.getByRole('button', { name: 'Restoration Lab' }).click();
+  await page.getByRole('button', { name: 'Physics lab' }).click();
   await wait(200);
   const labIds = await page
     .locator('#lab-scenario option')
@@ -165,13 +165,13 @@ try {
   const sW = await snap();
   await page.keyboard.up('KeyW');
   check('W jumps (+Y) and airborne pose has vy > 0', sW.y > 0.1 && sW.pose.vy > 0 && !sW.pose.grounded, { y: sW.y, vy: sW.pose.vy });
-  await wait(700);
+  await wait(1400);
   await page.keyboard.down('Space');
   await wait(140);
   const sJump = await snap();
   await page.keyboard.up('Space');
   check('Space jumps (+Y)', sJump.y > 0.1, { y: sJump.y });
-  await wait(700);
+  await wait(1400);
 
   // Jet-Dash (ShiftLeft)
   await page.keyboard.press('ShiftLeft');
