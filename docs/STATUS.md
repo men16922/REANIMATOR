@@ -5,6 +5,7 @@
 ## R27 스모크 복구 (2026-11-17)
 
 - `make smoke-local` 30/30 PASS(Chrome, `rendererMode webgl-3d`, 모델 10종·rigged 11, 60.5 fps, 페이지 오류 0). 앱 결함이 아니라 `tools/smoke/smoke.ts`가 현재 UI와 어긋나 있었다: 메뉴 버튼 3→4(Stages 추가), 버튼명 `About the game`·`Physics lab`, Space 점프 검사가 공중에서 눌려 실패(체공 약 1.0 s, 대기 700→1400 ms). 프로브로 W·Space 점프 궤적 동일 확인.
+- 직접 캡처(`docs/evidence/r27_first90/`)로 발견·수정: macOS Chrome에서 `-webkit-font-smoothing: none`+`optimizeSpeed` 때문에 작은 글자 `m`이 네모로 뭉쳐 보였다(`confir■`, `■ouse`, `■etroidvania`). 실제 렌더 폰트는 Menlo Bold(Press Start 2P·Silkscreen은 `@font-face` 없음). 안티앨리어싱 복원 후 캡처로 정상 확인. 스모크 에임 검사는 대시 직후 카메라 지연 때문에 간헐 실패해 대기 1500 ms·커서 x=1180으로 조정(이후 10회 중 실패 1회, 수정 직후).
 - `make check` exit 0. 여전히 unverified: 사람 플레이, `make release`+`vite preview`, 흑화면 확정 원인.
 
 ## R26 색 그레이딩·HUD 라벨 수정 (2026-11-17, 로컬 커밋 대기)

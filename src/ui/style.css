@@ -550,7 +550,7 @@ body.meltdown-calm::after { background: radial-gradient(ellipse at center, rgba(
 
 /* ---- R16: retro skin. Pixel-style type, hard 2px frames, flat palette, chunky bars, CRT scanlines (CSS only, no WebGL cost). ---- */
 :root { --font-ui: "Press Start 2P", "Silkscreen", ui-monospace, "SF Mono", Menlo, Consolas, monospace; --font-mono: "Press Start 2P", "Silkscreen", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-body:not(.classic) #hud, body:not(.classic) .overlay, body:not(.classic) .panel, body:not(.classic) #coach, body:not(.classic) #pickup-banner, body:not(.classic) #sector-card { font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.06em; text-rendering: optimizeSpeed; -webkit-font-smoothing: none; font-smooth: never; }
+body:not(.classic) #hud, body:not(.classic) .overlay, body:not(.classic) .panel, body:not(.classic) #coach, body:not(.classic) #pickup-banner, body:not(.classic) #sector-card { font-family: var(--font-mono); font-weight: 700; letter-spacing: 0.06em; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
 body:not(.classic) .pill, body:not(.classic) #minimap-wrap, body:not(.classic) #warden-hud, body:not(.classic) .stats span, body:not(.classic) .settings, body:not(.classic) #coach, body:not(.classic) #pickup-banner, body:not(.classic) .panel, body:not(.classic) .scan-frame, body:not(.classic) button { border-radius: 0; border-width: 2px; box-shadow: 2px 2px 0 #000; }
 body:not(.classic) #hud { text-shadow: 1px 1px 0 #000; }
 body:not(.classic) .bar { position: relative; border-radius: 0; border: 2px solid var(--c-line); }

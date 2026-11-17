@@ -178,10 +178,10 @@ try {
   await wait(120);
   const sDash = await snap();
   check('Shift triggers Jet-Dash cooldown', sDash.dashCooldown > 0, { dashCooldown: sDash.dashCooldown });
-  await wait(400);
+  await wait(1500);
 
   // 360 cursor aiming + LMB firing
-  await page.mouse.move(1000, 200);
+  await page.mouse.move(1180, 200);
   await wait(160);
   const aimA = (await snap()).pose;
   await page.mouse.move(200, 640);
