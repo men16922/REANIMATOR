@@ -7,6 +7,12 @@ R20~R15와 이전 항목은 [archive/progress-2026-11.md](archive/progress-2026-
 - Changed: `tools/smoke/smoke.ts`(메뉴 4개, 버튼명, 점프·에임 대기), `style.css`(작은 글자 안티앨리어싱 복원), `.gitignore`(키가 든 `.mcp.json`·`.codex/` 등), `docs/JUDGES.md`, tidy-docs(라운드 문서 35개를 `docs/archive/rounds/`로 이동, STATUS/LOG 예산 맞춤, 링크 0 깨짐).
 - Verified: `make smoke-local` 30/30, `make check` exit 0, 프로덕션 `dist/` Chrome 플레이(오류 0).
 
+## 2026-11-17 — R27 AWS 배포 (로컬 커밋, 푸시 없음)
+
+- Changed: `infra/site.yaml`(S3 비공개 + CloudFront OAC, HTTPS, 보안 헤더), `infra/deploy.sh`, `infra/README.md`. 스택 `reanimator-site`(us-west-2), URL https://dlr55kf9v2hn7.cloudfront.net.
+- Verified: 56/56 파일 업로드, 콘텐츠 타입·캐시·HSTS 헤더 확인, HTTP→HTTPS 301, S3 직접 접근 403, 실제 URL에서 Chrome 플레이(오류 0, HTTP 4xx 0, glb 16개 로드, 스크린샷 `r27_first90/6-aws-cloudfront-play.png`).
+- `infra/deploy.sh` 전체 재실행 확인(변경 없음, 업로드·무효화 성공). Unverified: 모바일·타 브라우저.
+
 ## 2026-11-17 — R23 FEAT-003 전체 런 엔딩 (로컬 커밋, 푸시 없음)
 
 - Changed: `src/game3d/records.ts`(런 로그, 합계, 최고 런), `src/ui/main.ts`·`index.html`·`style.css`(REANIMATED 카드, `__reanimatorShowEnding`), `tests/fullrun.test.ts`.
