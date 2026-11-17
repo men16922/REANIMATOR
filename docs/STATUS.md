@@ -1,6 +1,6 @@
 # 현재 상태
 
-최종 갱신: 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-17 R27 · 이전 R20~R25 상세는 [archive/STATUS_R15_R25.md](archive/STATUS_R15_R25.md) · 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## R27 스모크 복구 (2026-11-17)
 
@@ -8,7 +8,7 @@
 - 직접 캡처(`docs/evidence/r27_first90/`)로 발견·수정: macOS Chrome에서 `-webkit-font-smoothing: none`+`optimizeSpeed` 때문에 작은 글자 `m`이 네모로 뭉쳐 보였다(`confir■`, `■ouse`, `■etroidvania`). 실제 렌더 폰트는 Menlo Bold(Press Start 2P·Silkscreen은 `@font-face` 없음). 안티앨리어싱 복원 후 캡처로 정상 확인. 스모크 에임 검사는 대시 직후 카메라 지연 때문에 간헐 실패해 대기 1500 ms·커서 x=1180으로 조정(이후 10회 중 실패 1회, 수정 직후).
 - `make check` exit 0. 여전히 unverified: 사람 플레이, `make release`+`vite preview`, 흑화면 확정 원인.
 
-## R26 색 그레이딩·HUD 라벨 수정 (2026-11-17, 로컬 커밋 대기)
+## R26 색 그레이딩·HUD 라벨 수정 (2026-11-17, 로컬 커밋 a77646c·072fd2e)
 
 - 흑화면 Bio-Labs 재현 시도: 새 로드, `__reanimatorShowcase`, 스테이지 교체(1↔2↔3), production build(`vite build`+`http.server`) 모두에서 재현 실패(draw calls 97~287, 전부 정상 렌더). R25가 의심한 Vite HMR 아티팩트 가설과 일치하나 확정 불가(circumstantial만 확보).
 - `vista3d.ts`에 공유 GLSL 컬러 램프(`STAGE_RAMP`/`GRADE_UNIFORMS`/`GRADE_APPLY`/`gradeUniforms()`) 추가, `ambient3d.ts`가 재사용. Stage 1 무그레이딩 유지, Stage 2 warm ember(0x0c0605→0x7a2a0c→0xffa24a), Stage 3 cold blue(0x040810→0x1c4f9a→0xb4e0ff). 유리 반사 틴트도 스테이지별(`uRefl`/`uGlassGrade`, S1 원본 유지, S2 orange 0xff9a52, S3 blue 0x6aa8ff)로 분리해 Stage 2/3에 남아 있던 teal 유리/광선 줄무늬 제거.
@@ -18,41 +18,6 @@
 - `make check` exit 0(766/766), reference-verify 3/3 PASS, reach3d 52 waypoints(57.2 s) PASS, dist-guard PASS(56 files, 20,780,639 B). 봇 핀 불변: `assist.test.ts` Normal 4978/HP126·Story 4880/142·Hard 5319/104, `stage-bot.test.ts` Stage 3 Story 3228/Normal 3243/Hard 3320 모두 통과.
 - 스크린샷 `docs/evidence/r26_fix/`(s1/swap/repro/prod/a·b·c-s2/c-s3, 총 50장 이상) 전부 육안 확인: 흑화면 없음, Stage2/3 그레이딩·HUD 라벨 정상.
 - Unverified: 흑화면의 확정 근본원인(HMR 추정, 실측 안 됨), `make smoke-local`, G5 사람 플레이. R25 지형 지오메트리 폴리시(이전 플래너가 별도 위임한 chamfered batches·back-lane clutter) 재검증은 이번 라운드 범위 밖.
-
-## R25 지형 2차 (2026-11-17, 로컬 커밋)
-
-- `tools/meshy/textures.ts`: 텍스처 5종 추가(reactor-floor-calm, reactor-wall, foundry-wall, hazard-trim 크롭 스트립, steel-grating). 미사용 roughness 맵(-r.webp) 출하 중단. Stage 3 위 면 = calm 바닥, 옆 면 = reactor-wall; Stage 2 옆 면 = foundry-wall; 엘리베이티드 그레이트 = steel-grating(`surfaceLookFor(..., cls)`).
-- `edgeTrim.ts`: 플랫폼/캣워크 전면 하자드 셰브론 띠(섹터당 병합 메시 1개, 렌더 전용). `applyTwoSurface`는 three 셰이더 청크가 바뀌면 경고 후 패치를 건너뜀(`patchNormalChunk`, `tests/terrain-surfaces.test.ts`).
-- `make check` exit 0(765/765), 봇 핀 불변(Normal 4978/HP126 등 테스트 통과), dist-guard PASS(56 files, 20,779,055 B). draw calls: combat 275, biolabs 264, security 244, mines 178, Stage 2/3 방 96~128. 증거 `docs/evidence/r25_terrain/{before,after}/`.
-- 레벨 교체 후 평면 단색 프레임은 Vite HMR로 모듈을 여러 번 다시 불러온 개발 페이지에서만 재현(새 페이지 14장 연속 교체는 정상). 실제 플레이어 경로는 unverified. Unverified: `make smoke-local`, 사람 플레이, Reduce motion 육안(터레인 코드는 reduceFx를 읽지 않음).
-
-## R24 지형 텍스처 (2026-11-17, 로컬 커밋)
-
-- `tools/meshy/textures.ts`(`npm run meshy:textures`, sharp): Meshy 1024 PNG 5종 -> 반주기 크로스페이드 타일링 보정 512 WebP 알베도 + Sobel 노멀 + 휘도 거칠기(`public/assets/textures/`, 결정적). 매니페스트 `texture/*`·ASSET_REGISTER 등록.
-- `terrainSurfaces.ts`: 스테이지/섹터별 표면(S1 floor/wall, mines-rock, foundry-iron, reactor-frost). `solidBatches.ts` 월드 공간 박스 투영 UV(`BatchItem.world`). 위쪽 면은 floor, 나머지 면은 wall 텍스처(재질 1개, 셰이더 패치, 로드 실패 시 절차 텍스처 유지). 렌더 전용.
-- 배경 진정: 비활성 섹터 vista 밝기 0.3(활성 0.82), 블룸 -20%, 안개 +20%. Bio-Labs 좌하단 회색 다각형은 이웃(shaft) vista 헤이즈 패치였고 사라짐.
-- `make check` exit 0(760/760), 봇 Normal 4978/HP126 불변, dist-guard PASS(52 files, 20.4 MB). 그리기 호출 최대 combat 280(≤300). 증거 `docs/evidence/r24_terrain/{before,after}/`. Unverified: `make smoke-local`, 사람 플레이, Reduce motion 켠 상태 육안 확인.
-
-## R23 FEAT-003 전체 런 엔딩 (2026-11-17, 로컬 커밋)
-
-- `records.ts`에 런 로그(`addToRun`: Stage 1 클리어가 새 런 시작, `summarizeRun`: 3스테이지 합계)와 최고 전체 런 기록(별도 키 `reanimator.fullrun.v1`, v1 스테이지 기록 키는 불변이라 마이그레이션 불필요). Stage 3 클리어 화면에 "REANIMATED" 카드(총 시간·죽음·킬, 스테이지별 줄, 최고 기록). 디버그 훅 `__reanimatorShowEnding()`(dev/debug 빌드만, 저장소 복원). `tests/fullrun.test.ts`.
-- `make check` exit 0(759/759). Unverified: 브라우저 표시(오케스트레이터 검증).
-
-## R23 FEAT-002 게임패드·접근성 (2026-11-17, 로컬 커밋)
-
-- `src/game3d/gamepad.ts`(순수 매핑·데드존, 표준 매핑: 스틱/D-pad 이동, 우스틱 조준, A 점프, B 대시, X/RT 발사, Y 상호작용, LT 카운터, LB/RB 무기, Start 일시정지)와 `settings.ts`(키 `reanimator.settings.v1`: reduceFx, largeHud). `src/ui/main.ts` 입력 계층에서만 패드를 읽고 시뮬은 불변. 설정에 "Reduce motion and flashing"(기존 흔들림·플래시 감쇠에 연결)과 "Larger HUD text", 컨트롤 안내에 게임패드 추가. `tests/gamepad.test.ts`.
-- `make check` exit 0(753/753). 봇 핀 불변. Unverified: 실제 패드 하드웨어, 브라우저 UI(오케스트레이터 검증).
-
-R23 FEAT-001 상세: [archive/STATUS_R23_FEAT001.md](archive/STATUS_R23_FEAT001.md).
-
-## R20 Foreman 메시·릴 Stage 2/3 컷·폴리시 (2026-11-16, 로컬 커밋 de8a151·c3e21e8·fd78fd5)
-
-- Slag Foreman 전용 Meshy 메시(절차 포즈), 트레일러 릴 10컷에 Stage 2 Foreman·Stage 3 Spire 컷 추가.
-- 폴리시: Foreman 미니보스 이름 카드(섹터 카드 형식), Warden 인트로 카드 스테이지별(Stage 3 = SPIRE WARDEN), Stage 3 보스 바·목표·텔레포터 힌트 이름 통일, Foreman 전용 음성 5종, Foreman 피격 스파크·사망 버스트, 가까운 증기 분출 시 카메라 흔들림. 스크린샷 [r20_polish](evidence/r20_polish/).
-- draw calls: Stage 1 combat 릴 컷 306 → 287(그림자 패스 캐스터 제한 등, [DRAWCALLS](evidence/r20_reel/DRAWCALLS.md)). 전 컷 300 이하.
-- `make check` exit 0(725/725, reach3d 52 waypoints 3432 ticks, dist-guard PASS 34 files). 봇 핀 불변: Normal 4978/HP126, Story 4880/142, Hard 5319/104(min 100).
-- 인트로 재발동 조사: Warden 인트로는 `world3d.ts`에서 플레이어가 `core` 방에 있고 `bossIntroDone`이 false이고 Warden이 살아 있을 때만 시작한다. Cryo Stacks 오버레이는 디버그 텔레포트에서 온 것으로 추정(unverified).
-- Unverified: `make smoke-local`, `make release`/`vite preview`, Stage 2·3 사람 플레이, 시네마틱 인트로 오버레이의 SPIRE WARDEN 육안(DOM 텍스트만 확인).
 
 ## Abuse 레벨 관찰 (2026-11-16)
 
@@ -65,28 +30,28 @@ R23 FEAT-001 상세: [archive/STATUS_R23_FEAT001.md](archive/STATUS_R23_FEAT001.
 
 ## R16 (2026-11-16)
 
-- 능력 3종, 튜토리얼 모드·최소 HUD, 일시 DATA LOG 토스트, 레트로 UI, 차분해진 인트로, 릴리스용 텍스트 정리. `make check` exit 0(672/672). 요약 [R16_RETRO_TUTORIAL_UI](R16_RETRO_TUTORIAL_UI.md). 미검증: `make smoke-local`, G5 사람 플레이.
+- 능력 3종, 튜토리얼 모드·최소 HUD, 일시 DATA LOG 토스트, 레트로 UI, 차분해진 인트로, 릴리스용 텍스트 정리. `make check` exit 0(672/672). 요약 [R16_RETRO_TUTORIAL_UI](archive/rounds/R16_RETRO_TUTORIAL_UI.md). 미검증: `make smoke-local`, G5 사람 플레이.
 
 ## 구현 상태
 
 - **복원(G0–G2)**: `src/engine/motion.ts`(15 Hz 설계값)가 S1·S2·S3와 sealed holdout M05에서 11개 필드 exact 일치. 브라우저 `#lab`(Restoration Lab)이 원본 로그와 엔진 재생을 나란히 보여 준다. 복원 범위는 이동 물리뿐.
 - **시뮬** `src/game3d/world3d.ts`: 60 Hz 결정적, XY 레인(z=0). 6섹터, 잠금 문 6종, Thruster Boots(공중 점프) 게이트 2곳, Energy Tank, Save 스테이션, 보스 Core Warden 3페이즈, Meltdown 탈출. 봇 `bot3d.ts`+`nav3d.ts`가 완주한다.
-- **R1** 손맛(히트스톱, 트라우마 셰이크, 카메라 rig), 타이틀·어트랙트, 성능 배칭, 게임플레이 깊이(벽점프, 스톰프, 레일 차지, 콤보, 수집품, 시크릿). [R1_GAMEPLAY](R1_GAMEPLAY.md)
-- **R2** 버그 수정, SVG 브랜드 로고·플레이트 메뉴, 보스 시네마틱·텔레그래프·데미지 숫자, 절차 음악·리버브. [R2_BOSS](R2_BOSS.md), [R2_AUDIO](R2_AUDIO.md)
-- **R3** 버그 수정, Classic View(`V`, 320x200 팔레트 디더·CRT·직교 카메라·픽셀 HUD), Abuse풍 조명·고어·연기, dropper/climber/hive/떼. [R3_CLASSIC](R3_CLASSIC.md), [R3_FOES](R3_FOES.md)
+- **R1** 손맛(히트스톱, 트라우마 셰이크, 카메라 rig), 타이틀·어트랙트, 성능 배칭, 게임플레이 깊이(벽점프, 스톰프, 레일 차지, 콤보, 수집품, 시크릿). [R1_GAMEPLAY](archive/rounds/R1_GAMEPLAY.md)
+- **R2** 버그 수정, SVG 브랜드 로고·플레이트 메뉴, 보스 시네마틱·텔레그래프·데미지 숫자, 절차 음악·리버브. [R2_BOSS](archive/rounds/R2_BOSS.md), [R2_AUDIO](archive/rounds/R2_AUDIO.md)
+- **R3** 버그 수정, Classic View(`V`, 320x200 팔레트 디더·CRT·직교 카메라·픽셀 HUD), Abuse풍 조명·고어·연기, dropper/climber/hive/떼. [R3_CLASSIC](archive/rounds/R3_CLASSIC.md), [R3_FOES](archive/rounds/R3_FOES.md)
 - **R4-A 시각 폴리시** (`r4/polish`): 픽셀 폰트 글리프·HUD 라벨 축약, Classic 램프 샤프트·글로우 축소, 노이즈 화구+충격파 폭발, 보스 슬램 파동·코어 보호막·로그 홀로그램 셰이더, 세이브 스테이션·업그레이드 모델. [R4_METROID_GAPS](plans/R4_METROID_GAPS.md)(Metroid 보강안, 구현은 문서만)
-- **R4-B 환경 위험** (`r4/hazards`): 크러셔, 증기, 레이저, 코어 증기, 낙석, 배럴 체인, 화물 리프트+매복, 바이오 스위치·갠트리, 에어록 브리지 붕괴. 봇·내비·`reach3d` 위험 검사 포함. [R4_HAZARDS](R4_HAZARDS.md)
+- **R4-B 환경 위험** (`r4/hazards`): 크러셔, 증기, 레이저, 코어 증기, 낙석, 배럴 체인, 화물 리프트+매복, 바이오 스위치·갠트리, 에어록 브리지 붕괴. 봇·내비·`reach3d` 위험 검사 포함. [R4_HAZARDS](archive/rounds/R4_HAZARDS.md)
 - **R4-C 플레이어** (`r4/hero`): operative 다리 본·반동·무기 스왑·벽 손·착지 포즈, 무기 모델 4종, 헤드램프 렌즈, 백팩 HP 표시등, `__reanimator().player` 텔레메트리.
 - **R4-D 제출 패키지**: README 개편, [JUDGES](JUDGES.md), KIRO_USAGE 갱신, Credits 패널(Extras), package.json 설명·키워드.
 
-- **R5-Metroid** (`r5/metroid`): Crawl Slide(터널 2곳), 파괴 블록 3, 맵 단말 6(미니맵 `?` 마커, `M` 키), Energy Tank 3, Ammo Expansion 2, 탈출 해치(final-shutter) 비트. `reach3d`에 터널·파괴·100% 완주·탈출 공정성 검사. [R5_METROID](R5_METROID.md)
-- **R5-Render** (`r5/render`): 메시 병합(영웅 장비·hive·정적 위험물), 벽 재질 frontLift, 노이즈 증기 시트, 보스 카메라 블렌드, `perf.byGroup`·`bossFrame` 텔레메트리. [R5_RENDER](R5_RENDER.md)
-- **R5-Rig** (`r5/rig`): 적 리깅(보폭 고정 걸음, 포즈 채널, 보스 패턴, 보조 모션, LOD, trace 지표). [R5_RIG](R5_RIG.md)
+- **R5-Metroid** (`r5/metroid`): Crawl Slide(터널 2곳), 파괴 블록 3, 맵 단말 6(미니맵 `?` 마커, `M` 키), Energy Tank 3, Ammo Expansion 2, 탈출 해치(final-shutter) 비트. `reach3d`에 터널·파괴·100% 완주·탈출 공정성 검사. [R5_METROID](archive/rounds/R5_METROID.md)
+- **R5-Render** (`r5/render`): 메시 병합(영웅 장비·hive·정적 위험물), 벽 재질 frontLift, 노이즈 증기 시트, 보스 카메라 블렌드, `perf.byGroup`·`bossFrame` 텔레메트리. [R5_RENDER](archive/rounds/R5_RENDER.md)
+- **R5-Rig** (`r5/rig`): 적 리깅(보폭 고정 걸음, 포즈 채널, 보스 패턴, 보조 모션, LOD, trace 지표). [R5_RIG](archive/rounds/R5_RIG.md)
 - **R5-VFX** (`r5/vfx`): 4틱 웜화이트 피격 플래시(상한 0.3), 투사체 글로우 파티클, 색수차 상한 0.42, 팝업 티어·스택, 사망 팝, 레일 준비 링·음, 스캐터 파동.
 
-- **R6-Arms** (`r6/arms`): 무기 5 Flamer(원뿔·burn), 6 Rocket(가속·폭발·로켓 점프 제한), 페데스털 2곳, HUD 슬롯 6, 키 5·6. [R6_ARMS](R6_ARMS.md)
+- **R6-Arms** (`r6/arms`): 무기 5 Flamer(원뿔·burn), 6 Rocket(가속·폭발·로켓 점프 제한), 페데스털 2곳, HUD 슬롯 6, 키 5·6. [R6_ARMS](archive/rounds/R6_ARMS.md)
 - **R6-Fix** (`r6/fix`): 표시 시간 기준 플레이어 피격 플래시, 폭발 화구 림 마스크, 맵 단말 캔버스 텍스처, `flat-boxes` 진단.
-- **R6-Sound** (`r6/sound`): R3~R5 이벤트 전용 레시피, 팡파르 5종, 근접 루프, 탈출 음악. 병합 시 arms 이벤트(flamer·rocket·burn·rocket_jump)와 로켓 폭발(`explosion` value 1)을 전용 레시피에 연결, `PENDING_EVENT_SOUND` 제거. [R6_SOUND](R6_SOUND.md)
+- **R6-Sound** (`r6/sound`): R3~R5 이벤트 전용 레시피, 팡파르 5종, 근접 루프, 탈출 음악. 병합 시 arms 이벤트(flamer·rocket·burn·rocket_jump)와 로켓 폭발(`explosion` value 1)을 전용 레시피에 연결, `PENDING_EVENT_SOUND` 제거. [R6_SOUND](archive/rounds/R6_SOUND.md)
 - **R6-Demo** (`r6/demo`): `src/ui/demo.ts` 데모 투어 11곳, 쇼케이스 릴, `__reanimatorShowcase`·`__reanimatorDemo`. 늦은 체크포인트(보안 데크 이후, 보스)는 무기 6종 지급. [JUDGES](JUDGES.md)
 
 - **R7-UI** (`r7/ui`): z-index 토큰 스케일, `.menu-list` 애니메이션 제거(EXTRAS 목록이 보이지 않던 원인), `#lab`·`#revived` 불투명 배경, `src/ui/panels.ts`(topLayer, titleCovered), `window.__reanimatorUiAudit()`.
@@ -96,39 +61,26 @@ R23 FEAT-001 상세: [archive/STATUS_R23_FEAT001.md](archive/STATUS_R23_FEAT001.
 - 병합 충돌 2곳: `main.ts`(soak·ui 선언과 훅 양쪽 유지), `scene3dFull.ts`(cam: soak의 `frameMs.fx` 계측과 cam의 구도 계산 양쪽 유지, 기존 하드코딩 앵커 제거). vista는 자동 병합. 통합 단계에서 `teardownLevel()`에 `vista.dispose()`와 `frameRect.reset()`을 추가했다(레벨 교체 시 원경 누수와 카메라 사각형 잔존 방지).
 
 - **R8-Leak** (`r8/leak`): `src/render3d/disposeActor.ts`(Skeleton.boneTexture, 소유 지오메트리, 재질, mixer 해제), `disposeActor3D`, `__reanimatorSoak {trace:true}` 단계별 계측.
-- **R8-Assist** (`r8/assist`): 난이도 Story/Normal/Hard(`newWorld3D({difficulty, assist})`, Normal은 항등), 조준 보조·자동 사격·0.8×·위험 경고, 사망 원인 15종과 `#result-cause`. [R8_ASSIST](R8_ASSIST.md)
+- **R8-Assist** (`r8/assist`): 난이도 Story/Normal/Hard(`newWorld3D({difficulty, assist})`, Normal은 항등), 조준 보조·자동 사격·0.8×·위험 경고, 사망 원인 15종과 `#result-cause`. [R8_ASSIST](archive/rounds/R8_ASSIST.md)
 - **R8-Lore** (`r8/lore`): 데이터 로그 6편(영·한), 로그 리더·아카이브, 섹터 부제, 인트로, 엔딩 3단(ASH/EMBERS/TRUE ENDING), 크레딧 롤, `__reanimatorShowLog`.
 - **R8-Lab** (`r8/lab`): Restoration Lab 재설계(`labModel.ts`, `labView.ts`): 시나리오 카드, 분할 캔버스, 오버레이, 전송 컨트롤, 11필드×틱 히트맵, 검증 설명. `#lab-scenario`는 숨김 상태로 카드가 구동.
 - 병합 충돌: `index.html`(lore 패널과 lab 영역 모두 유지, result-cause와 ending 공존), `main.ts`(showEnding과 사망 원인 팁 둘 다 호출, labView import), `style.css`(assist·lore 규칙 모두 유지). lore가 `SECTOR_SUBTITLE` 사용을 제거했으므로 미사용 import를 삭제했다.
 - M05 정책 점검: 원래 Lab(`c8cded1`)의 `lab.ts`가 이미 `reference/holdout/m05_v8.hlog.txt`와 `scenarios.json`으로 M05를 표시했다. R8 Lab과 `tests/lab.test.ts`는 같은 데이터를 같은 비교기로 재생하는 읽기 전용 표시이며 엔진 수정·튜닝에 쓰지 않는다. 새 holdout 접근 경로 없음, 봉인 파일 무변경.
 
-- **R9-Fix** (`r9/fix`): UI 감사가 숨김·비활성 컨트롤을 건너뜀, 탈출 pill 승리 후 숨김, 샤프트 Cracked Wall 프롬프트. [R9_FIX](R9_FIX.md)
-- **R9-World** (`r9/world`): 섹터별 소품, 드로콜 예산(`drawBudget.ts`), 탈출 시 장식 틴트. [R9_WORLD](R9_WORLD.md)
-- **R9-Abuse** (`r9/abuse`): 보안 데크 Vault Nook(기댐 열림 가짜 벽, 시크릿 5, 완료율 총 23), 픽업 자석, 묵직한 픽업 음. [R9_ABUSE](R9_ABUSE.md)
-- **R9-Parry** (`r9/parry`): 근접 카운터(`X`/`C`), 스캔 펄스(`Z`). 키 배정 결정과 병합 보강(스캔이 기댐 벽을 시크릿으로 표시)은 [R9_PARRY](R9_PARRY.md).
+- **R9-Fix** (`r9/fix`): UI 감사가 숨김·비활성 컨트롤을 건너뜀, 탈출 pill 승리 후 숨김, 샤프트 Cracked Wall 프롬프트. [R9_FIX](archive/rounds/R9_FIX.md)
+- **R9-World** (`r9/world`): 섹터별 소품, 드로콜 예산(`drawBudget.ts`), 탈출 시 장식 틴트. [R9_WORLD](archive/rounds/R9_WORLD.md)
+- **R9-Abuse** (`r9/abuse`): 보안 데크 Vault Nook(기댐 열림 가짜 벽, 시크릿 5, 완료율 총 23), 픽업 자석, 묵직한 픽업 음. [R9_ABUSE](archive/rounds/R9_ABUSE.md)
+- **R9-Parry** (`r9/parry`): 근접 카운터(`X`/`C`), 스캔 펄스(`Z`). 키 배정 결정과 병합 보강(스캔이 기댐 벽을 시크릿으로 표시)은 [R9_PARRY](archive/rounds/R9_PARRY.md).
 
-- **R10-Hunter** (`r10/hunter`): Bio-Labs 동쪽 구역의 E.M.M.I.풍 사냥꾼 Reclaimer(소음 감지, 카운터 QTE, 일반 사격 면역, Rail 오버차지·열린 바이저·키 아이템 소지 이탈로 영구 비활성). HUD `HUNTER ZONE`, 붉은 색조·스팅, Ctrl/Alt 살금걸음. 봇 Normal 5533 ticks HP 95/160 57 kills(이전 5362/112/56). [R10_HUNTER](R10_HUNTER.md)
+- **R10-Hunter** (`r10/hunter`): Bio-Labs 동쪽 구역의 E.M.M.I.풍 사냥꾼 Reclaimer(소음 감지, 카운터 QTE, 일반 사격 면역, Rail 오버차지·열린 바이저·키 아이템 소지 이탈로 영구 비활성). HUD `HUNTER ZONE`, 붉은 색조·스팅, Ctrl/Alt 살금걸음. 봇 Normal 5533 ticks HP 95/160 57 kills(이전 5362/112/56). [R10_HUNTER](archive/rounds/R10_HUNTER.md)
 
 - **R11** (main 직접 커밋 `b94f861`, `0c77ca8`, `3c8e7a0`): 헌터 철제 갑옷을 리그 본에 장착(모든 재질 슬롯 steel, 몸통 실측 맞춤), 오프닝 HUD 페이드인·레터박스·기상 포즈·타이틀 카드, 쇼케이스 hold 종료, 일시정지 Escape 재개, UI 크롬 영어 고정(`CHROME_LANG`).
 
 - **R12 Enemy locomotion** (main): root cause of "enemies do not move" was the sim, not the renderer. Airlock crawlers ran into `airlock-crate` (x 9..10.6, 1.4 m, above the 0.38 m step) and pressed against it at x 11.02 forever: `vx` stayed at -8.8 so the pose read `run`/`crawl`, `stuckTicks` drifted, and chase/recover cycled. Fix in `world3d.ts`: crate hop (0.4..1.5 m with headroom and a landing), give-up to `patrol` with a 150-tick re-aggro cooldown, sight check (walls/doors block, low cover does not), deterministic separation of stalled foes (gap 0.85 m), `vx` clamped to the real displacement and `speedNow` smoothed from it, walk/run hysteresis. Renderer: single-mesh foes use `speedNow` with a 0.6/0.25 m/s latch. Bot: keeps the dash for a Warden charge and dashes back through it when cornered. `__reanimatorAdvance` builds a fresh world by default; pass `{ continue: true }` (or use `__reanimatorStep`) to keep the current one. Bot Normal 5522 ticks HP 95/160 (was 5533/95), Story 5606 HP 146, Hard 5633 HP 48 min 48, 0 deaths. Tests `tests/enemy-ai.test.ts` (8). Playwright telemetry sampled in all six sectors.
-- **R12 robust** (`r12/robust`, [R12_ROBUST](R12_ROBUST.md)): bot `replan()` after any respawn (old bot failed 9 of 12 forced-defeat schedules, new passes all plus 93 double-kill schedules per difficulty), shot dash-dodge and counters. Bot Normal 5708 ticks HP 126 (was 5522/95), Story 5807 HP 160 (was 5606/146), Hard 5121 HP 133 min 100 (was 5633/48); 12-variant Hard stress grid 12/12 (was 5/12). Debug hooks: `debugEpoch` cancels stale Showcase/UiAudit, `enterManual` teardown always dismisses loading, Advance `{continue}`, `debug` result object and `layers`. Result copy in `src/ui/resultCopy.ts`. `make check` exit 0, 555/555. Browser unverified.
+- **R12 robust** (`r12/robust`, [R12_ROBUST](archive/rounds/R12_ROBUST.md)): bot `replan()` after any respawn (old bot failed 9 of 12 forced-defeat schedules, new passes all plus 93 double-kill schedules per difficulty), shot dash-dodge and counters. Bot Normal 5708 ticks HP 126 (was 5522/95), Story 5807 HP 160 (was 5606/146), Hard 5121 HP 133 min 100 (was 5633/48); 12-variant Hard stress grid 12/12 (was 5/12). Debug hooks: `debugEpoch` cancels stale Showcase/UiAudit, `enterManual` teardown always dismisses loading, Advance `{continue}`, `debug` result object and `layers`. Result copy in `src/ui/resultCopy.ts`. `make check` exit 0, 555/555. Browser unverified.
 
 - **R12 integration** (main, 4 merges: look, motion, onboard, robust): onboard wins the no-save conflict (defeat always resumable, spawn restart keeps the run, `resultCheckpointLine` and `canResume` updated). `debug.stoppedOn` now reads `world.status`. Bot re-pinned after merge: Normal 5444 ticks HP 140 (min 93, lost 39), Story 5812 HP 143, Hard 5121 HP 133 (min 100, floor 80 holds); all win with 0 deaths. SHOWCASE_REEL cuts 4750 (biolabs, Meltdown) and 5400 (airlock) replace 5150/5650 (shaft, past the win). `make check` exit 0, 568/568, reach3d 52 waypoints 3432 ticks, dist-guard PASS. Unverified: browser look of hatch, reticle and bestiary pass, `make smoke-local`, G5 play.
-- **R13 integration** (main, 4 merges: alive, combat, ux, reel, plus sim fixes): one enemy locomotion model. Crawler: ux `crawlerStride` + stride-locked `gaitStep` (3.4 Hz at 6.1 m/s) driven by alive `enemyTravelSpeed` (wall/ceiling crawlers use |v|) through `smoothDisplaySpeed`; the alive `CRAWLER_STRIDE` gait was dropped. Stalker/Warden rig: combat spike filter (`stepGroundSpeed`), sprint stride cap, walk/run band, hip bob and faster sprint turn, with ux `latchHysteresis` and the single per-kind `runLean` (combat's duplicate lean removed). Sim (`world3d.ts`): `separateEnemies3D` slides at most 0.07 m/tick (35% of the overlap, capped so own speed plus slide stays under 0.19 m), knockback launch capped at 12 m/s, and a chaser waits behind a stalled foe instead of pushing into it. Display: `stepGlide` is now a decaying offset safety net; the old position low-pass lagged a running foe by up to 1.5 m and then surged 0.25 to 0.3 m per frame (measured live). Reel: lab cut scales the lab to 0.86 so the caption clears the match grid; combat Counter moved to frame 110. Bot Normal 5208 ticks HP 126 (min 93), Story 5599 HP 139, Hard 5094 HP 114 (min 100), 0 deaths. SHOWCASE_REEL last cut 5160. `make check` exit 0, 625/625. See [R13_ALIVE](R13_ALIVE.md), [R13_COMBAT](R13_COMBAT.md), [R13_UX](R13_UX.md), [R13_REEL](R13_REEL.md).
+- **R13 integration** (main, 4 merges: alive, combat, ux, reel, plus sim fixes): one enemy locomotion model. Crawler: ux `crawlerStride` + stride-locked `gaitStep` (3.4 Hz at 6.1 m/s) driven by alive `enemyTravelSpeed` (wall/ceiling crawlers use |v|) through `smoothDisplaySpeed`; the alive `CRAWLER_STRIDE` gait was dropped. Stalker/Warden rig: combat spike filter (`stepGroundSpeed`), sprint stride cap, walk/run band, hip bob and faster sprint turn, with ux `latchHysteresis` and the single per-kind `runLean` (combat's duplicate lean removed). Sim (`world3d.ts`): `separateEnemies3D` slides at most 0.07 m/tick (35% of the overlap, capped so own speed plus slide stays under 0.19 m), knockback launch capped at 12 m/s, and a chaser waits behind a stalled foe instead of pushing into it. Display: `stepGlide` is now a decaying offset safety net; the old position low-pass lagged a running foe by up to 1.5 m and then surged 0.25 to 0.3 m per frame (measured live). Reel: lab cut scales the lab to 0.86 so the caption clears the match grid; combat Counter moved to frame 110. Bot Normal 5208 ticks HP 126 (min 93), Story 5599 HP 139, Hard 5094 HP 114 (min 100), 0 deaths. SHOWCASE_REEL last cut 5160. `make check` exit 0, 625/625. See [R13_ALIVE](archive/rounds/R13_ALIVE.md), [R13_COMBAT](archive/rounds/R13_COMBAT.md), [R13_UX](archive/rounds/R13_UX.md), [R13_REEL](archive/rounds/R13_REEL.md).
 - **R13 enemy motion evidence** (bot run, floor crawlers and stalkers). Sim, Normal, all non-attack ticks (`node tools/game/enemyJitter.ts`): before max step 0.79 m, 45 steps over 0.2 m (25 over 0.5 m), 43 chase reversals; after max 0.18 m, 0 over 0.2 m, 2 reversals (Story and Hard also 0 pops). Live Chrome via Playwright MCP, ticks 1900..3600, displayed x vs sim x of chasing foes: before crawler max display step 0.305 m with 27 frames over 0.2 m, stalker 0.294 m with 9; after crawler 0.177 m and stalker 0.174 m with 0 frames over 0.2 m. `tools/smoke/enemy-live.ts` is the same sampler as a script (Chrome does not launch in the agent sandbox, so it was run through the MCP browser). Feel in human play: unverified.
-- **R14 integration** (main, 3 merges: charlight, terrain, transit, HEAD `f740169`, no conflicts, no push). Answers three user notes. (1) Transit ([R14_TRANSIT](R14_TRANSIT.md)): rooms were crossed too fast. Side-door walk-through lasts 42 ticks with jump, dash and fire ignored; foes within 14 m get a 150-tick entry grace (released on a hit); 3 m doorway clearance; `FrameRectSmoother` edge-speed cap; shaft zoom easing; a sector title card on each room change; reduce-motion uses a cut. (2) Terrain ([R14_TERRAIN](R14_TERRAIN.md)): Meshy was unreachable from this environment (api.meshy.ai, no key), so terrain is procedural: `terrainMaps.ts` (512 px detail textures plus Sobel normal maps), `terrainDetail.ts` (merged relief meshes, about 9.8k triangles in 18 strips), `drawBudget` counts terrain strips. (3) Character light ([R14_CHARLIGHT](R14_CHARLIGHT.md)): `charLight3d.ts` per-kind key and fill light, crevice darkening and exposure, softer rim, GLSL injected in `applyEnemyRim3D` and `applyWardenLook3D`, so characters read as shapes and not only outlines. Terrain and charlight are render-only. Bot pins unchanged after merge: Normal 4978 ticks HP 126, Story 4880 HP 142, Hard 5319 HP 104 (min 100). SHOWCASE_REEL cuts 2150/4420/4920 unchanged. Constraints held: deterministic sim, no `Math.random`, no new PointLights, at most 300 draw calls. Enemy running was handled in R13 and not changed in R14.
+- **R14 integration** (main, 3 merges: charlight, terrain, transit, HEAD `f740169`, no conflicts, no push). Answers three user notes. (1) Transit ([R14_TRANSIT](archive/rounds/R14_TRANSIT.md)): rooms were crossed too fast. Side-door walk-through lasts 42 ticks with jump, dash and fire ignored; foes within 14 m get a 150-tick entry grace (released on a hit); 3 m doorway clearance; `FrameRectSmoother` edge-speed cap; shaft zoom easing; a sector title card on each room change; reduce-motion uses a cut. (2) Terrain ([R14_TERRAIN](archive/rounds/R14_TERRAIN.md)): Meshy was unreachable from this environment (api.meshy.ai, no key), so terrain is procedural: `terrainMaps.ts` (512 px detail textures plus Sobel normal maps), `terrainDetail.ts` (merged relief meshes, about 9.8k triangles in 18 strips), `drawBudget` counts terrain strips. (3) Character light ([R14_CHARLIGHT](archive/rounds/R14_CHARLIGHT.md)): `charLight3d.ts` per-kind key and fill light, crevice darkening and exposure, softer rim, GLSL injected in `applyEnemyRim3D` and `applyWardenLook3D`, so characters read as shapes and not only outlines. Terrain and charlight are render-only. Bot pins unchanged after merge: Normal 4978 ticks HP 126, Story 4880 HP 142, Hard 5319 HP 104 (min 100). SHOWCASE_REEL cuts 2150/4420/4920 unchanged. Constraints held: deterministic sim, no `Math.random`, no new PointLights, at most 300 draw calls. Enemy running was handled in R13 and not changed in R14.
 - **R14 browser check** (orchestrator, Playwright against `http://localhost:5173`): 0 console errors or warnings and no page errors across showcase scenes bestiary (mines), biolabs, security, boss (core) and opening (airlock). 1280x800 screenshots in `docs/evidence/r14/` (`mines_bestiary.png`, `biolabs_biolabs.png`, `security_security.png`, `core_boss.png`, `airlock_opening.png`). Terrain and charlight are verified by tests, the no-error browser run and screenshots only. No human playtest happened (G5 still unperformed), so whether the transit pace, terrain quality and character readability feel right is unverified.
-
-## R15 터레인 킷 (Meshy 11종, 로컬 커밋)
-
-- 11개 GLB 인제스트(`terrain/`), `terrainKit.ts` 인스턴싱과 6개 섹터 연결, 시각 전용. `make check` exit 0(654/654, dist-guard 24 files). 브라우저 6개 섹터 draw calls 148~299(<=300), 콘솔 오류 0, 스크린샷 `docs/evidence/r15_meshy_terrain/`. Bio-Labs 299로 여유 없음. 사람 플레이 unverified. Meshy t2.5 smart-topology 4k tris PBR, 165 credits 사용(잔액 608). 상세 `docs/R15_MESHY_TERRAIN.md`.
-
-## 세션 마감 검증 (오케스트레이터 Playwright 관찰, 2026-11-15)
-
-- **R9**: `__reanimatorUiAudit()` 12개 시나리오 ok, Z 스캔 윤곽 표시, 보안 데크 Vault Nook 시크릿 발견, `8376998` 이후 카메라가 Nook 안까지 따라감, 콘솔 경고 0.
-- **R10/R11**: 오프닝 알람·기상 비트가 레터박스와 HUD 없이 렌더, 무릎 꿇은 operative, 푸터 1996, HUD 한 줄에 HUNTER pill, 헌터 외형 개선 확인. 최종 `3c8e7a0`의 외형은 오케스트레이터가 재확인하지 않았다(unverified).
-- **회귀 의심 조사(재현 불가)**: `__reanimatorAdvance`(skipIntro) 후 1.5 s 뒤 타이틀+어트랙트가 다시 나온다는 보고를 실제 Chrome(Playwright)에서 현재 코드로 조사했다(`src/ui/main.ts`: `__reanimatorAdvance` ~L1576, `hideIntro` ~L471, `exitShowcase` ~L1118). 5 s 후 호출과 로드 직후 호출 모두 mode `playing` 유지, `#title` display none, `#hud` 표시, 내비게이션 없음, 4 s 안정. `show('title')` 호출처는 `exitShowcase`, 쇼케이스 `title` 장면, `uiAudit`, 시작 시뿐이며 Advance 뒤에는 발동하지 않는다. 유력한 원인은 오케스트레이터 세션 중 동시 파일 편집으로 인한 Vite 전체 리로드 또는 낡은 HMR 인스턴스(리로드되면 타이틀+Bio-Labs 어트랙트와 이전 HUD 상태가 나온다). 코드 변경 없음. dev 서버를 깨끗이 재시작해 재확인할 것.
-- Abuse·Metroid 느낌 요청은 R4_METROID_GAPS, R5-Rig, R9 Vault Nook, Warden 카운터, Classic View로 이미 반영됐다. 원본 Abuse 데이터는 쓰지 않았다.
-
-이전 기준선(R8–R14)과 R10–R12 세부: [archive/STATUS_R8_R14.md](archive/STATUS_R8_R14.md).

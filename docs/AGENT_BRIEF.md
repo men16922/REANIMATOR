@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: R21 완료(로컬 커밋 8c2699b·bcf4e06·f1b4286·b9f9d1d + docs): Foreman 흰 실루엣·인트로 사각형 수정, Stage 3 Cryo Bulwark, 스테이지별 사운드, README. 남은 것: `make smoke-local`(Chrome 환경), 사람 플레이, Meshy 키 교체. 계획 [NEXT_PLAN](NEXT_PLAN.md). 푸시는 사용자 지시 전까지 하지 않는다.
+▶ NEXT SESSION: R27 완료(스모크 30/30 복구, 작은 글자 안티앨리어싱 수정, 키 파일 gitignore, 문서 tidy). 남은 것: 사람 플레이, `make release`+`vite preview`, Meshy 키 재발급, 흑화면 확정 원인. 계획 [NEXT_PLAN](NEXT_PLAN.md).
 
 ## 한 줄 요약
 

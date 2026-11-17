@@ -22,7 +22,7 @@
 
 ## 진입점
 
-- [KIRO_USAGE](KIRO_USAGE.md) · [JUDGES](JUDGES.md) · [평가](EVALUATION.md) · [도구](evidence/TOOLCHAIN.md) · [판정 계약](reference/VERIFICATION_CONTRACT.md) · [자산 등록부](reference/ASSET_REGISTER.md)
+- [KIRO_USAGE](../KIRO_USAGE.md) · [JUDGES](../JUDGES.md) · [평가](../EVALUATION.md) · [도구](../evidence/TOOLCHAIN.md) · [판정 계약](../reference/VERIFICATION_CONTRACT.md) · [자산 등록부](../reference/ASSET_REGISTER.md)
 - spec: `.kiro/specs/{abuse-reference,restored-motion,reanimated-slice,full-3d-quarter-view,metroidvania-3d}/`, steering `.kiro/steering/`, hook `.kiro/hooks/engine-gate-on-save.json`
 
 ## 미확인·위험

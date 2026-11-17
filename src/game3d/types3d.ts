@@ -91,7 +91,7 @@ export type UpgradePickupKind3D =
   | 'energy_tank'
   | 'crawl_slide'
   | 'ammo_expansion'
-  // Round 16 Metroid abilities: each one breaks one kind of sealed block (see docs/R16_METROID_ABILITIES.md)
+  // Round 16 Metroid abilities: each one breaks one kind of sealed block (see docs/archive/rounds/R16_METROID_ABILITIES.md)
   | 'blast_core'
   | 'scan_lens'
   | 'thermal_plating';

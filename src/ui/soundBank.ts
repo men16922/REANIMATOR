@@ -196,7 +196,7 @@ export const SOUND_BANK = {
   'enemy.hive_spawn': r(5, 0.15, o(200, 0.12, 'sine', 0.12, 600), n(0.15, 0.08, 700, 'bandpass', 1500, 0, 4), o(420, 0.1, 'sine', 0.06, 200, 0.08)),
   'enemy.hive_burst': r(8, 0.3, o(150, 0.6, 'sawtooth', 0.14, 35), n(0.7, 0.16, 600, 'bandpass', 200, 0, 3), o(500, 0.4, 'sine', 0.08, 120, 0.04), n(0.3, 0.07, 4000, 'highpass', 1500, 0.1)),
 
-  // ---- round 6: reserved for the round 6 weapon track (events flamer, rocket, burn, rocket_jump; see docs/R6_SOUND.md) ----
+  // ---- round 6: reserved for the round 6 weapon track (events flamer, rocket, burn, rocket_jump; see docs/archive/rounds/R6_SOUND.md) ----
   'weapon.flamer_loop': r(2, 0.05, n(0.2, 0.1, 700, 'bandpass', 350, 0, 0.7), n(0.15, 0.045, 3000, 'highpass', 1500), o(70, 0.18, 'sawtooth', 0.05, 55)),
   'weapon.rocket': r(5, 0.1, o(180, 0.35, 'sawtooth', 0.09, 90), n(0.5, 0.13, 500, 'lowpass', 2400), o(1000, 0.08, 'square', 0.04, 300), n(0.3, 0.05, 5000, 'highpass', 1500, 0.05)),
   'weapon.rocket_explode': r(8, 0.08, o(110, 0.5, 'sawtooth', 0.17, 24), o(55, 0.6, 'triangle', 0.17, 22, 0.02), n(0.7, 0.24, 1600, 'lowpass', 90), n(0.2, 0.08, 5000, 'highpass', 1800)),

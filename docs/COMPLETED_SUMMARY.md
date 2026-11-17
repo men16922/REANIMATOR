@@ -27,7 +27,7 @@
 
 ## 2026-11-16 — R15 Meshy 터레인, R16 릴리스 1.0.0, Abuse 레벨 관찰
 
-- **R15** Meshy MCP로 터레인 킷 11종(t2.5 smart-topology, 4k tris, PBR, 165 credits) 생성·인제스트·등록, `terrainKit.ts` 인스턴싱과 절차 폴백. 6섹터 draw calls 148-299. → `docs/R15_MESHY_TERRAIN.md`, `docs/evidence/r15_meshy_terrain/`
-- **R16** DATA LOG 토스트, 레트로 UI, 차분한 인트로, Meshy 노멀 수정, 능력 3종(Blast Core, Scan Lens, Thermal Plating)과 캐시, 튜토리얼 모드, 릴리스 1.0.0 패키징. `make check` exit 0(672/672, dist-guard 30 files). → `docs/R16_RETRO_TUTORIAL_UI.md`, `docs/R16_METROID_ABILITIES.md`
+- **R15** Meshy MCP로 터레인 킷 11종(t2.5 smart-topology, 4k tris, PBR, 165 credits) 생성·인제스트·등록, `terrainKit.ts` 인스턴싱과 절차 폴백. 6섹터 draw calls 148-299. → `docs/archive/rounds/R15_MESHY_TERRAIN.md`, `docs/evidence/r15_meshy_terrain/`
+- **R16** DATA LOG 토스트, 레트로 UI, 차분한 인트로, Meshy 노멀 수정, 능력 3종(Blast Core, Scan Lens, Thermal Plating)과 캐시, 튜토리얼 모드, 릴리스 1.0.0 패키징. `make check` exit 0(672/672, dist-guard 30 files). → `docs/archive/rounds/R16_RETRO_TUTORIAL_UI.md`, `docs/archive/rounds/R16_METROID_ABILITIES.md`
 - **Abuse 관찰** LEVEL00-04 정적 파싱+DOSBox headless 전환 확인(적 6/58/78/83/103, 00은 허브). → `docs/reference/ABUSE_LEVEL_OBSERVATION.md`
 - 미검증: `make smoke-local`, 릴리스 zip preview, 새 능력 브라우저 동작, Abuse 스크린샷, G5.

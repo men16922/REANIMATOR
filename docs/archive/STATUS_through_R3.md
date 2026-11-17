@@ -22,9 +22,9 @@
 
 ## 진입점
 
-- [진행 기록](PROGRESS_LOG.md) · [다음 작업](NEXT_PLAN.md) · [Kiro 활용](KIRO_USAGE.md) · [Kiro 인계서](plans/KIRO_METROIDVANIA_HANDOFF.md)
+- [진행 기록](../PROGRESS_LOG.md) · [다음 작업](../NEXT_PLAN.md) · [Kiro 활용](../KIRO_USAGE.md) · [Kiro 인계서](../plans/KIRO_METROIDVANIA_HANDOFF.md)
 - spec: `.kiro/specs/metroidvania-3d/` · steering: `.kiro/steering/reanimator.md`
-- [평가](EVALUATION.md) · [도구](evidence/TOOLCHAIN.md) · [판정 계약](reference/VERIFICATION_CONTRACT.md)
+- [평가](../EVALUATION.md) · [도구](../evidence/TOOLCHAIN.md) · [판정 계약](../reference/VERIFICATION_CONTRACT.md)
 
 ## 미확인·위험
 

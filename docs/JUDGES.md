@@ -10,7 +10,7 @@ Every stop below is in `Extras` > `Demo tour`. Each one drops you into the norma
 |---|---|---|
 | 0:00 | Open Settings and pick difficulty **Story** (recommended for a short look; Normal is the tuned default), then return to the title. Wait on the title screen about 10 s. | The title plays an attract reel of a bot playing the real game, not a pre-rendered video. Procedural music is already running (no audio files in the repo). |
 | 0:15 | Debug builds only (`?debug=1`): `Extras` > `Watch showcase`. Let it run, or press any key to leave. | One minute of captioned cuts by the same deterministic bot: "1996 physics, frame-exact", sector tour, weapon locks, Classic View, Core Warden, Meltdown. |
-| 0:15 | Debug builds only: `Extras` > `Trailer reel` (or open `/?reel`, or `__reanimatorReel()`). About 90 seconds, press any key or Esc to leave. | Lab PASS then mutation FAIL, 1996/2026 Classic View toggle with CRT collapse, opening wake, Counter and Scan, Reclaimer, Warden counter and phase III, Meltdown, end card. See [R13_REEL](R13_REEL.md). |
+| 0:15 | Debug builds only: `Extras` > `Trailer reel` (or open `/?reel`, or `__reanimatorReel()`). About 90 seconds, press any key or Esc to leave. | Lab PASS then mutation FAIL, 1996/2026 Classic View toggle with CRT collapse, opening wake, Counter and Scan, Reclaimer, Warden counter and phase III, Meltdown, end card. See [R13_REEL](archive/rounds/R13_REEL.md). |
 | 0:25 | `Extras` > `Physics lab`. | The core claim. Pick a scenario card (S1, S2, S3, M05). The ORIGINAL canvas replays the numeric log captured from the 1996 game; the REANIMATED canvas replays our `motion.ts` from the same input. Press play or drag the tick slider. The heatmap shows 11 fields by every tick, all green. Tick "Demo mutation": a wall moves 3 px and "First mismatch" jumps to the broken tick. It is a demo, not an original bug. The side panel explains how it is verified. |
 | 1:00 | `Demo tour` > `Airlock start`. Run right with `D`, aim with the mouse, fire with left click, `Shift` dashes. | 60 Hz deterministic sim, hit-stop and screen shake on kills, combo kills refund the dash. Only movement physics is restored; everything else is new design. |
 | 1:15 | `Demo tour` > `Mines: crusher and hive`. | Telegraphed crusher, vents, acid, a hive that spawns larvae. Hazards warn before they hurt. |
@@ -24,7 +24,7 @@ Every stop below is in `Extras` > `Demo tour`. Each one drops you into the norma
 
 **Demo tour list** (DOM ids `demo-<id>`): `airlock`, `mines`, `biolabs`, `security`, `slide`, `boss1`, `boss2`, `boss3`, `collapse`, `hatch`, `classic`. The same checkpoints are reachable from the console with `__reanimatorDemo('<id>')`. Definitions live in `src/ui/demo.ts` and `tests/demo.test.ts` checks that each one starts alive in the right sector.
 
-**README scenes.** `await __reanimatorShowcase('<name>')` builds a deterministic scene and resolves once the renderer has settled. Names: `title`, `classic`, `combat`, `boss`, `mines`, `biolabs`, `security`, `slide`, `escape`, `lab`, plus the R10 opening beats `opening-wake`, `opening-alarm`, `opening` (see [R10_OPENING](R10_OPENING.md)). `tools/smoke/capture-showcase.ts` uses it to write `docs/evidence/showcase/*.png` (needs Chrome).
+**README scenes.** `await __reanimatorShowcase('<name>')` builds a deterministic scene and resolves once the renderer has settled. Names: `title`, `classic`, `combat`, `boss`, `mines`, `biolabs`, `security`, `slide`, `escape`, `lab`, plus the R10 opening beats `opening-wake`, `opening-alarm`, `opening` (see [R10_OPENING](archive/rounds/R10_OPENING.md)). `tools/smoke/capture-showcase.ts` uses it to write `docs/evidence/showcase/*.png` (needs Chrome).
 
 ## Technical highlights (top 5)
 
@@ -48,16 +48,16 @@ Not verified: human play-through difficulty, and `make smoke-local` on the newes
 
 ## Where to read more
 
-[`README.md`](../README.md) · [`docs/KIRO_USAGE.md`](KIRO_USAGE.md) · [`docs/reference/VERIFICATION_CONTRACT.md`](reference/VERIFICATION_CONTRACT.md) · [`docs/R3_CLASSIC.md`](R3_CLASSIC.md) · [`docs/R2_BOSS.md`](R2_BOSS.md)
+[`README.md`](../README.md) · [`docs/KIRO_USAGE.md`](KIRO_USAGE.md) · [`docs/reference/VERIFICATION_CONTRACT.md`](reference/VERIFICATION_CONTRACT.md) · [`docs/archive/rounds/R3_CLASSIC.md`](archive/rounds/R3_CLASSIC.md) · [`docs/archive/rounds/R2_BOSS.md`](archive/rounds/R2_BOSS.md)
 
 ## R9 additions
 
-- Melee Counter (`X`/`C`) and Scan Pulse (`Z`) borrow Metroid Dread ideas. Security Deck hides a lean-to-open fake wall (Abuse style) with a Vault Nook reward, counted in completion (23 items). Pickups are chunky and magnetised. Details: [R9_PARRY](R9_PARRY.md), [R9_ABUSE](R9_ABUSE.md). Browser behaviour unverified in this round.
+- Melee Counter (`X`/`C`) and Scan Pulse (`Z`) borrow Metroid Dread ideas. Security Deck hides a lean-to-open fake wall (Abuse style) with a Vault Nook reward, counted in completion (23 items). Pickups are chunky and magnetised. Details: [R9_PARRY](archive/rounds/R9_PARRY.md), [R9_ABUSE](archive/rounds/R9_ABUSE.md). Browser behaviour unverified in this round.
 
 
 ## R10 additions
 
-- A 9.8 s cinematic opening, Classic View CRT transition, a Metroid Dread style Warden counter with escape set pieces, and a Bio-Labs Hunter zone with stealth (sneak with Ctrl/Alt). Details: [R10_OPENING](R10_OPENING.md), [R10_CLASSIC](R10_CLASSIC.md), [R10_BOSS](R10_BOSS.md), [R10_HUNTER](R10_HUNTER.md). Browser behaviour unverified.
+- A 9.8 s cinematic opening, Classic View CRT transition, a Metroid Dread style Warden counter with escape set pieces, and a Bio-Labs Hunter zone with stealth (sneak with Ctrl/Alt). Details: [R10_OPENING](archive/rounds/R10_OPENING.md), [R10_CLASSIC](archive/rounds/R10_CLASSIC.md), [R10_BOSS](archive/rounds/R10_BOSS.md), [R10_HUNTER](archive/rounds/R10_HUNTER.md). Browser behaviour unverified.
 
 ## R11 additions and verification status
 
@@ -87,21 +87,21 @@ All are on `window` (declared in `src/ui/main.ts`). Every synchronous one cancel
 
 ## R12 additions
 
-- Bot respawn routing, shot dodging and counters, plus debug hook robustness (`continue` mode, supersede rule, `debug` and `layers` fields) and result screen copy. Details: [R12_ROBUST](R12_ROBUST.md). Browser behaviour unverified.
-- Integrated R12: diegetic extraction hatch and pickups ([R12_LOOK](R12_LOOK.md)), display-only enemy poses and bestiary view ([R12_MOTION](R12_MOTION.md)), softened first airlock encounter and always-resumable defeat ([R12_ONBOARD](R12_ONBOARD.md)). Bot Normal 5444 ticks HP 140.
+- Bot respawn routing, shot dodging and counters, plus debug hook robustness (`continue` mode, supersede rule, `debug` and `layers` fields) and result screen copy. Details: [R12_ROBUST](archive/rounds/R12_ROBUST.md). Browser behaviour unverified.
+- Integrated R12: diegetic extraction hatch and pickups ([R12_LOOK](archive/rounds/R12_LOOK.md)), display-only enemy poses and bestiary view ([R12_MOTION](archive/rounds/R12_MOTION.md)), softened first airlock encounter and always-resumable defeat ([R12_ONBOARD](archive/rounds/R12_ONBOARD.md)). Bot Normal 5444 ticks HP 140.
 
 ## R13 additions
 
-- Judge Reel (`Extras` > `Judge Reel`, `/?reel`), ambient background life per sector ([R13_ALIVE](R13_ALIVE.md)), Core Warden readability and per-weapon impacts ([R13_COMBAT](R13_COMBAT.md)), truthful debug layers, sector hints and a single Classic HUD ([R13_UX](R13_UX.md)).
+- Judge Reel (`Extras` > `Judge Reel`, `/?reel`), ambient background life per sector ([R13_ALIVE](archive/rounds/R13_ALIVE.md)), Core Warden readability and per-weapon impacts ([R13_COMBAT](archive/rounds/R13_COMBAT.md)), truthful debug layers, sector hints and a single Classic HUD ([R13_UX](archive/rounds/R13_UX.md)).
 - Enemy running: one locomotion model, and the sim no longer teleports queued foes at closed doors. Floor crawlers and stalkers never move more than 0.2 m in one tick on the bot run (`node tools/game/enemyJitter.ts`, `tests/r13-smooth.test.ts`). Bot Normal 5208 ticks HP 126.
 
 ## R15 additions
 
-- Eleven Meshy-generated terrain pieces (about 0.2 MB each) are instanced in all six sectors, visual only. Draw calls stayed at or under 300 (148 to 299) with 0 console errors in a Playwright run; screenshots in `docs/evidence/r15_meshy_terrain/`. Not human-playtested ([R15_MESHY_TERRAIN](R15_MESHY_TERRAIN.md)).
+- Eleven Meshy-generated terrain pieces (about 0.2 MB each) are instanced in all six sectors, visual only. Draw calls stayed at or under 300 (148 to 299) with 0 console errors in a Playwright run; screenshots in `docs/evidence/r15_meshy_terrain/`. Not human-playtested ([R15_MESHY_TERRAIN](archive/rounds/R15_MESHY_TERRAIN.md)).
 
 ## R14 additions
 
-- Room transitions slow down: a 42-tick door walk-through, a 150-tick entry grace for nearby foes, a sector title card, and gentler camera framing ([R14_TRANSIT](R14_TRANSIT.md)).
-- Terrain has procedural detail textures, normal maps and relief meshes (Meshy was unreachable, so none of it is Meshy output) ([R14_TERRAIN](R14_TERRAIN.md)).
-- Characters get per-kind key and fill light with a softer rim so they read as shapes ([R14_CHARLIGHT](R14_CHARLIGHT.md)).
+- Room transitions slow down: a 42-tick door walk-through, a 150-tick entry grace for nearby foes, a sector title card, and gentler camera framing ([R14_TRANSIT](archive/rounds/R14_TRANSIT.md)).
+- Terrain has procedural detail textures, normal maps and relief meshes (Meshy was unreachable, so none of it is Meshy output) ([R14_TERRAIN](archive/rounds/R14_TERRAIN.md)).
+- Characters get per-kind key and fill light with a softer rim so they read as shapes ([R14_CHARLIGHT](archive/rounds/R14_CHARLIGHT.md)).
 - Evidence: `docs/evidence/r14/` screenshots from a no-error Playwright run. No human playtest yet, so feel is unverified.

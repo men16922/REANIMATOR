@@ -433,7 +433,7 @@ body.reduce-fx .wpn-slot.switch { animation: none; }
   #sector-card.show { animation: card-fade 4.2s linear both; }
 }
 
-/* ---- Classic View (1996): original pixel status strip, crosshair cursor, transition overlay (see docs/R3_CLASSIC.md) ---- */
+/* ---- Classic View (1996): original pixel status strip, crosshair cursor, transition overlay (see docs/archive/rounds/R3_CLASSIC.md) ---- */
 #view-fx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; image-rendering: pixelated; }
 #view-fx[hidden] { display: none; }
 #classic-hud { display: none; position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: auto; aspect-ratio: 320 / 24; image-rendering: pixelated; pointer-events: none; }

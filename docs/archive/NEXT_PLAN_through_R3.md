@@ -8,7 +8,7 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 
 ## G5 — 사람 플레이 관찰
 
-- `npm run dev`로 1회 이상 직접 플레이해 감각·난이도·탐험 흐름을 [EVALUATION.md](EVALUATION.md)에 기록.
+- `npm run dev`로 1회 이상 직접 플레이해 감각·난이도·탐험 흐름을 [EVALUATION.md](../EVALUATION.md)에 기록.
 - 관찰 후보: 머리 회전·방향 전환·점프 포즈의 자연스러움, 어두운 샤프트 가독성, 부츠 필수 구간(Shaft 4.4 m, Security 4.4 m)의 체감·막힘 여부, 봇 대비 사람 난이도, 미니맵 확장(Tab).
 
 ## G6 — 최종 정리·제출 준비
@@ -35,7 +35,7 @@ Wave 2–3 완료. 남은 것은 푸시 승인과 사람 관찰이다.
 
 ## 몬스터·지형 전면 개선(2026-11-15 시작)
 
-계획: [plans/2026-11-15_MONSTERS_TERRAIN_OVERHAUL.md](plans/2026-11-15_MONSTERS_TERRAIN_OVERHAUL.md)
+계획: [plans/2026-11-15_MONSTERS_TERRAIN_OVERHAUL.md](../plans/2026-11-15_MONSTERS_TERRAIN_OVERHAUL.md)
 
 - [x] FEAT-001 기준선 기록(테스트 45/45, reach3d 52 wp 3431 ticks, 봇 3433 ticks HP 160) 및 계획 문서.
 - [x] FEAT-002 몬스터 AI 상태·회전·도약·순찰·가속(시뮬).

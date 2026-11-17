@@ -351,7 +351,7 @@ export function buildFacilityMap3D(): Level3D {
     { id: 'etank_underfloor', kind: 'energy_tank', x: 4.0, y: -3.2, z: 0 },
     { id: 'ammo_ex_mines', kind: 'ammo_expansion', x: -4.0, y: -8.6, z: 0 },
     { id: 'ammo_ex_core', kind: 'ammo_expansion', x: 97.5, y: -3.4, z: 0 },
-    // Round 16 Metroid abilities. Each one sits in an optional spot and unlocks one sealed cache (see docs/R16_METROID_ABILITIES.md).
+    // Round 16 Metroid abilities. Each one sits in an optional spot and unlocks one sealed cache (see docs/archive/rounds/R16_METROID_ABILITIES.md).
     { id: 'blast_core', kind: 'blast_core', x: -7.4, y: 0, z: 0 },
     { id: 'scan_lens', kind: 'scan_lens', x: 21.5, y: 10.2, z: 0 },
     { id: 'thermal_plating', kind: 'thermal_plating', x: 95.6, y: -3.4, z: 0 },

@@ -43,7 +43,7 @@ export interface SectorDrawEstimate {
   total: number;
   /** Shadow-casting meshes among the decor and solids (the shadow pass draws them a second time). */
   shadowCasters: number;
-  /** total plus the shadow pass; renderer.info.render.calls accumulates this per frame (see docs/R9_WORLD.md). */
+  /** total plus the shadow pass; renderer.info.render.calls accumulates this per frame (see docs/archive/rounds/R9_WORLD.md). */
   withShadowPass: number;
   /** Camera focus (x, y) that produced the worst case. */
   worstAt: { x: number; y: number };

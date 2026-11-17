@@ -6,9 +6,9 @@
 
 - Status: main에 `--no-ff` 4회 병합(fix, world, abuse, parry; abuse와 parry 병합 순서는 실행 중 뒤바뀜, 결과 동일), 푸시 없음.
 - 충돌: `tests/game3d.test.ts` 1곳, 양쪽 테스트 유지.
-- 통합 보강: `scanTargets3D`가 기댐 가짜 벽(`break_lean_security`)을 시크릿으로 분류(+테스트). 키 X/C/Z는 컨텍스트별 한 의미(사망 화면 C는 Resume, 플레이 중 C는 카운터 보조). [R9_PARRY](R9_PARRY.md).
+- 통합 보강: `scanTargets3D`가 기댐 가짜 벽(`break_lean_security`)을 시크릿으로 분류(+테스트). 키 X/C/Z는 컨텍스트별 한 의미(사망 화면 C는 Resume, 플레이 중 C는 카운터 보조). [R9_PARRY](rounds/R9_PARRY.md).
 - 봉인 파일 무변경. `make check` exit 0(테스트 459/459, reach3d 52 waypoints 3432 ticks, 봇 5362 ticks HP 112/160 56 kills, dist-guard 13 files 14,790,497 B). 브라우저 검증은 하지 않았다(unverified).
-- R10 Classic: audit, CRT toggle transition, reduce-flash sweep (docs/R10_CLASSIC.md). make check 465/465.
+- R10 Classic: audit, CRT toggle transition, reduce-flash sweep (docs/archive/rounds/R10_CLASSIC.md). make check 465/465.
 
 ## 2026-11-15 — R10 통합 (r10/classic, opening, boss, hunter)
 
@@ -66,14 +66,14 @@
 
 ## 2026-11-15 · R15 Meshy terrain
 
-- `.env` gitignored (separate commit). Meshy API probe failed: could not resolve `api.meshy.ai` (HTTP 000), so no assets were generated and code is unchanged. Kiro MCP write blocked by EPERM, not added. See `docs/R15_MESHY_TERRAIN.md`.
+- `.env` gitignored (separate commit). Meshy API probe failed: could not resolve `api.meshy.ai` (HTTP 000), so no assets were generated and code is unchanged. Kiro MCP write blocked by EPERM, not added. See `docs/archive/rounds/R15_MESHY_TERRAIN.md`.
 
 - R15 terrain kit: 11 Meshy GLBs ingested offline, instanced per sector in `terrainKit.ts`; a delegated sub-agent verified six sectors in the Playwright MCP browser (draw calls 148 to 299, 0 console errors, screenshots in `docs/evidence/r15_meshy_terrain/`) and ran `make check`. New user requests (Metroid abilities, tutorial mode, transient DATA LOG, retro UI, intro review) were added to NEXT_PLAN, not implemented.
 
 ## 2026-11-16 · R16 Metroid abilities (FEAT-002)
 
-- Three optional-route abilities added: Blast Core (blast plate, Blast Cache), Scan Lens (scan hatch, Lens Cache), Thermal Plating (heat seal, Heat Cache). Design, coordinates, reach3d impact and the two count-based test updates are in `docs/R16_METROID_ABILITIES.md`. Bot pins unchanged. Tutorial (FEAT-003) not started. Browser view unverified.
+- Three optional-route abilities added: Blast Core (blast plate, Blast Cache), Scan Lens (scan hatch, Lens Cache), Thermal Plating (heat seal, Heat Cache). Design, coordinates, reach3d impact and the two count-based test updates are in `docs/archive/rounds/R16_METROID_ABILITIES.md`. Bot pins unchanged. Tutorial (FEAT-003) not started. Browser view unverified.
 
 ## 2026-11-16 · R16 tutorial mode, minimal HUD, release text (FEAT-003)
 
-- `src/ui/tutorial.ts` (pure) plus wiring: one skippable prompt at a time, ability prompts on pickup, `T` skip, `Extras > Tutorial` replay. Default HUD no longer lists controls or skills. Player-facing text scrubbed of development-tool mentions, README rewritten as a game README. `make check` exit 0 (672/672). `make smoke-local` not run (Chrome unavailable in the sandbox). Summary: [R16_RETRO_TUTORIAL_UI](R16_RETRO_TUTORIAL_UI.md).
+- `src/ui/tutorial.ts` (pure) plus wiring: one skippable prompt at a time, ability prompts on pickup, `T` skip, `Extras > Tutorial` replay. Default HUD no longer lists controls or skills. Player-facing text scrubbed of development-tool mentions, README rewritten as a game README. `make check` exit 0 (672/672). `make smoke-local` not run (Chrome unavailable in the sandbox). Summary: [R16_RETRO_TUTORIAL_UI](rounds/R16_RETRO_TUTORIAL_UI.md).

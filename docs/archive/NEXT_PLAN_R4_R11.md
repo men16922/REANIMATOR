@@ -5,7 +5,7 @@
 ## R9–R11 세션 마감 후 (남은 항목)
 
 - [ ] **푸시 대기**: github.com DNS 실패로 `git push origin main`을 못 했다. 사용자가 직접 실행.
-- [ ] G5 사람 플레이(감각, 난이도, 탐험 흐름)를 [EVALUATION.md](EVALUATION.md)에 기록.
+- [ ] G5 사람 플레이(감각, 난이도, 탐험 흐름)를 [EVALUATION.md](../EVALUATION.md)에 기록.
 - [ ] `make smoke-local`은 실제 Chrome에서 실행해야 한다(에이전트 샌드박스는 브라우저 실행 불가). 쇼케이스 재촬영 포함.
 - [ ] 패리/Warden 카운터 창(8틱)의 체감은 플레이 검증 전(unverified).
 - [ ] `3c8e7a0`의 헌터 외형 재확인, `__reanimatorAdvance` 재현 불가 건은 dev 서버 재시작 후 재확인.
@@ -19,7 +19,7 @@
 
 ## R10 Hunter 후
 
-- [x] Reclaimer 구역, 봇 카운터·구역 이탈 경로, 테스트 33개, `make check` 통과(493/493). 상세와 unverified 목록은 [R10_HUNTER](R10_HUNTER.md).
+- [x] Reclaimer 구역, 봇 카운터·구역 이탈 경로, 테스트 33개, `make check` 통과(493/493). 상세와 unverified 목록은 [R10_HUNTER](rounds/R10_HUNTER.md).
 - [ ] 브라우저 확인(unverified): 리그 틴트·바이저 막대·게이트 막대 모양, HUNTER ZONE pill과 소음 막대, 스팅·포효 음, Ctrl/Alt 살금걸음(OS 단축키 충돌 여부), 카운터 8틱 창의 체감, 160 HP에서 구역 공정성.
 - [ ] 게임패드 아날로그 살금걸음 연결. Hard 봇이 Warden 구간 타이밍에 민감함(R8과 같은 성질)이므로 봇 경로를 바꿀 때 세 난이도를 함께 재측정(`node tools/game/hunter.ts`).
 
@@ -56,7 +56,7 @@
 - [ ] 브라우저 확인(진행 중): 적 리깅·LOD, Crawl Slide·파괴 블록·맵 단말·탈출 해치, 메시 병합 후 drawCalls, 증기 시트, 보스 카메라, 피격 플래시·투사체 글로우·색수차, 콘솔 오류 0.
 - [ ] `biolabs.png`, `boss.png` 재촬영 후 커밋. `combat.png`, `lab.png` 추가.
 - [ ] 병합 후 봇 완주(`__reanimatorRunBot`) 재측정.
-- [ ] Metroid 후속(벽 점프 보강, 패리, 스캔)은 [R4_METROID_GAPS](plans/R4_METROID_GAPS.md) 참조.
+- [ ] Metroid 후속(벽 점프 보강, 패리, 스캔)은 [R4_METROID_GAPS](../plans/R4_METROID_GAPS.md) 참조.
 
 ## R4 병합 후 (오케스트레이터)
 
@@ -75,7 +75,7 @@
 ## 사용자 확인 필요
 
 - `git push origin main` 승인(로컬 커밋만 존재).
-- G5: `npm run dev`로 직접 플레이해 감각·난이도·탐험 흐름을 [EVALUATION.md](EVALUATION.md)에 기록. 관찰 후보: 부츠 필수 구간 체감, 보스 3페이즈 난이도, Classic View 가독성.
+- G5: `npm run dev`로 직접 플레이해 감각·난이도·탐험 흐름을 [EVALUATION.md](../EVALUATION.md)에 기록. 관찰 후보: 부츠 필수 구간 체감, 보스 3페이즈 난이도, Classic View 가독성.
 - 원본 Abuse 느낌 강화 요청(2026-11-15 사용자 메시지): R3 Classic View·조명·고어가 첫 대응이며 추가 라운드에서 앰버 팔레트·메뉴·사운드 톤을 더 맞출지 결정 필요.
 
 ## 이월
