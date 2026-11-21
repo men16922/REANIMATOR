@@ -45,3 +45,13 @@
 - Decision: 제출 데모를 서버 없이 S3 비공개 버킷 + CloudFront로 배포한다(`infra/site.yaml`, `us-west-2`, `*.cloudfront.net`).
 - Reason: 게임이 정적 파일 22 MB뿐이라 서버·DB가 필요 없고, 무료 한도 안에서 HTTPS와 보안 헤더를 얻는다. 해커톤 규정상 AWS 배포는 필수가 아닌 것으로 보이나(원문 미확인) 심사자가 바로 플레이할 수 있다.
 - Impact: 재배포는 `make check && infra/deploy.sh`. 삭제는 버킷 비우기 후 스택 삭제(`infra/README.md`). 예산 알림은 아직 없다.
+
+## 2026-11-21 — 저장소 공개 push, LICENSE는 MIT 원문만
+- Decision: `main`을 public GitHub에 push하고, `LICENSE`에는 MIT 원문만 두며 적용 범위 안내(Abuse 파일 제외, Meshy 모델 조건)는 `NOTICE.md`로 분리한다.
+- Reason: 제출 요건이 About 섹션에 보이는 오픈소스 라이선스인데, 안내문이 붙은 `LICENSE`를 GitHub가 `NOASSERTION`으로 판정했다.
+- Impact: 범위 안내를 고칠 때는 `NOTICE.md`를 수정한다. `LICENSE`에 문장을 덧붙이면 라이선스 인식이 다시 깨진다.
+
+## 2026-11-21 — 데모 영상은 YouTube만, 저장소에 넣지 않음
+- Decision: 트레일러와 원본 캡처는 `docs/evidence/demo/`(gitignore)에 두고 YouTube로만 공개한다. 음악은 게임 자체 합성 BGM을 WebAudio 탭으로 녹음한 것만 쓴다.
+- Reason: 영상 50 MB 안팎으로 저장소를 키우지 않고, 저작권 음악 위험을 없앤다.
+- Impact: 재생성은 `make smoke-build` 후 `tools/smoke/record-demo.ts`(MODE=showcase, W=1920 H=1080 MUTE_BGM=1 TAG=hd_showcase), `record-bed.ts`, `trailer-cards.ts`, `trailer.ts`.

@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: R27 완료·AWS 배포됨(https://dlr55kf9v2hn7.cloudfront.net). 제출 마감 2026-12-04 14:00 PT. 첫 행동: Devpost Rules 탭 필수 항목 확인 → Meshy 키 재발급 → (사용자 지시 시) 푸시. 이어서 데모 영상, 사람 플레이, `KIRO_USAGE.md` 정리. 계획 [NEXT_PLAN](NEXT_PLAN.md). 푸시는 사용자 지시 전까지 하지 않는다.
+▶ NEXT SESSION: R28 완료 — 새 BGM 재배포, GitHub public push(MIT 인식), 트레일러 `docs/evidence/demo/reanimator_trailer.mp4` 완성. 제출 마감 2026-12-04 14:00 PT. 첫 행동: 사용자에게 YouTube 링크를 받아 [DEVPOST](DEVPOST.md)의 `<VIDEO_URL>`과 README에 넣고 push. 계획 [NEXT_PLAN](NEXT_PLAN.md) "제출 준비". 추가 push·배포는 사용자 지시 범위에서만.
 
 ## 한 줄 요약
 

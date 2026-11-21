@@ -4,12 +4,11 @@
 
 ## 제출 준비 (마감 2026-12-04 14:00 PT)
 
-- [ ] (사용자) Devpost Rules 탭에서 필수 제출물·카테고리(Resurrection 후보)·영상 제한 확인.
-- [ ] (사용자) Meshy API 키 재발급·기존 키 폐기, 그다음 푸시와 저장소 공개 여부 확인.
-- [ ] (사용자) 데모 영상 녹화(트레일러 릴 `?debug=1` 활용), Devpost 양식 작성.
-- [ ] (사용자) 배포 URL에서 처음부터 끝까지 사람 플레이, 막힌 곳 기록.
-- [ ] `docs/KIRO_USAGE.md`를 Kiro 실사용만 남기도록 점검, README 첫 화면에 라이브 URL·영상 링크 정리, 영상 대본.
-- [ ] 선택: AWS Budgets 월 $5 알림(이메일 필요), 모바일·타 브라우저 확인.
+- [ ] (사용자) `docs/evidence/demo/reanimator_trailer.mp4`를 YouTube public 업로드, 링크 전달.
+- [ ] 링크를 `docs/DEVPOST.md`의 `<VIDEO_URL>`과 README 상단(라이브 URL 옆)에 넣고 push.
+- [ ] (사용자) Devpost 양식 작성(`docs/DEVPOST.md` 붙여넣기, 카테고리 Resurrection), Kiro 크레딧 신청(12-01 12:00 PT).
+- [ ] (사용자) 배포 URL에서 처음부터 끝까지 사람 플레이, 막힌 곳 기록. BGM 청취 확인.
+- [ ] 선택: AWS Budgets 월 $5 알림(이메일 필요), 모바일·타 브라우저 확인, `#KiroweenHackathon26` 게시.
 
 ## R26 이후
 

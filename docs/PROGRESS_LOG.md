@@ -2,6 +2,14 @@
 
 R20~R15와 이전 항목은 [archive/progress-2026-11.md](archive/progress-2026-11.md), R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-21 — 재배포·GitHub push·LICENSE 인식 수정 (사용자 지시)
+
+- Status: 제출물 중 코드·라이브 데모 공개 완료. 남은 것은 영상 업로드와 Devpost 양식(사용자).
+- Changed: `infra/deploy.sh`로 CloudFront 재배포(새 BGM), `origin/main` push 240커밋(`a9cabde..d232e4e`). GitHub가 `LICENSE`를 `NOASSERTION`으로 판정 → 범위 안내문을 `NOTICE.md`로 분리, README 링크, `6f1b6d6` push.
+- Verified: 라이브 `index.html` MD5 = 로컬 `dist/`, 새 번들 `assets/index-a1YQEcg-.js` 200. GitHub API `private: false`, `spdx_id: MIT`. `make check` exit 0(LICENSE 분리 후).
+- Blockers: 없음(영상 링크 대기).
+- Next: YouTube 링크 → `docs/DEVPOST.md`·README 반영·push → Devpost 제출, Kiro 크레딧 신청(12-01 12:00 PT).
+
 ## 2026-11-21 — 데모 영상·트레일러, 레트로 BGM, 제출 문서 (로컬 커밋, 푸시·재배포 없음)
 
 - Changed: `src/ui/themes.ts`(10개 테마 레트로 아케이드풍 재작성), `tests/audio.test.ts`, 녹화·트레일러 도구 `tools/smoke/{record-demo,record-bed,trailer-cards,trailer}.ts`, `docs/KIRO_USAGE.md` 영문 심사 요약, `docs/DEVPOST.md` 제출 문안 초안, `.gitignore`(`docs/evidence/demo/`), stale worktree 메타데이터 prune.
