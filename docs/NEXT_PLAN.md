@@ -5,12 +5,12 @@
 ## 제출 준비 (마감 2026-12-04 14:00 PT)
 
 - [x] 제출 전 문서·스크린샷 정비, BGM DSP·테마 개선(`src/ui/{audio,themes}.ts`), 1080p 트레일러(`reanimator_trailer.mp4`) 재제작·프레임/음향 직접 검수, CloudFront 재배포 및 `make smoke-local` 30/30·`make release` 검증.
-- [x] `reanimator_trailer.mp4` YouTube public 업로드(`https://youtu.be/TvyT1M4yLzY`) 및 `docs/DEVPOST.md`·`README.md` 반영 완료(로컬 미커밋).
+- [x] `reanimator_trailer.mp4` YouTube public 업로드(`https://youtu.be/TvyT1M4yLzY`) 및 `docs/DEVPOST.md`·`README.md` 반영 완료.
 - [x] (사용자) Kiro 크레딧 신청 완료(2026-11-21 확인).
-- [ ] 로컬 변경분(`src/ui/{audio,themes}.ts`, `tools/smoke/*`, `README.md`, `docs/*`) 커밋·`origin/main` push(사용자 지시 시).
+- [x] R28 변경분(`src/ui/{audio,themes}.ts`, `tools/smoke/*`, `README.md`, `docs/*`) `6c32030` 커밋·`origin/main` push 완료.
+- [x] Devpost 최종 제출 완료(`https://devpost.com/software/reanimator`, 카테고리 Resurrection, 수정 가능 기한 `2026-12-04 14:00 PT`; 마감 후 변경 금지).
 - [ ] (사용자) 배포 URL(`https://dlr55kf9v2hn7.cloudfront.net`)에서 처음부터 끝까지 사람 플레이(G5), 막힌 곳 기록 및 실제 플레이 감각·BGM 확인.
-- [ ] (사용자) Devpost 양식 최종 제출(`docs/DEVPOST.md`, 카테고리 Resurrection, 마감 `2026-12-04 14:00 PT`).
-- [ ] 선택: AWS Budgets 월 $5 알림(이메일 필요), 모바일·타 브라우저 확인, `#KiroweenHackathon26` 게시.
+- [ ] 선택: Bonus Blog Prize / Social Blitz(`#KiroweenHackathon26`), AWS Budgets 월 $5 알림(이메일 필요), 모바일·타 브라우저 확인.
 
 ## 잔여 기술·검증 항목 (Post-R28)
 

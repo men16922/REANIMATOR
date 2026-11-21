@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: YouTube 트레일러 공개 업로드 완료(`https://youtu.be/TvyT1M4yLzY`, [DEVPOST](DEVPOST.md)·README 반영 완료) + Kiro 크레딧 신청 완료 + CloudFront 라이브 재배포 완료. 로컬 미커밋: `src/ui/{audio,themes}.ts`, `tools/smoke/*`, `README.md`, `docs/*` (`make check` 766/766, `make smoke-local` 30/30, `release/` zip 갱신). 첫 행동: 사용자 지시 시 이번 변경분 커밋·`origin/main` push 후, 사람 플레이(G5) 및 Devpost 최종 제출(`https://kiroween.devpost.com`, 마감 2026-12-04 14:00 PT). 계획 [NEXT_PLAN](NEXT_PLAN.md) "제출 준비".
+▶ NEXT SESSION: **Kiroween 2026 Devpost 제출 완료**(`https://devpost.com/software/reanimator`, 카테고리 `Resurrection`, 수정 가능 기한 `2026-12-04 14:00 PT` = `2026-12-05 07:00 KST`). YouTube 트레일러(`https://youtu.be/TvyT1M4yLzY`), GitHub `origin/main` push, CloudFront 라이브(`https://dlr55kf9v2hn7.cloudfront.net`), Kiro 크레딧 신청 완료. 남은 선택/권장 작업: 라이브 URL 사람 플레이(G5) 및 선택적 보너스(Blog / Social Blitz / AWS Budgets). 마감 후(`2026-12-04 14:00 PT` 이후) 수상자 발표 전까지 저장소·영상·라이브 앱 변경 금지. 계획 [NEXT_PLAN](NEXT_PLAN.md).
 
 ## 한 줄 요약
 

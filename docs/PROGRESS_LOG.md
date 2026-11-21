@@ -2,7 +2,15 @@
 
 R20~R15와 이전 항목은 [archive/progress-2026-11.md](archive/progress-2026-11.md), R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
-## 2026-11-21 — YouTube 트레일러 공개 업로드·문서 링크 반영·Kiro 크레딧 신청 완료 반영 (로컬 미커밋)
+## 2026-11-21 — GitHub push 및 Kiroween 2026 Devpost 최종 제출 완료
+
+- Status: 해커톤 제출 완료(`https://devpost.com/software/reanimator`, 수정 가능 기한 `2026-12-04 14:00 PT`; 마감 이후 저장소·영상·배포 변경 금지).
+- Changed: `docs/JUDGES.md` 바이트 수치 정합화 후 R28 변경 14파일 커밋·`origin/main` push(`6c32030`). Devpost 제출서(`1273977-reanimator`) 4단계 전체 입력(제목·피치·썸네일 `og-image.png`·스토리·태그 13종·링크 2건·갤러리 8컷·YouTube `https://youtu.be/TvyT1M4yLzY`·카테고리 Resurrection·Kiro/사전작업/테스트 안내·약관 동의) 및 최종 제출 완료.
+- Verified: GitHub API `private: false`, `license: MIT`, `default_branch: main`; Devpost `"Project submitted!"` 배너 및 공개 페이지 `https://devpost.com/software/reanimator` 확인.
+- Unverified: 사람 전 구간 플레이(G5).
+- Next: 필요 시 `2026-12-04 14:00 PT` 전까지 사람 플레이(G5) 결과 또는 보너스(블로그/소셜) 추가, 마감 이후 동결 유지.
+
+## 2026-11-21 — YouTube 트레일러 공개 업로드·문서 링크 반영·Kiro 크레딧 신청 완료 반영
 
 - Status: 제출 필수 자산(코드·CloudFront 라이브·YouTube 공개 영상·Kiro 크레딧 신청·문서) 준비 완료, 로컬 변경분 커밋·push 및 Devpost 최종 등록 대기.
 - Changed: YouTube Studio(`Paulos` `@paulosdev-j2u`)에 `reanimator_trailer.mp4` public 게시(`https://youtu.be/TvyT1M4yLzY`), [DEVPOST.md](DEVPOST.md) `<VIDEO_URL>` 치환, [README.md](../README.md) `Trailer` 링크 추가, `docs/{AGENT_BRIEF,STATUS,NEXT_PLAN}.md`에 영상 URL 및 Kiro 크레딧 신청 완료 반영.

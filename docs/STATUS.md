@@ -1,15 +1,16 @@
 # 현재 상태
 
-최종 갱신: 2026-11-21 R28+BGM/트레일러 재제작(DSP 로우패스·clang 완화·1080p 트레일러·CloudFront 재배포, 로컬 미커밋) · 그 전 2026-11-21 R28(데모 트레일러·레트로 BGM·재배포·push) · 그 전 2026-11-17 R27(AWS 배포·tidy·제출 준비) · 이전 R20~R25 상세는 [archive/STATUS_R15_R25.md](archive/STATUS_R15_R25.md) · 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-21 Kiroween 2026 Devpost 제출 완료(`https://devpost.com/software/reanimator`) 및 `origin/main` push 완료 · 그 전 2026-11-21 R28+BGM/트레일러 재제작(DSP 로우패스·clang 완화·1080p 트레일러·CloudFront 재배포) · 그 전 2026-11-21 R28(데모 트레일러·레트로 BGM·재배포·push) · 그 전 2026-11-17 R27(AWS 배포·tidy·제출 준비) · 이전 R20~R25 상세는 [archive/STATUS_R15_R25.md](archive/STATUS_R15_R25.md) · 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## R28 제출 상태 (2026-11-21)
 
+- **Devpost 제출 완료**: `https://devpost.com/software/reanimator` (Kiroween 2026, 카테고리 **Resurrection**, 제출자 `@men16922` Paul Choi / Individual, 5/5 단계 및 규칙 동의 완료). **마감(`2026-12-04 14:00 PT`)까지 수정 가능하며, 마감 이후에는 수상자 발표 전까지 저장소·영상·배포 URL·연결 자료를 수정하지 말 것.**
 - 배포: https://dlr55kf9v2hn7.cloudfront.net (S3 비공개 + CloudFront OAC, `us-west-2`, 스택 `reanimator-site`, [infra/README](../infra/README.md)). 개선 BGM 빌드로 재배포·무효화(`I6497S1WOJI312QSKUJ4FMU6XH`) 완료(라이브 `index.html` MD5 `619e6b33465b66db9c17fb204f7aab4a` = 로컬 `dist/`, 번들 `/assets/index-CsTU0H5t.js` HTTP/2 200). 예산 알림은 미설정.
-- 저장소: https://github.com/men16922/REANIMATOR public, `origin/main` = 로컬 HEAD `b43598f`(GitHub 라이선스 `MIT`, `NOTICE.md` 분리). BGM 개선·트레일러 도구·제출 문서 정비분은 로컬 미커밋.
+- 저장소: https://github.com/men16922/REANIMATOR public(`private: false`, `license: MIT`, `default_branch: main`), `6c32030` push 완료(`NOTICE.md` 분리, `/.kiro` 추적).
 - 영상: `https://youtu.be/TvyT1M4yLzY` (public, 채널 `Paulos` `@paulosdev-j2u`, `docs/evidence/demo/reanimator_trailer.mp4` 79 MB, 1920×1080 H.264 25 fps, 71.96 s, AAC stereo 48 kHz 198 kbps, `-15.2 LUFS` / True Peak `-1.0 dBFS`, gitignore). 도구 `tools/smoke/{record-demo,record-bed,trailer-cards,trailer}.ts`.
-- 제출 문안: [DEVPOST.md](DEVPOST.md)(영문, `https://youtu.be/TvyT1M4yLzY` 반영), [KIRO_USAGE.md](KIRO_USAGE.md) 영문 요약, [PREEXISTING_WORK.md](PREEXISTING_WORK.md)(영문 공개 고지 전면 개편), [README.md](../README.md)·[JUDGES.md](JUDGES.md) 트레일러 URL·스크린샷·검증 수치 갱신(로컬 미커밋). Kiro 크레딧 신청 완료(2026-11-21 사용자 확인).
+- 제출 문안·심사 자료: [DEVPOST.md](DEVPOST.md)(영문, Devpost 등록 완료), [KIRO_USAGE.md](KIRO_USAGE.md) 영문 요약, [PREEXISTING_WORK.md](PREEXISTING_WORK.md), [README.md](../README.md)·[JUDGES.md](JUDGES.md) 최신화 및 푸시 완료. Kiro 크레딧 신청 완료(2026-11-21 사용자 확인).
 - 검증: `make check` exit 0(766/766, `reach3d` S1 52/S2 33/S3 32 waypoints, `dist-guard` 56 files 20,780,579 B), `make smoke-local` 30/30(60.5 fps, 봇 4978 ticks, 오류 0), Playwright Bio-Labs `222` draw calls(`<=300`)·`REANIMATED` 카드 0 errors, `boss`/`meltdown`/`victory`/`biolabs`·트레일러 직접 청취·프레임 검수, `make release`로 `release/reanimator-1.1.0-web.zip`(12,263,114 B) 갱신.
-- 열린 위험: (1) 사람 플레이 G5 미실시(실게임 전 구간 밸런스·BGM 실플레이 확인). (2) AWS 예산 알림 미설정. (3) BGM·트레일러 도구·문서·YouTube 링크 수정분 로컬 미커밋·미푸시.
+- 열린 위험: (1) 사람 플레이 G5 미실시(실게임 전 구간 밸런스·BGM 실플레이 확인). (2) AWS 예산 알림 미설정.
 
 ## R27 스모크 복구 (2026-11-17)
 
