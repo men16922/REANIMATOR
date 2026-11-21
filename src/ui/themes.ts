@@ -92,7 +92,7 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
   // Bio-Labs: bouncy synth-pop arcade, full sixteenth arpeggio, bright major lift.
   biolabs: {
     bpm: 136, root: 46.25, prog: [{ r: 0, chord: MAJ7 }, { r: 4, chord: MIN }, { r: 2, chord: MAJ }, { r: 7, chord: MAJ }],
-    arp: seq('12 16 19 16 14 18 21 18 12 16 19 23 21 18 16 14'), bassLine: seq('0 . 12 . 0 . 12 . 0 . 12 . 4 . 7 .'), lead: seq('24 . 23 . 21 . 19 . 21 . 23 . 24 . 28 .'),
+    arp: seq('12 16 19 16 14 18 21 18 12 16 19 23 21 18 16 14'), bassLine: seq('0 . 12 . 0 . 12 . 0 . 12 . 4 . 7 .'), lead: seq('12 . 11 . 9 . 7 . 9 . 11 . 12 . 16 .'),
     kick: 'x...x...x...x...', snare: '....x.......x...', hat: '.x.x.x.x.x.x.x.x', perc: NONE,
     padWave: 'triangle', arpWave: 'square', bassWave: 'triangle', leadWave: 'square', padGain: 0.022, arpGain: 0.017, bassGain: 0.085, leadGain: 0.015,
     wet: 0.3, delayBeats: 0.75, delayFb: 0.4, duck: 0.35, form: 'song',
@@ -116,17 +116,17 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
   // Core Warden: fast arcade boss theme, double kick, saw lead. Layers stack with the boss phase.
   boss: {
     bpm: 156, root: 73.4, prog: [{ r: 0, chord: MIN }, { r: 0, chord: MIN }, { r: 1, chord: MAJ }, { r: -2, chord: MAJ }],
-    arp: seq('0 3 7 12 7 3 10 7 0 3 7 12 15 12 10 7'), bassLine: seq('0 0 . 0 0 . 0 . 0 0 . 0 1 . 0 .'), lead: seq('12 . 15 . 19 . 17 . 15 . 12 . 10 . 12 .'),
+    arp: seq('0 3 7 12 7 3 10 7 0 3 7 12 15 12 10 7'), bassLine: seq('0 0 . 0 0 . 0 . 0 0 . 0 1 . 0 .'), lead: seq('0 . 3 . 7 . 5 . 3 . 0 . -2 . 0 .'),
     kick: 'x.x.x.xxx.x.x.xx', snare: '....x.......x..x', hat: '.x.x.x.x.x.x.x.x', perc: 'c......c..c.....',
-    padWave: 'sawtooth', arpWave: 'square', bassWave: 'sawtooth', leadWave: 'sawtooth', padGain: 0.026, arpGain: 0.02, bassGain: 0.065, leadGain: 0.02,
+    padWave: 'sawtooth', arpWave: 'square', bassWave: 'sawtooth', leadWave: 'sawtooth', padGain: 0.022, arpGain: 0.02, bassGain: 0.065, leadGain: 0.017,
     wet: 0.2, delayBeats: 0.75, delayFb: 0.35, duck: 0.5, form: 'loop',
   },
   // Meltdown escape: urgent A phrygian, relentless eighths, two-tone alarm lead.
   meltdown: {
     bpm: 170, root: 65.4, prog: [{ r: 0, chord: MIN }, { r: 1, chord: MAJ }, { r: 0, chord: MIN }, { r: 5, chord: SUS }],
-    arp: seq('0 12 7 12 0 12 8 12 0 12 7 12 0 12 8 12'), bassLine: seq('0 . 0 . 0 . 0 . 0 . 0 . 1 . 1 .'), lead: seq('12 12 12 12 7 7 7 7 12 12 12 12 7 7 7 7'),
+    arp: seq('0 12 7 12 0 12 8 12 0 12 7 12 0 12 8 12'), bassLine: seq('0 . 0 . 0 . 0 . 0 . 0 . 1 . 1 .'), lead: seq('0 0 0 0 -5 -5 -5 -5 0 0 0 0 -5 -5 -5 -5'),
     kick: 'x...x...x...x...', snare: '....x.......x...', hat: 'xxxxxxxxxxxxxxxx', perc: 'c.......c.......',
-    padWave: 'square', arpWave: 'square', bassWave: 'sawtooth', leadWave: 'square', padGain: 0.024, arpGain: 0.026, bassGain: 0.06, leadGain: 0.018,
+    padWave: 'triangle', arpWave: 'square', bassWave: 'sawtooth', leadWave: 'square', padGain: 0.024, arpGain: 0.02, bassGain: 0.06, leadGain: 0.014,
     wet: 0.18, delayBeats: 0.5, delayFb: 0.3, duck: 0.5, form: 'loop',
   },
   // Title / attract screen: arcade attract mode, upbeat hook, bright square lead over a steady kick.
@@ -137,12 +137,12 @@ export const THEMES: Record<ThemeId, ThemeDef> = {
     padWave: 'triangle', arpWave: 'square', bassWave: 'triangle', leadWave: 'square', padGain: 0.024, arpGain: 0.02, bassGain: 0.08, leadGain: 0.018,
     wet: 0.25, delayBeats: 0.75, delayFb: 0.35, duck: 0.3, form: 'song',
   },
-  // Victory ending: the same arcade palette resolved to major, a stage-clear jingle feel.
+  // Victory ending: calm sci-fi resolution in the same palette.
   victory: {
-    bpm: 132, root: 65.4, prog: [{ r: 0, chord: MAJ }, { r: -3, chord: MIN }, { r: -7, chord: MAJ }, { r: -5, chord: MAJ }],
-    arp: seq('12 16 19 24 19 16 19 16 12 16 19 24 26 24 19 16'), bassLine: seq('0 . 12 . 0 . 12 . 0 . 12 . 0 . 7 .'), lead: seq('24 . 28 . 31 . 28 . 26 . 24 . 19 . 24 .'),
-    kick: 'x...x...x...x...', snare: '....x.......x...', hat: '.x.x.x.x.x.x.x.x', perc: NONE,
-    padWave: 'triangle', arpWave: 'square', bassWave: 'triangle', leadWave: 'square', padGain: 0.024, arpGain: 0.018, bassGain: 0.07, leadGain: 0.017,
+    bpm: 104, root: 65.4, prog: [{ r: -3, chord: MIN }, { r: -7, chord: MAJ }, { r: -5, chord: MAJ }, { r: 0, chord: MAJ7 }],
+    arp: seq('0 4 7 12 7 4 7 4 0 4 7 12 14 12 7 4'), bassLine: seq('0 . 12 . 0 . 12 . 0 . 12 . 0 . 7 .'), lead: seq('12 . 16 . 19 . 16 . 14 . 12 . 7 . 12 .'),
+    kick: 'x.......x.......', snare: '........x.......', hat: '..x...x...x...x.', perc: NONE,
+    padWave: 'triangle', arpWave: 'triangle', bassWave: 'triangle', leadWave: 'triangle', padGain: 0.024, arpGain: 0.016, bassGain: 0.065, leadGain: 0.015,
     wet: 0.25, delayBeats: 0.75, delayFb: 0.3, duck: 0.3, form: 'song',
   },
 };

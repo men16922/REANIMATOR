@@ -1,9 +1,6 @@
-// Trailer assembler. Cuts the 1080p Watch Showcase recording (raw/video_hd_showcase.webm: the bot actually plays, music muted,
-// record-demo.ts W=1920 H=1080 MUTE_BGM=1 TAG=hd_showcase MODE=showcase) in its own order, plus one Restoration Lab shot from the
-// Trailer Reel (raw/video_reel.webm). Shots sit on the bar lines of a music bed built from the game's own themes (raw/bed.webm,
-// record-bed.ts). The showcase carries its own section captions, so the only added cards are the cold open and the end card
-// (trailer-cards.ts). Gameplay sfx follow the shots; a few synthetic booms mark section changes.
-// Hard cuts only, no zoom, no flash. Writes docs/evidence/demo/reanimator_trailer.mp4 (1280x720, ~70 s).
+// 1080p Full HD trailer assembler (25 fps native, ~71.9 s). Combines clean caption-free Trailer Reel + Watch Showcase
+// recordings with the 3-act E minor -> D minor -> E minor arcade music bed and real game SFX cues from bed.webm.
+// Outputs docs/evidence/demo/reanimator_trailer.mp4.
 
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
@@ -11,87 +8,196 @@ import { resolve } from 'node:path';
 
 const raw = resolve(import.meta.dirname, '../../docs/evidence/demo/raw');
 const outFile = resolve(import.meta.dirname, '../../docs/evidence/demo/reanimator_trailer.mp4');
-const SFX_OFFSET = Number(readFileSync(resolve(raw, 'offset_hd_showcase.txt'), 'utf8')); // audio starts this many seconds after the video
 
-interface Shot { src: 'show' | 'lab' | 'black'; ss: number; d: number }
-const show = (ss: number, d: number): Shot => ({ src: 'show', ss, d });
+interface Meta {
+  reelStartSec: number;
+}
+interface BedJson {
+  themes: Record<'title' | 'shaft' | 'security', number>;
+  sfx: Record<string, number>;
+}
+
+const metaReel = JSON.parse(readFileSync(resolve(raw, 'meta_hd_reel.json'), 'utf8')) as Meta;
+const metaShow = JSON.parse(readFileSync(resolve(raw, 'meta_hd_showcase.json'), 'utf8')) as Meta;
+const bed = JSON.parse(readFileSync(resolve(raw, 'bed.json'), 'utf8')) as BedJson;
+
+const R0 = metaReel.reelStartSec;
+const S0 = metaShow.reelStartSec;
+
 const bar = (bpm: number) => (60 / bpm) * 4;
-const B2 = bar(128), B3 = bar(146); // shaft and security theme bars
+const B1 = bar(112); // title (E minor) = 2.142857 s
+const B2 = bar(128); // shaft (D minor) = 1.875 s
+const B3 = bar(146); // security (E minor) = 1.643836 s
 
-const shots: Shot[] = [];
-// P1: cold open (black, two lines), then the title screen on the downbeat
-shots.push({ src: 'black', ss: 0, d: 4.3 }, show(2.0, 4.3));
-// P2: shaft theme: Restoration Lab 2 bars, frame-exact physics run 3 bars, six sectors 3 bars
-shots.push({ src: 'lab', ss: 9.0, d: 2 * B2 }, show(7.6, 3 * B2), show(15.3, 3 * B2));
-// P3: security theme: hazards 3 bars, weapon locks 3 bars, classic view 2 bars
-shots.push(show(23.3, 3 * B3), show(30.5, 3 * B3), show(39.0, 2 * B3));
-// P4: boss theme, escalating: Slag Foreman, Spire Warden, Core Warden
-shots.push(show(60.3, 5.5), show(76.0, 6.3), show(45.3, 6.3));
-// P5: meltdown run to the hatch
-shots.push(show(83.3, 6.5), show(91.3, 2.5));
-// P6: end card
-shots.push({ src: 'black', ss: 0, d: 6.0 });
+interface Shot {
+  src: 'reel' | 'show' | 'black';
+  ss: number;
+  d: number;
+  ui?: boolean;
+}
+const reelShot = (ss: number, d: number, ui = false): Shot => ({ src: 'reel', ss, d, ui });
+const showShot = (ss: number, d: number, ui = false): Shot => ({ src: 'show', ss, d, ui });
+const blackShot = (d: number): Shot => ({ src: 'black', ss: 0, d, ui: true });
+
+// Act lengths: Act 1 = 8*B1 (17.143 s), Act 2 = 12*B2 (22.500 s), Act 3 = 16*B3 (26.301 s), Outro = 6.000 s
+const ACT1 = 8 * B1;
+const ACT2 = 12 * B2;
+const ACT3 = 16 * B3;
+const OUTRO = 6.0;
+
+const shots: Shot[] = [
+  // Act 1 (title theme, E minor)
+  blackShot(2 * B1),                                        // 0: cold open
+  showShot(Math.max(0.5, S0 - 3.2), 1 * B1, true),          // 1: clean title screen
+  reelShot(R0 + 3.0, 3 * B1, true),                         // 2: Restoration Lab PASS -> RED MUTATION FAIL
+  reelShot(R0 + 12.2, 2 * B1),                              // 3: 1996 <-> 2026 live CRT collapse
+  // Act 2 (shaft theme, D minor)
+  showShot(S0 + 8.5, 1.5 * B2),                             // 4: Central Shaft
+  showShot(S0 + 16.0, 1.5 * B2),                            // 5: Sunken Mines hazards
+  reelShot(R0 + 26.2, 3 * B2),                              // 6: Parry + Scan + Weapons
+  reelShot(R0 + 38.4, 2 * B2),                              // 7: Reclaimer Hunter
+  showShot(S0 + 23.5, 1 * B2),                              // 8: Bio-Labs weapon locks
+  showShot(S0 + 46.0, 1.5 * B2),                            // 9: Stage 2 Foundry Line
+  showShot(S0 + 63.5, 1.5 * B2),                            // 10: Stage 3 Reactor Spire
+  // Act 3 (security theme, E minor return)
+  reelShot(R0 + 46.8, 4 * B3),                              // 11: Slag Foreman
+  reelShot(R0 + 56.8, 4 * B3),                              // 12: Spire Warden
+  reelShot(R0 + 66.8, 4 * B3),                              // 13: Core Warden counter -> Phase III
+  reelShot(R0 + 78.8, 3.8),                                 // 14: Meltdown collapsing bridge
+  showShot(S0 + 86.2, 4 * B3 - 3.8),                        // 15: Extraction hatch
+  // Outro
+  blackShot(OUTRO),                                         // 16: End card
+];
+
+const shotStart = (idx: number) => shots.slice(0, idx).reduce((a, s) => a + s.d, 0);
 const total = shots.reduce((a, s) => a + s.d, 0);
+const p2 = ACT1;
+const p3 = ACT1 + ACT2;
+const pEnd = ACT1 + ACT2 + ACT3;
 
-// Section starts on the output clock
-const P = { p2: 8.6, p3: 8.6 + 8 * B2, p4: 8.6 + 8 * B2 + 8 * B3 };
-const p5 = P.p4 + 18.1, p6 = p5 + 9.0;
-const cards: [string, number, number][] = [
-  ['c_1996', 0.25, 2.1], ['c_burns', 2.25, 4.2],
-  ['end', p6, total],
+const cards: [string, number, number, boolean][] = [
+  ['c_1996', 0.25, 2.05, false],
+  ['c_rebuilt', 2.15, shotStart(1) - 0.10, false],
+  ['cap_lab', shotStart(2) + 0.15, shotStart(3) - 0.18, false],
+  ['cap_classic', shotStart(3) + 0.15, shotStart(4) - 0.18, false],
+  ['cap_sectors', shotStart(4) + 0.15, shotStart(6) - 0.18, false],
+  ['cap_combat', shotStart(6) + 0.15, shotStart(7) - 0.18, false],
+  ['cap_hunter', shotStart(7) + 0.15, shotStart(9) - 0.18, false],
+  ['cap_stages', shotStart(9) + 0.15, shotStart(11) - 0.18, false],
+  ['cap_foreman', shotStart(11) + 0.15, shotStart(12) - 0.18, false],
+  ['cap_spire', shotStart(12) + 0.15, shotStart(13) - 0.18, false],
+  ['cap_warden', shotStart(13) + 0.15, shotStart(14) - 0.18, false],
+  ['cap_meltdown', shotStart(14) + 0.15, pEnd - 0.18, false],
+  ['end', pEnd, total, true],
 ];
 
-// Music bed pieces: [start in bed.webm, duration, fade-out]
-const bed = JSON.parse(readFileSync(resolve(raw, 'bed.json'), 'utf8')) as Record<string, number>;
-const O = 0.05; // the scheduler starts a theme 50 ms after bgm()
-const music: [number, number, number][] = [
-  [bed.title + O, 8.6, 0.05],
-  [bed.shaft + O + 2 * B2, 8 * B2, 0.05], // skip the two-bar intro: drums from the first bar
-  [bed.security + O + 2 * B3, 8 * B3, 0.05],
-  [bed.boss1 + O, 18.1, 0.05],
-  [bed.meltdown + O, 9.0, 0.4],
-  [bed.victory + O, 6.0, 1.6],
+const O = 0.05;
+const XF = 0.35;
+const music: { st: number; d: number; fi: number; fo: number }[] = [
+  { st: bed.themes.title + O, d: ACT1 + XF, fi: 0.05, fo: 0 },
+  { st: bed.themes.shaft + O + 2 * B2, d: ACT2 + XF, fi: 0, fo: 0 },
+  { st: bed.themes.security + O + 2 * B3, d: ACT3 + XF, fi: 0, fo: 0 },
+  { st: bed.themes.title + O, d: OUTRO, fi: 0, fo: 2.2 },
 ];
-const booms = [4.3, P.p4, p5, p6];
 
-const args: string[] = ['-v', 'error', '-y',
-  '-i', resolve(raw, 'video_hd_showcase.webm'), '-i', resolve(raw, 'video_reel.webm'),
-  '-i', resolve(raw, 'audio_hd_showcase.webm'), '-i', resolve(raw, 'bed.webm')];
-cards.forEach(([n, a, b]) => args.push('-loop', '1', '-framerate', '30', '-t', (b - a + 0.1).toFixed(3), '-i', resolve(raw, 'cards', `${n}.png`)));
-const cardBase = 4;
-booms.forEach(() => args.push('-f', 'lavfi', '-i', 'sine=f=50:d=1.0'));
-const boomBase = cardBase + cards.length;
+const sfxCues: { key: string; at: number; gain: number }[] = [
+  { key: 'slam', at: shotStart(1), gain: 1.3 },
+  { key: 'alarm', at: shotStart(2) + 3.0, gain: 0.9 },
+  { key: 'sector', at: shotStart(3) + 0.8, gain: 1.2 },
+  { key: 'dash', at: p2, gain: 1.0 },
+  { key: 'scan', at: shotStart(6) + 0.2, gain: 1.2 },
+  { key: 'parry', at: shotStart(6) + 1.75, gain: 1.5 },
+  { key: 'scatter', at: shotStart(6) + 3.3, gain: 1.2 },
+  { key: 'grenade', at: shotStart(6) + 4.4, gain: 1.2 },
+  { key: 'parry', at: shotStart(7) + 1.1, gain: 1.4 },
+  { key: 'slam', at: p3, gain: 1.3 },
+  { key: 'foreman_atk', at: p3 + 1.9, gain: 1.3 },
+  { key: 'explosion', at: p3 + 3.6, gain: 1.4 },
+  { key: 'foreman_land', at: p3 + 5.2, gain: 1.3 },
+  { key: 'sector', at: shotStart(12), gain: 1.1 },
+  { key: 'rail', at: shotStart(12) + 2.0, gain: 1.5 },
+  { key: 'rail', at: shotStart(12) + 4.3, gain: 1.5 },
+  { key: 'boss_counter', at: shotStart(13) + 0.4, gain: 1.6 },
+  { key: 'explosion', at: shotStart(13) + 3.0, gain: 1.5 },
+  { key: 'explosion', at: shotStart(13) + 4.8, gain: 1.4 },
+  { key: 'alarm', at: shotStart(14), gain: 1.2 },
+  { key: 'explosion', at: shotStart(14) + 2.0, gain: 1.4 },
+  { key: 'dash', at: shotStart(15) + 0.3, gain: 1.1 },
+  { key: 'explosion', at: pEnd, gain: 1.1 },
+  { key: 'secret', at: pEnd + 0.2, gain: 1.2 },
+];
+
+const args: string[] = [
+  '-v', 'error', '-y',
+  '-i', resolve(raw, 'video_hd_reel.webm'),
+  '-i', resolve(raw, 'video_hd_showcase.webm'),
+  '-i', resolve(raw, 'bed.webm'),
+];
+for (const [name, a, b] of cards) {
+  args.push('-loop', '1', '-framerate', '25', '-t', (b - a + 0.1).toFixed(3), '-i', resolve(raw, 'cards', `${name}.png`));
+}
+const cardBase = 3;
 
 const f: string[] = [];
 shots.forEach((s, i) => {
-  if (s.src === 'black') f.push(`color=c=black:s=1280x720:r=30:d=${s.d.toFixed(4)},format=yuv420p[v${i}]`);
-  else if (s.src === 'lab') f.push(`[1:v]trim=start=${s.ss}:duration=${s.d.toFixed(4)},setpts=PTS-STARTPTS,fps=30,scale=1280:720,format=yuv420p[v${i}]`);
-  // the showcase is darker than the reel: a mild lift, no crop
-  else f.push(`[0:v]trim=start=${s.ss}:duration=${s.d.toFixed(4)},setpts=PTS-STARTPTS,fps=30,scale=1280:720:flags=lanczos,eq=gamma=1.1:saturation=1.08,format=yuv420p[v${i}]`);
+  if (s.src === 'black') {
+    f.push(`color=c=black:s=1920x1080:r=25:d=${s.d.toFixed(4)},format=yuv420p[v${i}]`);
+  } else {
+    const inp = s.src === 'reel' ? 0 : 1;
+    const grade = s.ui ? '' : ',eq=gamma=1.08:contrast=1.04:saturation=1.08';
+    f.push(`[${inp}:v]trim=start=${s.ss.toFixed(4)}:duration=${s.d.toFixed(4)},setpts=PTS-STARTPTS,fps=25,scale=1920:1080:flags=lanczos${grade},format=yuv420p[v${i}]`);
+  }
 });
 f.push(`${shots.map((_, i) => `[v${i}]`).join('')}concat=n=${shots.length}:v=1:a=0[vc]`);
+
 let cur = 'vc';
-cards.forEach(([, a, b], i) => {
-  const fadeOut = Math.max(0, b - a - 0.18);
-  f.push(`[${cardBase + i}:v]format=rgba,fade=t=in:st=0:d=0.12:alpha=1,fade=t=out:st=${fadeOut.toFixed(3)}:d=0.15:alpha=1,setpts=PTS+${a.toFixed(3)}/TB[c${i}]`);
+cards.forEach(([, a, b, opaque], i) => {
+  const dur = Math.max(0.4, b - a);
+  const fadeOut = Math.max(0, dur - 0.18);
+  if (opaque) {
+    f.push(`[${cardBase + i}:v]format=rgba,fade=t=in:st=0:d=0.14:alpha=1,setpts=PTS+${a.toFixed(3)}/TB[c${i}]`);
+  } else {
+    f.push(`[${cardBase + i}:v]format=rgba,fade=t=in:st=0:d=0.12:alpha=1,fade=t=out:st=${fadeOut.toFixed(3)}:d=0.15:alpha=1,setpts=PTS+${a.toFixed(3)}/TB[c${i}]`);
+  }
   f.push(`[${cur}][c${i}]overlay=eof_action=pass:format=auto[o${i}]`);
   cur = `o${i}`;
 });
 f.push(`[${cur}]format=yuv420p[vout]`);
 
-// gameplay sfx follow the showcase shots (video time ss maps to audio time ss - offset); black and lab shots are silent
-shots.forEach((s, i) => {
-  if (s.src === 'show') f.push(`[2:a]atrim=start=${(s.ss - SFX_OFFSET).toFixed(3)}:duration=${s.d.toFixed(4)},asetpts=PTS-STARTPTS,afade=t=in:d=0.01,aresample=48000,aformat=channel_layouts=stereo[s${i}]`);
-  else f.push(`anullsrc=r=48000:cl=stereo,atrim=duration=${s.d.toFixed(4)},asetpts=PTS-STARTPTS[s${i}]`);
+// Music bed with triangular bar-line crossfades across Act boundaries
+music.forEach((m, i) => {
+  const fades = [
+    m.fi > 0 ? `afade=t=in:d=${m.fi}` : '',
+    m.fo > 0 ? `afade=t=out:st=${(m.d - m.fo).toFixed(3)}:d=${m.fo}` : '',
+  ].filter(Boolean).join(',');
+  const fadeStr = fades ? `,${fades}` : '';
+  f.push(`[2:a]atrim=start=${m.st.toFixed(4)}:duration=${m.d.toFixed(4)},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo${fadeStr}[m${i}]`);
 });
-f.push(`${shots.map((_, i) => `[s${i}]`).join('')}concat=n=${shots.length}:v=0:a=1,volume=0.8[sfx]`);
-music.forEach(([st, d, fo], i) => f.push(`[3:a]atrim=start=${st.toFixed(3)}:duration=${d.toFixed(3)},asetpts=PTS-STARTPTS,afade=t=in:d=0.03,afade=t=out:st=${(d - fo).toFixed(3)}:d=${fo},aresample=48000,aformat=channel_layouts=stereo[m${i}]`));
-f.push(`${music.map((_, i) => `[m${i}]`).join('')}concat=n=${music.length}:v=0:a=1[mus]`);
-booms.forEach((t, i) => f.push(`[${boomBase + i}:a]afade=t=out:st=0.04:d=0.9,volume=3.2,lowpass=f=140,aresample=48000,aformat=channel_layouts=stereo,adelay=${Math.round(t * 1000)}|${Math.round(t * 1000)}[b${i}]`));
-f.push(`[mus][sfx]${booms.map((_, i) => `[b${i}]`).join('')}amix=inputs=${2 + booms.length}:normalize=0,loudnorm=I=-15:TP=-1.5:LRA=9,atrim=duration=${total.toFixed(3)}[aout]`);
+f.push(`[m0][m1]acrossfade=d=${XF}:c1=tri:c2=tri[ma]`);
+f.push(`[ma][m2]acrossfade=d=${XF}:c1=tri:c2=tri[mb]`);
+f.push(`[mb][m3]acrossfade=d=${XF}:c1=tri:c2=tri,highpass=f=30,highshelf=f=5500:g=-3.5,volume=0.88[mus]`);
 
-args.push('-filter_complex', f.join(';'), '-map', '[vout]', '-map', '[aout]', '-t', total.toFixed(3),
-  '-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-r', '30', '-c:a', 'aac', '-b:a', '192k', outFile);
+// Real game SFX cues trimmed from bed.webm
+sfxCues.forEach((c, i) => {
+  const st = bed.sfx[c.key];
+  if (st === undefined) throw new Error(`Missing sfx key "${c.key}" in bed.json`);
+  const delayMs = Math.round(c.at * 1000);
+  f.push(`[2:a]atrim=start=${st.toFixed(4)}:duration=1.35,asetpts=PTS-STARTPTS,afade=t=out:st=1.15:d=0.20,volume=${c.gain},aresample=48000,aformat=channel_layouts=stereo,adelay=${delayMs}|${delayMs}[sfx${i}]`);
+});
+f.push(`${sfxCues.map((_, i) => `[sfx${i}]`).join('')}amix=inputs=${sfxCues.length}:normalize=0:dropout_transition=0[sfx]`);
+
+// Master mix: loudnorm + 48 kHz resample + true-peak brickwall limiter
+f.push(`[mus][sfx]amix=inputs=2:normalize=0:dropout_transition=0,loudnorm=I=-14.5:TP=-2.0:LRA=8,aresample=48000,alimiter=limit=0.79:attack=3:release=40:level=disabled,atrim=duration=${total.toFixed(4)}[aout]`);
+
+args.push(
+  '-filter_complex', f.join(';'),
+  '-map', '[vout]', '-map', '[aout]',
+  '-t', total.toFixed(4),
+  '-c:v', 'libx264', '-profile:v', 'high', '-crf', '17', '-preset', 'medium', '-pix_fmt', 'yuv420p', '-r', '25', '-movflags', '+faststart',
+  '-c:a', 'aac', '-b:a', '192k', '-ar', '48000',
+  outFile,
+);
+
 const r = spawnSync('ffmpeg', args, { stdio: 'inherit' });
 console.log(JSON.stringify({ status: r.status === 0 ? 'TRAILER' : 'FAILED', total: Number(total.toFixed(2)), shots: shots.length, file: outFile }));
 process.exit(r.status ?? 1);

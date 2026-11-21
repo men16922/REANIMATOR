@@ -1,15 +1,15 @@
 # 현재 상태
 
-최종 갱신: 2026-11-21 R28(데모 트레일러·레트로 BGM·재배포·push) · 그 전 2026-11-17 R27(AWS 배포·tidy·제출 준비) · 이전 R20~R25 상세는 [archive/STATUS_R15_R25.md](archive/STATUS_R15_R25.md) · 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-21 R28+BGM/트레일러 재제작(DSP 로우패스·clang 완화·1080p 트레일러·CloudFront 재배포, 로컬 미커밋) · 그 전 2026-11-21 R28(데모 트레일러·레트로 BGM·재배포·push) · 그 전 2026-11-17 R27(AWS 배포·tidy·제출 준비) · 이전 R20~R25 상세는 [archive/STATUS_R15_R25.md](archive/STATUS_R15_R25.md) · 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## R28 제출 상태 (2026-11-21)
 
-- 배포: https://dlr55kf9v2hn7.cloudfront.net (S3 비공개 + CloudFront OAC, `us-west-2`, 스택 `reanimator-site`, [infra/README](../infra/README.md)). 새 레트로 BGM 빌드로 재배포, 라이브 `index.html` = 로컬 `dist/` 확인. 예산 알림은 미설정.
-- 저장소: https://github.com/men16922/REANIMATOR public, `origin/main` = 로컬 HEAD, GitHub 라이선스 인식 `MIT`(범위 안내는 `NOTICE.md`).
-- 영상: `docs/evidence/demo/reanimator_trailer.mp4`(69.9 s, 봇 플레이·하드컷·게임 자체 음향, gitignore). YouTube 업로드 전. 예비본 `reanimator_demo.mp4`(1:52). 재생성 도구 `tools/smoke/{record-demo,record-bed,trailer-cards,trailer}.ts`.
-- 제출 문안: [DEVPOST.md](DEVPOST.md)(영문, `<VIDEO_URL>` 자리표시), [KIRO_USAGE.md](KIRO_USAGE.md) 상단 영문 심사 요약.
-- 검증: `make check` exit 0, `make smoke-local` 30/30(60.5 fps).
-- 열린 위험: (1) BGM·트레일러 청취 unverified. (2) 사람 플레이 G5 미실시. (3) Meshy 키 평문(gitignore 파일, 사용자가 재발급 불필요로 결정).
+- 배포: https://dlr55kf9v2hn7.cloudfront.net (S3 비공개 + CloudFront OAC, `us-west-2`, 스택 `reanimator-site`, [infra/README](../infra/README.md)). 개선 BGM 빌드로 재배포·무효화(`I6497S1WOJI312QSKUJ4FMU6XH`) 완료(라이브 `index.html` MD5 `619e6b33465b66db9c17fb204f7aab4a` = 로컬 `dist/`, 번들 `/assets/index-CsTU0H5t.js` HTTP/2 200). 예산 알림은 미설정.
+- 저장소: https://github.com/men16922/REANIMATOR public, `origin/main` = 로컬 HEAD `b43598f`(GitHub 라이선스 `MIT`, `NOTICE.md` 분리). BGM 개선·트레일러 도구·제출 문서 정비분은 로컬 미커밋.
+- 영상: `https://youtu.be/TvyT1M4yLzY` (public, 채널 `Paulos` `@paulosdev-j2u`, `docs/evidence/demo/reanimator_trailer.mp4` 79 MB, 1920×1080 H.264 25 fps, 71.96 s, AAC stereo 48 kHz 198 kbps, `-15.2 LUFS` / True Peak `-1.0 dBFS`, gitignore). 도구 `tools/smoke/{record-demo,record-bed,trailer-cards,trailer}.ts`.
+- 제출 문안: [DEVPOST.md](DEVPOST.md)(영문, `https://youtu.be/TvyT1M4yLzY` 반영), [KIRO_USAGE.md](KIRO_USAGE.md) 영문 요약, [PREEXISTING_WORK.md](PREEXISTING_WORK.md)(영문 공개 고지 전면 개편), [README.md](../README.md)·[JUDGES.md](JUDGES.md) 트레일러 URL·스크린샷·검증 수치 갱신(로컬 미커밋). Kiro 크레딧 신청 완료(2026-11-21 사용자 확인).
+- 검증: `make check` exit 0(766/766, `reach3d` S1 52/S2 33/S3 32 waypoints, `dist-guard` 56 files 20,780,579 B), `make smoke-local` 30/30(60.5 fps, 봇 4978 ticks, 오류 0), Playwright Bio-Labs `222` draw calls(`<=300`)·`REANIMATED` 카드 0 errors, `boss`/`meltdown`/`victory`/`biolabs`·트레일러 직접 청취·프레임 검수, `make release`로 `release/reanimator-1.1.0-web.zip`(12,263,114 B) 갱신.
+- 열린 위험: (1) 사람 플레이 G5 미실시(실게임 전 구간 밸런스·BGM 실플레이 확인). (2) AWS 예산 알림 미설정. (3) BGM·트레일러 도구·문서·YouTube 링크 수정분 로컬 미커밋·미푸시.
 
 ## R27 스모크 복구 (2026-11-17)
 
@@ -31,11 +31,6 @@
 ## Abuse 레벨 관찰 (2026-11-16)
 
 - LEVEL00~04 정적 조사(`tools/reference/spe-survey.ts`)와 DOSBox 실행(`HARNESS.levels.LSP`, `scripts/observe_levels.sh`). 00→01→02→03→04 전환을 `level_name` 로그로 확인, 04 출구는 엔딩 진입 추정. 스크린샷·팔레트는 윈도 서버 없음으로 unverified. [ABUSE_LEVEL_OBSERVATION](reference/ABUSE_LEVEL_OBSERVATION.md)
-
-## 열린 위험 (2026-11-16)
-
-- R17: 스테이지 선택·클리어 화면·진행 저장(`stageFlow.ts`, default-merge) 추가, 디버그 훅은 `VITE_DEBUG_HOOKS=1` 빌드(`make smoke-build` → `dist-debug/`)에서만 `?debug=1`로 켜짐. 전투 쇼케이스 draw calls는 R18에서 294로 해결, 스테이지 UI는 R18에서 브라우저 확인. Meshy API 키 채팅 노출(교체 필요). 푸시 대기. R16 릴리스 1.0.0(`make release` zip)의 `vite preview`와 새 능력 브라우저 동작은 unverified.
-- 다음 방향: 다단계 스테이지 확장(안 A/B)을 사용자가 선택. [NEXT_PLAN](NEXT_PLAN.md).
 
 ## R16 (2026-11-16)
 

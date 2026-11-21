@@ -25,7 +25,7 @@ const DEBUG_LOG_SIZE = 48;
 
 const LOOKAHEAD = 0.5;
 /** Music sits a little above the nominal level so gunfire cannot bury it; SFX are trimmed for headroom. */
-const BGM_TRIM = 1.4;
+const BGM_TRIM = 1.08;
 const SFX_TRIM = 0.85;
 
 let ctx: AudioContext | null = null;
@@ -656,7 +656,7 @@ let bossIntensity: 1 | 2 | 3 = 1;
 let escapeTicks = -1;
 let escapeStage = 0;
 
-function tone(dest: AudioNode, freq: number, start: number, dur: number, type: OscillatorType, gain: number, attack = 0.015, detune = 0): void {
+function tone(dest: AudioNode, freq: number, start: number, dur: number, type: OscillatorType, gain: number, attack = 0.015, detune = 0, cutoff?: number): void {
   if (!ctx) return;
   const o = ctx.createOscillator();
   const g = ctx.createGain();
@@ -666,10 +666,19 @@ function tone(dest: AudioNode, freq: number, start: number, dur: number, type: O
   g.gain.setValueAtTime(0.0001, start);
   g.gain.linearRampToValueAtTime(gain, start + Math.min(attack, dur * 0.5));
   g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
-  o.connect(g).connect(dest);
+  let f: BiquadFilterNode | null = null;
+  if (cutoff !== undefined) {
+    f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.Q.value = 0.7;
+    f.frequency.setValueAtTime(cutoff, start);
+    o.connect(f).connect(g).connect(dest);
+  } else {
+    o.connect(g).connect(dest);
+  }
   o.start(start);
   o.stop(start + dur + 0.05);
-  o.onended = () => g.disconnect();
+  o.onended = () => { g.disconnect(); f?.disconnect(); };
 }
 
 function bassNote(dest: AudioNode, freq: number, start: number, dur: number, type: OscillatorType, gain: number): void {
@@ -748,16 +757,16 @@ function clangHit(dest: AudioNode, t: number, gain: number, base: number): void 
   const g = ctx.createGain();
   const f = ctx.createBiquadFilter();
   f.type = 'bandpass';
-  f.frequency.value = base * 3;
-  f.Q.value = 0.8;
+  f.frequency.value = Math.min(2800, base * 2.2);
+  f.Q.value = 1.1;
   g.gain.setValueAtTime(gain, t);
   g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
   f.connect(g).connect(dest);
   let last: OscillatorNode | null = null;
   for (const r of [1, 2.76, 5.4, 8.93]) {
     const o = ctx.createOscillator();
-    o.type = 'square';
-    o.frequency.value = Math.min(9000, base * r);
+    o.type = 'triangle';
+    o.frequency.value = Math.min(4800, base * r);
     o.connect(f);
     o.start(t);
     o.stop(t + 0.52);
@@ -793,8 +802,8 @@ function scheduleMusic(): void {
         const per = def.padGain / Math.sqrt(L.chord.length * (thick ? 2 : 1));
         for (const iv of L.chord) {
           const f = semitone(L.rootHz * 2, iv);
-          tone(L.padBus, f, t, bd * 1.05, def.padWave, per, bd * 0.35, thick ? -7 : 0);
-          if (thick) tone(L.padBus, f, t, bd * 1.05, def.padWave, per, bd * 0.35, 7);
+          tone(L.padBus, f, t, bd * 1.05, def.padWave, per, bd * 0.35, thick ? -7 : 0, 1700);
+          if (thick) tone(L.padBus, f, t, bd * 1.05, def.padWave, per, bd * 0.35, 7, 1700);
         }
       }
       // Crash on section starts (and boss phase accents), riser into the next section
@@ -810,12 +819,12 @@ function scheduleMusic(): void {
     const a = def.arp[si];
     if (m.arp && a !== null) {
       const f = semitone(L.rootHz * 4, a);
-      tone(L.melody, f, t, sd * 1.9, def.arpWave, def.arpGain);
+      tone(L.melody, f, t, sd * 1.9, def.arpWave, def.arpGain, 0.015, 0, 3200);
     }
     const ld = def.lead[si];
     if (m.lead && ld !== null) {
       const dur = L.theme === 'meltdown' ? sd * 0.95 : sd * 2.6;
-      tone(L.melody, semitone(L.rootHz * 8, ld), t, dur, def.leadWave, def.leadGain, 0.02);
+      tone(L.melody, semitone(L.rootHz * 8, ld), t, dur, def.leadWave, def.leadGain, 0.02, 0, 3800);
     }
     const bs = def.bassLine[si];
     if (m.bass && bs !== null) {
@@ -843,7 +852,7 @@ function scheduleMusic(): void {
       noiseHit(L.gain, t, hc === 'o' ? 0.22 : 0.05, 0.022 * accent, 'highpass', 6500, 6500);
     }
     const pc = def.perc[si];
-    if (m.perc && pc === 'c') clangHit(L.gain, t, 0.04, semitone(L.rootHz * 8, (L.bar % 4) * 2));
+    if (m.perc && pc === 'c') clangHit(L.gain, t, 0.022, semitone(L.rootHz * 8, (L.bar % 4) * 2));
     else if (m.perc && pc === 't') tomHit(L.gain, t, 0.08, 150 + (L.bar % 3) * 30);
     L.next += sd;
     L.stepInBar++;

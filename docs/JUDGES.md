@@ -1,6 +1,7 @@
 # Judges' guide
 
-Setup: `npm install && npm run dev`, then open the printed URL in Chrome. Use headphones. Total demo time: 3 minutes.
+- **Live demo:** https://dlr55kf9v2hn7.cloudfront.net (desktop Chrome, Edge, Firefox or Safari with WebGL2; headphones recommended).
+- **Local source setup:** `npm install && npm run dev`, then open the printed URL in Chrome. Total demo time: 3 minutes.
 
 ## 3-minute demo script
 
@@ -9,8 +10,8 @@ Every stop below is in `Extras` > `Demo tour`. Each one drops you into the norma
 | Time | Do | What to point out |
 |---|---|---|
 | 0:00 | Open Settings and pick difficulty **Story** (recommended for a short look; Normal is the tuned default), then return to the title. Wait on the title screen about 10 s. | The title plays an attract reel of a bot playing the real game, not a pre-rendered video. Procedural music is already running (no audio files in the repo). |
-| 0:15 | Debug builds only (`?debug=1`): `Extras` > `Watch showcase`. Let it run, or press any key to leave. | One minute of captioned cuts by the same deterministic bot: "1996 physics, frame-exact", sector tour, weapon locks, Classic View, Core Warden, Meltdown. |
-| 0:15 | Debug builds only: `Extras` > `Trailer reel` (or open `/?reel`, or `__reanimatorReel()`). About 90 seconds, press any key or Esc to leave. | Lab PASS then mutation FAIL, 1996/2026 Classic View toggle with CRT collapse, opening wake, Counter and Scan, Reclaimer, Warden counter and phase III, Meltdown, end card. See [R13_REEL](archive/rounds/R13_REEL.md). |
+| 0:15 | Dev / `?debug=1` smoke builds only: `Extras` > `Watch showcase`. Let it run, or press any key to leave. | One minute of captioned cuts by the same deterministic bot: "1996 physics, frame-exact", sector tour, weapon locks, Classic View, Core Warden, Meltdown. (Stripped from production builds.) |
+| 0:15 | Dev / `?debug=1` smoke builds only: `Extras` > `Trailer reel` (or open `/?debug=1&reel`, or `__reanimatorReel()`). About 90 seconds, press any key or Esc to leave. | Lab PASS then mutation FAIL, 1996/2026 Classic View toggle with CRT collapse, opening wake, Counter and Scan, Reclaimer, Warden counter and phase III, Meltdown, end card, plus Stage 2 & 3 cuts. See [R13_REEL](archive/rounds/R13_REEL.md). |
 | 0:25 | `Extras` > `Physics lab`. | The core claim. Pick a scenario card (S1, S2, S3, M05). The ORIGINAL canvas replays the numeric log captured from the 1996 game; the REANIMATED canvas replays our `motion.ts` from the same input. Press play or drag the tick slider. The heatmap shows 11 fields by every tick, all green. Tick "Demo mutation": a wall moves 3 px and "First mismatch" jumps to the broken tick. It is a demo, not an original bug. The side panel explains how it is verified. |
 | 1:00 | `Demo tour` > `Airlock start`. Run right with `D`, aim with the mouse, fire with left click, `Shift` dashes. | 60 Hz deterministic sim, hit-stop and screen shake on kills, combo kills refund the dash. Only movement physics is restored; everything else is new design. |
 | 1:15 | `Demo tour` > `Mines: crusher and hive`. | Telegraphed crusher, vents, acid, a hive that spawns larvae. Hazards warn before they hurt. |
@@ -20,6 +21,7 @@ Every stop below is in `Extras` > `Demo tour`. Each one drops you into the norma
 | 2:05 | `Demo tour` > `Core Warden: phase II`. (I and III are also listed.) | Telegraphed attacks, weak-point window, damage numbers, three phases, no cinematic needed. |
 | 2:30 | `Demo tour` > `Meltdown: collapsing bridge`, then `extraction hatch`. | 90-second timer, rubble hazards, the bridge crumbling behind you, the hatch as the win condition. |
 | 2:45 | `Demo tour` > `Classic View (press V)`. Press `V` twice. | 320x200, 256-colour palette with Bayer dither, orthographic camera, pixel HUD. One keypress swaps the whole render path. |
+| 2:50 | Title > `Stages` menu (`Foundry Line` / `Reactor Spire`). | Stages 2 & 3 add Slag Foreman mini-boss, Cryo Bulwark frost-shield foes, Spire Warden, Meshy surface textures, per-stage color grading, and re-voiced retro arcade BGM. |
 | 2:55 | Open `docs/KIRO_USAGE.md` and `.kiro/specs/`. | Specs, steering, a hook, and parallel sub-agent rounds with browser verification. |
 
 **Demo tour list** (DOM ids `demo-<id>`): `airlock`, `mines`, `biolabs`, `security`, `slide`, `boss1`, `boss2`, `boss3`, `collapse`, `hatch`, `classic`. The same checkpoints are reachable from the console with `__reanimatorDemo('<id>')`. Definitions live in `src/ui/demo.ts` and `tests/demo.test.ts` checks that each one starts alive in the right sector.
@@ -42,9 +44,9 @@ make reference-holdout   # 4/4 including sealed M05
 make smoke-local         # needs Chrome; headless browser smoke test
 ```
 
-Observed on `main` after the R7 merges (`f146b2d`): `make check` exit 0, 380 of 380 node tests, `reference-verify` 3 of 3, `reach3d` 52 waypoints (3,432 ticks), `dist-guard` PASS on 13 files (14,721,553 B). A bot run after the R7 merge has not been re-measured (unverified); the last measured run won in 5,362 ticks. `make reference-holdout` was last observed 4 of 4 on an earlier engine revision and the sealed engine files have not changed since.
+Observed on `main` (R28 audio/trailer polish): `make check` exit 0 (`tsc`, 766/766 node tests, `reference-verify` 3/3 PASS on S1·S2·S3, `reach` + `reach3d` PASS — Stage 1: 52 waypoints / 3,432 ticks / 57.2 s, Stage 2: 33 waypoints / 2,526 ticks / 42.1 s, Stage 3: 32 waypoints / 1,798 ticks / 30.0 s — Vite production build, and `dist-guard` PASS on 56 files, 20,780,579 B, `checkedAgainst: 218`). `make smoke-local` passed 30/30 in headless Chrome (`rendererMode: "webgl-3d"`, 10 models / 11 rigged, 60.5 fps, full Stage 1 bot clear in 4,978 ticks, 0 page errors), and Playwright checks on `dist-debug/?debug=1` measured Bio-Labs showcase at 222 draw calls and verified the `REANIMATED` full-run ending card with 0 errors. `make reference-holdout` was observed 4 of 4 on sealed `src/engine/motion.ts` (unchanged since).
 
-Not verified: human play-through difficulty, and `make smoke-local` on the newest build (earlier runs aborted in a sandboxed Chrome).
+Unverified: a full human playthrough (G5) and human listening review of the R28 retro arcade BGM and trailer audio.
 
 ## Where to read more
 
@@ -78,7 +80,7 @@ All are on `window` (declared in `src/ui/main.ts`). Every synchronous one cancel
 - `__reanimatorShowResult('won' | 'lost')`: open the result screen.
 - `__reanimatorShowBanner(kind)`: show a sector, weapon, boots, etank or coach banner.
 - `__reanimatorPick(px, py, includePoints?)`: list scene objects under a pixel.
-- `__reanimatorReel()`: starts the Judge Reel (same as `Extras` > `Judge Reel` and `?reel`).
+- `__reanimatorReel()`: starts the Trailer Reel (same as `Extras` > `Trailer reel` and `/?debug=1&reel`).
 - `__reanimatorShowcase(name)`: async README scene; resolves with `superseded: true` if a later debug call took over.
 - `__reanimatorDemo(id)`: jump to a demo tour checkpoint.
 - `__reanimatorSoak(n?, opts?)`: async soak run over demos and showcases.
@@ -92,12 +94,8 @@ All are on `window` (declared in `src/ui/main.ts`). Every synchronous one cancel
 
 ## R13 additions
 
-- Judge Reel (`Extras` > `Judge Reel`, `/?reel`), ambient background life per sector ([R13_ALIVE](archive/rounds/R13_ALIVE.md)), Core Warden readability and per-weapon impacts ([R13_COMBAT](archive/rounds/R13_COMBAT.md)), truthful debug layers, sector hints and a single Classic HUD ([R13_UX](archive/rounds/R13_UX.md)).
+- Trailer Reel (`Extras` > `Trailer reel`, `/?debug=1&reel`), ambient background life per sector ([R13_ALIVE](archive/rounds/R13_ALIVE.md)), Core Warden readability and per-weapon impacts ([R13_COMBAT](archive/rounds/R13_COMBAT.md)), truthful debug layers, sector hints and a single Classic HUD ([R13_UX](archive/rounds/R13_UX.md)).
 - Enemy running: one locomotion model, and the sim no longer teleports queued foes at closed doors. Floor crawlers and stalkers never move more than 0.2 m in one tick on the bot run (`node tools/game/enemyJitter.ts`, `tests/r13-smooth.test.ts`). Bot Normal 5208 ticks HP 126.
-
-## R15 additions
-
-- Eleven Meshy-generated terrain pieces (about 0.2 MB each) are instanced in all six sectors, visual only. Draw calls stayed at or under 300 (148 to 299) with 0 console errors in a Playwright run; screenshots in `docs/evidence/r15_meshy_terrain/`. Not human-playtested ([R15_MESHY_TERRAIN](archive/rounds/R15_MESHY_TERRAIN.md)).
 
 ## R14 additions
 
@@ -105,3 +103,14 @@ All are on `window` (declared in `src/ui/main.ts`). Every synchronous one cancel
 - Terrain has procedural detail textures, normal maps and relief meshes (Meshy was unreachable, so none of it is Meshy output) ([R14_TERRAIN](archive/rounds/R14_TERRAIN.md)).
 - Characters get per-kind key and fill light with a softer rim so they read as shapes ([R14_CHARLIGHT](archive/rounds/R14_CHARLIGHT.md)).
 - Evidence: `docs/evidence/r14/` screenshots from a no-error Playwright run. No human playtest yet, so feel is unverified.
+
+## R15 additions
+
+- Eleven Meshy-generated terrain pieces (about 0.2 MB each) are instanced in all six sectors, visual only. Draw calls stayed at or under 300 (148 to 299) with 0 console errors in a Playwright run; screenshots in `docs/evidence/r15_meshy_terrain/`. Not human-playtested ([R15_MESHY_TERRAIN](archive/rounds/R15_MESHY_TERRAIN.md)).
+
+## R16–R28 additions
+
+- **Tutorial & retro UI (R16):** Optional step-by-step tutorial mode, minimal HUD, transient non-blocking DATA LOG notices, calmer opening alarm, and retro CRT framing.
+- **Multi-stage campaign (R17–R23):** Stages 2 (**Foundry Line**, Slag Foreman mini-boss) and 3 (**Reactor Spire**, Cryo Bulwark shield foes + Spire Warden), stage unlock & best-time persistence (`stageFlow.ts`, `records.ts`), full-run `REANIMATED` ending card, gamepad support, and debug hook stripping from production builds.
+- **Surface textures & per-stage color grading (R24–R26):** Meshy surface textures & hazard trims (`public/assets/textures/`), shared GLSL warm/cold stage grading (`vista3d.ts`, `ambient3d.ts`), and stage-specific HUD sector labels.
+- **Audio & live hosting (R27–R28):** Restored small-text antialiasing (`style.css`), 10-theme retro arcade procedural BGM rewrite (`src/ui/themes.ts`), and AWS S3 + CloudFront deployment (`https://dlr55kf9v2hn7.cloudfront.net`).

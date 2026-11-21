@@ -1,9 +1,9 @@
-// Demo video recorder (Kiroween submission). Serves dist-debug/ in Chrome, records the title screen and the ~90 s Trailer Reel
-// with Playwright recordVideo, and writes docs/evidence/demo/raw/*.webm. Needs `make smoke-build` first. Silent by design:
-// Playwright records no audio, so narration/music is added afterwards (tools/smoke/README in docs/plans/DEMO_VIDEO.md).
+// Demo video recorder (Kiroween submission). Serves dist-debug/ in Chrome, records the title screen and Trailer Reel
+// or Watch Showcase with Playwright recordVideo, and writes docs/evidence/demo/raw/video_<TAG>.webm + meta_<TAG>.json.
+// Needs `make smoke-build` first.
 
 import { chromium } from '@playwright/test';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, renameSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '../../dist-debug');
@@ -22,8 +22,10 @@ const mime: Record<string, string> = {
 const MODE = process.env.MODE ?? 'reel'; // 'reel' (scripted Trailer Reel) or 'showcase' (live bot gameplay, Watch Showcase)
 const W = Number(process.env.W ?? 1280);
 const H = Number(process.env.H ?? 720);
-const MUTE_BGM = process.env.MUTE_BGM === '1'; // sfx and ambience only: the trailer edit lays its own music bed under the footage
+const MUTE_BGM = process.env.MUTE_BGM === '1';
+const HIDE_CAPTIONS = process.env.HIDE_CAPTIONS === '1';
 const TAG = process.env.TAG ?? MODE;
+const TITLE_MS = Number(process.env.TITLE_MS ?? 6000);
 const REEL_MS = Number(process.env.REEL_MS ?? 100000);
 
 const browser = await chromium.launch({ channel: 'chrome', args: ['--autoplay-policy=no-user-gesture-required'] });
@@ -68,8 +70,9 @@ await ctx.addInitScript(() => {
       rec.stop();
     });
 });
-const videoT0 = Date.now();
+
 const page = await ctx.newPage();
+const videoT0 = Date.now();
 await page.route('http://reanimator.test/**', async (route) => {
   const p = new URL(route.request().url()).pathname;
   const file = p === '/' ? '/index.html' : p;
@@ -80,8 +83,19 @@ await page.route('http://reanimator.test/**', async (route) => {
 const errors: string[] = [];
 page.on('pageerror', (e) => errors.push(String(e)));
 
+let rawVideoPath: string | undefined;
+let offset = -1;
+let titleReadySec = 0;
+let reelStartSec = 0;
+let audioBytes = 0;
+
 try {
   await page.goto('http://reanimator.test/?debug=1');
+  if (HIDE_CAPTIONS) {
+    await page.addStyleTag({
+      content: '#showcase-caption, #reel-end { display: none !important; } body.reel-on #lab { transform: none !important; }',
+    });
+  }
   await page.waitForFunction(
     () => {
       const fn = (window as unknown as { __reanimator?: () => { loadedModels: string[] } }).__reanimator;
@@ -92,18 +106,28 @@ try {
   );
   if (MUTE_BGM) await page.evaluate(() => { const e = document.getElementById('volume-bgm') as HTMLInputElement; e.value = '0'; e.dispatchEvent(new Event('input')); });
   await page.keyboard.press('Shift'); // user gesture: lets the game create its AudioContext and start the title music
-  await page.waitForTimeout(6000); // title + attract reel
+  titleReadySec = (Date.now() - videoT0) / 1000;
+  await page.waitForTimeout(TITLE_MS);
+  reelStartSec = (Date.now() - videoT0) / 1000;
   if (MODE === 'showcase') await page.evaluate(() => (document.getElementById('showcase-open') as HTMLElement).click());
   else await page.evaluate(() => (window as unknown as { __reanimatorReel: () => unknown }).__reanimatorReel());
   await page.waitForTimeout(REEL_MS);
   const b64 = await page.evaluate(() => (window as unknown as { __tapStop: () => Promise<string> }).__tapStop());
   const tapStart = await page.evaluate(() => (window as unknown as { __tapStart?: number }).__tapStart ?? 0);
   writeFileSync(resolve(outDir, `audio_${TAG}.webm`), Buffer.from(b64, 'base64'));
-  // seconds the audio starts after the video starts (ffmpeg -itsoffset)
-  const offset = tapStart ? (tapStart - videoT0) / 1000 : -1;
+  offset = tapStart ? (tapStart - videoT0) / 1000 : -1;
+  audioBytes = b64.length * 0.75;
   writeFileSync(resolve(outDir, `offset_${TAG}.txt`), String(offset));
-  console.log(JSON.stringify({ status: 'RECORDED', errors, audioBytes: b64.length * 0.75, offset, video: await page.video()?.path() }, null, 2));
+  rawVideoPath = await page.video()?.path();
 } finally {
   await ctx.close(); // flushes the video file
   await browser.close();
 }
+
+const finalVideo = resolve(outDir, `video_${TAG}.webm`);
+if (rawVideoPath && existsSync(rawVideoPath)) renameSync(rawVideoPath, finalVideo);
+writeFileSync(
+  resolve(outDir, `meta_${TAG}.json`),
+  JSON.stringify({ tag: TAG, mode: MODE, width: W, height: H, titleReadySec, reelStartSec, audioOffset: offset }, null, 2),
+);
+console.log(JSON.stringify({ status: 'RECORDED', errors, audioBytes, titleReadySec, reelStartSec, offset, video: finalVideo }, null, 2));

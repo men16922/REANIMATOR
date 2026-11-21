@@ -1,10 +1,10 @@
 # Devpost submission text (draft)
 
-Category: **Resurrection**. Paste each section into the matching Devpost field. Replace `<VIDEO_URL>` after the YouTube upload.
+Category: **Resurrection**. Paste each section into the matching Devpost field.
 
 - Live demo: https://dlr55kf9v2hn7.cloudfront.net (desktop Chrome, Edge, Firefox or Safari with WebGL2)
 - Code: https://github.com/men16922/REANIMATOR (MIT)
-- Video: `<VIDEO_URL>`
+- Video: https://youtu.be/TvyT1M4yLzY
 
 ## Inspiration
 
@@ -26,13 +26,13 @@ The resurrection part comes first. We analysed the *Abuse* DOS shareware 1.05 bi
 
 On top of that physics we designed a new 3D game with Three.js and WebGL2. The levels, enemies, bosses, art and music are original. Models came from Meshy. A release check fails the build if any original *Abuse* file ends up in it.
 
-Kiro ran the whole process:
+Kiro drove the specs, steering, hooks, and parallel build rounds:
 
 - **Specs.** Five specs, run in order: binary reference, restored motion, 2D slice, 3D quarter-view (later replaced), side-view metroidvania.
 - **Steering.** An always-on steering file lists the sealed files and the scope of the restoration. This kept every session from editing the verified physics.
 - **Hook.** An agent hook re-runs the full gate whenever the engine or verifier is saved.
 - **Sub-agents.** Fourteen rounds of parallel sub-agents, each working in its own git worktree, followed by an integration agent that merged the branches and re-ran the gate.
-- **MCP.** The Meshy MCP server generated the terrain models, and the Playwright MCP checked every round in a real browser.
+- **MCP.** The Meshy MCP server generated the 11-piece terrain kit, and the Playwright MCP checked builds in a real browser.
 
 ## Challenges we ran into
 
@@ -44,7 +44,7 @@ Kiro ran the whole process:
 
 - 1996 movement physics restored and verified frame by frame against the original. We do not claim anything beyond what we measured.
 - A complete game with three stages, three bosses and three endings that runs at 60 fps in a browser.
-- A deterministic simulation. Bots play every stage on every difficulty as part of `make check`, along with more than 760 unit tests.
+- A deterministic simulation. Bots play every stage on every difficulty as part of `make check`, along with 766 unit tests.
 
 ## What we learned
 

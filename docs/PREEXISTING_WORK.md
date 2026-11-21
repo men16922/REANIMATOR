@@ -1,24 +1,33 @@
-# 기존 작업과 신규 기여
+# Pre-existing Work & Original Contributions Disclosure
 
-2026-11-14 · Abuse v3 계획과 도구 준비 등록부. 게임 코드·자산은 아직 가져오지 않았다.
+REANIMATOR was created for **Kiroween 2026** (Category: **Resurrection**). The first commit in this repository is dated `2026-11-14`, within the `2026-10-30`–`2026-12-04` hackathon submission period.
 
-| 출처 | 확인한 revision / 위치 | 이번에 실제 사용한 것 | 향후 사용 조건 |
+This document discloses all pre-existing projects, reference materials, and external tools used during development, separated from the new work created for this submission.
+
+## Pre-existing projects and external references
+
+| Item | Origin / License | How it was used | What is shipped in REANIMATOR |
 |---|---|---|---|
-| MYTHOS: BLACKOUT | `/Users/men1692/Desktop/Game/Diablo Reverse`, `slice/power-grid`, `6854243` | 기획·상태·설계 교훈을 읽어 계획에 참고 | 코드/자산을 가져오면 파일·라이선스·변경 범위 별도 기록 |
-| REA | `/Users/men1692/Desktop/AI/rea`, 6.9.0, `e8c838e8bd4fe46f06aaefea793fcc39b00b50de` | README·CLI 안내·MIT 라이선스 확인 | 분석 실행 전 버전 고정, 실제 입력/출력·provider 기록 |
-| Wumpus | ESR 1.12 공개 프로젝트 페이지 | 이전 계획의 후보 | v3에서 대체. 보관 문서만 유지 |
-| Abuse | DOS 셰어웨어 배포 페이지·원개발사 README | 대상 선정과 계획 근거 | 패키지·EXE·파일별 고지 확인 전 |
-| REA 공식 배포본 | npm 6.9.0 | 프로젝트 CLI/MCP 사전 시험 | 게임 분석 미실행, toolchain manifest 참조 |
-| Node 공식 배포본 | 26.13.1 darwin-arm64 | REA 실행 환경 | 프로젝트 `.tools` 전용, 공개 앱과 별개 |
-| 실행 명세 v1 | `docs/archive/REANIMATOR_KIRO_EXECUTION_SPEC_v1.md` | 기존 검증 계약을 분리 보존 | 현재 실행 진입점은 v3 |
-| overnight-harness | 설치 캐시 1.9.0, engine adapter 헤더 2.0.0 | 공통 `agy_invoke critic`을 호출한 계획 리뷰 | runner 코드를 이 저장소에 복사하지 않음 |
+| **MYTHOS: BLACKOUT** | Author's prior unrelated game project | Design and architecture notes were read for planning lessons. | **None.** Zero code, art, audio, or assets reused. |
+| **REA (`6.9.0`)** | Author's MIT-licensed reverse-engineering CLI | Used externally during G1 binary decompilation (`inspect`, `instructions`, `decompile-all`). | **None.** Build/runtime has no REA dependency. |
+| ***Abuse* DOS Shareware 1.05** (1996, Crack dot Com) | Commercial shareware binary & data (local analysis only) | Executed locally in DOSBox Staging for behavioral observation, LE-to-ELF binary analysis, and numeric movement trace logging. | **None.** Excluded from git and `dist/`. Enforced by [`tools/release/check-dist.ts`](../tools/release/check-dist.ts). |
+| **Three.js, Vite, TypeScript, Playwright** | Open-source libraries / tooling (MIT / Apache-2.0) | Runtime 3D WebGL2 rendering, bundling, typechecking, and headless browser smoke verification. | Standard bundled dependencies (`three` at runtime). |
+| **Ghidra 12.2, DOSBox Staging** | Open-source analysis / emulation tools | Local reverse-engineering and DOS capture environment during G0–G1. | **None.** |
+| **Meshy** | External 3D/texture generator (`reference/manifests/meshy-assets.json`) | Generated original new-design 3D models and surface textures (see [`docs/reference/ASSET_REGISTER.md`](reference/ASSET_REGISTER.md) and [`NOTICE.md`](../NOTICE.md)). | Optimized `.glb` models and `.webp` textures in `public/assets/`. |
+| **Kiro** | AI development IDE / CLI | Specs, steering rules, PostFileSave hook, custom agent, sub-agents, and MCP workflows (see [`docs/KIRO_USAGE.md`](KIRO_USAGE.md)). | Development artifacts in `.kiro/`. |
 
-BLACKOUT의 기록된 dev-385 게임·성능·테스트 성과는 이번 세션에서 재실행하지 않았다. REA의 기존 untracked `scripts/fixtures/dotnet-bundle/obj/`, `tests/fixtures/nativeaot/obj/`는 건드리지 않았다.
+## New work created for Kiroween 2026
 
-## 신규 작업
+Everything that makes up the playable application and verification harness was written in this repository starting `2026-11-14`:
 
-현재 신규 산출물은 Abuse v3 계획·Kiro 인계·검증 계약·출처 등록부 및 프로젝트 도구 실행 환경이다. 기존 Carbon 리뷰와 반영은 Wumpus 계획에 대한 이력이다. 브라우저 엔진·조명·UI·실제 바이너리 분석은 앞으로 할 작업이다.
+- **Binary analysis & capture tooling**: LE-to-ELF converter (`scripts/le2elf.py`), DOSBox observation harness (`reference/harness/`), and numeric movement comparator/verifier (`tools/reference/`).
+- **Restored movement engine & Physics Lab**: clean-room TypeScript implementation of the observed 1996 player movement physics (`src/engine/motion.ts`) and the in-browser side-by-side comparison UI (`src/ui/lab.ts`, `labModel.ts`, `labView.ts`).
+- **Original 3D Metroidvania**: 60 Hz deterministic simulation (`src/game3d/`, `src/engine/motion3d.ts`), dual WebGL2 renderers including 320×200 Bayer-dithered Classic View (`src/render3d/`), procedural WebAudio synthesizer with per-stage themes and effects (`src/ui/themes.ts`, `soundBank.ts`, `audioDirector.ts`), multi-stage progression, automated reachability/bot test suite (`tests/`, `tools/game/`), and AWS S3/CloudFront deployment (`infra/`).
 
-## 공개 전 갱신
+## Related documents
 
-로컬 절대 경로는 공개 독자에게 필요한 출처 URL과 revision으로 바꾼다. 개별 자산의 재배포 조건을 확인하고, 실제 포함 파일을 등록한다. 공개 여부가 정해지기 전 이 문서를 제출 완료 증거로 사용하지 않는다.
+- Code license: [`LICENSE`](../LICENSE) (MIT)
+- License scope & Meshy/Abuse notice: [`NOTICE.md`](../NOTICE.md)
+- Kiro usage evidence: [`docs/KIRO_USAGE.md`](KIRO_USAGE.md)
+- Asset & license register: [`docs/reference/ASSET_REGISTER.md`](reference/ASSET_REGISTER.md)
+- Verification contract: [`docs/reference/VERIFICATION_CONTRACT.md`](reference/VERIFICATION_CONTRACT.md)

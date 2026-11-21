@@ -2,6 +2,30 @@
 
 R20~R15와 이전 항목은 [archive/progress-2026-11.md](archive/progress-2026-11.md), R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-21 — YouTube 트레일러 공개 업로드·문서 링크 반영·Kiro 크레딧 신청 완료 반영 (로컬 미커밋)
+
+- Status: 제출 필수 자산(코드·CloudFront 라이브·YouTube 공개 영상·Kiro 크레딧 신청·문서) 준비 완료, 로컬 변경분 커밋·push 및 Devpost 최종 등록 대기.
+- Changed: YouTube Studio(`Paulos` `@paulosdev-j2u`)에 `reanimator_trailer.mp4` public 게시(`https://youtu.be/TvyT1M4yLzY`), [DEVPOST.md](DEVPOST.md) `<VIDEO_URL>` 치환, [README.md](../README.md) `Trailer` 링크 추가, `docs/{AGENT_BRIEF,STATUS,NEXT_PLAN}.md`에 영상 URL 및 Kiro 크레딧 신청 완료 반영.
+- Verified: YouTube Studio `"게시된 동영상"` 모달 확인(`https://youtu.be/TvyT1M4yLzY`, 공개 설정, 저작권 문제 0건, 1:12).
+- Unverified: 사람 전 구간 플레이(G5).
+- Next: 사용자 지시 시 로컬 변경분 커밋·`origin/main` push → 사람 플레이(G5) → Devpost 최종 제출(마감 12-04 14:00 PT).
+
+## 2026-11-21 — BGM DSP·테마 개선, 1080p 트레일러 재제작, CloudFront 재배포 (로컬 미커밋)
+
+- Status: 구 720p 트레일러·BGM 직접 청취/시청 결함 수정 완료, 개선 빌드로 CloudFront 라이브 재배포 완료(소스·문서는 로컬 미커밋).
+- Changed: `src/ui/audio.ts`(`BGM_TRIM` `1.4→1.08`, `tone()` 레이어별 LPF `1700/3200/3800 Hz`, `clangHit` triangle·4.8 kHz 제한·게인 `0.04→0.022`), `src/ui/themes.ts`(`biolabs`/`boss`/`meltdown` 리드 1옥타브 하향, `meltdown` triangle 패드, `victory` 104 BPM 차분한 Sci-Fi 해결), `tools/smoke/{record-demo,record-bed,trailer-cards,trailer}.ts`(자막 제거 1080p 캡처, 3막 E minor→D minor→E minor 베드 + 실제 게임 SFX 24큐 믹스, 48 kHz·리미터 마스터링).
+- Verified: `make check` exit 0(`766/766`, `dist-guard` 56 files `20,780,579 B`), `make smoke-local` 30/30(`60.5 fps`, `4978 ticks`), `make release`(`12,263,114 B`), `infra/deploy.sh` + 무효화 `I6497S1WOJI312QSKUJ4FMU6XH`(라이브 `index.html` MD5 `619e6b33465b66db9c17fb204f7aab4a` = 로컬 `dist/`, `/assets/index-CsTU0H5t.js` HTTP/2 200), 트레일러(`1920×1080 25 fps`, `71.96 s`, `79 MB`, `48 kHz`, `-15.2 LUFS`, True Peak `-1.0 dBFS`, 0 dB 샘플 0) 1초 프레임·오디오·개선 BGM 직접 검수.
+- Unverified: 사람 전 구간 플레이(G5).
+- Next: 사용자 트레일러 확인·YouTube 업로드 → `<VIDEO_URL>` 반영 및 이번 변경분 전체 커밋·push → 사람 플레이 → Kiro 크레딧·Devpost 제출.
+
+## 2026-11-21 — 제출물 검수·문서/스크린샷 정비·잔여 브라우저 검증 (로컬 미커밋)
+
+- Status: 제출 직전 검수 및 로컬 문서·릴리스 정비 완료(커밋·push 없음, 라이브 `index.html` = 로컬 `dist/` 확인).
+- Changed: `docs/PREEXISTING_WORK.md`(구버전 한국어 메모·`/Users/` 로컬 경로 제거, 영문 공개 고지로 개편), `README.md`(라이브 CloudFront/가이드 링크, R26/R27/showcase 최신 스크린샷 교체, 게임패드·`766` 테스트·`dist-debug` `?debug=1` 설명 보정), `docs/JUDGES.md`(라이브 URL, `Trailer Reel` 명칭, R16–R28 요약, R28 검증 수치 갱신), `docs/DEVPOST.md`(도구·테스트 수 766 정합성 보정), `docs/{AGENT_BRIEF,STATUS,NEXT_PLAN}.md` 동기화.
+- Verified: `make check` exit 0(`766/766`, `reach3d` S1 52/S2 33/S3 32 waypoints, `dist-guard` 56 files 20,780,377 B), `make smoke-local` 30/30(60.5 fps, 봇 4978 ticks, 오류 0), Playwright `dist-debug/?debug=1` Bio-Labs `222` draw calls 및 `__reanimatorShowEnding()` `REANIMATED` 카드 0 errors, `make release`(`release/reanimator-1.1.0-web.zip` 12,263,092 B), 트레일러 `ffprobe`/`ebur128`/`silencedetect`(`69.87 s`, `-14.7 LUFS`, `+0.2 dBFS` peak, 무음 0).
+- Unverified: 트레일러·레트로 BGM 사람 청취, 라이브 URL 사람 플레이(G5).
+- Next: 사용자 트레일러 시청 후 YouTube 업로드 → `<VIDEO_URL>`·README 반영 및 이번 수정분 커밋·push → 사람 플레이 → Kiro 크레딧(12-01 12:00 PT)·Devpost 제출(12-04 14:00 PT).
+
 ## 2026-11-21 — 재배포·GitHub push·LICENSE 인식 수정 (사용자 지시)
 
 - Status: 제출물 중 코드·라이브 데모 공개 완료. 남은 것은 영상 업로드와 Devpost 양식(사용자).

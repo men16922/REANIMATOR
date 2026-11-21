@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: R28 완료 — 새 BGM 재배포, GitHub public push(MIT 인식), 트레일러 `docs/evidence/demo/reanimator_trailer.mp4` 완성. 제출 마감 2026-12-04 14:00 PT. 첫 행동: 사용자에게 YouTube 링크를 받아 [DEVPOST](DEVPOST.md)의 `<VIDEO_URL>`과 README에 넣고 push. 계획 [NEXT_PLAN](NEXT_PLAN.md) "제출 준비". 추가 push·배포는 사용자 지시 범위에서만.
+▶ NEXT SESSION: YouTube 트레일러 공개 업로드 완료(`https://youtu.be/TvyT1M4yLzY`, [DEVPOST](DEVPOST.md)·README 반영 완료) + Kiro 크레딧 신청 완료 + CloudFront 라이브 재배포 완료. 로컬 미커밋: `src/ui/{audio,themes}.ts`, `tools/smoke/*`, `README.md`, `docs/*` (`make check` 766/766, `make smoke-local` 30/30, `release/` zip 갱신). 첫 행동: 사용자 지시 시 이번 변경분 커밋·`origin/main` push 후, 사람 플레이(G5) 및 Devpost 최종 제출(`https://kiroween.devpost.com`, 마감 2026-12-04 14:00 PT). 계획 [NEXT_PLAN](NEXT_PLAN.md) "제출 준비".
 
 ## 한 줄 요약
 

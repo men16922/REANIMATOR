@@ -4,6 +4,10 @@
 
 **A 3D side-view sci-fi metroidvania that runs in your browser, built on movement physics restored from the 1996 DOS game *Abuse*.**
 
+- **Play live:** https://dlr55kf9v2hn7.cloudfront.net (desktop WebGL2 browser)
+- **Trailer:** https://youtu.be/TvyT1M4yLzY
+- **Guides:** [Judges' guide](docs/JUDGES.md) · [Kiro usage](docs/KIRO_USAGE.md)
+
 You wake in a sealed cryo station. Something below keeps the reactor burning. Reach the core, break it, and get out. Then take the Foundry Line and the Reactor Spire.
 
 ## Features
@@ -20,11 +24,11 @@ You wake in a sealed cryo station. Something below keeps the reactor burning. Re
 
 | Stage 1: Cryo Facility | Stage 2: Foundry Line | Stage 3: Reactor Spire |
 |---|---|---|
-| ![Stage 1 Core Warden](docs/evidence/g4_playable/09_warden_boss.png) | ![Stage 2 Slag Gantry](docs/evidence/r18_stages/stage2_slag_gantry.png) | ![Stage 3 Warden Arena](docs/evidence/r18_stages/stage3_warden_arena.png) |
+| ![Stage 1 Airlock Bay (live CloudFront build)](docs/evidence/r27_first90/6-aws-cloudfront-play.png) | ![Stage 2 Slag Pits](docs/evidence/r26_fix/c-s2-slag.png) | ![Stage 3 Warden Arena](docs/evidence/r26_fix/c-s3-arena.png) |
 
-| Slag Foreman wind-up | Spire Warden intro | Cryo Bulwark frost shield |
+| Slag Foreman wind-up | Spire Warden intro | Classic View (320x200) |
 |---|---|---|
-| ![Slag Foreman wind-up](docs/evidence/r21_foreman/foreman_telegraph_after.png) | ![Spire Warden intro card](docs/evidence/r21_stage3/spire_warden_intro_card.png) | ![Cryo Bulwark with its frost shield](docs/evidence/r21_stage3/cryo_bulwark_shield.png) |
+| ![Slag Foreman wind-up](docs/evidence/r21_foreman/foreman_telegraph_after.png) | ![Spire Warden intro card](docs/evidence/r21_stage3/spire_warden_intro_card.png) | ![Classic View 320x200 dithered mode](docs/evidence/showcase/classic.png) |
 
 ![Physics lab: original log and engine replay](docs/evidence/showcase/lab.png)
 
@@ -55,7 +59,7 @@ That is the whole scope of the restoration. The 3D game is new design: the level
 
 ## System requirements
 
-A desktop browser with WebGL2 (current Chrome, Edge, Firefox or Safari), a keyboard and mouse, and a GPU from the last ten years.
+A desktop browser with WebGL2 (current Chrome, Edge, Firefox or Safari), a keyboard and mouse (or gamepad), and a GPU from the last ten years.
 
 ## Run from source
 
@@ -69,11 +73,11 @@ make check         # type check, unit tests, bot playthroughs, reachability, bui
 make release       # runs all checks, then writes release/reanimator-<version>-web.zip
 ```
 
-Production builds do not expose debug hooks. Add `?debug=1` to the URL to enable them for testing.
+Production builds (`npm run build` and the live demo) strip debug hooks. Debug hooks are enabled automatically in `npm run dev`, or in a `make smoke-build` (`VITE_DEBUG_HOOKS=1`, output in `dist-debug/`) opened with `?debug=1`.
 
 ## Tests
 
-`make check` runs the TypeScript check, about 740 unit tests, the movement replays against the original logs, deterministic bot playthroughs of all three stages on every difficulty, reachability checks for every gate and secret, a production build and the dist guard. The simulation is deterministic, so bot results are pinned to the tick.
+`make check` runs the TypeScript check, 766 unit tests, the movement replays against the original logs, deterministic bot playthroughs of all three stages on every difficulty, reachability checks for every gate and secret, a production build and the dist guard. The simulation is deterministic, so bot results are pinned to the tick.
 
 ## How it was built
 
