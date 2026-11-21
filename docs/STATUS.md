@@ -1,15 +1,16 @@
 # 현재 상태
 
-최종 갱신: 2026-11-22 잔여 기술/검증 완료 및 CloudFront 재배포(`0201384cec3e462eed79d3dbc74f692a`) · 그 전 2026-11-21 Kiroween 2026 Devpost 제출 완료(`https://devpost.com/software/reanimator`) · 그 전 2026-11-21 R28+BGM/트레일러 재제작 · 그 전 2026-11-17 R27(AWS 배포·tidy·제출 준비) · 이전 R20~R25 상세는 [archive/STATUS_R15_R25.md](archive/STATUS_R15_R25.md) · 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(HEAD `f740169`) · R13 통합 · R9–R11 세션 마감(HEAD `3c8e7a0`). 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-22 Bonus Blog Prize 한영 아티클 발행·Devpost 등록 완료 · 그 전 잔여 기술/검증 완료 및 CloudFront 재배포(`0201384cec3e462eed79d3dbc74f692a`) · 그 전 2026-11-21 Kiroween 2026 Devpost 제출 완료(`https://devpost.com/software/reanimator`) · 그 전 2026-11-21 R28+BGM/트레일러 재제작 · 그 전 2026-11-17 R27(AWS 배포·tidy·제출 준비) · 이전 R20~R25 상세는 [archive/STATUS_R15_R25.md](archive/STATUS_R15_R25.md) · 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(HEAD `f740169`) · R13 통합 · R9–R11 세션 마감(HEAD `3c8e7a0`). 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
 
 ## R28 제출·잔여 검증 상태 (2026-11-22)
 
 - **Devpost 제출 완료**: `https://devpost.com/software/reanimator` (Kiroween 2026, 카테고리 **Resurrection**, `@men16922` / Individual). **마감(`2026-12-04 14:00 PT`) 후 수상 발표까지 저장소·영상·배포 동결.**
+- **Bonus Blog Prize 등록 완료**: 포트폴리오(`men16922.github.io` `4c3002f`) 한영 아티클 발행(EN `https://men16922.github.io/articles/reanimator`, KO `https://men16922.github.io/kr/articles/reanimator`, GitHub Actions `Check Format`/`Build and Deploy`/`pages-build-deployment` 모두 `success`, Chrome 이미지 6/6·`Kiroween 2026` 표기 확인) 및 Devpost `Additional info` 등록(`Bonus Blog Prize` `108257` + `Blog Prize` + EN URL, 재로드 영속성·`SUBMITTED` 유지 확인).
 - 배포: https://dlr55kf9v2hn7.cloudfront.net (`reanimator-site`, `us-west-2`, [infra/README](../infra/README.md)). 최신 재배포·무효화(`IBISUHUJ6MVR03A7NODYEPYOR3`) 완료: 라이브 `index.html` MD5 `0201384cec3e462eed79d3dbc74f692a` = 로컬 `dist/`, `/assets/index-B7fsYWM2.js` HTTP 200. AWS Budgets `$10`·`$200` 알림 이미 활성(`HEALTHY`).
 - 수정·저장소: https://github.com/men16922/REANIMATOR public(`MIT`, `/.kiro` 추적), 병합 완료 로컬 브랜치 54개 정리(`main` 단일). `UiAuditDriver.isStale` 조기 중단 수정([uiAudit.ts](../src/ui/uiAudit.ts), [main.ts](../src/ui/main.ts)) + [ui-panels.test.ts](../tests/ui-panels.test.ts) & [bot-robust.test.ts](../tests/bot-robust.test.ts)(Stage 1 겹친 구역 + Stage 2/3 리스폰) 회귀 테스트 추가.
 - 게이트·릴리스: `make check` exit 0(768/768, `dist-guard` 56 files `20,780,733 B`), `make reference-holdout` 4/4, `make smoke-local` 30/30, `make release` (`12,263,180 B`). 추출된 `release` zip 및 `vite preview` Chrome 기동·플레이·Stage 2 오류 0.
 - 디버그·브라우저: `__reanimatorUiAudit()` 12/12 PASS, `__reanimatorSoak(3,{trace:true})` leaks 0(geometries 352, textures 135/136/135, frameErrors 0), `__reanimatorRunBot(1900)` 1회 vs `RunBot(1)`×1900 sim·render 동일, 스테이지 12회 고속 전환·`WEBGL_lose_context` 복구·Vite dev HMR 비흑화면(`devErrors: []`), R25 지형·접근성 HUD·모바일 `390×844` 스샷 확인. `enemy-live.ts`(`1900..3200`) stalker `0` pops / crawler `5` pops(`maxSimStep 0.135 m`). Chrome·Edge 라이브 0 errors; Playwright WebKit은 바이너리 불일치(`webkit-2388` 미설치, `2287` 타임아웃)로 미검증.
-- 열린 위험: (1) 사람 전 구간 플레이(G5) 및 Safari/Firefox 수동 확인 미실시. (2) 선택 보너스(블로그/소셜) 사용자 직접 게시 대기.
+- 열린 위험: (1) 사람 전 구간 플레이(G5) 및 Safari/Firefox 수동 확인 미실시. (2) 선택 보너스 중 Social Blitz(`#KiroweenHackathon26`)만 미등록(선택).
 
 ## R27 스모크 복구 (2026-11-17)
 

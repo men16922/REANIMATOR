@@ -11,7 +11,8 @@
 - [x] Devpost 최종 제출 완료(`https://devpost.com/software/reanimator`, 카테고리 Resurrection, 수정 가능 기한 `2026-12-04 14:00 PT`; 마감 후 변경 금지).
 - [x] R28 이후 잔여 기술/검증 완료: R19 릴 Stage 2·3 컷 확인(`reel.ts`), R13 `UiAudit.isStale` 수정 + `RunBot(1900)` vs `RunBot(1)`×1900 + `replan()` 겹친 구역/Stage 2·3 테스트, `__reanimatorSoak(3,{trace:true})` 0 leaks, 스테이지 12회 전환·`WEBGL_lose_context`·Vite dev HMR 비흑화면, R25 지형/접근성 스샷 육안 확인, `release` zip·`vite preview`·Chrome·Edge·모바일 라이브 검증, AWS Budgets `$10` 확인, 병합 브랜치 54개 삭제, CloudFront 재배포(`0201384cec3e462eed79d3dbc74f692a`).
 - [ ] (사용자) 배포 URL(`https://dlr55kf9v2hn7.cloudfront.net`)에서 처음부터 끝까지 사람 플레이(G5), 막힌 곳·실제 조작/BGM 확인 및 Safari/Firefox 수동 확인(Playwright `webkit-2388` 미설치로 미검증).
-- [ ] 선택(사용자): Bonus Blog Prize / Social Blitz(`#KiroweenHackathon26`) 게시 후 Devpost 링크 추가(`bonus_prize_drafts.md` 초안 참고).
+- [x] Bonus Blog Prize 한영 아티클 발행(`men16922.github.io` `4c3002f`, `https://men16922.github.io/articles/reanimator`) 및 Devpost `Additional info` 등록·저장 확인(`SUBMITTED` 유지).
+- [ ] 선택(사용자): Social Blitz Prize(`#KiroweenHackathon26`) 게시 후 Devpost 링크 추가(`bonus_prize_drafts.md` 초안 참고).
 
 ## 참고/선택 백로그 (필요 시 마감 이후 포크에서)
 

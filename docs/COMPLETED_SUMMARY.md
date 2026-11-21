@@ -1,5 +1,10 @@
 # 완료 요약
 
+## 2026-11-22 — Kiroween 2026 제출·잔여 검증·Bonus Blog Prize 완료
+
+- **코드·검증·배포(`cb6ceb4`):** `make check` 768/768 (`dist-guard` 56 files, `20,780,733 B`), `make reference-holdout` 4/4, `make smoke-local` 30/30 (`60.5 fps`), `make release` (`12,263,180 B`), CloudFront 라이브(`https://dlr55kf9v2hn7.cloudfront.net`, MD5 `0201384cec3e462eed79d3dbc74f692a`), Chrome/Edge/모바일 `390×844` 오류 0, YouTube 1080p 트레일러(`https://youtu.be/TvyT1M4yLzY`), 병합 브랜치 54개 정리.
+- **Devpost & Bonus Blog Prize:** `https://devpost.com/software/reanimator` (`Resurrection`, `SUBMITTED`) 제출 후 포트폴리오 한영 아티클 발행(`men16922.github.io` `4c3002f`, EN `https://men16922.github.io/articles/reanimator`, KO `https://men16922.github.io/kr/articles/reanimator`) 및 Devpost `Additional info` Bonus Blog Prize(`108257` / `Blog Prize`) 등록·영속성 확인 완료.
+
 ## 2026-11-14 — Meshy 7.1 + Three.js 2.5D Playable 고도화 (Antigravity)
 
 - **Meshy 7.1 3D 자산 파이프라인** 6개 다크 바이오메카닉 `.glb`(`operative`, `warden`, `crawler`, `spitter`, `power-core`, `exit-gate`) 생성·다운로드·Meshopt/WebP(512px, `< 1.3 MB`) 최적화 및 4면 시각 검수 완료(`public/assets/models/*.glb`, `reference/manifests/meshy-assets.json`).

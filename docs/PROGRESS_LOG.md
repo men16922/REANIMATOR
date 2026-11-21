@@ -2,6 +2,14 @@
 
 R20~R15와 이전 항목은 [archive/progress-2026-11.md](archive/progress-2026-11.md), R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-22 — Bonus Blog Prize 한영 아티클 발행 및 Devpost 등록 완료
+
+- Status: Kiroween 2026 Bonus Blog Prize 아티클 공개·배포 및 Devpost 등록 완료(`SUBMITTED`, `5/5 steps done` 유지). `Kiroween2026` 코드 변경 없음(HEAD `cb6ceb4` `origin/main` 반영 상태).
+- Changed: 포트폴리오 저장소(`men16922.github.io` `4c3002f`, `origin/master` push)에 `REANIMATOR` 한영 아티클(`public/posts/reanimator/{ko,en}.md`, 스크린샷 6종, `src/content/articles.js`) 발행. Devpost `Additional info`(`1273977-reanimator`)에 `Sponsor / Special Prizes: Bonus Blog Prize(108257)`, `Which Bonus Prizes: Blog Prize`, URL `https://men16922.github.io/articles/reanimator` 저장.
+- Verified: `lint_article.py`(상대 경로 치환 기준 `ERROR=0, WARN=0`, `stdev=38.6`, `slop2=0`), `prettier@2.3.1 -c` PASS, GitHub Actions `Check Format`(`44932178394`)·`Build and Deploy`(`44932178363`)·`pages-build-deployment`(`44932251528`) 모두 `success`, Chrome 라이브 검증(`h1`·`Kiroween 2026`·이미지 6/6 로드), Devpost 저장 후 재방문 영속성 및 `SUBMITTED` 상태 확인.
+- Blockers: 없음.
+- Next: 사용자 수동 플레이(G5)·Safari/Firefox 확인, 선택 `Social Blitz Prize`(`#KiroweenHackathon26`). 마감(`2026-12-04 14:00 PT`) 이후 저장소·영상·배포·블로그 동결.
+
 ## 2026-11-22 — `/goal` 잔여 기술·검증·브랜치·라이브 재배포 일괄 완료
 
 - Status: 코드·게이트·홀드아웃·스모크·릴리스 패키지·브라우저·CloudFront 재배포까지 자동화 가능한 모든 잔여 작업 완료(`origin/main` 반영 대기).
