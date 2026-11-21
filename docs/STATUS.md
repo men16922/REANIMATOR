@@ -1,6 +1,11 @@
 # 현재 상태
 
-최종 갱신: 2026-11-17 R27 · 이전 R20~R25 상세는 [archive/STATUS_R15_R25.md](archive/STATUS_R15_R25.md) · 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+최종 갱신: 2026-11-17 R27(AWS 배포·tidy·제출 준비) · 이전 R20~R25 상세는 [archive/STATUS_R15_R25.md](archive/STATUS_R15_R25.md) · 2026-11-16 · R15 터레인 킷, R16 릴리스 1.0.0, Abuse 관찰(HEAD `eef01b6`, 푸시 없음) · 그 전: 2026-11-15 R14 통합(main, charlight·terrain·transit 병합, HEAD `f740169`, 푸시 없음) · 그 전: Post-R13 수정(Judge Reel 랩 오버레이·시계, 적 달리기 표현) · 그 전: R13 통합(main, alive·combat·ux·reel 병합과 적 이동 시뮬 수정, 푸시 없음). 이전: R9–R11 세션 마감(HEAD `3c8e7a0`). R10 병합: classic·opening·boss·hunter. R9 병합: fix·world·abuse·parry. 이전 상세판: [archive/STATUS_through_R3.md](archive/STATUS_through_R3.md).
+
+## R27 제출 준비 상태 (2026-11-17)
+
+- 배포: https://dlr55kf9v2hn7.cloudfront.net (S3 비공개 + CloudFront OAC, `us-west-2`, 스택 `reanimator-site`, [infra/README](../infra/README.md)). 실제 URL에서 Chrome 플레이 확인(오류 0, 4xx 0). 비용은 CloudFront 무료 한도(월 1 TB·1,000만 요청) 안, 예산 알림은 미설정.
+- 열린 위험: (1) Meshy 키 노출 가능성, 재발급 필요. (2) 푸시 전이라 공개 저장소·영상·Devpost 양식 미확인. (3) `docs/KIRO_USAGE.md`에 Codex·Claude 흔적이 섞여 있어 "Kiro 핵심 사용" 서술 점검 필요. (4) `docs/PREEXISTING_WORK.md`의 BLACKOUT/REA는 참고만 했다고 기록(코드 재사용 아님, 규정의 이전 작업 조항 확인 필요).
 
 ## R27 스모크 복구 (2026-11-17)
 

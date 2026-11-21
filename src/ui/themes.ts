@@ -63,85 +63,87 @@ function seq(s: string): Pattern {
 const NONE = '................';
 
 export const THEMES: Record<ThemeId, ThemeDef> = {
-  // Cryo Airlock: cold ambient synth, glassy sine arpeggio over a sub drone, almost no drums.
+  // R28 retro-arcade pass: every theme now runs at an upbeat 108..170 BPM with NES-style voices (square leads and arps, triangle bass),
+  // four-on-the-floor kicks, backbeat snares and off-beat hats. Roots and tempos stay unique per theme so sectors remain recognisable.
+  // Cryo Airlock: bright arcade intro stage, mid tempo, light drums, glassy square arpeggio.
   airlock: {
-    bpm: 70, root: 55, prog: [{ r: 0, chord: MIN }, { r: -4, chord: MAJ }, { r: -2, chord: MAJ }, { r: -5, chord: MIN }],
-    arp: seq('0 . . . 7 . . . 12 . . . 7 . 3 .'), bassLine: seq('0 . . . . . . . . . . . . . . .'), lead: seq('. . . . . . 12 . . . 15 . 14 . . .'),
-    kick: NONE, snare: NONE, hat: '..x.......x.....', perc: NONE,
-    padWave: 'sine', arpWave: 'sine', bassWave: 'sine', leadWave: 'triangle', padGain: 0.034, arpGain: 0.03, bassGain: 0.06, leadGain: 0.026,
-    wet: 0.5, delayBeats: 0.75, delayFb: 0.45, duck: 0.12, form: 'song',
+    bpm: 108, root: 55, prog: [{ r: 0, chord: MIN }, { r: -4, chord: MAJ }, { r: -2, chord: MAJ }, { r: -5, chord: MIN }],
+    arp: seq('0 7 12 7 0 7 12 7 0 7 12 7 0 7 12 19'), bassLine: seq('0 . 0 . 0 . 0 . 0 . 0 . 0 . 7 .'), lead: seq('12 . . 14 . . 19 . 16 . . . 14 . 12 .'),
+    kick: 'x...x...x...x...', snare: '....x.......x...', hat: '..x...x...x...x.', perc: NONE,
+    padWave: 'triangle', arpWave: 'square', bassWave: 'triangle', leadWave: 'square', padGain: 0.022, arpGain: 0.02, bassGain: 0.075, leadGain: 0.017,
+    wet: 0.22, delayBeats: 0.75, delayFb: 0.3, duck: 0.3, form: 'song',
   },
-  // Central Transit Shaft: D dorian, steady machine pulse, rising lines.
+  // Central Transit Shaft: driving arcade run, eighth-note bass, climbing arpeggio, rising hook.
   shaft: {
-    bpm: 86, root: 73.4, prog: [{ r: 0, chord: MIN }, { r: 5, chord: MAJ }, { r: -2, chord: MAJ }, { r: 3, chord: MAJ }],
-    arp: seq('0 7 10 12 10 7 5 7 0 7 10 14 12 10 7 5'), bassLine: seq('0 . 0 . . 0 . 0 0 . 0 . . 7 . 5'), lead: seq('12 . . 14 . . 15 . 17 . . . 14 . . .'),
-    kick: 'x.......x.....x.', snare: '........x.......', hat: '..x...x...x...x.', perc: '.......t.......t',
-    padWave: 'triangle', arpWave: 'triangle', bassWave: 'sawtooth', leadWave: 'square', padGain: 0.028, arpGain: 0.024, bassGain: 0.05, leadGain: 0.016,
-    wet: 0.3, delayBeats: 0.75, delayFb: 0.3, duck: 0.35, form: 'song',
+    bpm: 128, root: 73.4, prog: [{ r: 0, chord: MIN }, { r: -4, chord: MAJ }, { r: 3, chord: MAJ }, { r: -2, chord: MAJ }],
+    arp: seq('0 12 7 12 0 12 7 12 0 12 7 12 0 12 7 19'), bassLine: seq('0 0 12 0 0 0 12 0 0 0 12 0 0 7 5 7'), lead: seq('12 . 14 . 19 . 16 . 14 . 12 . 14 . 19 .'),
+    kick: 'x...x...x...x...', snare: '....x.......x...', hat: '.x.x.x.x.x.x.x.x', perc: NONE,
+    padWave: 'triangle', arpWave: 'square', bassWave: 'triangle', leadWave: 'square', padGain: 0.02, arpGain: 0.02, bassGain: 0.08, leadGain: 0.017,
+    wet: 0.2, delayBeats: 0.75, delayFb: 0.3, duck: 0.4, form: 'song',
   },
-  // Sunken Mines: phrygian, slow and heavy, industrial metal percussion and gritty bass.
+  // Sunken Mines: heavy but fast, stomping kicks and metal clangs on the off-beats, phrygian bass hook.
   mines: {
-    bpm: 64, root: 69.3, prog: [{ r: 0, chord: [0, 7, 12] }, { r: 1, chord: [0, 7, 12] }, { r: 0, chord: MIN }, { r: -2, chord: [0, 7, 12] }],
-    arp: seq('0 . . 1 . . 7 . . . 0 . . 1 . .'), bassLine: seq('0 . . 0 . . 1 . . . 0 . -2 . . .'), lead: seq('. . . . 12 . . . . . 13 . . . 7 .'),
-    kick: 'x.......x..x....', snare: '........x.......', hat: NONE, perc: '..c.....c..c...c',
-    padWave: 'sawtooth', arpWave: 'triangle', bassWave: 'sawtooth', leadWave: 'sawtooth', padGain: 0.02, arpGain: 0.03, bassGain: 0.06, leadGain: 0.014,
-    wet: 0.42, delayBeats: 1.5, delayFb: 0.4, duck: 0.4, form: 'song',
+    bpm: 116, root: 69.3, prog: [{ r: 0, chord: [0, 7, 12] }, { r: 1, chord: [0, 7, 12] }, { r: 0, chord: MIN }, { r: -2, chord: [0, 7, 12] }],
+    arp: seq('0 . 12 . 0 1 12 . 0 . 12 . 7 1 12 .'), bassLine: seq('0 0 . 0 0 . 1 0 0 0 . 0 -2 . 0 .'), lead: seq('. . 12 . 13 . 12 . . . 7 . 13 . 12 .'),
+    kick: 'x..xx..xx..xx...', snare: '....x.......x...', hat: '..x...x...x...x.', perc: '.c...c...c...c.c',
+    padWave: 'sawtooth', arpWave: 'square', bassWave: 'triangle', leadWave: 'square', padGain: 0.016, arpGain: 0.018, bassGain: 0.08, leadGain: 0.015,
+    wet: 0.2, delayBeats: 0.75, delayFb: 0.3, duck: 0.45, form: 'song',
   },
-  // Bio-Labs: lydian, dreamy arpeggio washed in delay and reverb.
+  // Bio-Labs: bouncy synth-pop arcade, full sixteenth arpeggio, bright major lift.
   biolabs: {
-    bpm: 98, root: 46.25, prog: [{ r: 0, chord: MAJ7 }, { r: 4, chord: MIN }, { r: 2, chord: MAJ }, { r: 7, chord: MAJ }],
-    arp: seq('12 16 19 16 14 18 21 18 12 16 19 23 21 18 16 14'), bassLine: seq('0 . . . . . 0 . . . . . 4 . . .'), lead: seq('. . 24 . . . 23 . 21 . . . 19 . . .'),
-    kick: 'x.......x.......', snare: NONE, hat: '..x...x...x...x.', perc: NONE,
-    padWave: 'sine', arpWave: 'sine', bassWave: 'sine', leadWave: 'triangle', padGain: 0.034, arpGain: 0.03, bassGain: 0.07, leadGain: 0.022,
-    wet: 0.55, delayBeats: 0.75, delayFb: 0.55, duck: 0.3, form: 'song',
+    bpm: 136, root: 46.25, prog: [{ r: 0, chord: MAJ7 }, { r: 4, chord: MIN }, { r: 2, chord: MAJ }, { r: 7, chord: MAJ }],
+    arp: seq('12 16 19 16 14 18 21 18 12 16 19 23 21 18 16 14'), bassLine: seq('0 . 12 . 0 . 12 . 0 . 12 . 4 . 7 .'), lead: seq('24 . 23 . 21 . 19 . 21 . 23 . 24 . 28 .'),
+    kick: 'x...x...x...x...', snare: '....x.......x...', hat: '.x.x.x.x.x.x.x.x', perc: NONE,
+    padWave: 'triangle', arpWave: 'square', bassWave: 'triangle', leadWave: 'square', padGain: 0.022, arpGain: 0.017, bassGain: 0.085, leadGain: 0.015,
+    wet: 0.3, delayBeats: 0.75, delayFb: 0.4, duck: 0.35, form: 'song',
   },
-  // Upper Security Deck: tense E minor pulse, dry and tight, driving square sequence.
+  // Upper Security Deck: tense chase music, tight sixteenth hats, syncopated kick, square sequence.
   security: {
-    bpm: 112, root: 82.4, prog: [{ r: 0, chord: MIN }, { r: 0, chord: MIN }, { r: -4, chord: MAJ }, { r: -2, chord: MAJ }],
-    arp: seq('0 0 7 0 3 0 10 7 0 0 7 0 3 0 12 10'), bassLine: seq('0 0 . 0 0 . 0 . 0 0 . 0 0 . 7 .'), lead: seq('12 . . . 15 . 14 . 12 . . . 10 . 7 .'),
-    kick: 'x..x..x.x...x...', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.xx', perc: '...............t',
-    padWave: 'sawtooth', arpWave: 'square', bassWave: 'sawtooth', leadWave: 'square', padGain: 0.018, arpGain: 0.016, bassGain: 0.05, leadGain: 0.013,
+    bpm: 146, root: 82.4, prog: [{ r: 0, chord: MIN }, { r: 0, chord: MIN }, { r: -4, chord: MAJ }, { r: -2, chord: MAJ }],
+    arp: seq('0 0 7 0 12 0 7 0 0 0 7 0 12 0 10 7'), bassLine: seq('0 0 . 0 0 . 0 . 0 0 . 0 0 . 7 .'), lead: seq('12 . 15 . 14 . 12 . 10 . 12 . 7 . 10 .'),
+    kick: 'x..xx..xx..xx.x.', snare: '....x.......x..x', hat: 'xxxxxxxxxxxxxxxx', perc: '...............t',
+    padWave: 'sawtooth', arpWave: 'square', bassWave: 'sawtooth', leadWave: 'square', padGain: 0.014, arpGain: 0.017, bassGain: 0.05, leadGain: 0.014,
     wet: 0.1, delayBeats: 0.5, delayFb: 0.25, duck: 0.45, form: 'song',
   },
-  // Core Vault: locrian, very low and wide dark synth, slow pulse.
+  // Core Vault: the last approach, dark but marching at arcade tempo, sawtooth pad kept for weight.
   core: {
-    bpm: 56, root: 32.7, prog: [{ r: 0, chord: DIM }, { r: 1, chord: MAJ }, { r: 0, chord: DIM }, { r: 6, chord: MAJ }],
-    arp: seq('0 . . . . . 6 . . . 1 . . . . .'), bassLine: seq('0 . . . . . . . 1 . . . . . . .'), lead: seq('. . . . 12 . . . . . . . 18 . 13 .'),
-    kick: 'x.......x.x.....', snare: NONE, hat: NONE, perc: '.......c........',
-    padWave: 'sawtooth', arpWave: 'sine', bassWave: 'sawtooth', leadWave: 'sawtooth', padGain: 0.034, arpGain: 0.03, bassGain: 0.08, leadGain: 0.012,
-    wet: 0.5, delayBeats: 1, delayFb: 0.5, duck: 0.4, form: 'song',
+    bpm: 122, root: 32.7, prog: [{ r: 0, chord: DIM }, { r: 1, chord: MAJ }, { r: 0, chord: DIM }, { r: 6, chord: MAJ }],
+    arp: seq('0 . 6 . 12 . 6 . 0 . 6 . 12 . 13 .'), bassLine: seq('0 . 0 . 0 . 0 . 1 . 1 . 0 . 0 .'), lead: seq('. . 12 . . . 18 . 13 . . . 12 . 6 .'),
+    kick: 'x...x...x...x.x.', snare: '....x.......x...', hat: '..x...x...x...x.', perc: '.......c.......c',
+    padWave: 'sawtooth', arpWave: 'square', bassWave: 'sawtooth', leadWave: 'square', padGain: 0.03, arpGain: 0.017, bassGain: 0.07, leadGain: 0.013,
+    wet: 0.3, delayBeats: 0.75, delayFb: 0.4, duck: 0.45, form: 'song',
   },
-  // Core Warden: fast D minor, double kick, aggressive saw lead. Layers stack with the boss phase.
+  // Core Warden: fast arcade boss theme, double kick, saw lead. Layers stack with the boss phase.
   boss: {
-    bpm: 140, root: 73.4, prog: [{ r: 0, chord: MIN }, { r: 0, chord: MIN }, { r: 1, chord: MAJ }, { r: -2, chord: MAJ }],
+    bpm: 156, root: 73.4, prog: [{ r: 0, chord: MIN }, { r: 0, chord: MIN }, { r: 1, chord: MAJ }, { r: -2, chord: MAJ }],
     arp: seq('0 3 7 12 7 3 10 7 0 3 7 12 15 12 10 7'), bassLine: seq('0 0 . 0 0 . 0 . 0 0 . 0 1 . 0 .'), lead: seq('12 . 15 . 19 . 17 . 15 . 12 . 10 . 12 .'),
     kick: 'x.x.x.xxx.x.x.xx', snare: '....x.......x..x', hat: '.x.x.x.x.x.x.x.x', perc: 'c......c..c.....',
-    padWave: 'sawtooth', arpWave: 'sawtooth', bassWave: 'sawtooth', leadWave: 'sawtooth', padGain: 0.028, arpGain: 0.022, bassGain: 0.065, leadGain: 0.02,
-    wet: 0.22, delayBeats: 0.75, delayFb: 0.35, duck: 0.5, form: 'loop',
+    padWave: 'sawtooth', arpWave: 'square', bassWave: 'sawtooth', leadWave: 'sawtooth', padGain: 0.026, arpGain: 0.02, bassGain: 0.065, leadGain: 0.02,
+    wet: 0.2, delayBeats: 0.75, delayFb: 0.35, duck: 0.5, form: 'loop',
   },
   // Meltdown escape: urgent A phrygian, relentless eighths, two-tone alarm lead.
   meltdown: {
-    bpm: 164, root: 65.4, prog: [{ r: 0, chord: MIN }, { r: 1, chord: MAJ }, { r: 0, chord: MIN }, { r: 5, chord: SUS }],
+    bpm: 170, root: 65.4, prog: [{ r: 0, chord: MIN }, { r: 1, chord: MAJ }, { r: 0, chord: MIN }, { r: 5, chord: SUS }],
     arp: seq('0 12 7 12 0 12 8 12 0 12 7 12 0 12 8 12'), bassLine: seq('0 . 0 . 0 . 0 . 0 . 0 . 1 . 1 .'), lead: seq('12 12 12 12 7 7 7 7 12 12 12 12 7 7 7 7'),
     kick: 'x...x...x...x...', snare: '....x.......x...', hat: 'xxxxxxxxxxxxxxxx', perc: 'c.......c.......',
-    padWave: 'square', arpWave: 'sawtooth', bassWave: 'sawtooth', leadWave: 'square', padGain: 0.024, arpGain: 0.026, bassGain: 0.06, leadGain: 0.018,
+    padWave: 'square', arpWave: 'square', bassWave: 'sawtooth', leadWave: 'square', padGain: 0.024, arpGain: 0.026, bassGain: 0.06, leadGain: 0.018,
     wet: 0.18, delayBeats: 0.5, delayFb: 0.3, duck: 0.5, form: 'loop',
   },
-  // Title / attract screen: ominous industrial drone, sparse metal hits, lonely minor motif.
+  // Title / attract screen: arcade attract mode, upbeat hook, bright square lead over a steady kick.
   title: {
-    bpm: 52, root: 41.2, prog: [{ r: 0, chord: MIN }, { r: 0, chord: MIN }, { r: -4, chord: MAJ }, { r: -5, chord: DIM }],
-    arp: seq('0 . . . . . . . 3 . . . . . 7 .'), bassLine: seq('0 . . . . . . . . . . . . . . .'), lead: seq('. . . . 12 . . . 15 . 14 . . . . .'),
-    kick: 'x...............', snare: NONE, hat: NONE, perc: '........c.......',
-    padWave: 'sawtooth', arpWave: 'sine', bassWave: 'sine', leadWave: 'triangle', padGain: 0.03, arpGain: 0.03, bassGain: 0.08, leadGain: 0.024,
-    wet: 0.6, delayBeats: 1.5, delayFb: 0.5, duck: 0.25, form: 'song',
-  },
-  // Victory ending: the same palette resolved to major, steady and warm.
-  victory: {
-    bpm: 96, root: 65.4, prog: [{ r: 0, chord: MAJ }, { r: -3, chord: MIN }, { r: -7, chord: MAJ }, { r: -5, chord: MAJ }],
-    arp: seq('12 16 19 24 19 16 19 16 12 16 19 24 26 24 19 16'), bassLine: seq('0 . . . 0 . . . 0 . . . 0 . 7 .'), lead: seq('24 . . . 28 . 26 . 24 . . . 19 . . .'),
+    bpm: 112, root: 41.2, prog: [{ r: 0, chord: MIN }, { r: -4, chord: MAJ }, { r: 3, chord: MAJ }, { r: -2, chord: MAJ }],
+    arp: seq('0 7 12 7 0 7 12 7 0 7 12 7 0 7 12 7'), bassLine: seq('0 . 0 . 0 . 0 . 0 . 0 . 0 . 0 .'), lead: seq('12 . . 14 . . 19 . 16 . . 14 . . 12 .'),
     kick: 'x...x...x...x...', snare: '....x.......x...', hat: '..x...x...x...x.', perc: NONE,
-    padWave: 'triangle', arpWave: 'sine', bassWave: 'triangle', leadWave: 'triangle', padGain: 0.032, arpGain: 0.03, bassGain: 0.06, leadGain: 0.024,
-    wet: 0.4, delayBeats: 0.75, delayFb: 0.4, duck: 0.25, form: 'song',
+    padWave: 'triangle', arpWave: 'square', bassWave: 'triangle', leadWave: 'square', padGain: 0.024, arpGain: 0.02, bassGain: 0.08, leadGain: 0.018,
+    wet: 0.25, delayBeats: 0.75, delayFb: 0.35, duck: 0.3, form: 'song',
+  },
+  // Victory ending: the same arcade palette resolved to major, a stage-clear jingle feel.
+  victory: {
+    bpm: 132, root: 65.4, prog: [{ r: 0, chord: MAJ }, { r: -3, chord: MIN }, { r: -7, chord: MAJ }, { r: -5, chord: MAJ }],
+    arp: seq('12 16 19 24 19 16 19 16 12 16 19 24 26 24 19 16'), bassLine: seq('0 . 12 . 0 . 12 . 0 . 12 . 0 . 7 .'), lead: seq('24 . 28 . 31 . 28 . 26 . 24 . 19 . 24 .'),
+    kick: 'x...x...x...x...', snare: '....x.......x...', hat: '.x.x.x.x.x.x.x.x', perc: NONE,
+    padWave: 'triangle', arpWave: 'square', bassWave: 'triangle', leadWave: 'square', padGain: 0.024, arpGain: 0.018, bassGain: 0.07, leadGain: 0.017,
+    wet: 0.25, delayBeats: 0.75, delayFb: 0.3, duck: 0.3, form: 'song',
   },
 };
 

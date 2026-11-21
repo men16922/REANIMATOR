@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: R27 완료(스모크 30/30 복구, 작은 글자 안티앨리어싱 수정, 키 파일 gitignore, 문서 tidy). 배포됨: https://dlr55kf9v2hn7.cloudfront.net ([infra/README](../infra/README.md)). 남은 것: 사람 플레이, `make release`+`vite preview`, Meshy 키 재발급, 흑화면 확정 원인. 계획 [NEXT_PLAN](NEXT_PLAN.md).
+▶ NEXT SESSION: R27 완료·AWS 배포됨(https://dlr55kf9v2hn7.cloudfront.net). 제출 마감 2026-12-04 14:00 PT. 첫 행동: Devpost Rules 탭 필수 항목 확인 → Meshy 키 재발급 → (사용자 지시 시) 푸시. 이어서 데모 영상, 사람 플레이, `KIRO_USAGE.md` 정리. 계획 [NEXT_PLAN](NEXT_PLAN.md). 푸시는 사용자 지시 전까지 하지 않는다.
 
 ## 한 줄 요약
 

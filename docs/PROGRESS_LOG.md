@@ -2,6 +2,21 @@
 
 R20~R15와 이전 항목은 [archive/progress-2026-11.md](archive/progress-2026-11.md), R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-21 — 데모 영상·트레일러, 레트로 BGM, 제출 문서 (로컬 커밋, 푸시·재배포 없음)
+
+- Changed: `src/ui/themes.ts`(10개 테마 레트로 아케이드풍 재작성), `tests/audio.test.ts`, 녹화·트레일러 도구 `tools/smoke/{record-demo,record-bed,trailer-cards,trailer}.ts`, `docs/KIRO_USAGE.md` 영문 심사 요약, `docs/DEVPOST.md` 제출 문안 초안, `.gitignore`(`docs/evidence/demo/`), stale worktree 메타데이터 prune.
+- Verified: `make check` exit 0, `make smoke-local` 30/30(60.5 fps). 트레일러 `docs/evidence/demo/reanimator_trailer.mp4`(69.9 s, 봇 플레이 장면, 하드컷) 1초 간격 프레임 검수.
+- Unverified: BGM·트레일러 청취, CloudFront는 예전 BGM(재배포 필요).
+- Next: 재배포 → push → YouTube 업로드 후 `docs/DEVPOST.md`의 `<VIDEO_URL>`·README 링크 채우기 → Devpost 제출.
+
+## 2026-11-17 — 해커톤(Kiroween 2026) 자격·규정 조사, 제출 준비 체크포인트
+
+- Status: 제출 전 상태. 로컬 `main`이 origin보다 238커밋 앞섬, 푸시 없음.
+- Changed: 코드 변경 없음(조사·정리). 위 R27 두 항목이 이번 세션의 변경 전부(HEAD `7066e12`).
+- Verified: 첫 커밋 2026-11-14(제출 기간 10-30~12-04 이후 시작 → 자격 충족으로 보임), `LICENSE` MIT, `.kiro/` 25개 파일 추적·미무시, 추적 파일·git 이력에 `msy_`/`sk-`/`AKIA` 키 없음. 공식 Devpost 규정은 403으로 읽지 못함(검색 결과·2025 규정 기준, AWS 배포 필수 근거 없음). unverified: 2026 필수 제출물 원문, 저장소 공개 여부, 데모 영상 존재.
+- Blockers: Meshy API 키가 `.mcp.json`·`.codex/config.toml`(gitignore 처리됨)에 평문으로 있고 이 세션 로그에 노출됐을 수 있음 → 재발급 필요. 마감 2026-12-04 14:00 PT.
+- Next: Rules 탭 확인 → 키 재발급 → 푸시(사용자 지시) → 데모 영상 → 사람 플레이 → `KIRO_USAGE.md`에서 Kiro 실사용만 남기기 → README 첫 화면 정리.
+
 ## 2026-11-17 — R27 스모크 복구 (로컬 커밋, 푸시 없음)
 
 - Changed: `tools/smoke/smoke.ts`(메뉴 4개, 버튼명, 점프·에임 대기), `style.css`(작은 글자 안티앨리어싱 복원), `.gitignore`(키가 든 `.mcp.json`·`.codex/` 등), `docs/JUDGES.md`, tidy-docs(라운드 문서 35개를 `docs/archive/rounds/`로 이동, STATUS/LOG 예산 맞춤, 링크 0 깨짐).

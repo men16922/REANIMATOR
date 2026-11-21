@@ -48,3 +48,6 @@ release/
 .codex/
 .playwright-mcp/
 .agents/
+
+# Demo/trailer renders and raw captures (upload to YouTube, not git)
+docs/evidence/demo/

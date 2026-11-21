@@ -40,3 +40,8 @@
 - Decision: Metroid 계열 능력·구조는 공개된 설계 개념만 참고해 신규 구현한다(Blast Core, Scan Lens, Thermal Plating 등). 바이너리 분석·에셋 추출은 하지 않는다.
 - Reason: IP 위험. Abuse 역공학(옵션 A)과 달리 사용자 지시가 없다.
 - Impact: 원본 에셋·코드·명칭을 쓰지 않고 `dist-guard`와 문서에 "영감" 범위만 기록.
+
+## 2026-11-17 — 정적 호스팅은 S3(비공개) + CloudFront(OAC)
+- Decision: 제출 데모를 서버 없이 S3 비공개 버킷 + CloudFront로 배포한다(`infra/site.yaml`, `us-west-2`, `*.cloudfront.net`).
+- Reason: 게임이 정적 파일 22 MB뿐이라 서버·DB가 필요 없고, 무료 한도 안에서 HTTPS와 보안 헤더를 얻는다. 해커톤 규정상 AWS 배포는 필수가 아닌 것으로 보이나(원문 미확인) 심사자가 바로 플레이할 수 있다.
+- Impact: 재배포는 `make check && infra/deploy.sh`. 삭제는 버킷 비우기 후 스택 삭제(`infra/README.md`). 예산 알림은 아직 없다.

@@ -181,7 +181,10 @@ test('all ten themes exist, including title and victory', () => {
 });
 
 test('sector themes keep a distinct identity (percussion, wave, tempo)', () => {
-  assert.ok(THEMES.airlock.kick.indexOf('x') < 0, 'airlock is drumless ambient');
+  // R28 retro-arcade pass: the opening sector is the calmest sector theme, but it now keeps a light beat.
+  assert.ok(THEMES.airlock.kick.split('x').length - 1 <= 4 && THEMES.airlock.bpm < THEMES.shaft.bpm, 'airlock is the calmest arcade theme');
+  assert.ok(Object.values(THEMES).every((t) => t.bpm >= 100), 'every theme is upbeat (>= 100 BPM)');
+  assert.ok(Object.values(THEMES).every((t) => t.arpWave === 'square' || t.arpWave === 'triangle'), 'chiptune arps');
   assert.ok(THEMES.mines.perc.includes('c'), 'mines uses metal clangs');
   assert.ok(THEMES.biolabs.arp.filter((x) => x !== null).length >= 14, 'biolabs is a busy dreamy arpeggio');
   assert.ok(THEMES.security.hat.split('x').length > 8, 'security is a tight pulse');

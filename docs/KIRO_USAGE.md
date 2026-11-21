@@ -1,5 +1,22 @@
 # Kiro 사용 기록
 
+## Summary for judges (English)
+
+This section lists only Kiro features that left a file or a log in this repository. The dated log below (Korean) is the full record. Other tools also touched the project and are named where they did: Codex wrote the early plan and toolchain setup, and an `agy` orchestrator ran one round (2026-11-14 Quarter-View). Files under `.claude/` and `.codex/` belong to those tools and are not Kiro usage.
+
+| Kiro feature | What it did here | Evidence |
+|---|---|---|
+| **Specs** | Five specs drove the work in order: original binary reference, restored motion, 2D slice, 3D quarter-view (superseded), side-view metroidvania. 85 of 91 tasks are checked; the open ones are human playtests and an MCP connection. | `.kiro/specs/{abuse-reference,restored-motion,reanimated-slice,full-3d-quarter-view,metroidvania-3d}/` |
+| **Steering** | `reanimator.md` (always included) carries the sealed-file list and the restoration scope, so no session edits the verified physics or tunes it against the holdout. Seven `harness-*` files (auto inclusion) hold the session procedures: sync, checkpoint, tidy-docs, ship, diagnose, overnight seed and report. | `.kiro/steering/` |
+| **Agent hook** | A PostFileSave hook runs `make check` whenever the engine, the verifier or the scenario file is saved. It ran 4 times on 2026-11-14, all exit 0. | `.kiro/hooks/engine-gate-on-save.json`, `docs/evidence/g2/hook_runs.log` |
+| **Custom agent** | `overnight-harness` bundles the harness steering files as resources, reads the gate config on spawn and limits its tools. | `.kiro/agents/overnight-harness.json` |
+| **Sub-agents** | From R1 to R14, each round ran three or four sub-agents in parallel, one per git worktree and branch. An integration sub-agent then merged the branches with `--no-ff` and re-ran `make check`. This is how most of the 3D game was built. Wave 1 of the metroidvania spec ran as three parallel `kiro-cli` tasks. | the round tables below; merge commits in `git log` |
+| **MCP** | The Meshy MCP server generated the 11 terrain-kit models. The Playwright MCP drove a real Chrome for screenshots, console checks and live telemetry; several bugs were only visible this way. A REA (reverse-engineering) MCP server was tested over stdio, but connecting it inside Kiro was blocked, so binary analysis used the REA CLI. | `docs/evidence/r15_meshy_terrain/`, `docs/evidence/r14/`, R15 section below |
+
+Not used: Kiro powers (one is installed but was not used for this game) and property-based testing (the tests are deterministic replays and bot playthroughs).
+
+## 상세 기록
+
 Kiro가 실제로 수행한 작업만 적는다. (Codex의 계획·도구 정비는 제외)
 
 ## 2026-11-14 — G0 (spec `abuse-reference`)
@@ -194,3 +211,9 @@ worktree `/private/tmp/r8-{leak,lab,assist,lore}`에서 4트랙을 돌리고 통
 
 - Meshy MCP server `meshy-mcp-server` was used from Kiro through the workspace `.kiro/settings/mcp.json` to generate the 11 terrain kit pieces. The raw GLBs were then ingested offline with `tools/meshy/terrain-kit.ts --ingest-raw`. The API key was not printed or committed.
 - Browser verification of the six sectors used the Playwright MCP tools from Kiro (`docs/evidence/r15_meshy_terrain/`).
+
+## 2026-11-21 — 데모 영상·BGM (Kiro CLI 직접 수행)
+
+- 수행: 게임 WebAudio 출력을 `AudioNode.prototype.connect` 탭과 MediaRecorder로 녹음하는 녹화 도구(`tools/smoke/record-demo.ts`, `record-bed.ts`), 텍스트 카드(`trailer-cards.ts`), ffmpeg 트레일러 조립(`trailer.ts`). 저작권 음악 없이 게임 자체 소리만 쓴다.
+- BGM: `src/ui/themes.ts` 10개 테마를 레트로 아케이드풍(108–170 BPM, 스퀘어 리드·트라이앵글 베이스)으로 재작성, `tests/audio.test.ts` 기대값 갱신.
+- 검증: `make check` exit 0, `make smoke-local` 30/30 PASS(60.5 fps, 페이지 오류 0). 트레일러는 1초 간격 프레임을 직접 확인했다. 청취 검증은 하지 않았다(unverified). 영상 파일은 `docs/evidence/demo/`(gitignore)에 있고 커밋하지 않는다.

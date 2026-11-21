@@ -2,6 +2,15 @@
 
 이전 계획 전문: [archive/NEXT_PLAN_through_R3.md](archive/NEXT_PLAN_through_R3.md)(재귀 개선 1~3차, 몬스터·지형, R1~R3 후속 체크리스트 포함).
 
+## 제출 준비 (마감 2026-12-04 14:00 PT)
+
+- [ ] (사용자) Devpost Rules 탭에서 필수 제출물·카테고리(Resurrection 후보)·영상 제한 확인.
+- [ ] (사용자) Meshy API 키 재발급·기존 키 폐기, 그다음 푸시와 저장소 공개 여부 확인.
+- [ ] (사용자) 데모 영상 녹화(트레일러 릴 `?debug=1` 활용), Devpost 양식 작성.
+- [ ] (사용자) 배포 URL에서 처음부터 끝까지 사람 플레이, 막힌 곳 기록.
+- [ ] `docs/KIRO_USAGE.md`를 Kiro 실사용만 남기도록 점검, README 첫 화면에 라이브 URL·영상 링크 정리, 영상 대본.
+- [ ] 선택: AWS Budgets 월 $5 알림(이메일 필요), 모바일·타 브라우저 확인.
+
 ## R26 이후
 
 - [x] 흑화면 Bio-Labs 조사(재현 불가, HMR 의심만 확인), Stage 2/3 컬러 그레이딩·유리 반사 틴트, HUD 섹터명 누출 수정, `make check` 766/766.
