@@ -243,6 +243,42 @@ test('uiAudit has a logs scenario that opens the archive from pause', () => {
 
 import { auditShouldSkipControl } from '../src/ui/panels.ts';
 import { meltdownPillVisible } from '../src/ui/objective.ts';
+import { runUiAudit } from '../src/ui/uiAudit.ts';
+
+test('runUiAudit aborts early when isStale becomes true (no late clicks or toTitle clobber)', async () => {
+  const prevDoc = globalThis.document;
+  let calls = 0;
+  let clicks = 0;
+  let titles = 0;
+  let stale = false;
+  const fakeEl = () => ({
+    dataset: { topLayer: 'title' },
+    click: () => { clicks++; },
+    querySelectorAll: () => [],
+    getClientRects: () => [],
+  });
+  (globalThis as unknown as { document: unknown }).document = {
+    getElementById: () => fakeEl(),
+  };
+  try {
+    const rep = await runUiAudit({
+      toTitle: () => { titles++; },
+      toPaused: () => {},
+      toResult: () => {},
+      frames: async () => {
+        calls++;
+        // Flip stale on the 3rd frames() call (during step 2 'settings' after d.toTitle()+frames(2), before 'settings-open' click)
+        if (calls >= 3) stale = true;
+      },
+      isStale: () => stale,
+    });
+    assert.equal(clicks, 0);
+    assert.equal(titles, 2);
+    assert.equal(rep.scenarios.length, 1);
+  } finally {
+    (globalThis as unknown as { document: unknown }).document = prevDoc;
+  }
+});
 
 test('uiAudit skip rule: hidden/disabled controls skipped, real controls kept', () => {
   const base = { disabled: false, opacity: 1, ariaHiddenAncestor: false, clipped: false };

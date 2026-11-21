@@ -2416,6 +2416,7 @@ wAny.__reanimatorUiAudit = async () => {
       if (!stale()) debugShowResult('lost');
     },
     frames: settleFrames,
+    isStale: stale,
   }).then((r) => {
     menu.style.animation = '';
     document.body.classList.remove('opening-snap');

@@ -9,17 +9,13 @@
 - [x] (사용자) Kiro 크레딧 신청 완료(2026-11-21 확인).
 - [x] R28 변경분(`src/ui/{audio,themes}.ts`, `tools/smoke/*`, `README.md`, `docs/*`) `6c32030` 커밋·`origin/main` push 완료.
 - [x] Devpost 최종 제출 완료(`https://devpost.com/software/reanimator`, 카테고리 Resurrection, 수정 가능 기한 `2026-12-04 14:00 PT`; 마감 후 변경 금지).
-- [ ] (사용자) 배포 URL(`https://dlr55kf9v2hn7.cloudfront.net`)에서 처음부터 끝까지 사람 플레이(G5), 막힌 곳 기록 및 실제 플레이 감각·BGM 확인.
-- [ ] 선택: Bonus Blog Prize / Social Blitz(`#KiroweenHackathon26`), AWS Budgets 월 $5 알림(이메일 필요), 모바일·타 브라우저 확인.
+- [x] R28 이후 잔여 기술/검증 완료: R19 릴 Stage 2·3 컷 확인(`reel.ts`), R13 `UiAudit.isStale` 수정 + `RunBot(1900)` vs `RunBot(1)`×1900 + `replan()` 겹친 구역/Stage 2·3 테스트, `__reanimatorSoak(3,{trace:true})` 0 leaks, 스테이지 12회 전환·`WEBGL_lose_context`·Vite dev HMR 비흑화면, R25 지형/접근성 스샷 육안 확인, `release` zip·`vite preview`·Chrome·Edge·모바일 라이브 검증, AWS Budgets `$10` 확인, 병합 브랜치 54개 삭제, CloudFront 재배포(`0201384cec3e462eed79d3dbc74f692a`).
+- [ ] (사용자) 배포 URL(`https://dlr55kf9v2hn7.cloudfront.net`)에서 처음부터 끝까지 사람 플레이(G5), 막힌 곳·실제 조작/BGM 확인 및 Safari/Firefox 수동 확인(Playwright `webkit-2388` 미설치로 미검증).
+- [ ] 선택(사용자): Bonus Blog Prize / Social Blitz(`#KiroweenHackathon26`) 게시 후 Devpost 링크 추가(`bonus_prize_drafts.md` 초안 참고).
 
-## 잔여 기술·검증 항목 (Post-R28)
+## 참고/선택 백로그 (필요 시 마감 이후 포크에서)
 
-- [x] 흑화면 Bio-Labs 조사(재현 불가, HMR 의심만 확인), Stage 2/3 컬러 그레이딩·유리 반사 틴트, HUD 섹터명 누출 수정, `make check` 766/766 (R26).
-- [x] `make smoke-local` 30/30 PASS (R27·R28 재확인), Bio-Labs draw calls `222 <= 300`, R23 `REANIMATED` 카드 브라우저 0 errors 확인.
-- [ ] G5 사람 플레이: 전 스테이지(Stage 1 전환 속도·적 달리기·카운터, Stage 2 Foundry/Foreman, Stage 3 Cryo Bulwark 난이도) 체감 및 스테이지별 레트로 BGM 청취.
-- [ ] 흑화면 근본원인 확정(HMR 가설 미검증).
-- [ ] R25 후속(선택): 지형 지오메트리 폴리시(chamfered batches·back-lane clutter) 재검증, Meshy 추가 후보(바닥 균열·그을음 데칼, Stage 1 전용 벽면 변주, 노란 트림 변형, Bulwark 전용 방패/냉각 파이프).
-- [ ] R19 후속(선택): 디버그 `Trailer reel`(`reelPlayer.ts`) 스크립트에 Stage 2·3 컷 추가.
-- [ ] R13 미조사 잔여(선택): `__reanimatorRunBot(1900)` 1회와 `RunBot(1)` 1900회 간 디버그 경로 차이 원인, `replan()` 겹친 구역 모호성, 오래된 UiAudit continues no-op.
-- [ ] Abuse 관찰 후속(선택): GUI 세션에서 `scripts/observe_levels.sh` 스크린샷·팔레트 관찰.
-- [ ] 로컬 브랜치 정리(사용자 확인 후): `r1/*`~`r14/*`, `improve/*` 병합 완료 브랜치.
+- [x] 흑화면 Bio-Labs 조사·Stage 2/3 컬러 그레이딩·유리 틴트·HUD 라벨(`make check` 768/768) + `make smoke-local` 30/30 + `release` zip·`vite preview`·Edge·Chrome·모바일 확인.
+- [ ] G5 사람 플레이: 전 스테이지 체감 및 스테이지별 레트로 BGM 청취(사람 필요).
+- [ ] `enemy-live.ts` crawler residual `5` displayPops(`1900..3200`) 원인 세부 정리 및 `chamfer`/`back-lane` 추가 Meshy 에셋(바닥 균열·Stage 1 벽 변주 등, 선택).
+- [ ] Abuse GUI 세션 `scripts/observe_levels.sh` 스크린샷·팔레트 관찰(선택).

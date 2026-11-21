@@ -12,8 +12,8 @@ interface BotResult {
 }
 
 /** Bot run that forces a defeat at each tick in `kills` (HP to 0, same path as a lethal hit) and respawns like real play. */
-function runWithKills(difficulty: Difficulty3D, kills: number[], maxTicks = 16000, tweak?: (w: WorldState3D) => void): BotResult {
-  const w = newWorld3D({ difficulty });
+function runWithKills(difficulty: Difficulty3D, kills: number[], maxTicks = 16000, tweak?: (w: WorldState3D) => void, stage: 1 | 2 | 3 = 1): BotResult {
+  const w = newWorld3D(stage === 1 ? { difficulty } : { stage, difficulty });
   tweak?.(w);
   const bot = createBot3D(w);
   const pending = [...kills];
@@ -78,4 +78,21 @@ test('incomingShotTicks sees a hostile shot on course and ignores player shots a
   assert.equal(incomingShotTicks(w), Infinity, 'player shot');
   w.projectiles = [{ ...shot, y: b.y + 4 }];
   assert.equal(incomingShotTicks(w), Infinity, 'overhead');
+});
+
+// R13 overlapping-zone replan checks: forced defeats during revisited Shaft/Mines/Bio-Labs/Security/Meltdown legs and Stages 2 & 3
+const OVERLAP_TICKS = [250, 900, 1450, 2200, 2850, 3400, 3900, 4650];
+test('respawn routing handles Stage 1 overlapping zones and Stages 2-3 forced defeats', () => {
+  for (const d of ['normal', 'story', 'hard'] as Difficulty3D[]) {
+    for (const tick of OVERLAP_TICKS) {
+      const r = runWithKills(d, [tick]);
+      assert.equal(r.w.status, 'won', `Stage 1 ${d} kill @${tick}: stuck on ${r.stuckAt}`);
+      assert.ok(r.deaths >= 1);
+    }
+    for (const [stage, kill] of [[2, 1200], [3, 1500]] as const) {
+      const r = runWithKills(d, [kill], 20000, undefined, stage);
+      assert.equal(r.w.status, 'won', `Stage ${stage} ${d} kill @${kill}: stuck on ${r.stuckAt}`);
+      assert.ok(r.deaths >= 1);
+    }
+  }
 });

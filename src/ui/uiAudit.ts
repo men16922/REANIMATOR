@@ -32,6 +32,8 @@ export interface UiAuditDriver {
   toResult(): void;
   /** Wait for N animation frames. */
   frames(n: number): Promise<void>;
+  /** Optional cancellation check: abort before mutating DOM when a newer debug action superseded the audit. */
+  isStale?(): boolean;
 }
 
 interface Step {
@@ -116,15 +118,20 @@ export async function runUiAudit(d: UiAuditDriver): Promise<UiAuditReport> {
   const scenarios: UiAuditScenario[] = [];
   const stage = document.getElementById('stage') as HTMLElement;
   for (const step of STEPS) {
+    if (d.isStale?.()) return auditReport(scenarios);
     d.toTitle();
     if (step.mode === 'paused') d.toPaused();
     if (step.mode === 'result') d.toResult();
     await d.frames(2);
+    if (d.isStale?.()) return auditReport(scenarios);
     for (const id of step.clicks) {
+      if (d.isStale?.()) return auditReport(scenarios);
       document.getElementById(id)?.click();
       await d.frames(2);
+      if (d.isStale?.()) return auditReport(scenarios);
     }
     await d.frames(3);
+    if (d.isStale?.()) return auditReport(scenarios);
     const failures: UiAuditFailure[] = [];
     const topLayer = stage.dataset.topLayer ?? '';
     if (topLayer !== step.expectedTop) failures.push({ id: step.expectedTop, reason: 'wrong-top-layer', detail: `top is "${topLayer}"` });
@@ -140,6 +147,7 @@ export async function runUiAudit(d: UiAuditDriver): Promise<UiAuditReport> {
     }
     scenarios.push({ name: step.name, expectedTop: step.expectedTop, checked: controls.length, topLayer, failures });
   }
+  if (d.isStale?.()) return auditReport(scenarios);
   d.toTitle();
   await d.frames(2);
   return auditReport(scenarios);

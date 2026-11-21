@@ -2,6 +2,14 @@
 
 R20~R15와 이전 항목은 [archive/progress-2026-11.md](archive/progress-2026-11.md), R3까지의 전체 기록(몬스터·지형, 보스, 오디오, 통합 병합 상세)은 [archive/PROGRESS_LOG_through_R3.md](archive/PROGRESS_LOG_through_R3.md).
 
+## 2026-11-22 — `/goal` 잔여 기술·검증·브랜치·라이브 재배포 일괄 완료
+
+- Status: 코드·게이트·홀드아웃·스모크·릴리스 패키지·브라우저·CloudFront 재배포까지 자동화 가능한 모든 잔여 작업 완료(`origin/main` 반영 대기).
+- Changed: [uiAudit.ts](../src/ui/uiAudit.ts)·[main.ts](../src/ui/main.ts) `isStale` 조기 중단 추가, [ui-panels.test.ts](../tests/ui-panels.test.ts) 중단 단위테스트 및 [bot-robust.test.ts](../tests/bot-robust.test.ts) Stage 1 겹친 구역·Stage 2/3 리스폰 테스트 추가, 병합 완료 로컬 브랜치 54개 삭제, `bonus_prize_drafts.md` 아티팩트 작성, `infra/deploy.sh` CloudFront 재배포(`IBISUHUJ6MVR03A7NODYEPYOR3`).
+- Verified: `make check` exit 0(`768/768`, `dist-guard` 56 files `20,780,733 B`), `make reference-holdout` 4/4, `make smoke-local` 30/30, `make release`(`12,263,180 B`), `RunBot(1900)` vs `RunBot(1)`×1900 동일, `UiAudit` 12/12, `Soak(3,{trace:true})` leaks 0, 12회 스테이지 전환·`WEBGL_lose_context` 복구·Vite dev HMR 비흑화면, R25·접근성 스샷 육안 확인, `release` zip/`vite preview`/Chrome/Edge/모바일 라이브 0 errors(라이브 MD5 `0201384cec3e462eed79d3dbc74f692a` = `dist/`), `enemy-live.ts` stalker 0 / crawler 5 pops, AWS Budgets `$10` `HEALTHY`.
+- Unverified: Playwright WebKit(`webkit-2388` 미설치, `2287` 25s 타임아웃), 사람 플레이(G5), 선택 보너스 게시.
+- Next: 최종 커밋·`origin/main` 푸시 후 사용자 G5 플레이·보너스 선택.
+
 ## 2026-11-21 — GitHub push 및 Kiroween 2026 Devpost 최종 제출 완료
 
 - Status: 해커톤 제출 완료(`https://devpost.com/software/reanimator`, 수정 가능 기한 `2026-12-04 14:00 PT`; 마감 이후 저장소·영상·배포 변경 금지).

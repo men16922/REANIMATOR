@@ -1,6 +1,6 @@
 # REANIMATOR 재개 안내
 
-▶ NEXT SESSION: **Kiroween 2026 Devpost 제출 완료**(`https://devpost.com/software/reanimator`, 카테고리 `Resurrection`, 수정 가능 기한 `2026-12-04 14:00 PT` = `2026-12-05 07:00 KST`). YouTube 트레일러(`https://youtu.be/TvyT1M4yLzY`), GitHub `origin/main` push, CloudFront 라이브(`https://dlr55kf9v2hn7.cloudfront.net`), Kiro 크레딧 신청 완료. 남은 선택/권장 작업: 라이브 URL 사람 플레이(G5) 및 선택적 보너스(Blog / Social Blitz / AWS Budgets). 마감 후(`2026-12-04 14:00 PT` 이후) 수상자 발표 전까지 저장소·영상·라이브 앱 변경 금지. 계획 [NEXT_PLAN](NEXT_PLAN.md).
+▶ NEXT SESSION: **Kiroween 2026 Devpost 제출 완료**(`https://devpost.com/software/reanimator`, 카테고리 `Resurrection`, 수정 기한 `2026-12-04 14:00 PT`). 기술/배포 잔여 작업 완료: `UiAudit` 조기 중단 보강·`replan` 다구간 회귀 테스트 추가(`make check` 768/768, `reference-holdout` 4/4, `smoke-local` 30/30, `release` zip·`vite preview`·Edge·Chrome·모바일 라이브 검증, soak 0 leaks, 병합 브랜치 54개 정리, CloudFront 최신 재배포 MD5 `0201384cec3e462eed79d3dbc74f692a`). 남은 **사용자 직접 수행/선택 항목**: (1) 라이브 URL(`https://dlr55kf9v2hn7.cloudfront.net`) 사람 플레이(G5) 및 Safari/Firefox 수동 확인(Playwright `webkit-2388` 부재), (2) 선택 보너스(블로그/`#KiroweenHackathon26` 소셜 — 초안 아티팩트 `bonus_prize_drafts.md`). 마감 이후(`2026-12-04 14:00 PT` 이후) 변경 금지. 계획 [NEXT_PLAN](NEXT_PLAN.md).
 
 ## 한 줄 요약
 
