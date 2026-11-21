@@ -81,4 +81,4 @@ Development used Kiro (spec-driven tasks, steering rules and agent hooks) for pl
 
 ## Credits and licenses
 
-Built with TypeScript, Three.js (MIT), Vite and WebAudio. Music and effects are synthesised at runtime. The run-and-gun feel nods to *Abuse* (1996); no assets from that game are included. Code is MIT licensed, see [LICENSE](LICENSE). Release notes are in [CHANGELOG.md](CHANGELOG.md).
+Built with TypeScript, Three.js (MIT), Vite and WebAudio. Music and effects are synthesised at runtime. The run-and-gun feel nods to *Abuse* (1996); no assets from that game are included. Code is MIT licensed, see [LICENSE](LICENSE); what the license covers is in [NOTICE.md](NOTICE.md). Release notes are in [CHANGELOG.md](CHANGELOG.md).
