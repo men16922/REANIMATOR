@@ -57,7 +57,7 @@ A restoration needs a verification contract, not just a feeling of "close enough
 
 ## Prior work disclosure
 
-Before the hackathon the author had built two unrelated projects. MYTHOS: BLACKOUT is a separate game; we read its design notes but reused no code or assets. REA is the author's MIT-licensed reverse-engineering tool; we used its CLI for the decompilation. The first commit in this repository is dated 2026-11-14. Details are in `docs/PREEXISTING_WORK.md`.
+Before the hackathon the author had built two unrelated projects. MYTHOS: BLACKOUT is a separate game; we read its design notes but reused no code or assets. REA is the author's MIT-licensed reverse-engineering tool; we used its CLI for the decompilation. The first commit in this repository is dated 2026-11-14, inside the submission period. Details are in `docs/PREEXISTING_WORK.md`.
 
 ## Built with
 
